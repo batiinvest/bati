@@ -356,7 +356,8 @@ const SB_URL = 'https://ngyzcpogfxbkoqkcfipv.supabase.co';   // ← 교체
 const SB_KEY = 'sb_publishable_Z1NulIB63zzJABeC4eWLFw_UOyXCosq';               // ← 교체
 
 
-const sb  = supabase.createClient(SB_URL, SB_KEY);
+const _sbStorage = (() => { try { localStorage.setItem("_t","1"); localStorage.removeItem("_t"); return localStorage; } catch { return sessionStorage; } })();
+const sb  = supabase.createClient(SB_URL, SB_KEY, { auth: { storage: _sbStorage, autoRefreshToken: true, persistSession: true, detectSessionInUrl: true } });
 const DB  = sb.from.bind(sb);
 const CATS = { '바이오':'#2AABEE','뷰티':'#f5365c','로봇':'#2dce89','2차전지':'#fb6340','신재생':'#5e72e4','소비재':'#f3a4b5','테크':'#a259ff','반도체':'#8898aa','엔터':'#ffd600','조선':'#11cdef','우주':'#4a6fa5' };
 
