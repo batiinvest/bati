@@ -351,13 +351,10 @@ textarea.form-input { resize:vertical; min-height:100px; }
 //  (이 두 값은 공개 키라 노출되어도 괜찮습니다.
 //   실제 보안은 RLS 정책이 담당합니다)
 // ══════════════════════════════════════════
-
 const SB_URL = 'https://ngyzcpogfxbkoqkcfipv.supabase.co';   // ← 교체
 const SB_KEY = 'sb_publishable_Z1NulIB63zzJABeC4eWLFw_UOyXCosq';               // ← 교체
 
-
-const _sbStorage = (() => { try { localStorage.setItem("_t","1"); localStorage.removeItem("_t"); return localStorage; } catch { return sessionStorage; } })();
-const sb  = supabase.createClient(SB_URL, SB_KEY, { auth: { storage: _sbStorage, autoRefreshToken: true, persistSession: true, detectSessionInUrl: true } });
+const sb  = supabase.createClient(SB_URL, SB_KEY);
 const DB  = sb.from.bind(sb);
 const CATS = { '바이오':'#2AABEE','뷰티':'#f5365c','로봇':'#2dce89','2차전지':'#fb6340','신재생':'#5e72e4','소비재':'#f3a4b5','테크':'#a259ff','반도체':'#8898aa','엔터':'#ffd600','조선':'#11cdef','우주':'#4a6fa5' };
 
@@ -469,7 +466,9 @@ function showSignup() { document.getElementById('login-form').classList.add('hid
 
 // ── Auth state listener ──
 sb.auth.onAuthStateChange(async (event, session) => {
+  console.log('[auth]', event, session?.user?.email);
   if (session?.user) {
+    if (A.user?.id === session.user.id) return;
     A.user = session.user;
     await loadProfile();
     await loadConfig();
@@ -480,6 +479,23 @@ sb.auth.onAuthStateChange(async (event, session) => {
     showLoginScreen();
   }
 });
+
+// ── 페이지 로드 시 기존 세션 직접 확인 (Lock 지연 대비) ──
+(async () => {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    console.log('[boot session]', session?.user?.email);
+    if (session?.user && !A.user) {
+      A.user = session.user;
+      await loadProfile();
+      await loadConfig();
+      await loadRooms();
+      showDashboard();
+    }
+  } catch(e) {
+    console.warn('[boot session error]', e.message);
+  }
+})();
 
 async function loadProfile() {
   const { data } = await DB('app_users').select('*').eq('id', A.user.id).single();
