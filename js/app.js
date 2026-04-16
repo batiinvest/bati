@@ -3,8 +3,8 @@
 //  SB_URL, SB_KEY 두 줄만 본인 값으로 교체하세요
 //  SB_KEY: Supabase > Settings > API > anon public (eyJ...로 시작하는 값)
 // ══════════════════════════════════════════
-const SB_URL = 'https://ngyzcpogfxbkoqkcfipv.supabase.co';
-const SB_KEY = 'sb_publishable_Z1NuLTk2M2EwYzMxLWViNzktNDQ4Ni04NzI2LTgzYTNjNzNhYjcwOXhHUkpCTEdPSlNQUlZFdXVXZnc=';
+const SB_URL = 'https://ngyzcpogfxbkoqkcfipv.supabase.co';   // ← 교체
+const SB_KEY = 'sb_publishable_Z1NulIB63zzJABeC4eWLFw_UOyXCosq';      
 
 const sb = supabase.createClient(SB_URL, SB_KEY, {
   auth: {
