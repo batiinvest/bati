@@ -689,33 +689,37 @@ async function loadBotConfig() {
     { key:'schedule_sunday',   label:'일요일 리포트 (10:00)' },
   ];
 
-  // 키워드 로드
-  for (const cfgKey of ['ai_trigger_keywords','global_important_keywords']) {
-    const { data } = await sb.from('app_config').select('value').eq('key', cfgKey).single().catch(()=>({data:null}));
-    const elId = cfgKey === 'ai_trigger_keywords' ? 'cfg-ai-kw' : 'cfg-global-kw';
-    const el = document.getElementById(elId);
-    if (el && data?.value) el.value = data.value;
-  }
+  const allKeys = [
+    'ai_trigger_keywords', 'global_important_keywords',
+    ...schedules.map(s => s.key)
+  ];
 
-  // 스케줄 토글 로드
+  // 한 번에 전체 조회
+  const { data: cfgRows } = await sb.from('app_config').select('key,value').in('key', allKeys);
+  const cfg = {};
+  (cfgRows || []).forEach(r => cfg[r.key] = r.value);
+
+  // 키워드 채우기
+  const aiEl = document.getElementById('cfg-ai-kw');
+  const glEl = document.getElementById('cfg-global-kw');
+  if (aiEl && cfg['ai_trigger_keywords']) aiEl.value = cfg['ai_trigger_keywords'];
+  if (glEl && cfg['global_important_keywords']) glEl.value = cfg['global_important_keywords'];
+
+  // 스케줄 토글
   const schedEl = document.getElementById('schedule-list');
   if (!schedEl) return;
 
-  const rows = await Promise.all(schedules.map(async s => {
-    const { data } = await sb.from('app_config').select('value').eq('key', s.key).single().catch(()=>({data:{value:'1'}}));
-    const on = (data?.value ?? '1') !== '0';
-    return { ...s, on };
-  }));
-
-  schedEl.innerHTML = rows.map(r => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
-      <span>${r.label}</span>
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-        <input type="checkbox" ${r.on?'checked':''} onchange="toggleSchedule('${r.key}',this.checked)" style="width:16px;height:16px;cursor:pointer">
-        <span style="font-size:12px;color:${r.on?'var(--green)':'var(--text3)'}">${r.on?'ON':'OFF'}</span>
-      </label>
-    </div>
-  `).join('') + '<div style="font-size:11px;color:var(--text3);margin-top:.75rem">변경 즉시 반영됩니다. 봇은 다음 실행 사이클에서 확인합니다.</div>';
+  schedEl.innerHTML = schedules.map(s => {
+    const on = (cfg[s.key] ?? '1') !== '0';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px">' +
+      '<span>' + s.label + '</span>' +
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
+        '<span style="font-size:12px;color:' + (on?'var(--green)':'var(--text3)') + '">' + (on?'ON':'OFF') + '</span>' +
+        '<input type="checkbox" ' + (on?'checked':'') + ' onchange="toggleSchedule('' + s.key + '',this.checked)" style="width:16px;height:16px;cursor:pointer">' +
+      '</label>' +
+    '</div>';
+  }).join('') +
+  '<div style="font-size:11px;color:var(--text3);margin-top:.75rem">변경 즉시 반영됩니다. 봇은 다음 사이클에서 확인합니다.</div>';
 }
 
 async function saveBotKeywords() {
