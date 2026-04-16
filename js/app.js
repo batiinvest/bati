@@ -3,8 +3,8 @@
 //  SB_URL, SB_KEY 두 줄만 본인 값으로 교체하세요
 //  SB_KEY: Supabase > Settings > API > anon public (eyJ...로 시작하는 값)
 // ══════════════════════════════════════════
-const SB_URL = 'https://ngyzcpogfxbkoqkcfipv.supabase.co';   // ← 교체
-const SB_KEY = 'sb_publishable_Z1NulIB63zzJABeC4eWLFw_UOyXCosq';      
+const SB_URL = 'https://ngyzcpogfxbkoqkcfipv.supabase.co';
+const SB_KEY = 'sb_publishable_Z1NuLTk2M2EwYzMxLWViNzktNDQ4Ni04NzI2LTgzYTNjNzNhYjcwOXhHUkpCTEdPSlNQUlZFdXVXZnc=';
 
 const sb = supabase.createClient(SB_URL, SB_KEY, {
   auth: {
@@ -15,26 +15,6 @@ const sb = supabase.createClient(SB_URL, SB_KEY, {
   }
 });
 const DB = sb.from.bind(sb);
-const CATS = { '바이오':'#2AABEE','뷰티':'#f5365c','로봇':'#2dce89','2차전지':'#fb6340','신재생':'#5e72e4','소비재':'#f3a4b5','테크':'#a259ff','반도체':'#8898aa','엔터':'#ffd600','조선':'#11cdef','우주':'#4a6fa5' };
-
-
-// ══════════════════════════════════════════
-//  Supabase URL / Key — 여기만 직접 입력
-//  (이 두 값은 공개 키라 노출되어도 괜찮습니다.
-//   실제 보안은 RLS 정책이 담당합니다)
-// ══════════════════════════════════════════
-const SB_URL = 'https://ngyzcpogfxbkoqkcfipv.supabase.co';
-const SB_KEY = 'YOUR_ANON_KEY';  // ← Supabase > Settings > API > anon public 키로 교체
-
-const sb = supabase.createClient(SB_URL, SB_KEY, {
-  auth: {
-    storageKey: 'bati-auth-v2',
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  }
-});
-const DB  = sb.from.bind(sb);
 const CATS = { '바이오':'#2AABEE','뷰티':'#f5365c','로봇':'#2dce89','2차전지':'#fb6340','신재생':'#5e72e4','소비재':'#f3a4b5','테크':'#a259ff','반도체':'#8898aa','엔터':'#ffd600','조선':'#11cdef','우주':'#4a6fa5' };
 
 // ── App state ──
