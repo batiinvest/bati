@@ -481,12 +481,12 @@ function pNotice() {
 
 async function loadNotices() {
   const el = document.getElementById('notice-list'); if (!el) return;
-  const { data, error } = await DB('notice_history').select('*, app_users(name,email)').order('created_at',{ascending:false}).limit(30);
+  const { data, error } = await DB('notice_history').select('*').order('created_at',{ascending:false}).limit(30);
   if (error) { el.innerHTML=`<div style="padding:1rem;color:var(--red);font-size:13px">${error.message}</div>`; return; }
   el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>시각</th><th>발송자</th><th>대상</th><th>내용</th><th>발송</th><th>성공</th></tr></thead><tbody>
     ${!data.length?'<tr><td colspan="6" class="empty-row">기록 없음</td></tr>':data.map(h=>`<tr>
       <td style="font-size:12px;color:var(--text2)">${new Date(h.created_at).toLocaleString('ko-KR')}</td>
-      <td style="font-size:12px;color:var(--text2)">${h.app_users?.name||'—'}</td>
+      <td style="font-size:12px;color:var(--text2)">봇/대시보드</td>
       <td><span class="badge badge-cat">${h.target}</span></td>
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.content.replace(/<[^>]+>/g,'').slice(0,35)}...</td>
       <td>${h.sent_count}</td><td style="color:var(--green)">${h.ok_count}</td>
@@ -501,12 +501,11 @@ function pLogs() {
 
 async function loadLogs() {
   const el = document.getElementById('log-list'); if (!el) return;
-  const { data, error } = await DB('sync_logs').select('*, app_users(name)').order('synced_at',{ascending:false}).limit(50);
+  const { data, error } = await DB('sync_logs').select('*').order('synced_at',{ascending:false}).limit(50);
   if (error) { el.innerHTML=`<div style="padding:1rem;color:var(--red);font-size:13px">${error.message}</div>`; return; }
-  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>시각</th><th>실행자</th><th>채팅방</th><th>이전</th><th>이후</th><th>변화</th></tr></thead><tbody>
-    ${!data.length?'<tr><td colspan="6" class="empty-row">없음</td></tr>':data.map(l=>{const d=l.after-l.before;return`<tr>
+  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>시각</th><th>채팅방</th><th>이전</th><th>이후</th><th>변화</th></tr></thead><tbody>
+    ${!data.length?'<tr><td colspan="5" class="empty-row">없음</td></tr>':data.map(l=>{const d=l.after-l.before;return`<tr>
       <td style="font-size:12px;color:var(--text2)">${new Date(l.synced_at).toLocaleString('ko-KR')}</td>
-      <td style="font-size:12px;color:var(--text2)">${l.app_users?.name||'—'}</td>
       <td style="font-weight:500">${l.room_name}</td>
       <td>${(l.before||0).toLocaleString()}</td><td>${(l.after||0).toLocaleString()}</td>
       <td style="font-weight:600;color:${d>0?'var(--green)':d<0?'var(--red)':'var(--text3)'}">${d>0?'+':''}${d}</td>
