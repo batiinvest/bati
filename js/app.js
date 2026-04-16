@@ -711,13 +711,14 @@ async function loadBotConfig() {
 
   schedEl.innerHTML = schedules.map(s => {
     const on = (cfg[s.key] ?? '1') !== '0';
-    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px">' +
-      '<span>' + s.label + '</span>' +
-      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
-        '<span style="font-size:12px;color:' + (on?'var(--green)':'var(--text3)') + '">' + (on?'ON':'OFF') + '</span>' +
-        '<input type="checkbox" ' + (on?'checked':'') + ' onchange="toggleSchedule('' + s.key + '',this.checked)" style="width:16px;height:16px;cursor:pointer">' +
-      '</label>' +
-    '</div>';
+    const key = s.key;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <span>${s.label}</span>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <span style="font-size:12px;color:${on?'var(--green)':'var(--text3)'}">${on?'ON':'OFF'}</span>
+        <input type="checkbox" ${on?'checked':''} onchange="toggleSchedule('${key}',this.checked)" style="width:16px;height:16px;cursor:pointer">
+      </label>
+    </div>`;
   }).join('') +
   '<div style="font-size:11px;color:var(--text3);margin-top:.75rem">변경 즉시 반영됩니다. 봇은 다음 사이클에서 확인합니다.</div>';
 }
