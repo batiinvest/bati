@@ -575,63 +575,75 @@ function pBot() {
 
 async function loadBotStatus() {
   const bots = [
-    { key:'heartbeat_dart_bot',      dotId:'bot-dart-dot',  statusId:'bot-dart-status',  timeId:'bot-dart-time',  label:'DART 공시 봇' },
-    { key:'heartbeat_news_bot',      dotId:'bot-news-dot',  statusId:'bot-news-status',  timeId:'bot-news-time',  label:'뉴스 봇' },
-    { key:'heartbeat_price_bot',     dotId:'bot-price-dot', statusId:'bot-price-status', timeId:'bot-price-time', label:'시세 감시 봇' },
-    { key:'heartbeat_scheduler_bot', dotId:'bot-sched-dot', statusId:'bot-sched-status', timeId:'bot-sched-time', label:'스케줄러 봇' },
+    { key:'heartbeat_dart_bot',      dotId:'bot-dart-dot',  statusId:'bot-dart-status',  timeId:'bot-dart-time' },
+    { key:'heartbeat_news_bot',      dotId:'bot-news-dot',  statusId:'bot-news-status',  timeId:'bot-news-time' },
+    { key:'heartbeat_price_bot',     dotId:'bot-price-dot', statusId:'bot-price-status', timeId:'bot-price-time' },
+    { key:'heartbeat_scheduler_bot', dotId:'bot-sched-dot', statusId:'bot-sched-status', timeId:'bot-sched-time' },
   ];
 
+  // app_config 전체를 한 번에 조회 (single() 오류 방지)
+  const { data: cfgAll, error: cfgErr } = await sb.from('app_config').select('key,value').in('key', bots.map(b=>b.key));
+
+  const cfgMap = {};
+  (cfgAll || []).forEach(r => cfgMap[r.key] = r.value);
+
   for (const bot of bots) {
-    const { data } = await sb.from('app_config').select('value').eq('key', bot.key).single().catch(()=>({data:null}));
     const dotEl    = document.getElementById(bot.dotId);
     const statusEl = document.getElementById(bot.statusId);
     const timeEl   = document.getElementById(bot.timeId);
     if (!dotEl || !statusEl) continue;
 
-    if (!data?.value) {
-      dotEl.className    = 'dot dot-gray';
+    const val = cfgMap[bot.key];
+
+    if (!val) {
+      dotEl.className      = 'dot dot-gray';
       statusEl.textContent = '신호 없음';
-      timeEl && (timeEl.textContent = '봇이 아직 연결되지 않았습니다');
+      statusEl.style.color = 'var(--text3)';
+      if (timeEl) timeEl.textContent = 'add_bot_config.sql 실행 후 봇 재시작 필요';
       continue;
     }
 
-    const lastBeat = new Date(data.value);
+    const lastBeat = new Date(val);
     const diffMin  = Math.floor((Date.now() - lastBeat) / 60000);
     const timeStr  = lastBeat.toLocaleString('ko-KR', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
 
-    if (diffMin < 3) {
-      dotEl.className    = 'dot dot-green';
+    if (diffMin < 5) {
+      dotEl.className      = 'dot dot-green';
       statusEl.textContent = '정상 가동';
       statusEl.style.color = 'var(--green)';
-    } else if (diffMin < 10) {
-      dotEl.className    = 'dot dot-yellow';
-      statusEl.textContent = `${diffMin}분 전`;
+    } else if (diffMin < 30) {
+      dotEl.className      = 'dot dot-yellow';
+      statusEl.textContent = `${diffMin}분 전 신호`;
       statusEl.style.color = 'var(--yellow)';
     } else {
-      dotEl.className    = 'dot dot-red';
+      dotEl.className      = 'dot dot-red';
       statusEl.textContent = '응답 없음';
       statusEl.style.color = 'var(--red)';
     }
-    timeEl && (timeEl.textContent = `마지막 신호: ${timeStr}`);
+    if (timeEl) timeEl.textContent = `마지막 신호: ${timeStr}`;
   }
 
   // 최근 발송 기록
   const card = document.getElementById('bot-notice-card');
-  if (card) {
-    const { data } = await sb.from('notice_history').select('*').order('created_at',{ascending:false}).limit(20);
-    if (!data?.length) {
-      card.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:13px">발송 기록 없음 (봇 연동 후 자동 기록)</div>';
-    } else {
-      card.innerHTML = `<div class="table-wrap"><table>
-        <thead><tr><th>시각</th><th>대상</th><th>내용</th><th>성공</th></tr></thead>
-        <tbody>${data.map(h=>`<tr>
-          <td style="font-size:12px;color:var(--text2)">${new Date(h.created_at).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
-          <td><span class="badge badge-cat">${h.target}</span></td>
-          <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${h.content}</td>
-          <td style="color:var(--green)">${h.ok_count}/${h.sent_count}</td>
-        </tr>`).join('')}</tbody>
-      </table></div>`;
+  if (!card) return;
+
+  try {
+    const { data, error } = await sb.from('notice_history').select('*').order('created_at',{ascending:false}).limit(20);
+    if (error) throw error;
+    if (!data || !data.length) {
+      card.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:13px">발송 기록 없음 — 봇 연동 후 자동으로 기록됩니다.</div>';
+      return;
     }
+    card.innerHTML = '<div class="table-wrap"><table><thead><tr><th>시각</th><th>대상</th><th>내용</th><th>성공</th></tr></thead><tbody>' +
+      data.map(h => '<tr>' +
+        '<td style="font-size:12px;color:var(--text2)">' + new Date(h.created_at).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) + '</td>' +
+        '<td><span class="badge badge-cat">' + (h.target||'—') + '</span></td>' +
+        '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">' + (h.content||'') + '</td>' +
+        '<td style="color:var(--green)">' + (h.ok_count||0) + '/' + (h.sent_count||0) + '</td>' +
+      '</tr>').join('') +
+    '</tbody></table></div>';
+  } catch(e) {
+    card.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:13px">조회 실패: ' + e.message + '</div>';
   }
 }
 
