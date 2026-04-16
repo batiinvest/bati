@@ -836,6 +836,13 @@ function pBotConfig() {
     <div id="schedule-list"><span class="loading"></span></div>
   </div></div>
 
+  <div class="card" style="margin-bottom:1rem"><div class="card-header">
+    <span class="card-title">산업별 뉴스 검색어</span>
+    <span style="font-size:11px;color:var(--text3)">쉼표로 구분 — 저장 즉시 봇 다음 사이클에 반영</span>
+  </div><div class="card-body">
+    <div id="news-terms-list"><span class="loading"></span></div>
+  </div></div>
+
   <div style="background:linear-gradient(135deg,rgba(42,171,238,.12),rgba(42,171,238,.04));border:1px solid rgba(42,171,238,.25);border-radius:var(--radius);padding:1rem 1.25rem">
     <div style="font-size:13px;font-weight:600;color:var(--tg);margin-bottom:.5rem">봇 서버 연동 방법</div>
     <div style="font-size:12px;color:var(--text2);line-height:1.9">
@@ -877,6 +884,9 @@ async function loadBotConfig() {
   const schedEl = document.getElementById('schedule-list');
   if (!schedEl) return;
 
+  // 뉴스 검색어 로드
+  loadNewsTerms();
+
   schedEl.innerHTML = schedules.map(s => {
     const on = (cfg[s.key] ?? '1') !== '0';
     const key = s.key;
@@ -889,6 +899,40 @@ async function loadBotConfig() {
     </div>`;
   }).join('') +
   '<div style="font-size:11px;color:var(--text3);margin-top:.75rem">변경 즉시 반영됩니다. 봇은 다음 사이클에서 확인합니다.</div>';
+}
+
+const NEWS_INDUSTRIES = ['2차전지','반도체','로봇','조선','뷰티','엔터','신재생','바이오','테크','소비재','우주'];
+
+async function loadNewsTerms() {
+  const el = document.getElementById('news-terms-list');
+  if (!el) return;
+
+  const keys = NEWS_INDUSTRIES.map(i => `news_terms_${i}`);
+  const { data } = await sb.from('app_config').select('key,value').in('key', keys);
+  const map = {};
+  (data || []).forEach(r => { map[r.key] = r.value; });
+
+  el.innerHTML = NEWS_INDUSTRIES.map(ind => {
+    const key = `news_terms_${ind}`;
+    const val = map[key] || '';
+    return `<div style="margin-bottom:.75rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <label class="form-label" style="margin:0;font-size:12px;font-weight:600">${ind}</label>
+        <button class="btn btn-sm" onclick="saveNewsTerm('${key}', document.getElementById('nt-${ind}').value)">저장</button>
+      </div>
+      <input class="form-input" id="nt-${ind}" value="${val}" placeholder="${ind} 관련 뉴스 검색어 (쉼표 구분)" style="font-size:12px">
+    </div>`;
+  }).join('');
+}
+
+async function saveNewsTerm(key, value) {
+  if (!isAdmin()) { toast('admin만 수정 가능합니다.', 'error'); return; }
+  const { error } = await sb.from('app_config').upsert(
+    { key, value: value.trim(), updated_at: new Date().toISOString() },
+    { onConflict: 'key' }
+  );
+  if (error) { toast('저장 실패: ' + error.message, 'error'); return; }
+  toast(`저장 완료 — 봇 다음 사이클에 반영됩니다`, 'success');
 }
 
 async function saveBotKeywords() {
