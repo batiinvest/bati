@@ -182,10 +182,10 @@ async function loadInvestment() {
     dateEl.textContent = `기준: ${mktRaw[0].base_date || '최근'}`;
   }
 
-  // companies 테이블에서 산업 정보 가져오기
-  if (!_allStocks?.length) await loadStocks();
+  // companies 테이블에서 산업 정보 가져오기 (항상 최신으로 로드)
+  const { data: compData } = await sb.from('companies').select('name,code,industry').eq('active', true);
   const industryMap = {};
-  (_allStocks || []).forEach(s => {
+  (compData || []).forEach(s => {
     const code = (s.code || '').split('.')[0];
     if (code) industryMap[code] = s.industry || '기타';
   });
