@@ -124,7 +124,6 @@ async function openStockEdit(id) {
   document.getElementById('se-sub').value           = s.sub_industry || '';
   document.getElementById('se-chatid').value        = s.chat_id || '';
   document.getElementById('se-kw').value        = s.keywords || '';
-  ''        = s.keywords_related || '';
   document.getElementById('se-active').checked      = s.active !== false;
   document.getElementById('se-level').value          = s.monitoring_level || 'data';
   openModal('m-stock-edit');
