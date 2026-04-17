@@ -133,9 +133,11 @@ async function openStockEdit(id) {
 
 async function saveStockEdit() {
   if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
-  const id = parseInt(document.getElementById('se-id').value);
+  const id      = parseInt(document.getElementById('se-id').value);
+  const oldData = _allStocks.find(x => x.id === id);
+  const newName = document.getElementById('se-name').value.trim();
   const payload = {
-    name:                document.getElementById('se-name').value.trim(),
+    name:                newName,
     code:                document.getElementById('se-code').value.trim(),
     industry:            document.getElementById('se-industry').value.trim(),
     sub_industry:        document.getElementById('se-sub').value.trim(),
@@ -147,13 +149,47 @@ async function saveStockEdit() {
     is_monitored:        ['full','news'].includes(document.getElementById('se-level').value),
   };
   if (!payload.name) { toast('종목명은 필수입니다.', 'error'); return; }
+
   const { error } = await sb.from('companies').update(payload).eq('id', id);
   if (error) { toast('수정 실패: ' + error.message, 'error'); return; }
+
+  // 종목명 변경 + 채팅방 있는 경우 → 채팅방 이름 변경 제안
+  const nameChanged = oldData && oldData.name !== newName;
+  const hasChatId   = payload.chat_id;
+  if (nameChanged && hasChatId) {
+    const doRename = confirm(`채팅방 이름도 "${newName}"으로 변경할까요?\n(봇이 채팅방 관리자여야 합니다)`);
+    if (doRename) {
+      await renameTelegramChat(hasChatId, newName);
+    }
+  }
+
   const idx = _allStocks.findIndex(x => x.id === id);
   if (idx >= 0) _allStocks[idx] = { ..._allStocks[idx], ...payload };
   closeModal('m-stock-edit');
   filterStocks();
   toast('수정 완료', 'success');
+}
+
+async function renameTelegramChat(chatId, newTitle) {
+  const { data: cfg } = await sb.from('app_config').select('value').eq('key','tg_bot_token').single();
+  const token = cfg?.value;
+  if (!token) { toast('봇 토큰 없음 — 설정 페이지에서 입력해주세요.', 'error'); return; }
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/setChatTitle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, title: newTitle }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      toast(`✓ 채팅방 이름이 "${newTitle}"으로 변경됐습니다.`, 'success');
+    } else {
+      toast(`채팅방 이름 변경 실패: ${data.description}`, 'error');
+    }
+  } catch(e) {
+    toast('채팅방 이름 변경 오류: ' + e.message, 'error');
+  }
 }
 
 async function addStock() {
