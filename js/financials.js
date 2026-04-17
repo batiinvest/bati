@@ -3,9 +3,9 @@ function pFinancials() {
   const industries = ['전체','바이오','반도체','2차전지','로봇','뷰티','테크','조선','신재생','엔터','소비재','우주'];
   return `
   <div class="tabs" style="margin-bottom:.75rem">
-    <button class="tab ${F.mode==='market'?'active':''}" onclick="F.mode='market';loadFinancials()">시장 데이터</button>
-    <button class="tab ${F.mode==='financial'?'active':''}" onclick="F.mode='financial';loadFinancials()">재무제표</button>
-    <button class="tab ${F.mode==='combined'?'active':''}" onclick="F.mode='combined';loadFinancials()">종합</button>
+    <button class="tab fin-tab ${F.mode==='market'?'active':''}" data-mode="market" onclick="F.mode='market';loadFinancials()">시장 데이터</button>
+    <button class="tab fin-tab ${F.mode==='financial'?'active':''}" data-mode="financial" onclick="F.mode='financial';loadFinancials()">재무제표</button>
+    <button class="tab fin-tab ${F.mode==='combined'?'active':''}" data-mode="combined" onclick="F.mode='combined';loadFinancials()">종합</button>
   </div>
 
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1rem">
@@ -30,6 +30,12 @@ let _finData = [];
 async function loadFinancials() {
   const el = document.getElementById('fin-table');
   if (!el) return;
+
+  // 탭 active 상태 업데이트
+  document.querySelectorAll('.fin-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.mode === F.mode);
+  });
+
   el.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>';
 
   try {
