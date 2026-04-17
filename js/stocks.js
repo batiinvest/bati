@@ -7,6 +7,12 @@ function pStocks() {
     <select class="form-select" id="stock-ind" onchange="filterStocks()" style="width:130px;padding:6px 10px">
       ${industries.map(i=>`<option value="${i}">${i}</option>`).join('')}
     </select>
+    <select class="form-select" id="stock-level" onchange="filterStocks()" style="width:130px;padding:6px 10px">
+      <option value="all">전체 레벨</option>
+      <option value="full">채팅방(full)</option>
+      <option value="news">뉴스/공시(news)</option>
+      <option value="data">데이터만(data)</option>
+    </select>
     <select class="form-select" id="stock-active" onchange="filterStocks()" style="width:110px;padding:6px 10px">
       <option value="all">전체</option>
       <option value="true">활성화</option>
@@ -57,14 +63,16 @@ async function loadStocks() {
 }
 
 function filterStocks() {
-  const q    = (document.getElementById('stock-q')?.value || '').toLowerCase();
-  const ind  = document.getElementById('stock-ind')?.value || '전체';
-  const act  = document.getElementById('stock-active')?.value || 'all';
+  const q     = (document.getElementById('stock-q')?.value || '').toLowerCase();
+  const ind   = document.getElementById('stock-ind')?.value || '전체';
+  const act   = document.getElementById('stock-active')?.value || 'all';
+  const level = document.getElementById('stock-level')?.value || 'all';
   const filtered = _allStocks.filter(s => {
-    const matchQ   = !q || s.name.toLowerCase().includes(q) || (s.code||'').toLowerCase().includes(q);
-    const matchInd = ind === '전체' || s.industry === ind;
-    const matchAct = act === 'all' || String(s.active) === act;
-    return matchQ && matchInd && matchAct;
+    const matchQ     = !q || s.name.toLowerCase().includes(q) || (s.code||'').toLowerCase().includes(q);
+    const matchInd   = ind === '전체' || s.industry === ind;
+    const matchAct   = act === 'all' || String(s.active) === act;
+    const matchLevel = level === 'all' || (s.monitoring_level || 'data') === level;
+    return matchQ && matchInd && matchAct && matchLevel;
   });
   renderStocks(filtered);
 }
