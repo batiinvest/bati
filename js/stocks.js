@@ -7,11 +7,12 @@ function pStocks() {
     <select class="form-select" id="stock-ind" onchange="filterStocks()" style="width:130px;padding:6px 10px">
       ${industries.map(i=>`<option value="${i}">${i}</option>`).join('')}
     </select>
-    <select class="form-select" id="stock-level" onchange="filterStocks()" style="width:130px;padding:6px 10px">
-      <option value="all">전체 레벨</option>
+    <select class="form-select" id="stock-level" onchange="loadStocks()" style="width:130px;padding:6px 10px">
+      <option value="monitored">모니터링 종목</option>
       <option value="full">채팅방(full)</option>
       <option value="news">뉴스/공시(news)</option>
       <option value="data">데이터만(data)</option>
+      <option value="all">전체</option>
     </select>
     <select class="form-select" id="stock-active" onchange="filterStocks()" style="width:110px;padding:6px 10px">
       <option value="all">전체</option>
@@ -66,13 +67,11 @@ function filterStocks() {
   const q     = (document.getElementById('stock-q')?.value || '').toLowerCase();
   const ind   = document.getElementById('stock-ind')?.value || '전체';
   const act   = document.getElementById('stock-active')?.value || 'all';
-  const level = document.getElementById('stock-level')?.value || 'all';
   const filtered = _allStocks.filter(s => {
-    const matchQ     = !q || s.name.toLowerCase().includes(q) || (s.code||'').toLowerCase().includes(q);
-    const matchInd   = ind === '전체' || s.industry === ind;
-    const matchAct   = act === 'all' || String(s.active) === act;
-    const matchLevel = level === 'all' || (s.monitoring_level || 'data') === level;
-    return matchQ && matchInd && matchAct && matchLevel;
+    const matchQ   = !q || s.name.toLowerCase().includes(q) || (s.code||'').toLowerCase().includes(q);
+    const matchInd = ind === '전체' || s.industry === ind;
+    const matchAct = act === 'all' || String(s.active) === act;
+    return matchQ && matchInd && matchAct;
   });
   renderStocks(filtered);
 }
@@ -95,7 +94,7 @@ function renderStocks(list) {
       <td><span class="badge badge-cat">${s.industry||'—'}</span></td>
       <td style="font-size:12px;color:var(--text2)">${s.sub_industry||'—'}</td>
       <td style="font-size:11px;font-family:monospace;color:var(--text3)">${s.chat_id||'—'}</td>
-      <td style="font-size:12px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.keywords_additional||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.keywords||'—'}</td>
       <td>
         <span style="font-size:11px;padding:2px 7px;border-radius:100px;margin-right:4px;background:${
           s.monitoring_level==='full'?'rgba(42,171,238,.15)':
@@ -124,8 +123,8 @@ async function openStockEdit(id) {
   document.getElementById('se-industry').value      = s.industry || '';
   document.getElementById('se-sub').value           = s.sub_industry || '';
   document.getElementById('se-chatid').value        = s.chat_id || '';
-  document.getElementById('se-kw-add').value        = s.keywords_additional || '';
-  document.getElementById('se-kw-rel').value        = s.keywords_related || '';
+  document.getElementById('se-kw').value        = s.keywords || '';
+  ''        = s.keywords_related || '';
   document.getElementById('se-active').checked      = s.active !== false;
   document.getElementById('se-level').value          = s.monitoring_level || 'data';
   openModal('m-stock-edit');
@@ -142,8 +141,8 @@ async function saveStockEdit() {
     industry:            document.getElementById('se-industry').value.trim(),
     sub_industry:        document.getElementById('se-sub').value.trim(),
     chat_id:             document.getElementById('se-chatid').value.trim() || null,
-    keywords_additional: document.getElementById('se-kw-add').value.trim(),
-    keywords_related:    document.getElementById('se-kw-rel').value.trim(),
+    keywords_additional: document.getElementById('se-kw').value.trim(),
+    keywords_related:    ''.trim(),
     active:              document.getElementById('se-active').checked,
     monitoring_level:    document.getElementById('se-level').value,
     is_monitored:        ['full','news'].includes(document.getElementById('se-level').value),
@@ -200,8 +199,8 @@ async function addStock() {
     industry:            document.getElementById('sa-industry').value,
     sub_industry:        document.getElementById('sa-sub').value.trim(),
     chat_id:             document.getElementById('sa-chatid').value.trim() || null,
-    keywords_additional: document.getElementById('sa-kw-add').value.trim(),
-    keywords_related:    document.getElementById('sa-kw-rel').value.trim(),
+    keywords_additional: document.getElementById('sa-kw').value.trim(),
+    keywords_related:    ''.trim(),
     active:              true,
   };
   if (!payload.name || !payload.code) { toast('종목명과 코드는 필수입니다.', 'error'); return; }
