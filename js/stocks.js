@@ -66,7 +66,7 @@ async function loadStocks() {
 
   while (true) {
     let q = sb.from('companies')
-      .select('id,name,code,industry,sub_industry,chat_id,keywords,monitoring_level,active,market')
+      .select('id,name,code,industry,sub_industry,sector,chat_id,keywords,monitoring_level,active,market')
       .order('name')
       .range(page * pageSize, (page + 1) * pageSize - 1);
 
@@ -109,14 +109,15 @@ function renderStocks(list) {
 
   el.innerHTML = `<div class="table-wrap"><table>
     <thead><tr>
-      <th>종목명</th><th>코드</th><th>산업</th><th>세부분야</th>
-      <th>채팅방 ID</th><th>추가 키워드</th><th>알림</th><th>관리</th>
+      <th>종목명</th><th>코드</th><th>산업</th><th>세부분야</th><th>업종</th>
+      <th>채팅방 ID</th><th>키워드</th><th>모니터링</th><th>관리</th>
     </tr></thead>
     <tbody>${list.map(s => `<tr>
       <td style="font-weight:500">${s.name}</td>
       <td style="font-size:12px;font-family:monospace;color:var(--text2)">${s.code||'—'}</td>
       <td><span class="badge badge-cat">${s.industry||'—'}</span></td>
       <td style="font-size:12px;color:var(--text2)">${s.sub_industry||'—'}</td>
+      <td style="font-size:11px;color:var(--text3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.sector||'—'}</td>
       <td style="font-size:11px;font-family:monospace;color:var(--text3)">${s.chat_id||'—'}</td>
       <td style="font-size:12px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.keywords||'—'}</td>
       <td>
@@ -164,7 +165,7 @@ async function saveStockEdit() {
     industry:            document.getElementById('se-industry').value.trim(),
     sub_industry:        document.getElementById('se-sub').value.trim(),
     chat_id:             document.getElementById('se-chatid').value.trim() || null,
-    keywords_additional: document.getElementById('se-kw').value.trim(),
+    keywords: document.getElementById('se-kw').value.trim(),
     keywords_related:    ''.trim(),
     active:              document.getElementById('se-active').checked,
     monitoring_level:    document.getElementById('se-level').value,
@@ -222,7 +223,7 @@ async function addStock() {
     industry:            document.getElementById('sa-industry').value,
     sub_industry:        document.getElementById('sa-sub').value.trim(),
     chat_id:             document.getElementById('sa-chatid').value.trim() || null,
-    keywords_additional: document.getElementById('sa-kw').value.trim(),
+    keywords: document.getElementById('sa-kw').value.trim(),
     keywords_related:    ''.trim(),
     active:              true,
   };
