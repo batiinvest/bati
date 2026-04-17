@@ -113,18 +113,18 @@ function renderStocks(list) {
       <th>채팅방 ID</th><th>키워드</th><th>모니터링</th><th>관리</th>
     </tr></thead>
     <tbody>${list.map(s => `<tr>
-      <td style="font-weight:500">${s.name}</td>
+      <td style="font-weight:600;font-size:13px">${s.name}</td>
       <td style="font-size:12px;font-family:monospace;color:var(--text2)">${s.code||'—'}</td>
       <td><span class="badge badge-cat">${s.industry||'—'}</span></td>
       <td style="font-size:12px;color:var(--text2)">${s.sub_industry||'—'}</td>
-      <td style="font-size:11px;color:var(--text3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.sector||'—'}</td>
-      <td style="font-size:11px;font-family:monospace;color:var(--text3)">${s.chat_id||'—'}</td>
+      <td style="font-size:11px;color:var(--text2);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.sector||''}">${s.sector||'—'}</td>
+      <td style="font-size:11px;font-family:monospace;color:var(--text3);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.chat_id||'—'}</td>
       <td style="font-size:12px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.keywords||'—'}</td>
       <td>
-        <span style="font-size:11px;padding:2px 7px;border-radius:100px;margin-right:4px;background:${
+        <span style="font-size:11px;font-weight:500;padding:3px 8px;border-radius:100px;background:${
           s.monitoring_level==='full'?'rgba(42,171,238,.15)':
           s.monitoring_level==='news'?'rgba(45,206,137,.12)':
-          'rgba(255,255,255,.05)'};color:${
+          'rgba(255,255,255,.04)'};color:${
           s.monitoring_level==='full'?'var(--tg)':
           s.monitoring_level==='news'?'var(--green)':
           'var(--text3)'}">
