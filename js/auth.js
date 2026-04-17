@@ -116,7 +116,6 @@ sb.auth.onAuthStateChange((event, session) => {
 });
 
 // 페이지 로드 시 실행
-bootAuth();
 
 async function loadProfile() {
   const { data } = await DB('app_users').select('*').eq('id', A.user.id).single();
