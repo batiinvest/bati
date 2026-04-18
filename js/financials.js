@@ -67,33 +67,53 @@ async function loadFinancials() {
 }
 
 async function loadMarketData(el) {
-  // 오늘 날짜 기준 최신 데이터
-  // 모니터링 종목 코드 목록 (scope='monitored' 시)
+  // 모니터링 종목 코드 목록 로드
   let monitoredCodes = null;
+  let allCodesSet = null;
+
   if (F.scope === 'monitored') {
-    const { data: comps } = await sb.from('companies').select('code').in('monitoring_level', ['full','news']);
-    monitoredCodes = new Set((comps || []).map(c => c.code));
+    // 모니터링 종목만
+    let compPage = 0, compData = [];
+    while (true) {
+      const { data: c } = await sb.from('companies').select('code')
+        .in('monitoring_level', ['full','news'])
+        .range(compPage * 1000, (compPage + 1) * 1000 - 1);
+      if (!c?.length) break;
+      compData = compData.concat(c);
+      if (c.length < 1000) break;
+      compPage++;
+    }
+    monitoredCodes = new Set(compData.map(c => c.code));
   }
 
-  // 전체 로드 (페이지네이션)
+  // 가장 최신 base_date 조회 (최신 날짜 데이터만 가져오기)
+  const { data: latestDate } = await sb.from('market_data')
+    .select('base_date').order('base_date', { ascending: false }).limit(1);
+  const maxDate = latestDate?.[0]?.base_date;
+
+  // 최신 날짜 데이터만 전체 로드 (중복 없음, 빠름)
   let allMkt = [];
-  let mktPage = 0;
-  while (true) {
-    const { data: chunk, error } = await sb.from('market_data')
-      .select('*')
-      .order('base_date', { ascending: false })
-      .range(mktPage * 1000, (mktPage + 1) * 1000 - 1);
-    if (error) throw error;
-    if (!chunk?.length) break;
-    allMkt = allMkt.concat(chunk);
-    if (chunk.length < 1000) break;
-    mktPage++;
+  if (maxDate) {
+    let mktPage = 0;
+    while (true) {
+      const { data: chunk, error } = await sb.from('market_data')
+        .select('*')
+        .eq('base_date', maxDate)
+        .range(mktPage * 1000, (mktPage + 1) * 1000 - 1);
+      if (error) throw error;
+      if (!chunk?.length) break;
+      allMkt = allMkt.concat(chunk);
+      if (chunk.length < 1000) break;
+      mktPage++;
+    }
   }
+
+  // scope 필터
   const data = monitoredCodes
     ? allMkt.filter(r => monitoredCodes.has(r.stock_code))
     : allMkt;
 
-  // 종목당 최신 1개만 (base_date 기준)
+  // 종목당 최신 1개 (혹시 중복 있을 경우 대비)
   const latest = {};
   (data || []).forEach(r => {
     if (!latest[r.stock_code]) latest[r.stock_code] = r;
@@ -170,8 +190,17 @@ async function loadFinancialData(el) {
   // 모니터링 종목 코드 목록 (scope='monitored' 시)
   let monitoredCodesFin = null;
   if (F.scope === 'monitored') {
-    const { data: comps } = await sb.from('companies').select('code').in('monitoring_level', ['full','news']);
-    monitoredCodesFin = new Set((comps || []).map(c => c.code));
+    let compPage = 0, compData = [];
+    while (true) {
+      const { data: c } = await sb.from('companies').select('code')
+        .in('monitoring_level', ['full','news'])
+        .range(compPage * 1000, (compPage + 1) * 1000 - 1);
+      if (!c?.length) break;
+      compData = compData.concat(c);
+      if (c.length < 1000) break;
+      compPage++;
+    }
+    monitoredCodesFin = new Set(compData.map(c => c.code));
   }
 
   let allFin = [];
