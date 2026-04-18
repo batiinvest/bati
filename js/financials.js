@@ -46,6 +46,20 @@ async function loadFinancials() {
   const el = document.getElementById('fin-table');
   if (!el) return;
 
+  // 산업 필터용 companies 캐시 (없으면 로드)
+  if (!window._finIndMap) {
+    window._finIndMap = {};
+    let cp = 0;
+    while (true) {
+      const { data } = await sb.from('companies').select('code,industry')
+        .range(cp * 1000, (cp + 1) * 1000 - 1);
+      if (!data?.length) break;
+      data.forEach(r => { if (r.code) window._finIndMap[r.code.split('.')[0]] = r.industry || ''; });
+      if (data.length < 1000) break;
+      cp++;
+    }
+  }
+
   // 탭 active 상태 업데이트
   document.querySelectorAll('.fin-tab').forEach(t => {
     t.classList.toggle('active', t.dataset.mode === F.mode);
@@ -126,7 +140,7 @@ async function loadMarketData(el) {
   // 산업 필터 — companies 테이블과 조인 불가하니 종목 목록으로 필터
   if (F.industry !== '전체') {
     const indStocks = new Set(
-      (_allStocks || []).filter(s => s.industry === F.industry).map(s => s.code?.split('.')[0])
+      Object.entries(window._finIndMap || {}).filter(([,ind]) => ind === F.industry).map(([code]) => code)
     );
     rows = rows.filter(r => indStocks.has(r.stock_code));
   }
@@ -241,7 +255,7 @@ async function loadFinancialData(el) {
   if (F.q) rows = rows.filter(r => r.corp_name.includes(F.q));
   if (F.industry !== '전체') {
     const indStocks = new Set(
-      (_allStocks || []).filter(s => s.industry === F.industry).map(s => s.code?.split('.')[0])
+      Object.entries(window._finIndMap || {}).filter(([,ind]) => ind === F.industry).map(([code]) => code)
     );
     rows = rows.filter(r => indStocks.has(r.stock_code));
   }
@@ -335,7 +349,7 @@ async function loadCombinedData(el) {
   if (F.q) rows = rows.filter(r => r.corp_name.includes(F.q));
   if (F.industry !== '전체') {
     const indStocks = new Set(
-      (_allStocks || []).filter(s => s.industry === F.industry).map(s => s.code?.split('.')[0])
+      Object.entries(window._finIndMap || {}).filter(([,ind]) => ind === F.industry).map(([code]) => code)
     );
     rows = rows.filter(r => indStocks.has(r.stock_code));
   }
