@@ -20,6 +20,10 @@ function pFinancials() {
   </div>
 
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1rem">
+    <select class="form-select" id="fin-scope" onchange="F.scope=this.value;loadFinancials()" style="width:130px;padding:6px 10px">
+      <option value="monitored" ${F.scope==='monitored'?'selected':''}>모니터링 종목</option>
+      <option value="all" ${F.scope==='all'?'selected':''}>전체</option>
+    </select>
     <input class="search-box" id="fin-q" placeholder="종목명 검색..." oninput="F.q=this.value;loadFinancials()" style="max-width:160px">
     <select class="form-select" id="fin-ind" onchange="F.industry=this.value;loadFinancials()" style="width:120px;padding:6px 10px">
       ${industries.map(i=>`<option value="${i}" ${F.industry===i?'selected':''}>${i}</option>`).join('')}
@@ -64,7 +68,14 @@ async function loadFinancials() {
 
 async function loadMarketData(el) {
   // 오늘 날짜 기준 최신 데이터
-  // 전체 로드 (페이지네이션으로 limit 우회)
+  // 모니터링 종목 코드 목록 (scope='monitored' 시)
+  let monitoredCodes = null;
+  if (F.scope === 'monitored') {
+    const { data: comps } = await sb.from('companies').select('code').in('monitoring_level', ['full','news']);
+    monitoredCodes = new Set((comps || []).map(c => c.code));
+  }
+
+  // 전체 로드 (페이지네이션)
   let allMkt = [];
   let mktPage = 0;
   while (true) {
@@ -78,7 +89,9 @@ async function loadMarketData(el) {
     if (chunk.length < 1000) break;
     mktPage++;
   }
-  const data = allMkt;
+  const data = monitoredCodes
+    ? allMkt.filter(r => monitoredCodes.has(r.stock_code))
+    : allMkt;
 
   // 종목당 최신 1개만 (base_date 기준)
   const latest = {};
@@ -154,6 +167,13 @@ async function loadMarketData(el) {
 
 async function loadFinancialData(el) {
   // 종목당 최신 분기 데이터 — 전체 조회 후 stock_code 기준 최신 1개 추출
+  // 모니터링 종목 코드 목록 (scope='monitored' 시)
+  let monitoredCodesFin = null;
+  if (F.scope === 'monitored') {
+    const { data: comps } = await sb.from('companies').select('code').in('monitoring_level', ['full','news']);
+    monitoredCodesFin = new Set((comps || []).map(c => c.code));
+  }
+
   let allFin = [];
   let finPage = 0;
   while (true) {
@@ -168,7 +188,9 @@ async function loadFinancialData(el) {
     if (chunk.length < 1000) break;
     finPage++;
   }
-  const data = allFin;
+  const data = monitoredCodesFin
+    ? allFin.filter(r => monitoredCodesFin.has(r.stock_code))
+    : allFin;
 
   // 종목당 최신 1개 (bsns_year+quarter 기준)
   const latest = {};
