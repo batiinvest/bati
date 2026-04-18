@@ -1,11 +1,32 @@
 // pages.js — 페이지 렌더링 함수들
 function pOverview() {
-  // 정원 마감: status='full' 이거나 members >= max_members 둘 다 체크
   const isFull = r => r.status === 'full' || (r.members || 0) >= (r.max_members || 1000);
-  const total = A.rooms.length, full = A.rooms.filter(isFull).length, open = A.rooms.filter(r=>!isFull(r)).length;
-  const totalM = A.rooms.reduce((s,r)=>s+(r.members||0),0);
-  const catMap = {}; A.rooms.forEach(r=>{ if(!catMap[r.cat])catMap[r.cat]={n:0,m:0}; catMap[r.cat].n++; catMap[r.cat].m+=r.members||0; });
-  const top5 = [...A.rooms].sort((a,b)=>b.members-a.members).slice(0,5);
+
+  // 기업/산업 채팅방 분리
+  const companyRooms  = A.rooms.filter(r => r.room_type !== 'industry');
+  const industryRooms = A.rooms.filter(r => r.room_type === 'industry');
+
+  const total  = companyRooms.length;
+  const full   = companyRooms.filter(isFull).length;
+  const open   = companyRooms.filter(r => !isFull(r)).length;
+  const totalM = companyRooms.reduce((s,r) => s + (r.members||0), 0);
+
+  // 산업별 집계 (기업 채팅방 기준)
+  const catMap = {};
+  companyRooms.forEach(r => {
+    if (!catMap[r.cat]) catMap[r.cat] = { n:0, m:0, industryM:0, industryLink:'' };
+    catMap[r.cat].n++;
+    catMap[r.cat].m += r.members || 0;
+  });
+  // 산업 채팅방 인원 매핑
+  industryRooms.forEach(r => {
+    if (catMap[r.cat]) {
+      catMap[r.cat].industryM    = r.members || 0;
+      catMap[r.cat].industryLink = r.link || '';
+    }
+  });
+
+  const top5 = [...companyRooms].sort((a,b) => b.members - a.members).slice(0,5);
   return `
   <div class="metrics-grid">
     <div class="metric-card"><div class="metric-label">전체 채팅방</div><div class="metric-value">${total}</div><div class="metric-sub">Supabase DB 기준</div></div>
@@ -15,7 +36,21 @@ function pOverview() {
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
     <div class="card"><div class="card-header"><span class="card-title">산업별 현황</span></div><div class="card-body" style="padding:.75rem 1rem">
-      ${Object.entries(catMap).map(([cat,v])=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px"><span class="cat-dot" style="background:${CATS[cat]||'#888'}"></span><span style="flex:1">${cat}</span><span style="color:var(--text2);font-size:12px">${v.n}개</span><span style="color:var(--text3);font-size:12px;min-width:50px;text-align:right">${v.m.toLocaleString()}명</span></div>`).join('')}
+      ${Object.entries(catMap).sort((a,b)=>b[1].m-a[1].m).map(([cat,v])=>`
+        <div style="padding:6px 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+            <span class="cat-dot" style="background:${CATS[cat]||'#888'}"></span>
+            <span style="flex:1;font-weight:500">${cat}</span>
+            <span style="font-size:11px;color:var(--text3);margin-right:4px">${v.n}개 기업방</span>
+            <span style="color:var(--text2);font-size:12px">${v.m.toLocaleString()}명</span>
+          </div>
+          ${v.industryM > 0 ? `
+          <div style="display:flex;align-items:center;gap:6px;margin-top:3px;padding-left:20px">
+            <span style="font-size:11px;color:var(--text3)">산업 채팅방</span>
+            ${v.industryLink ? `<a href="${v.industryLink}" target="_blank" style="font-size:11px;color:var(--tg)">바로가기</a>` : ''}
+            <span style="font-size:11px;color:var(--text3);margin-left:auto">${v.industryM.toLocaleString()}명</span>
+          </div>` : ''}
+        </div>`).join('')}
     </div></div>
     <div class="card"><div class="card-header"><span class="card-title">멤버 Top 5</span></div><div class="card-body" style="padding:.75rem 1rem">
       ${top5.map((r,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px"><span style="width:16px;color:var(--text3);font-size:11px;font-weight:600">${i+1}</span><span style="flex:1">${r.name}</span><span style="color:var(--text2);font-size:12px">${(r.members||0).toLocaleString()}</span><div style="width:50px"><div class="progress"><div class="progress-fill" style="background:${CATS[r.cat]||'#888'};width:${Math.min(100,Math.round((r.members||0)/(r.max_members||1000)*100))}%"></div></div></div></div>`).join('')}
