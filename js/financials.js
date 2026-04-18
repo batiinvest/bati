@@ -375,16 +375,14 @@ async function loadCombinedData(el) {
 }
 
 async function openFinTrend(stockCode, corpName) {
-  // 기존 모달 제거
   const existing = document.getElementById('m-fin-trend');
   if (existing) existing.remove();
 
-  // 모달 생성
   const overlay = document.createElement('div');
   overlay.id = 'm-fin-trend';
   overlay.className = 'modal-overlay open';
   overlay.innerHTML = `
-    <div class="modal" style="width:720px;max-width:95vw">
+    <div class="modal" style="width:860px;max-width:96vw;max-height:90vh;overflow-y:auto">
       <div class="modal-header">
         <span class="modal-title">${corpName} — 분기별 재무 추이</span>
         <button class="modal-close" onclick="document.getElementById('m-fin-trend').remove()">×</button>
@@ -396,42 +394,66 @@ async function openFinTrend(stockCode, corpName) {
   document.body.appendChild(overlay);
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 
-  // 데이터 조회
-  const { data, error } = await sb.from('financials')
-    .select('bsns_year,quarter,report_type,fs_div,revenue,operating_profit,net_income,operating_margin,roe,debt_ratio,total_assets,total_equity,total_liabilities,operating_cashflow')
+  // 데이터 조회 (오래된→최신 순으로 정렬해야 차트가 자연스러움)
+  const { data: rawData, error } = await sb.from('financials')
+    .select('bsns_year,quarter,fs_div,revenue,operating_profit,net_income,operating_margin,roe,roa,debt_ratio,total_assets,total_equity,total_liabilities,operating_cashflow,revenue_yoy,revenue_qoq,op_profit_yoy,op_profit_qoq')
     .eq('stock_code', stockCode)
-    .order('bsns_year', { ascending: false })
-    .order('quarter', { ascending: false })
+    .order('bsns_year', { ascending: true })
+    .order('quarter', { ascending: true })
     .limit(20);
 
   const body = document.getElementById('fin-trend-body');
-  if (error || !data?.length) {
+  if (error || !rawData?.length) {
     body.innerHTML = '<div style="text-align:center;color:var(--text3);padding:2rem">데이터 없음</div>';
     return;
   }
 
+  // 최신순으로 뒤집어서 테이블에 표시
+  const data = [...rawData].reverse();
   const fmt = v => fmtCap(v);
   const pct = v => v != null ? v.toFixed(1) + '%' : '—';
+  const chgBadge = v => {
+    if (v == null) return '';
+    const color = v > 0 ? 'var(--green)' : v < 0 ? 'var(--red)' : 'var(--text3)';
+    return `<span style="font-size:10px;color:${color};margin-left:4px">${v > 0 ? '▲' : '▼'}${Math.abs(v).toFixed(1)}%</span>`;
+  };
 
-  // 손익 추이 테이블
-  let html = `
-    <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.5rem">📊 손익계산서</div>
+  // 차트 데이터 (오래된→최신)
+  const labels   = rawData.map(r => `${r.bsns_year} ${r.quarter}`);
+  const revData  = rawData.map(r => r.revenue        ? Math.round(r.revenue        / 1e8) : null);
+  const opData   = rawData.map(r => r.operating_profit ? Math.round(r.operating_profit / 1e8) : null);
+  const netData  = rawData.map(r => r.net_income      ? Math.round(r.net_income      / 1e8) : null);
+  const marginData = rawData.map(r => r.operating_margin);
+
+  const isDark = document.documentElement.classList.contains('dark') ||
+    window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const textColor  = isDark ? '#b0b0b0' : '#666';
+  const gridColor  = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+
+  body.innerHTML = `
+    <div style="margin-bottom:1rem">
+      <div style="display:flex;gap:8px;margin-bottom:.5rem">
+        <button class="btn btn-sm active" id="chart-tab-income" onclick="switchFinChart('income')">손익</button>
+        <button class="btn btn-sm" id="chart-tab-balance" onclick="switchFinChart('balance')">재무상태</button>
+        <button class="btn btn-sm" id="chart-tab-margin" onclick="switchFinChart('margin')">이익률/ROE</button>
+      </div>
+      <div style="position:relative;height:220px">
+        <canvas id="fin-chart"></canvas>
+      </div>
+    </div>
+
+    <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.5rem">손익계산서</div>
     <div class="table-wrap" style="margin-bottom:1.25rem"><table>
       <thead><tr>
-        <th>기간</th><th>매출액</th><th>영업이익</th><th>영업이익률</th><th>순이익</th><th>ROE</th>
+        <th>기간</th><th>매출액</th><th>YoY</th><th>QoQ</th><th>영업이익</th><th>영업이익률</th><th>순이익</th><th>ROE</th>
       </tr></thead>
       <tbody>${data.map(r => {
         const opColor = r.operating_profit > 0 ? 'var(--green)' : r.operating_profit < 0 ? 'var(--red)' : 'var(--text2)';
-        const prev = data[data.indexOf(r) + 1];
-        const revChg = prev?.revenue && r.revenue
-          ? ((r.revenue - prev.revenue) / Math.abs(prev.revenue) * 100).toFixed(1)
-          : null;
-        const chgStr = revChg != null
-          ? `<span style="font-size:10px;color:${revChg > 0 ? 'var(--green)' : 'var(--red)'};margin-left:4px">${revChg > 0 ? '▲' : '▼'}${Math.abs(revChg)}%</span>`
-          : '';
         return `<tr>
           <td style="font-weight:600">${r.bsns_year} ${r.quarter}</td>
-          <td>${fmt(r.revenue)}${chgStr}</td>
+          <td>${fmt(r.revenue)}</td>
+          <td style="font-size:11px">${r.revenue_yoy != null ? chgBadge(r.revenue_yoy) : '—'}</td>
+          <td style="font-size:11px">${r.revenue_qoq != null ? chgBadge(r.revenue_qoq) : '—'}</td>
           <td style="color:${opColor}">${fmt(r.operating_profit)}</td>
           <td>${pct(r.operating_margin)}</td>
           <td>${fmt(r.net_income)}</td>
@@ -441,8 +463,8 @@ async function openFinTrend(stockCode, corpName) {
       </tbody>
     </table></div>
 
-    <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.5rem">🏦 재무상태표</div>
-    <div class="table-wrap" style="margin-bottom:1.25rem"><table>
+    <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.5rem">재무상태표</div>
+    <div class="table-wrap" style="margin-bottom:.75rem"><table>
       <thead><tr>
         <th>기간</th><th>자산총계</th><th>부채총계</th><th>자본총계</th><th>부채비율</th><th>영업현금흐름</th>
       </tr></thead>
@@ -456,10 +478,76 @@ async function openFinTrend(stockCode, corpName) {
       </tr>`).join('')}
       </tbody>
     </table></div>
+    <div style="font-size:11px;color:var(--text3)">${rawData[0].fs_div === 'CFS' ? '연결' : '별도'} 재무제표 기준</div>`;
 
-    <div style="font-size:11px;color:var(--text3)">* ${data[0].fs_div === 'CFS' ? '연결' : '별도'} 재무제표 기준 | 클릭 닫기</div>`;
+  // Chart.js 로드 후 차트 생성
+  const initChart = () => {
+    const ctx = document.getElementById('fin-chart')?.getContext('2d');
+    if (!ctx || typeof Chart === 'undefined') return;
 
-  body.innerHTML = html;
+    window._finChartData = { labels, revData, opData, netData, marginData, textColor, gridColor };
+    window._finChartInst = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: '매출액(억)', data: revData, backgroundColor: 'rgba(55,138,221,0.6)', yAxisID: 'y' },
+          { label: '영업이익(억)', data: opData, backgroundColor: 'rgba(45,206,137,0.7)', yAxisID: 'y' },
+          { label: '순이익(억)', data: netData, backgroundColor: 'rgba(255,193,7,0.6)', yAxisID: 'y' },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: textColor, font: { size: 11 } } } },
+        scales: {
+          x: { ticks: { color: textColor, font: { size: 10 } }, grid: { color: gridColor } },
+          y: { ticks: { color: textColor, font: { size: 10 } }, grid: { color: gridColor } }
+        }
+      }
+    });
+  };
+
+  if (typeof Chart !== 'undefined') {
+    initChart();
+  } else {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+    s.onload = initChart;
+    document.head.appendChild(s);
+  }
+}
+
+function switchFinChart(tab) {
+  const inst = window._finChartInst;
+  const d = window._finChartData;
+  if (!inst || !d) return;
+
+  document.querySelectorAll('[id^=chart-tab-]').forEach(b => b.classList.remove('active'));
+  document.getElementById('chart-tab-' + tab)?.classList.add('active');
+
+  if (tab === 'income') {
+    inst.data.datasets = [
+      { label: '매출액(억)', data: d.revData, backgroundColor: 'rgba(55,138,221,0.6)', yAxisID: 'y' },
+      { label: '영업이익(억)', data: d.opData, backgroundColor: 'rgba(45,206,137,0.7)', yAxisID: 'y' },
+      { label: '순이익(억)', data: d.netData, backgroundColor: 'rgba(255,193,7,0.6)', yAxisID: 'y' },
+    ];
+    inst.options.scales = {
+      x: { ticks: { color: d.textColor, font: { size: 10 } }, grid: { color: d.gridColor } },
+      y: { ticks: { color: d.textColor, font: { size: 10 } }, grid: { color: d.gridColor } }
+    };
+  } else if (tab === 'balance') {
+    inst.data.datasets = [
+      { label: '자산(억)', data: d.revData.map((_, i) => window._finRawData?.[i]?.total_assets ? Math.round(window._finRawData[i].total_assets/1e8) : null), backgroundColor: 'rgba(55,138,221,0.5)', yAxisID: 'y' },
+      { label: '부채(억)', data: d.revData.map((_, i) => window._finRawData?.[i]?.total_liabilities ? Math.round(window._finRawData[i].total_liabilities/1e8) : null), backgroundColor: 'rgba(226,75,74,0.5)', yAxisID: 'y' },
+      { label: '자본(억)', data: d.revData.map((_, i) => window._finRawData?.[i]?.total_equity ? Math.round(window._finRawData[i].total_equity/1e8) : null), backgroundColor: 'rgba(45,206,137,0.5)', yAxisID: 'y' },
+    ];
+  } else if (tab === 'margin') {
+    inst.data.datasets = [
+      { label: '영업이익률(%)', data: d.marginData, backgroundColor: 'rgba(45,206,137,0.7)', type: 'line', borderColor: 'rgba(45,206,137,1)', tension: 0.3, yAxisID: 'y' },
+      { label: 'ROE(%)', data: d.revData.map((_, i) => window._finRawData?.[i]?.roe), backgroundColor: 'rgba(255,193,7,0.6)', type: 'line', borderColor: 'rgba(255,193,7,1)', tension: 0.3, yAxisID: 'y' },
+    ];
+  }
+  inst.update();
 }
 
 function exportFinancials() {
