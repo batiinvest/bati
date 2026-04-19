@@ -310,9 +310,14 @@ async function saveAssign() {
   }
 
   if (toRemove.length) {
-    const { error } = await sb.from('companies')
-      .update({ sub_industry: '' })
-      .in('id', toRemove);
+    const removeIndustry = confirm(
+      `제외하는 ${toRemove.length}개 종목의 산업 분류도 함께 삭제할까요?\n` +
+      `확인 = 산업도 삭제 / 취소 = 기타로 분류`
+    );
+    const update = removeIndustry
+      ? { sub_industry: '', industry: '' }
+      : { sub_industry: '' };
+    const { error } = await sb.from('companies').update(update).in('id', toRemove);
     if (error) { toast('제외 실패: ' + error.message, 'error'); ok = false; }
   }
 
@@ -331,13 +336,21 @@ async function saveAssign() {
 // 개별 기업 세부분야 제외 (× 버튼)
 async function removeFromSubIndustry(id, name, sub) {
   if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
-  if (!confirm(`"${name}"을(를) [${sub}]에서 제외할까요?\n산업 분류도 초기화됩니다.`)) return;
-  const { error } = await sb.from('companies')
-    .update({ sub_industry: '', industry: '' })
-    .eq('id', id);
+
+  const removeIndustry = confirm(
+    `"${name}"을(를) [${sub}]에서 제외합니다.\n\n` +
+    `산업 분류(반도체 등)도 함께 삭제할까요?\n` +
+    `확인 = 산업도 삭제 / 취소 = 기타로 분류`
+  );
+
+  const update = removeIndustry
+    ? { sub_industry: '', industry: '' }
+    : { sub_industry: '' };  // industry는 유지, 기타로 분류됨
+
+  const { error } = await sb.from('companies').update(update).eq('id', id);
   if (error) { toast('실패: ' + error.message, 'error'); return; }
-  _allCompanies = []; // 캐시 무효화 — 다음 모달 열 때 재조회
-  toast(`${name} 제외 완료`, 'info');
+  _allCompanies = [];
+  toast(`${name} 제외 완료 (${removeIndustry ? '산업도 삭제' : '기타로 분류'})`, 'info');
   loadSubIndustryPanel();
 }
 
