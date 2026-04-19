@@ -348,8 +348,8 @@ async function requestBotReload(btnId = 'reload-btn') {
   if (btn) { btn.disabled = true; btn.textContent = '전송 중...'; }
   try {
     const { error } = await sb.from('app_config')
-      .update({ value: String(Date.now()) })
-      .eq('key', 'reload_flag');
+      .upsert({ key: 'reload_flag', value: String(Date.now()), description: '봇 종목 데이터 재로드 요청' },
+              { onConflict: 'key' });
     if (error) throw error;
     toast('✓ 재로드 요청 전송 완료 — 봇이 1분 내 반영합니다', 'success');
   } catch(e) {
