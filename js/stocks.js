@@ -52,6 +52,10 @@ function pStocks() {
       <span style="font-size:12px;color:var(--text3)" id="sub-panel-count"></span>
       <div style="margin-left:auto;display:flex;gap:8px">
         <button class="btn btn-sm btn-primary" onclick="openAddSubIndustry()">+ 세부분야 추가</button>
+        <button class="btn btn-sm" id="reload-btn-sub" onclick="requestBotReload('reload-btn-sub')" title="DB 변경사항을 봇에 반영합니다">
+          <svg style="width:12px;height:12px;vertical-align:middle;margin-right:3px" viewBox="0 0 16 16" fill="none"><path d="M13.5 8A5.5 5.5 0 112.5 5M2.5 2v3h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          봇 재로드
+        </button>
       </div>
     </div>
     <div id="sub-industry-panel">
@@ -313,22 +317,21 @@ async function removeFromSubIndustry(id, name, sub) {
   loadSubIndustryPanel();
 }
 
-async function requestBotReload() {
+async function requestBotReload(btnId = 'reload-btn') {
   if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
-  const btn = document.getElementById('reload-btn');
+  const btn = document.getElementById(btnId);
+  const origHTML = btn?.innerHTML;
   if (btn) { btn.disabled = true; btn.textContent = '전송 중...'; }
   try {
-    const { error } = await sb.from('app_config').upsert({
-      key: 'reload_flag',
-      value: String(Date.now()),
-      description: '봇 종목 데이터 재로드 요청',
-    }, { onConflict: 'key' });
+    const { error } = await sb.from('app_config')
+      .update({ value: String(Date.now()) })
+      .eq('key', 'reload_flag');
     if (error) throw error;
     toast('✓ 재로드 요청 전송 완료 — 봇이 1분 내 반영합니다', 'success');
   } catch(e) {
     toast('전송 실패: ' + e.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<svg style="width:12px;height:12px;vertical-align:middle;margin-right:3px" viewBox="0 0 16 16" fill="none"><path d="M13.5 8A5.5 5.5 0 112.5 5M2.5 2v3h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>봇 재로드'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = origHTML; }
   }
 }
 
