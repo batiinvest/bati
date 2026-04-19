@@ -373,7 +373,7 @@ async function loadStocks() {
 
   while (true) {
     let q = sb.from('companies')
-      .select('id,name,code,industry,sub_industry,sector,chat_id,keywords,monitoring_level,active,market')
+      .select('id,name,code,industry,sub_industry,sector,keywords,monitoring_level,active,market')
       .order('name')
       .range(page * pageSize, (page + 1) * pageSize - 1);
 
@@ -417,7 +417,7 @@ function renderStocks(list) {
   el.innerHTML = `<div class="table-wrap"><table>
     <thead><tr>
       <th>종목명</th><th>코드</th><th>산업</th><th>세부분야</th><th>업종</th>
-      <th class="stock-col-chatid">채팅방 ID</th><th class="stock-col-keyword">키워드</th><th>모니터링</th><th>관리</th>
+      <th class="stock-col-keyword">키워드</th><th>모니터링</th><th>관리</th>
     </tr></thead>
     <tbody>${list.map(s => `<tr>
       <td style="font-weight:600;font-size:13px">${s.name}</td>
@@ -425,7 +425,6 @@ function renderStocks(list) {
       <td><span class="badge badge-cat">${s.industry||'—'}</span></td>
       <td style="font-size:12px;color:var(--text2)">${s.sub_industry||'—'}</td>
       <td style="font-size:11px;color:var(--text2);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.sector||''}">${s.sector||'—'}</td>
-      <td class="stock-col-chatid" style="font-size:11px;font-family:monospace;color:var(--text3);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.chat_id||'—'}</td>
       <td class="stock-col-keyword" style="font-size:12px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.keywords||'—'}</td>
       <td>
         <span style="font-size:11px;font-weight:500;padding:3px 8px;border-radius:100px;background:${
@@ -454,24 +453,21 @@ async function openStockEdit(id) {
   document.getElementById('se-code').value          = s.code || '';
   document.getElementById('se-industry').value      = s.industry || '';
   document.getElementById('se-sub').value           = s.sub_industry || '';
-  document.getElementById('se-chatid').value        = s.chat_id || '';
-  document.getElementById('se-kw').value        = s.keywords || '';
+  document.getElementById('se-kw').value            = s.keywords || '';
   document.getElementById('se-active').checked      = s.active !== false;
-  document.getElementById('se-level').value          = s.monitoring_level || 'data';
+  document.getElementById('se-level').value         = s.monitoring_level || 'data';
   openModal('m-stock-edit');
 }
 
 async function saveStockEdit() {
   if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
   const id      = parseInt(document.getElementById('se-id').value);
-  const oldData = _allStocks.find(x => x.id === id);
   const newName = document.getElementById('se-name').value.trim();
   const payload = {
     name:             newName,
     code:             document.getElementById('se-code').value.trim(),
     industry:         document.getElementById('se-industry').value.trim(),
     sub_industry:     document.getElementById('se-sub').value.trim(),
-    chat_id:          document.getElementById('se-chatid').value.trim() || null,
     keywords:         document.getElementById('se-kw').value.trim(),
     active:           document.getElementById('se-active').checked,
     monitoring_level: document.getElementById('se-level').value,
@@ -482,43 +478,11 @@ async function saveStockEdit() {
   const { error } = await sb.from('companies').update(payload).eq('id', id);
   if (error) { toast('수정 실패: ' + error.message, 'error'); return; }
 
-  // 종목명 변경 + 채팅방 있는 경우 → 채팅방 이름 변경 제안
-  const nameChanged = oldData && oldData.name !== newName;
-  const hasChatId   = payload.chat_id;
-  if (nameChanged && hasChatId) {
-    const doRename = confirm(`채팅방 이름도 "${newName}"으로 변경할까요?\n(봇이 채팅방 관리자여야 합니다)`);
-    if (doRename) {
-      await renameTelegramChat(hasChatId, newName);
-    }
-  }
-
   const idx = _allStocks.findIndex(x => x.id === id);
   if (idx >= 0) _allStocks[idx] = { ..._allStocks[idx], ...payload };
   closeModal('m-stock-edit');
   filterStocks();
   toast('수정 완료', 'success');
-}
-
-async function renameTelegramChat(chatId, newTitle) {
-  const { data: cfg } = await sb.from('app_config').select('value').eq('key','tg_bot_token').single();
-  const token = cfg?.value;
-  if (!token) { toast('봇 토큰 없음 — 설정 페이지에서 입력해주세요.', 'error'); return; }
-
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${token}/setChatTitle`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, title: newTitle }),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      toast(`✓ 채팅방 이름이 "${newTitle}"으로 변경됐습니다.`, 'success');
-    } else {
-      toast(`채팅방 이름 변경 실패: ${data.description}`, 'error');
-    }
-  } catch(e) {
-    toast('채팅방 이름 변경 오류: ' + e.message, 'error');
-  }
 }
 
 async function addStock() {
@@ -528,7 +492,6 @@ async function addStock() {
     code:         document.getElementById('sa-code').value.trim(),
     industry:     document.getElementById('sa-industry').value || '',
     sub_industry: document.getElementById('sa-sub').value.trim(),
-    chat_id:      document.getElementById('sa-chatid').value.trim() || null,
     keywords:     document.getElementById('sa-kw').value.trim(),
     active:       true,
   };
