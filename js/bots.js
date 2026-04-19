@@ -135,30 +135,80 @@ async function loadBotStatus() {
 function pBotConfig() {
   if (!isAdmin()) return `<div style="padding:2rem;text-align:center;color:var(--text3);font-size:13px">admin만 접근 가능합니다.</div>`;
   return `
-  <div class="card" style="margin-bottom:1rem"><div class="card-header"><span class="card-title">AI 분석 키워드</span></div><div class="card-body">
-    <div class="form-group">
-      <label class="form-label">AI 트리거 키워드 (쉼표로 구분)</label>
-      <textarea class="form-input" id="cfg-ai-kw" rows="3" placeholder="공급계약,임상,무상증자,..."></textarea>
-      <div class="form-hint">이 키워드가 공시 제목에 포함되면 Gemini AI 분석을 실행합니다.</div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">전체 중요 키워드 (쉼표로 구분)</label>
-      <textarea class="form-input" id="cfg-global-kw" rows="2" placeholder="거래정지,상장폐지,부도,..."></textarea>
-      <div class="form-hint">비보유 종목도 이 키워드가 있으면 무조건 알림 발송합니다.</div>
-    </div>
-    <button class="btn btn-primary" onclick="saveBotKeywords()">저장</button>
-  </div></div>
+  <div class="tabs" style="margin-bottom:1rem" id="botcfg-tabs">
+    <button class="tab active" onclick="switchBotCfgTab('keywords',this)">키워드 설정</button>
+    <button class="tab" onclick="switchBotCfgTab('news-filter',this)">뉴스 필터</button>
+    <button class="tab" onclick="switchBotCfgTab('schedule',this)">스케줄</button>
+    <button class="tab" onclick="switchBotCfgTab('news-terms',this)">산업별 검색어</button>
+  </div>
 
-  <div class="card" style="margin-bottom:1rem"><div class="card-header"><span class="card-title">스케줄 ON/OFF</span></div><div class="card-body">
-    <div id="schedule-list"><span class="loading"></span></div>
-  </div></div>
+  <!-- 키워드 설정 탭 -->
+  <div id="botcfg-keywords">
+    <div class="card" style="margin-bottom:1rem"><div class="card-header"><span class="card-title">AI 분석 키워드</span></div><div class="card-body">
+      <div class="form-group">
+        <label class="form-label">AI 트리거 키워드 <span style="font-size:11px;color:var(--text3)">(쉼표로 구분)</span></label>
+        <textarea class="form-input" id="cfg-ai-kw" rows="3" placeholder="공급계약,임상,무상증자,..."></textarea>
+        <div class="form-hint">이 키워드가 공시 제목에 포함되면 Gemini AI 분석을 실행합니다.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">전체 중요 키워드 <span style="font-size:11px;color:var(--text3)">(쉼표로 구분)</span></label>
+        <textarea class="form-input" id="cfg-global-kw" rows="2" placeholder="거래정지,상장폐지,부도,..."></textarea>
+        <div class="form-hint">비보유 종목도 이 키워드가 있으면 무조건 알림 발송합니다.</div>
+      </div>
+      <button class="btn btn-primary" onclick="saveBotKeywords()">저장</button>
+    </div></div>
+  </div>
 
-  <div class="card" style="margin-bottom:1rem"><div class="card-header">
-    <span class="card-title">산업별 뉴스 검색어</span>
-    <span style="font-size:11px;color:var(--text3)">쉼표로 구분 — 저장 즉시 봇 다음 사이클에 반영</span>
-  </div><div class="card-body">
-    <div id="news-terms-list"><span class="loading"></span></div>
-  </div></div>
+  <!-- 뉴스 필터 탭 -->
+  <div id="botcfg-news-filter" style="display:none">
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-header">
+        <span class="card-title">스팸 패턴 <span style="font-size:11px;font-weight:400;color:var(--text3)">— 제목에 포함 시 발송 차단</span></span>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">패턴 목록 <span style="font-size:11px;color:var(--text3)">(한 줄에 하나씩, 정규식 가능)</span></label>
+          <textarea class="form-input" id="cfg-spam-patterns" rows="10" placeholder="매수.*위&#10;급등.*예고&#10;순매수.*위"></textarea>
+          <div class="form-hint">예: <code>매수.*위</code> → "매수 1위", "매수 3위" 등 모두 차단</div>
+        </div>
+        <button class="btn btn-primary" onclick="saveNewsFilter('news_spam_patterns', 'cfg-spam-patterns', '\\n')">저장</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-header">
+        <span class="card-title">실질 보도 키워드 <span style="font-size:11px;font-weight:400;color:var(--text3)">— 하나도 없으면 발송 안 함</span></span>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">키워드 목록 <span style="font-size:11px;color:var(--text3)">(쉼표로 구분)</span></label>
+          <textarea class="form-input" id="cfg-meaningful-kw" rows="6" placeholder="계약,수주,실적,임상,특허,인수..."></textarea>
+          <div class="form-hint">이 중 하나라도 제목/본문에 있어야 발송합니다. 없으면 단순 언급으로 판단해 스킵.</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-primary" onclick="saveNewsFilter('news_meaningful_keywords', 'cfg-meaningful-kw', ',')">저장</button>
+          <span style="font-size:11px;color:var(--text3)">저장 후 봇 재로드 버튼을 눌러주세요.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 스케줄 탭 -->
+  <div id="botcfg-schedule" style="display:none">
+    <div class="card" style="margin-bottom:1rem"><div class="card-header"><span class="card-title">스케줄 ON/OFF</span></div><div class="card-body">
+      <div id="schedule-list"><span class="loading"></span></div>
+    </div></div>
+  </div>
+
+  <!-- 산업별 검색어 탭 -->
+  <div id="botcfg-news-terms" style="display:none">
+    <div class="card" style="margin-bottom:1rem"><div class="card-header">
+      <span class="card-title">산업별 뉴스 검색어</span>
+      <span style="font-size:11px;color:var(--text3)">쉼표로 구분 — 저장 즉시 봇 다음 사이클에 반영</span>
+    </div><div class="card-body">
+      <div id="news-terms-list"><span class="loading"></span></div>
+    </div></div>
+  </div>
 
   <div style="background:linear-gradient(135deg,rgba(42,171,238,.12),rgba(42,171,238,.04));border:1px solid rgba(42,171,238,.25);border-radius:var(--radius);padding:1rem 1.25rem">
     <div style="font-size:13px;font-weight:600;color:var(--tg);margin-bottom:.5rem">봇 서버 연동 방법</div>
@@ -166,13 +216,42 @@ function pBotConfig() {
       1. <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">supabase_bridge.py</code> 를 봇 폴더에 복사<br>
       2. <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">pip install supabase</code> 실행<br>
       3. <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">.env</code> 에 <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">SB_URL</code>, <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">SB_SERVICE_KEY</code> 추가<br>
-      4. <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">config.py</code> 하단에 패치 코드 추가 (bot_patch_guide.py 참고)<br>
-      5. 봇 재시작 → 대시보드에서 heartbeat 확인
+      4. 봇 재시작 → 대시보드에서 heartbeat 확인
     </div>
   </div>`;
 }
 
+function switchBotCfgTab(tab, el) {
+  ['keywords','news-filter','schedule','news-terms'].forEach(t => {
+    document.getElementById(`botcfg-${t}`).style.display = t === tab ? '' : 'none';
+  });
+  document.querySelectorAll('#botcfg-tabs .tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+
+  if (tab === 'schedule' && !document.getElementById('schedule-list').children.length) {
+    loadSchedules();
+  }
+  if (tab === 'news-terms') loadNewsTerms();
+  if (tab === 'news-filter') loadNewsFilter();
+}
+
 async function loadBotConfig() {
+  // 키워드 탭 로드
+  const allKeys = ['ai_trigger_keywords', 'global_important_keywords'];
+  const { data: cfgRows } = await sb.from('app_config').select('key,value').in('key', allKeys);
+  const cfg = {};
+  (cfgRows || []).forEach(r => cfg[r.key] = r.value);
+
+  const aiEl = document.getElementById('cfg-ai-kw');
+  const glEl = document.getElementById('cfg-global-kw');
+  if (aiEl && cfg['ai_trigger_keywords']) aiEl.value = cfg['ai_trigger_keywords'];
+  if (glEl && cfg['global_important_keywords']) glEl.value = cfg['global_important_keywords'];
+
+  // 스케줄은 탭 전환 시 로드
+  loadSchedules();
+}
+
+async function loadSchedules() {
   const schedules = [
     { key:'schedule_lunch',    label:'점심 브리핑 (11:30)' },
     { key:'schedule_closing',  label:'마감 브리핑 (18:30)' },
@@ -180,42 +259,47 @@ async function loadBotConfig() {
     { key:'schedule_saturday', label:'토요일 주간 랭킹 (10:00)' },
     { key:'schedule_sunday',   label:'일요일 리포트 (10:00)' },
   ];
-
-  const allKeys = [
-    'ai_trigger_keywords', 'global_important_keywords',
-    ...schedules.map(s => s.key)
-  ];
-
-  // 한 번에 전체 조회
-  const { data: cfgRows } = await sb.from('app_config').select('key,value').in('key', allKeys);
+  const { data: cfgRows } = await sb.from('app_config').select('key,value').in('key', schedules.map(s => s.key));
   const cfg = {};
   (cfgRows || []).forEach(r => cfg[r.key] = r.value);
 
-  // 키워드 채우기
-  const aiEl = document.getElementById('cfg-ai-kw');
-  const glEl = document.getElementById('cfg-global-kw');
-  if (aiEl && cfg['ai_trigger_keywords']) aiEl.value = cfg['ai_trigger_keywords'];
-  if (glEl && cfg['global_important_keywords']) glEl.value = cfg['global_important_keywords'];
-
-  // 스케줄 토글
   const schedEl = document.getElementById('schedule-list');
   if (!schedEl) return;
-
-  // 뉴스 검색어 로드
-  loadNewsTerms();
-
   schedEl.innerHTML = schedules.map(s => {
     const on = (cfg[s.key] ?? '1') !== '0';
-    const key = s.key;
     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px">
       <span>${s.label}</span>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
         <span style="font-size:12px;color:${on?'var(--green)':'var(--text3)'}">${on?'ON':'OFF'}</span>
-        <input type="checkbox" ${on?'checked':''} onchange="toggleSchedule('${key}',this.checked)" style="width:16px;height:16px;cursor:pointer">
+        <input type="checkbox" ${on?'checked':''} onchange="toggleSchedule('${s.key}',this.checked)" style="width:16px;height:16px;cursor:pointer">
       </label>
     </div>`;
   }).join('') +
   '<div style="font-size:11px;color:var(--text3);margin-top:.75rem">변경 즉시 반영됩니다. 봇은 다음 사이클에서 확인합니다.</div>';
+}
+
+async function loadNewsFilter() {
+  const keys = ['news_spam_patterns', 'news_meaningful_keywords'];
+  const { data } = await sb.from('app_config').select('key,value').in('key', keys);
+  const map = {};
+  (data || []).forEach(r => map[r.key] = r.value);
+
+  const spamEl = document.getElementById('cfg-spam-patterns');
+  const kwEl   = document.getElementById('cfg-meaningful-kw');
+  if (spamEl && map['news_spam_patterns'])       spamEl.value = map['news_spam_patterns'];
+  if (kwEl   && map['news_meaningful_keywords']) kwEl.value   = map['news_meaningful_keywords'];
+}
+
+async function saveNewsFilter(key, elId, separator) {
+  if (!isAdmin()) { toast('admin만 수정 가능합니다.', 'error'); return; }
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const value = el.value.trim();
+  const { error } = await sb.from('app_config')
+    .update({ value, updated_at: new Date().toISOString() })
+    .eq('key', key);
+  if (error) { toast('저장 실패: ' + error.message, 'error'); return; }
+  toast('저장 완료 — 봇 재로드 후 반영됩니다', 'success');
 }
 
 const NEWS_INDUSTRIES = ['2차전지','반도체','로봇','조선','뷰티','엔터','신재생','바이오','테크','소비재','우주'];
