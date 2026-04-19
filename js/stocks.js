@@ -166,6 +166,7 @@ async function openRenameSubIndustry(industry, oldName) {
     .eq('sub_industry', oldName);
 
   if (error) { toast('변경 실패: ' + error.message, 'error'); return; }
+  _allCompanies = []; // 캐시 무효화
   toast(`"${oldName}" → "${newName.trim()}" 변경 완료 (${targets.length}개 종목)`, 'success');
   loadSubIndustryPanel();
 }
@@ -333,6 +334,7 @@ async function removeFromSubIndustry(id, name, sub) {
   if (!confirm(`"${name}"을(를) [${sub}]에서 제외할까요?\n(종목 자체는 삭제되지 않습니다)`)) return;
   const { error } = await sb.from('companies').update({ sub_industry: null }).eq('id', id);
   if (error) { toast('실패: ' + error.message, 'error'); return; }
+  _allCompanies = []; // 캐시 무효화 — 다음 모달 열 때 재조회
   toast(`${name} 제외 완료`, 'info');
   loadSubIndustryPanel();
 }
