@@ -153,21 +153,69 @@ textarea.form-input { resize:vertical; min-height:100px; }
 .viewer-lock span { font-size:12px; color:var(--text3); padding:6px 14px; border:1px solid var(--border); border-radius:100px; }
 
 @media(max-width:900px){
+  /* ── 레이아웃 ── */
   .sidebar { transform:translateX(-100%); transition:transform .25s; }
   .sidebar.open { transform:translateX(0); box-shadow:4px 0 24px rgba(0,0,0,.5); }
   .main { margin-left:0; }
-  .metrics-grid { grid-template-columns:repeat(2,1fr); }
   .topbar { padding:0 1rem; }
   .topbar-actions .btn-label { display:none; }
-  .content { padding:1rem; }
-  .form-row { grid-template-columns:1fr; }
-  table { font-size:12px; }
-  th, td { padding:8px 8px; }
+  .content { padding:.875rem; }
   .menu-btn { display:flex !important; }
   .overlay { display:block; }
   .overlay.active { opacity:1; pointer-events:all; }
-  .modal { width:94vw !important; padding:1.25rem; }
+
+  /* ── 메트릭 카드 ── */
+  .metrics-grid { grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:1rem; }
+  .metric-value { font-size:20px; }
+
+  /* ── 카드 ── */
+  .card { margin-bottom:.75rem; }
+  .card-body { padding:.875rem; }
+
+  /* ── 폼 ── */
+  .form-row { grid-template-columns:1fr; }
+  .modal { width:94vw !important; padding:1.25rem; max-height:88vh; }
+
+  /* ── 테이블 ── */
+  table { font-size:12px; }
+  th, td { padding:7px 8px; }
+
+  /* ── 전체현황: 산업별/Top5 2열 → 1열 ── */
+  .overview-grid { grid-template-columns:1fr !important; }
+
+  /* ── 투자현황 ── */
+  .inv-summary-grid { grid-template-columns:1fr !important; }
+  .inv-main-grid   { grid-template-columns:1fr !important; }
+  .inv-chg-grid    { grid-template-columns:1fr !important; }
+
+  /* ── 스크리너: 필터 사이드바 → 상단 접이식 ── */
+  .screener-layout  { grid-template-columns:1fr !important; }
+  .screener-filter  { position:static !important; }
+
+  /* ── 필터바 칩/검색 ── */
+  .filter-bar { gap:5px; }
+  .chip { padding:3px 10px; font-size:11px; }
+  .search-box { max-width:100%; flex:1 1 120px; }
+
+  /* ── 툴바 버튼 ── */
+  .topbar-actions button span { display:none; }
+
+  /* ── 재무조회 컨트롤 ── */
+  .fin-controls { flex-wrap:wrap; }
+  .fin-controls .btn-group { margin-left:0 !important; width:100%; justify-content:flex-end; }
 }
+
+@media(max-width:480px){
+  .metrics-grid { grid-template-columns:1fr 1fr; gap:6px; }
+  .metric-value { font-size:18px; }
+  .content { padding:.625rem; }
+  .card-header { padding:.75rem .875rem; }
+  .modal { padding:1rem; }
+  /* 종목 관리 테이블 — 덜 중요한 컬럼 숨김 */
+  .stock-col-chatid,
+  .stock-col-keyword { display:none; }
+}
+
 @media(min-width:901px){
   .menu-btn { display:none !important; }
 }

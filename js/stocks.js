@@ -110,7 +110,7 @@ function renderStocks(list) {
   el.innerHTML = `<div class="table-wrap"><table>
     <thead><tr>
       <th>종목명</th><th>코드</th><th>산업</th><th>세부분야</th><th>업종</th>
-      <th>채팅방 ID</th><th>키워드</th><th>모니터링</th><th>관리</th>
+      <th class="stock-col-chatid">채팅방 ID</th><th class="stock-col-keyword">키워드</th><th>모니터링</th><th>관리</th>
     </tr></thead>
     <tbody>${list.map(s => `<tr>
       <td style="font-weight:600;font-size:13px">${s.name}</td>
@@ -118,8 +118,8 @@ function renderStocks(list) {
       <td><span class="badge badge-cat">${s.industry||'—'}</span></td>
       <td style="font-size:12px;color:var(--text2)">${s.sub_industry||'—'}</td>
       <td style="font-size:11px;color:var(--text2);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.sector||''}">${s.sector||'—'}</td>
-      <td style="font-size:11px;font-family:monospace;color:var(--text3);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.chat_id||'—'}</td>
-      <td style="font-size:12px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.keywords||'—'}</td>
+      <td class="stock-col-chatid" style="font-size:11px;font-family:monospace;color:var(--text3);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.chat_id||'—'}</td>
+      <td class="stock-col-keyword" style="font-size:12px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.keywords||'—'}</td>
       <td>
         <span style="font-size:11px;font-weight:500;padding:3px 8px;border-radius:100px;background:${
           s.monitoring_level==='full'?'rgba(42,171,238,.15)':

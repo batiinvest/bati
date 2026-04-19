@@ -48,7 +48,7 @@ function pOverview() {
     <div class="metric-card"><div class="metric-label">정원 마감</div><div class="metric-value" style="color:var(--red)">${full}</div><div class="metric-sub">${totalCompany?Math.round(full/totalCompany*100):0}% (기업방)</div></div>
     <div class="metric-card"><div class="metric-label">입장 가능</div><div class="metric-value" style="color:var(--green)">${open}</div><div class="metric-sub">${totalCompany?Math.round(open/totalCompany*100):0}% (기업방)</div></div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+  <div class="overview-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
     <div class="card"><div class="card-header"><span class="card-title">산업별 현황</span></div><div class="card-body" style="padding:.75rem 1rem">
       ${Object.entries(catMap).sort((a,b)=>b[1].m-a[1].m).map(([cat,v])=>{
         const compList = companyRooms.filter(r=>r.cat===cat).sort((a,b)=>b.members-a.members);
@@ -193,7 +193,7 @@ function toggleCatDetail(id) {
 function pInvestment() {
   return `
   <div id="inv-body">
-    <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+    <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
       <select class="form-select" id="inv-industry" onchange="loadInvestment()" style="width:130px;padding:6px 10px">
         <option value="all">전체 산업</option>
         <option value="반도체">반도체</option>
@@ -208,17 +208,17 @@ function pInvestment() {
         <option value="소비재">소비재</option>
         <option value="우주">우주</option>
       </select>
-      <span style="font-size:12px;color:var(--text3);align-self:center" id="inv-date"></span>
+      <span style="font-size:12px;color:var(--text3)" id="inv-date"></span>
       <button class="btn btn-sm" style="margin-left:auto" onclick="loadInvestment()">새로고침</button>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:1rem" id="inv-summary">
+    <div class="inv-summary-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:1rem" id="inv-summary">
       <div class="metric-card"><div class="metric-label">급등 (상위 5%)</div><div class="metric-value" style="color:var(--red)" id="inv-surge">—</div></div>
       <div class="metric-card"><div class="metric-label">급락 (하위 5%)</div><div class="metric-value" style="color:#4a9eff" id="inv-drop">—</div></div>
       <div class="metric-card"><div class="metric-label">산업 평균 등락률</div><div class="metric-value" id="inv-avg">—</div></div>
     </div>
 
-    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-bottom:1rem">
+    <div class="inv-main-grid" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-bottom:1rem">
       <div class="card">
         <div class="card-header"><span class="card-title">시총 Top 10</span></div>
         <div id="inv-cap-list" style="padding:.5rem 0"></div>
@@ -337,7 +337,7 @@ async function loadInvestment() {
   const chgEl = document.getElementById('inv-chg-list');
   if (chgEl) {
     chgEl.innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+      <div class="inv-chg-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:0">
         <div>
           <div style="font-size:11px;color:var(--text3);padding:4px 12px;font-weight:500">급등</div>
           ${chgTop.map(r => `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 12px;border-bottom:1px solid var(--border)">
@@ -435,9 +435,9 @@ async function loadInvestment() {
 
 function pScreener() {
   return `
-  <div style="display:grid;grid-template-columns:280px 1fr;gap:1rem;align-items:start">
+  <div class="screener-layout" style="display:grid;grid-template-columns:280px 1fr;gap:1rem;align-items:start">
 
-    <div class="card" style="position:sticky;top:1rem">
+    <div class="card screener-filter" style="position:sticky;top:1rem">
       <div class="card-header"><span class="card-title">필터 조건</span></div>
       <div style="padding:.75rem 1rem;display:flex;flex-direction:column;gap:1rem">
 
