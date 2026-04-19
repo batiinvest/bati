@@ -168,40 +168,79 @@ async function openRenameSubIndustry(industry, oldName) {
 
 // 기업 배정/편집 모달
 let _assignIndustry = '', _assignSub = '', _assignIsNew = false;
+let _allCompanies = []; // 전체 종목 캐시 (배정 모달용)
 
-function openAssignCompanies(industry, sub, isNew=false) {
+async function openAssignCompanies(industry, sub, isNew=false) {
   _assignIndustry = industry;
   _assignSub = sub;
   _assignIsNew = isNew;
 
-  const modal = document.getElementById('m-assign-sub');
   document.getElementById('assign-sub-title').textContent =
     isNew ? `[${industry}] 새 세부분야: ${sub}` : `[${industry} › ${sub || '미분류'}] 기업 편집`;
 
-  // 해당 산업 전체 종목 목록 렌더
-  renderAssignList('');
+  // 전체 종목 로드 (캐시 없으면 DB 조회)
+  const list = document.getElementById('assign-company-list');
+  list.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>';
   openModal('m-assign-sub');
+
+  if (!_allCompanies.length) {
+    let all = [], page = 0;
+    while (true) {
+      const { data } = await sb.from('companies')
+        .select('id,name,code,industry,sub_industry')
+        .order('industry').order('name')
+        .range(page*1000, (page+1)*1000-1);
+      if (!data?.length) break;
+      all = all.concat(data);
+      if (data.length < 1000) break;
+      page++;
+    }
+    _allCompanies = all;
+  }
+
+  // 검색창 초기화
+  const searchEl = document.querySelector('#m-assign-sub input[type=text], #m-assign-sub input:not([type=checkbox])');
+  if (searchEl) searchEl.value = '';
+
+  renderAssignList('');
 }
 
 function renderAssignList(q) {
   const list = document.getElementById('assign-company-list');
   if (!list) return;
   const keyword = q.toLowerCase();
-  const stocks = _subStocks.filter(s =>
-    !keyword || s.name.toLowerCase().includes(keyword) || (s.code||'').toLowerCase().includes(keyword)
-  );
+
+  // 전체 종목에서 검색 (현재 산업 종목 + 미분류 종목 모두 포함)
+  const stocks = _allCompanies.filter(s => {
+    if (!keyword) return true;
+    return s.name.toLowerCase().includes(keyword) || (s.code||'').toLowerCase().includes(keyword);
+  });
+
+  // 정렬: 현재 산업 먼저, 그 다음 미분류, 그 다음 다른 산업
+  stocks.sort((a, b) => {
+    const aScore = a.industry === _assignIndustry ? 0 : !a.industry ? 1 : 2;
+    const bScore = b.industry === _assignIndustry ? 0 : !b.industry ? 1 : 2;
+    if (aScore !== bScore) return aScore - bScore;
+    return a.name.localeCompare(b.name, 'ko');
+  });
 
   list.innerHTML = stocks.map(s => {
-    const inSub = s.sub_industry === _assignSub;
-    const isOtherSub = s.sub_industry && s.sub_industry !== _assignSub && s.sub_industry !== '(미분류)';
+    const inSub = s.sub_industry === _assignSub && s.industry === _assignIndustry;
+    const isOtherSub = s.sub_industry && !inSub;
+    const isDiffIndustry = s.industry && s.industry !== _assignIndustry;
+    const isUnassigned = !s.industry && !s.sub_industry;
+
     return `
     <label style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer">
       <input type="checkbox" value="${s.id}" ${inSub?'checked':''}
-        style="width:15px;height:15px;flex-shrink:0"
-        onchange="toggleAssignCheck(this,${s.id})">
+        style="width:15px;height:15px;flex-shrink:0">
       <span style="flex:1;font-size:13px">${s.name}</span>
       <span style="font-size:11px;font-family:monospace;color:var(--text3)">${s.code||''}</span>
-      ${isOtherSub
+      ${isUnassigned
+        ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:rgba(255,255,255,.06);color:var(--text3)">미분류</span>`
+        : isDiffIndustry
+        ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:rgba(255,255,255,.06);color:var(--text3)">${s.industry}</span>`
+        : isOtherSub
         ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:rgba(251,99,64,.15);color:var(--yellow)">${s.sub_industry}</span>`
         : inSub
         ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:rgba(42,171,238,.12);color:var(--tg)">현재</span>`
@@ -210,32 +249,45 @@ function renderAssignList(q) {
   }).join('') || '<div style="padding:1rem;color:var(--text3);font-size:13px;text-align:center">종목 없음</div>';
 }
 
-function toggleAssignCheck(el, id) {
-  // 실시간 체크 상태만 관리 (저장은 saveAssign 시)
-}
+
 
 async function saveAssign() {
   if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
   const checkboxes = document.querySelectorAll('#assign-company-list input[type=checkbox]');
-  const toAdd    = [];
-  const toRemove = [];
+  const toAdd    = [];  // sub_industry + 필요시 industry도 세팅
+  const toRemove = [];  // sub_industry 해제
 
   checkboxes.forEach(cb => {
     const id = parseInt(cb.value);
-    const s  = _subStocks.find(x => x.id === id);
+    const s  = _allCompanies.find(x => x.id === id);
     if (!s) return;
-    const wasIn = s.sub_industry === _assignSub;
-    if (cb.checked && !wasIn) toAdd.push(id);
+    const wasIn = s.sub_industry === _assignSub && s.industry === _assignIndustry;
+    if (cb.checked && !wasIn) toAdd.push(s);
     if (!cb.checked && wasIn) toRemove.push(id);
   });
 
   let ok = true;
+
+  // 추가: industry 없는 종목은 industry도 함께 세팅
   if (toAdd.length) {
-    const { error } = await sb.from('companies')
-      .update({ sub_industry: _assignSub })
-      .in('id', toAdd);
-    if (error) { toast('배정 실패: ' + error.message, 'error'); ok = false; }
+    // industry 미배정 종목 따로 처리
+    const needIndustry = toAdd.filter(s => !s.industry || s.industry !== _assignIndustry);
+    const alreadyInIndustry = toAdd.filter(s => s.industry === _assignIndustry);
+
+    if (needIndustry.length) {
+      const { error } = await sb.from('companies')
+        .update({ industry: _assignIndustry, sub_industry: _assignSub })
+        .in('id', needIndustry.map(s => s.id));
+      if (error) { toast('배정 실패: ' + error.message, 'error'); ok = false; }
+    }
+    if (alreadyInIndustry.length) {
+      const { error } = await sb.from('companies')
+        .update({ sub_industry: _assignSub })
+        .in('id', alreadyInIndustry.map(s => s.id));
+      if (error) { toast('배정 실패: ' + error.message, 'error'); ok = false; }
+    }
   }
+
   if (toRemove.length) {
     const { error } = await sb.from('companies')
       .update({ sub_industry: null })
@@ -244,8 +296,8 @@ async function saveAssign() {
   }
 
   if (ok) {
-    const total = toAdd.length + toRemove.length;
     toast(`저장 완료 — 추가 ${toAdd.length}개, 제외 ${toRemove.length}개`, 'success');
+    _allCompanies = []; // 캐시 무효화 (다음 열 때 재조회)
     closeModal('m-assign-sub');
     loadSubIndustryPanel();
   }
