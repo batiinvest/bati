@@ -295,6 +295,28 @@
   </div>
 </div>
 
+<!-- 세부분야 기업 배정 Modal -->
+<div class="modal-overlay" id="m-assign-sub">
+  <div class="modal" style="width:540px;max-height:85vh;display:flex;flex-direction:column">
+    <div class="modal-header">
+      <span class="modal-title" id="assign-sub-title">기업 배정</span>
+      <button class="modal-close" onclick="closeModal('m-assign-sub')">×</button>
+    </div>
+    <div style="padding:0 0 .75rem">
+      <input class="form-input" placeholder="종목명·코드 검색..." oninput="renderAssignList(this.value)"
+        style="width:100%;padding:7px 12px;font-size:13px">
+    </div>
+    <div style="font-size:11px;color:var(--text3);padding-bottom:.5rem">
+      ✓ 체크 = 이 세부분야 포함 / 해제 = 제외 (주황색 태그는 다른 세부분야 소속)
+    </div>
+    <div id="assign-company-list" style="flex:1;overflow-y:auto;min-height:200px;max-height:460px"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('m-assign-sub')">취소</button>
+      <button class="btn btn-primary" onclick="saveAssign()">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- 설정 & 인증 -->
 <script src="js/config.js?v=1776514480" defer></script>
 <script src="js/auth.js?v=1776514480" defer></script>

@@ -1,36 +1,264 @@
 // stocks.js — 종목 관리 CRUD
+const INDUSTRIES = ['바이오','반도체','2차전지','로봇','뷰티','테크','조선','신재생','엔터','소비재','우주'];
+let _stocksTab = 'list'; // 'list' | 'subindustry'
+
 function pStocks() {
-  const industries = ['전체','바이오','반도체','2차전지','로봇','뷰티','테크','조선','신재생','엔터','소비재','우주'];
+  const industries = ['전체', ...INDUSTRIES];
   return `
-  <div style="display:flex;gap:8px;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
-    <input class="search-box" id="stock-q" placeholder="종목명·코드 검색..." oninput="filterStocks()" style="max-width:200px">
-    <select class="form-select" id="stock-ind" onchange="filterStocks()" style="width:130px;padding:6px 10px">
-      ${industries.map(i=>`<option value="${i}">${i}</option>`).join('')}
-    </select>
-    <select class="form-select" id="stock-level" onchange="loadStocks()" style="width:130px;padding:6px 10px">
-      <option value="monitored">모니터링 종목</option>
-      <option value="full">채팅방(full)</option>
-      <option value="news">뉴스/공시(news)</option>
-      <option value="data">데이터만(data)</option>
-      <option value="all">전체</option>
-    </select>
-    <select class="form-select" id="stock-active" onchange="filterStocks()" style="width:110px;padding:6px 10px">
-      <option value="all">전체</option>
-      <option value="true">활성화</option>
-      <option value="false">비활성화</option>
-    </select>
-    <span style="font-size:12px;color:var(--text3)" id="stock-count"></span>
-    <div style="margin-left:auto;display:flex;gap:8px">
-      <button class="btn btn-sm" onclick="openModal('m-stock-add')">+ 종목 추가</button>
-      <button class="btn btn-sm btn-primary" id="reload-btn" onclick="requestBotReload()" title="DB 변경사항을 봇에 반영합니다">
-        <svg style="width:12px;height:12px;vertical-align:middle;margin-right:3px" viewBox="0 0 16 16" fill="none"><path d="M13.5 8A5.5 5.5 0 112.5 5M2.5 2v3h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        봇 재로드
-      </button>
+  <div class="tabs" style="margin-bottom:1rem">
+    <button class="tab ${_stocksTab==='list'?'active':''}" onclick="switchStocksTab('list')">종목 목록</button>
+    <button class="tab ${_stocksTab==='subindustry'?'active':''}" onclick="switchStocksTab('subindustry')">세부분야 관리</button>
+  </div>
+
+  <!-- 종목 목록 탭 -->
+  <div id="stocks-list-tab" style="${_stocksTab==='list'?'':'display:none'}">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+      <input class="search-box" id="stock-q" placeholder="종목명·코드 검색..." oninput="filterStocks()" style="max-width:200px">
+      <select class="form-select" id="stock-ind" onchange="filterStocks()" style="width:130px;padding:6px 10px">
+        ${industries.map(i=>`<option value="${i}">${i}</option>`).join('')}
+      </select>
+      <select class="form-select" id="stock-level" onchange="loadStocks()" style="width:130px;padding:6px 10px">
+        <option value="monitored">모니터링 종목</option>
+        <option value="full">채팅방(full)</option>
+        <option value="news">뉴스/공시(news)</option>
+        <option value="data">데이터만(data)</option>
+        <option value="all">전체</option>
+      </select>
+      <select class="form-select" id="stock-active" onchange="filterStocks()" style="width:110px;padding:6px 10px">
+        <option value="all">전체</option>
+        <option value="true">활성화</option>
+        <option value="false">비활성화</option>
+      </select>
+      <span style="font-size:12px;color:var(--text3)" id="stock-count"></span>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn btn-sm" onclick="openModal('m-stock-add')">+ 종목 추가</button>
+        <button class="btn btn-sm btn-primary" id="reload-btn" onclick="requestBotReload()" title="DB 변경사항을 봇에 반영합니다">
+          <svg style="width:12px;height:12px;vertical-align:middle;margin-right:3px" viewBox="0 0 16 16" fill="none"><path d="M13.5 8A5.5 5.5 0 112.5 5M2.5 2v3h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          봇 재로드
+        </button>
+      </div>
+    </div>
+    <div class="card" id="stock-list">
+      <div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>
     </div>
   </div>
-  <div class="card" id="stock-list">
-    <div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>
+
+  <!-- 세부분야 관리 탭 -->
+  <div id="stocks-sub-tab" style="${_stocksTab==='subindustry'?'':'display:none'}">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+      <select class="form-select" id="sub-industry-select" onchange="loadSubIndustryPanel()" style="width:140px;padding:6px 10px">
+        ${INDUSTRIES.map(i=>`<option value="${i}">${i}</option>`).join('')}
+      </select>
+      <span style="font-size:12px;color:var(--text3)" id="sub-panel-count"></span>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn btn-sm btn-primary" onclick="openAddSubIndustry()">+ 세부분야 추가</button>
+      </div>
+    </div>
+    <div id="sub-industry-panel">
+      <div style="padding:2rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>
+    </div>
   </div>`;
+}
+
+function switchStocksTab(tab) {
+  _stocksTab = tab;
+  const listTab = document.getElementById('stocks-list-tab');
+  const subTab  = document.getElementById('stocks-sub-tab');
+  document.querySelectorAll('.tabs .tab').forEach((t,i) => {
+    t.classList.toggle('active', (i===0 && tab==='list') || (i===1 && tab==='subindustry'));
+  });
+  if (listTab) listTab.style.display = tab==='list' ? '' : 'none';
+  if (subTab)  subTab.style.display  = tab==='subindustry' ? '' : 'none';
+  if (tab === 'subindustry') loadSubIndustryPanel();
+}
+
+// ══════════════════════════════════════════
+//  세부분야(sub_industry) 관리
+// ══════════════════════════════════════════
+let _subStocks = []; // 현재 선택된 산업의 전체 종목
+
+async function loadSubIndustryPanel() {
+  const industry = document.getElementById('sub-industry-select')?.value;
+  if (!industry) return;
+  const panel = document.getElementById('sub-industry-panel');
+  if (!panel) return;
+  panel.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>';
+
+  // 해당 산업의 모든 종목 로드
+  let all = [], page = 0;
+  while (true) {
+    const { data, error } = await sb.from('companies')
+      .select('id,name,code,sub_industry,monitoring_level,active')
+      .eq('industry', industry)
+      .order('sub_industry').order('name')
+      .range(page*1000, (page+1)*1000-1);
+    if (error || !data?.length) break;
+    all = all.concat(data);
+    if (data.length < 1000) break;
+    page++;
+  }
+  _subStocks = all;
+
+  // sub_industry별 그룹핑
+  const groups = {};
+  all.forEach(s => {
+    const sub = s.sub_industry || '(미분류)';
+    if (!groups[sub]) groups[sub] = [];
+    groups[sub].push(s);
+  });
+
+  const cnt = document.getElementById('sub-panel-count');
+  if (cnt) cnt.textContent = `${all.length}개 종목 · ${Object.keys(groups).length}개 세부분야`;
+
+  panel.innerHTML = Object.entries(groups)
+    .sort(([a],[b]) => a==='(미분류)'?1:b==='(미분류)'?-1:a.localeCompare(b,'ko'))
+    .map(([sub, stocks]) => `
+    <div class="card" style="margin-bottom:.75rem">
+      <div class="card-header" style="gap:8px">
+        <span class="card-title" style="flex:1">${sub}
+          <span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:6px">${stocks.length}개</span>
+        </span>
+        ${sub !== '(미분류)' && canEdit() ? `
+        <button class="btn btn-sm" onclick="openRenameSubIndustry('${industry}','${sub.replace(/'/g,"\\'")}')">이름 변경</button>
+        <button class="btn btn-sm btn-primary" onclick="openAssignCompanies('${industry}','${sub.replace(/'/g,"\\'")}')">기업 편집</button>
+        ` : canEdit() ? `
+        <button class="btn btn-sm btn-primary" onclick="openAssignCompanies('${industry}','')">기업 배정</button>
+        ` : ''}
+      </div>
+      <div style="padding:.5rem 1rem .75rem;display:flex;flex-wrap:wrap;gap:6px">
+        ${stocks.map(s => `
+        <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:3px 10px;border-radius:100px;background:var(--bg3);border:1px solid var(--border)">
+          <span style="color:var(--text)">${s.name}</span>
+          <span style="color:var(--text3);font-size:10px">${s.code||''}</span>
+          ${canEdit() && sub !== '(미분류)' ? `<button onclick="removeFromSubIndustry(${s.id},'${s.name.replace(/'/g,"\\'")}','${sub.replace(/'/g,"\\'")}')" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:0;font-size:13px;line-height:1;margin-left:2px" title="이 세부분야에서 제외">×</button>` : ''}
+        </span>`).join('')}
+        ${stocks.length === 0 ? '<span style="font-size:12px;color:var(--text3)">종목 없음</span>' : ''}
+      </div>
+    </div>`).join('');
+}
+
+// 세부분야 추가
+function openAddSubIndustry() {
+  const industry = document.getElementById('sub-industry-select')?.value;
+  if (!industry) return;
+  const name = prompt(`[${industry}] 새 세부분야 이름을 입력하세요:`);
+  if (!name?.trim()) return;
+  openAssignCompanies(industry, name.trim(), true);
+}
+
+// 세부분야 이름 변경
+async function openRenameSubIndustry(industry, oldName) {
+  const newName = prompt(`세부분야 이름 변경\n현재: ${oldName}\n새 이름:`, oldName);
+  if (!newName?.trim() || newName.trim() === oldName) return;
+  if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
+
+  // 해당 산업+세부분야의 모든 종목 업데이트
+  const targets = _subStocks.filter(s => s.sub_industry === oldName);
+  if (!targets.length) { toast('해당 세부분야에 종목이 없습니다.', 'error'); return; }
+
+  const { error } = await sb.from('companies')
+    .update({ sub_industry: newName.trim() })
+    .eq('industry', industry)
+    .eq('sub_industry', oldName);
+
+  if (error) { toast('변경 실패: ' + error.message, 'error'); return; }
+  toast(`"${oldName}" → "${newName.trim()}" 변경 완료 (${targets.length}개 종목)`, 'success');
+  loadSubIndustryPanel();
+}
+
+// 기업 배정/편집 모달
+let _assignIndustry = '', _assignSub = '', _assignIsNew = false;
+
+function openAssignCompanies(industry, sub, isNew=false) {
+  _assignIndustry = industry;
+  _assignSub = sub;
+  _assignIsNew = isNew;
+
+  const modal = document.getElementById('m-assign-sub');
+  document.getElementById('assign-sub-title').textContent =
+    isNew ? `[${industry}] 새 세부분야: ${sub}` : `[${industry} › ${sub || '미분류'}] 기업 편집`;
+
+  // 해당 산업 전체 종목 목록 렌더
+  renderAssignList('');
+  openModal('m-assign-sub');
+}
+
+function renderAssignList(q) {
+  const list = document.getElementById('assign-company-list');
+  if (!list) return;
+  const keyword = q.toLowerCase();
+  const stocks = _subStocks.filter(s =>
+    !keyword || s.name.toLowerCase().includes(keyword) || (s.code||'').toLowerCase().includes(keyword)
+  );
+
+  list.innerHTML = stocks.map(s => {
+    const inSub = s.sub_industry === _assignSub;
+    const isOtherSub = s.sub_industry && s.sub_industry !== _assignSub && s.sub_industry !== '(미분류)';
+    return `
+    <label style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer">
+      <input type="checkbox" value="${s.id}" ${inSub?'checked':''}
+        style="width:15px;height:15px;flex-shrink:0"
+        onchange="toggleAssignCheck(this,${s.id})">
+      <span style="flex:1;font-size:13px">${s.name}</span>
+      <span style="font-size:11px;font-family:monospace;color:var(--text3)">${s.code||''}</span>
+      ${isOtherSub
+        ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:rgba(251,99,64,.15);color:var(--yellow)">${s.sub_industry}</span>`
+        : inSub
+        ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:rgba(42,171,238,.12);color:var(--tg)">현재</span>`
+        : ''}
+    </label>`;
+  }).join('') || '<div style="padding:1rem;color:var(--text3);font-size:13px;text-align:center">종목 없음</div>';
+}
+
+function toggleAssignCheck(el, id) {
+  // 실시간 체크 상태만 관리 (저장은 saveAssign 시)
+}
+
+async function saveAssign() {
+  if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
+  const checkboxes = document.querySelectorAll('#assign-company-list input[type=checkbox]');
+  const toAdd    = [];
+  const toRemove = [];
+
+  checkboxes.forEach(cb => {
+    const id = parseInt(cb.value);
+    const s  = _subStocks.find(x => x.id === id);
+    if (!s) return;
+    const wasIn = s.sub_industry === _assignSub;
+    if (cb.checked && !wasIn) toAdd.push(id);
+    if (!cb.checked && wasIn) toRemove.push(id);
+  });
+
+  let ok = true;
+  if (toAdd.length) {
+    const { error } = await sb.from('companies')
+      .update({ sub_industry: _assignSub })
+      .in('id', toAdd);
+    if (error) { toast('배정 실패: ' + error.message, 'error'); ok = false; }
+  }
+  if (toRemove.length) {
+    const { error } = await sb.from('companies')
+      .update({ sub_industry: null })
+      .in('id', toRemove);
+    if (error) { toast('제외 실패: ' + error.message, 'error'); ok = false; }
+  }
+
+  if (ok) {
+    const total = toAdd.length + toRemove.length;
+    toast(`저장 완료 — 추가 ${toAdd.length}개, 제외 ${toRemove.length}개`, 'success');
+    closeModal('m-assign-sub');
+    loadSubIndustryPanel();
+  }
+}
+
+// 개별 기업 세부분야 제외 (× 버튼)
+async function removeFromSubIndustry(id, name, sub) {
+  if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
+  if (!confirm(`"${name}"을(를) [${sub}]에서 제외할까요?\n(종목 자체는 삭제되지 않습니다)`)) return;
+  const { error } = await sb.from('companies').update({ sub_industry: null }).eq('id', id);
+  if (error) { toast('실패: ' + error.message, 'error'); return; }
+  toast(`${name} 제외 완료`, 'info');
+  loadSubIndustryPanel();
 }
 
 async function requestBotReload() {

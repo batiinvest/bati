@@ -17,7 +17,7 @@ function draw() {
   if (A.page === 'team')      loadTeam();
   if (A.page === 'bot')       loadBotStatus();
   if (A.page === 'botconfig') loadBotConfig();
-  if (A.page === 'stocks')    loadStocks();
+  if (A.page === 'stocks') { _stocksTab = 'list'; loadStocks(); }
   if (A.page === 'investment') loadInvestment();
   if (A.page === 'financials') loadFinancials();
 }
