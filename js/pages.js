@@ -242,26 +242,34 @@ let _invIndustryMap = {};
 async function loadInvestment() {
   const industry = document.getElementById('inv-industry')?.value || 'all';
 
-  // market_data 조회
-  let query = sb.from('market_data')
-    .select('stock_code,corp_name,market_cap,price,price_change_rate,per,pbr')
+  // 1) 최신 base_date 확인
+  const { data: dateRow } = await sb.from('market_data')
+    .select('base_date')
     .order('base_date', { ascending: false })
-    .limit(3000);
-
-  const { data: mktRaw } = await query;
-  if (!mktRaw?.length) return;
-
-  // 종목당 최신 1개
-  const latest = {};
-  mktRaw.forEach(r => { if (!latest[r.stock_code]) latest[r.stock_code] = r; });
-  let allData = Object.values(latest);
+    .limit(1);
+  const maxDate = dateRow?.[0]?.base_date;
+  if (!maxDate) return;
 
   // 날짜 표시
   const dateEl = document.getElementById('inv-date');
-  if (dateEl && mktRaw[0]) {
-    // base_date가 없으면 최근 updated_at 기준
-    dateEl.textContent = `기준: ${mktRaw[0].base_date || '최근'}`;
+  if (dateEl) dateEl.textContent = `기준: ${maxDate}`;
+
+  // 2) 최신 날짜 데이터 전체 페이징 조회 (종목 수 ~3000개)
+  let mktRaw = [];
+  let mktPage = 0;
+  while (true) {
+    const { data } = await sb.from('market_data')
+      .select('stock_code,corp_name,market_cap,price,price_change_rate,per,pbr')
+      .eq('base_date', maxDate)
+      .range(mktPage * 1000, (mktPage + 1) * 1000 - 1);
+    if (!data?.length) break;
+    mktRaw = mktRaw.concat(data);
+    if (data.length < 1000) break;
+    mktPage++;
   }
+  if (!mktRaw.length) return;
+
+  let allData = mktRaw;
 
   // companies 테이블에서 산업 정보 가져오기 (항상 최신으로 로드)
   const { data: compData } = await sb.from('companies').select('name,code,industry,sub_industry').eq('active', true);
