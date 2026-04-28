@@ -132,6 +132,7 @@ function pBotConfig() {
       <button class="tab" onclick="switchBotCfgTab('dart-level',this)">공시 등급</button>
       <button class="tab" onclick="switchBotCfgTab('schedule',this)">스케줄</button>
       <button class="tab" onclick="switchBotCfgTab('news-terms',this)">산업별 검색어</button>
+      <button class="tab" onclick="switchBotCfgTab('alert',this)">시세 알림</button>
     </div>
     <button class="btn btn-sm btn-primary" id="botcfg-reload-btn" onclick="requestBotReload('botcfg-reload-btn')" title="저장한 설정을 봇에 즉시 반영합니다">
       <svg style="width:12px;height:12px;vertical-align:middle;margin-right:3px" viewBox="0 0 16 16" fill="none"><path d="M13.5 8A5.5 5.5 0 112.5 5M2.5 2v3h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -318,6 +319,67 @@ function pBotConfig() {
     </div></div>
   </div>
 
+  <!-- 시세 알림 탭 -->
+  <div id="botcfg-alert" style="display:none">
+
+    <div style="font-size:12px;color:var(--text2);margin-bottom:1rem;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
+      시세감시 봇이 기업채팅방에 발송하는 알림 기준입니다. 저장 후 봇 재로드 시 반영됩니다.
+    </div>
+
+    <div class="card" style="margin-bottom:.75rem">
+      <div class="card-header"><span class="card-title">📈 시세 알림 임계값</span></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:1rem">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">🚀 급등 기준 (%)</label>
+            <input class="form-input" id="cfg-alert-surge" type="number" step="0.5" min="1" max="30" placeholder="15">
+            <div class="form-hint">이 이상 상승 시 급등 알림</div>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">📈 강세 기준 (%)</label>
+            <input class="form-input" id="cfg-alert-up" type="number" step="0.5" min="1" max="20" placeholder="5">
+            <div class="form-hint">이 이상 상승 시 강세 알림</div>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">📉 약세 기준 (%) <span style="font-size:11px;font-weight:400;color:var(--text3)">음수 입력</span></label>
+            <input class="form-input" id="cfg-alert-down" type="number" step="0.5" min="-30" max="-1" placeholder="-5">
+            <div class="form-hint">이 이하 하락 시 약세 알림</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-primary" onclick="saveAlertThresholds()">저장</button>
+          <span style="font-size:11px;color:var(--text3)">VI 발동·상한가·하한가는 기준값 무관하게 항상 발송됩니다.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:.75rem">
+      <div class="card-header"><span class="card-title">👤 어드민 채팅방</span></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">어드민 채팅방 ID</label>
+          <input class="form-input" id="cfg-admin-chat" placeholder="@batiinvest">
+          <div class="form-hint">제보 승인 메시지, 네이버 리포트 등이 발송되는 어드민 전용 채팅방입니다. @username 또는 숫자 ID 형식.</div>
+        </div>
+        <button class="btn btn-primary" onclick="saveAlertConfig('admin_chat_id', 'cfg-admin-chat')">저장</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🔍 신뢰도 낮은 출처 <span style="font-size:11px;font-weight:400;color:var(--text3)">— URL에 포함 시 낮은 우선순위</span></span>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">출처 키워드 <span style="font-size:11px;color:var(--text3)">(쉼표로 구분)</span></label>
+          <textarea class="form-input" id="cfg-low-trust" rows="3" placeholder="blog.naver,cafe.naver,tistory,brunch,newspim,fntoday"></textarea>
+          <div class="form-hint">뉴스 링크 URL에 이 문자열이 포함되면 신뢰도 낮은 출처로 분류됩니다.</div>
+        </div>
+        <button class="btn btn-primary" onclick="saveAlertConfig('news_low_trust_sources', 'cfg-low-trust')">저장</button>
+      </div>
+    </div>
+  </div>
+
   <div style="background:linear-gradient(135deg,rgba(42,171,238,.12),rgba(42,171,238,.04));border:1px solid rgba(42,171,238,.25);border-radius:var(--radius);padding:1rem 1.25rem">
     <div style="font-size:13px;font-weight:600;color:var(--tg);margin-bottom:.5rem">봇 서버 연동 방법</div>
     <div style="font-size:12px;color:var(--text2);line-height:1.9">
@@ -330,7 +392,7 @@ function pBotConfig() {
 }
 
 function switchBotCfgTab(tab, el) {
-  ['keywords','news-filter','dart-level','schedule','news-terms'].forEach(t => {
+  ['keywords','news-filter','dart-level','schedule','news-terms','alert'].forEach(t => {
     document.getElementById(`botcfg-${t}`).style.display = t === tab ? '' : 'none';
   });
   document.querySelectorAll('#botcfg-tabs .tab').forEach(t => t.classList.remove('active'));
@@ -340,6 +402,7 @@ function switchBotCfgTab(tab, el) {
   if (tab === 'news-terms') loadNewsTerms();
   if (tab === 'news-filter') loadNewsFilter();
   if (tab === 'dart-level') loadDartLevel();
+  if (tab === 'alert') loadAlertConfig();
 }
 
 async function loadBotConfig() {
@@ -494,6 +557,70 @@ async function toggleSchedule(key, enabled) {
     await sb.from('app_config').update({ value: enabled ? '1' : '0', updated_at: new Date().toISOString() }).eq('key', key);
     toast(`스케줄 ${enabled?'활성화':'비활성화'} 완료`, 'info');
   } catch(e) { toast('변경 실패: ' + e.message, 'error'); }
+}
+
+// ══════════════════════════════════════════
+//  시세 알림 설정 (alert 탭)
+// ══════════════════════════════════════════
+async function loadAlertConfig() {
+  const keys = ['alert_threshold_surge', 'alert_threshold_up', 'alert_threshold_down',
+                'admin_chat_id', 'news_low_trust_sources'];
+  const { data } = await sb.from('app_config').select('key,value').in('key', keys);
+  const map = {};
+  (data || []).forEach(r => map[r.key] = r.value);
+
+  const set = (id, key, fallback) => {
+    const el = document.getElementById(id);
+    if (el) el.value = map[key] !== undefined ? map[key] : fallback;
+  };
+  set('cfg-alert-surge', 'alert_threshold_surge', '15');
+  set('cfg-alert-up',    'alert_threshold_up',    '5');
+  set('cfg-alert-down',  'alert_threshold_down',  '-5');
+  set('cfg-admin-chat',  'admin_chat_id',          '@batiinvest');
+  set('cfg-low-trust',   'news_low_trust_sources', 'blog.naver,cafe.naver,tistory,brunch,newspim,fntoday,edaily');
+}
+
+async function saveAlertThresholds() {
+  if (!isAdmin()) { toast('admin만 수정 가능합니다.', 'error'); return; }
+  const surge = document.getElementById('cfg-alert-surge')?.value.trim();
+  const up    = document.getElementById('cfg-alert-up')?.value.trim();
+  const down  = document.getElementById('cfg-alert-down')?.value.trim();
+
+  // 입력값 검증
+  if (surge && (isNaN(surge) || +surge < 1 || +surge > 30))  { toast('급등 기준: 1~30 사이 숫자', 'error'); return; }
+  if (up    && (isNaN(up)    || +up    < 1 || +up    > 20))  { toast('강세 기준: 1~20 사이 숫자', 'error'); return; }
+  if (down  && (isNaN(down)  || +down  > -1 || +down < -30)) { toast('약세 기준: -1 ~ -30 사이 숫자', 'error'); return; }
+
+  try {
+    const updates = [
+      { key: 'alert_threshold_surge', value: surge },
+      { key: 'alert_threshold_up',    value: up },
+      { key: 'alert_threshold_down',  value: down },
+    ].filter(u => u.value !== undefined && u.value !== '');
+
+    for (const u of updates) {
+      await sb.from('app_config').upsert(
+        { key: u.key, value: u.value, updated_at: new Date().toISOString() },
+        { onConflict: 'key' }
+      );
+    }
+    toast('임계값 저장 완료 — 봇 재로드 후 반영됩니다', 'success');
+  } catch(e) { toast('저장 실패: ' + e.message, 'error'); }
+}
+
+async function saveAlertConfig(key, elId) {
+  if (!isAdmin()) { toast('admin만 수정 가능합니다.', 'error'); return; }
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const value = el.value.trim();
+  if (!value) { toast('값을 입력해주세요.', 'error'); return; }
+  try {
+    await sb.from('app_config').upsert(
+      { key, value, updated_at: new Date().toISOString() },
+      { onConflict: 'key' }
+    );
+    toast('저장 완료 — 봇 재로드 후 반영됩니다', 'success');
+  } catch(e) { toast('저장 실패: ' + e.message, 'error'); }
 }
 
 function pSettings() {
