@@ -81,3 +81,44 @@ const canDel   = () => isAdmin();
 
 // ── 재무 조회 상태 ──
 const F = { mode: 'market', industry: '전체', q: '', sortBy: 'market_cap', sortDir: 'desc' };
+
+// ══════════════════════════════════════════
+//  공통 포맷 헬퍼 — 전 파일에서 참조
+// ══════════════════════════════════════════
+
+// 원 단위 → 조/억 표시 (예: 1500000000000 → "1조 5,000억")
+function fmtCap(won) {
+  if (won == null || won === 0) return '—';
+  const jo  = Math.floor(won / 1e12);
+  const eok = Math.floor((won % 1e12) / 1e8);
+  if (jo > 0 && eok > 0) return jo + '조 ' + eok.toLocaleString() + '억';
+  if (jo > 0)             return jo + '조';
+  return eok.toLocaleString() + '억';
+}
+
+// 등락률 색상 — 한국 주식 관행 (상승=빨강, 하락=파랑)
+const chgColor = v => v > 0 ? 'var(--red)' : v < 0 ? 'var(--blue)' : 'var(--text3)';
+
+// 등락률 문자열 (예: +2.34% / -1.50% / —)
+const chgStr = v => v != null ? `${v > 0 ? '+' : ''}${v.toFixed(2)}%` : '—';
+
+// ══════════════════════════════════════════
+//  봇 재로드 요청 — stocks.js / bots.js 공용
+// ══════════════════════════════════════════
+async function requestBotReload(btnId = 'reload-btn') {
+  if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
+  const btn = document.getElementById(btnId);
+  const origHTML = btn?.innerHTML;
+  if (btn) { btn.disabled = true; btn.textContent = '전송 중...'; }
+  try {
+    const { error } = await sb.from('app_config')
+      .update({ value: String(Date.now()) })
+      .eq('key', 'reload_flag');
+    if (error) throw error;
+    toast('✓ 재로드 요청 전송 완료 — 봇이 1분 내 반영합니다', 'success');
+  } catch(e) {
+    toast('전송 실패: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = origHTML; }
+  }
+}

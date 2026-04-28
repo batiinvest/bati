@@ -15,7 +15,7 @@ function pInvestment() {
 
     <div class="inv-summary-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:1rem" id="inv-summary">
       <div class="metric-card"><div class="metric-label">급등 (상위 5%)</div><div class="metric-value" style="color:var(--red)" id="inv-surge">—</div></div>
-      <div class="metric-card"><div class="metric-label">급락 (하위 5%)</div><div class="metric-value" style="color:#4a9eff" id="inv-drop">—</div></div>
+      <div class="metric-card"><div class="metric-label">급락 (하위 5%)</div><div class="metric-value" style="color:var(--blue)" id="inv-drop">—</div></div>
       <div class="metric-card"><div class="metric-label">산업 평균 등락률</div><div class="metric-value" id="inv-avg">—</div></div>
     </div>
 
@@ -89,7 +89,7 @@ async function loadInvestment() {
   const avgEl   = document.getElementById('inv-avg');
   if (surgeEl) surgeEl.textContent = `+${surgeAvg.toFixed(2)}%`;
   if (dropEl)  dropEl.textContent  = `${dropAvg.toFixed(2)}%`;
-  if (avgEl)  { avgEl.textContent  = `${avg >= 0 ? '+' : ''}${avg.toFixed(2)}%`; avgEl.style.color = avg >= 0 ? 'var(--red)' : '#4a9eff'; }
+  if (avgEl)  { avgEl.textContent  = `${avg >= 0 ? '+' : ''}${avg.toFixed(2)}%`; avgEl.style.color = avg >= 0 ? 'var(--red)' : 'var(--blue)'; }
 
   // 시총 Top 10
   const capTop = [...filtered].filter(r => r.market_cap).sort((a,b) => (b.market_cap||0) - (a.market_cap||0)).slice(0,10);
@@ -97,7 +97,7 @@ async function loadInvestment() {
   if (capEl) {
     capEl.innerHTML = capTop.map((r,i) => {
       const chg = r.price_change_rate;
-      const chgColor = chg > 0 ? 'var(--red)' : chg < 0 ? '#4a9eff' : 'var(--text3)';
+      const chgColor = chg > 0 ? 'var(--red)' : chg < 0 ? 'var(--blue)' : 'var(--text3)';
       const chgStr   = chg != null ? `${chg > 0 ? '+' : ''}${chg.toFixed(2)}%` : '—';
       return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid var(--border)">
         <div style="display:flex;align-items:center;gap:8px">
@@ -139,7 +139,7 @@ async function loadInvestment() {
               <div style="font-size:12px;font-weight:500">${r.corp_name}</div>
               <div style="font-size:10px;color:var(--text3)">${r.industry||''}</div>
             </div>
-            <span style="font-size:12px;font-weight:500;color:#4a9eff">${r.price_change_rate.toFixed(2)}%</span>
+            <span style="font-size:12px;font-weight:500;color:var(--blue)">${r.price_change_rate.toFixed(2)}%</span>
           </div>`).join('')}
         </div>
       </div>`;
@@ -166,7 +166,7 @@ async function loadInvestment() {
         return `<div style="padding:8px 0">
           <div style="display:flex;align-items:center;justify-content:space-between;padding:0 12px;margin-bottom:8px">
             <span style="font-size:13px;font-weight:600">${ind}</span>
-            <span style="font-size:12px;color:${indAvg>=0?'var(--red)':'#4a9eff'};font-weight:500">전체 평균 ${indAvg>=0?'+':''}${indAvg.toFixed(2)}%</span>
+            <span style="font-size:12px;color:${indAvg>=0?'var(--red)':'var(--blue)'};font-weight:500">전체 평균 ${indAvg>=0?'+':''}${indAvg.toFixed(2)}%</span>
           </div>
           ${subEntries.map(([sub, stocks]) => {
             const subAvg = stocks.reduce((s,r) => s+(r.price_change_rate||0),0)/stocks.length;
@@ -174,13 +174,13 @@ async function loadInvestment() {
             return `<div style="padding:7px 12px;border-top:1px solid var(--border)">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
                 <span style="font-size:12px;font-weight:500;color:var(--text1)">${icon} ${sub}</span>
-                <span style="font-size:11px;color:${subAvg>=0?'var(--red)':'#4a9eff'}">${subAvg>=0?'+':''}${subAvg.toFixed(2)}%</span>
+                <span style="font-size:11px;color:${subAvg>=0?'var(--red)':'var(--blue)'}">${subAvg>=0?'+':''}${subAvg.toFixed(2)}%</span>
               </div>
               <div style="display:flex;gap:5px;flex-wrap:wrap">
                 ${stocks.map(r => {
                   const chg = r.price_change_rate || 0;
                   const color = chg > 0 ? 'rgba(45,206,137,.12)' : chg < 0 ? 'rgba(74,158,255,.12)' : 'rgba(128,128,128,.1)';
-                  const tc = chg > 0 ? 'var(--green)' : chg < 0 ? '#4a9eff' : 'var(--text3)';
+                  const tc = chg > 0 ? 'var(--green)' : chg < 0 ? 'var(--blue)' : 'var(--text3)';
                   return `<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:${color};color:${tc}">${r.corp_name} ${chg>=0?'+':''}${chg.toFixed(1)}%</span>`;
                 }).join('')}
               </div>
@@ -193,11 +193,11 @@ async function loadInvestment() {
         return `<div style="padding:10px 12px;border-bottom:1px solid var(--border)">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
             <span style="font-size:13px;font-weight:500">${ind}</span>
-            <span style="font-size:12px;color:${indAvg>=0?'var(--red)':'#4a9eff'};font-weight:500">평균 ${indAvg>=0?'+':''}${indAvg.toFixed(2)}%</span>
+            <span style="font-size:12px;color:${indAvg>=0?'var(--red)':'var(--blue)'};font-weight:500">평균 ${indAvg>=0?'+':''}${indAvg.toFixed(2)}%</span>
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             ${top3.map(r => `<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:rgba(45,206,137,.12);color:var(--green)">${r.corp_name} +${r.price_change_rate.toFixed(1)}%</span>`).join('')}
-            ${bot3.map(r => `<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:rgba(74,158,255,.12);color:#4a9eff">${r.corp_name} ${r.price_change_rate.toFixed(1)}%</span>`).join('')}
+            ${bot3.map(r => `<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:rgba(74,158,255,.12);color:var(--blue)">${r.corp_name} ${r.price_change_rate.toFixed(1)}%</span>`).join('')}
           </div>
         </div>`;
       }

@@ -1,13 +1,5 @@
 // financials.js — 재무 조회 (시장/재무제표/종합)
-
-function fmtCap(won) {
-  if (won == null || won === 0) return '—';
-  const jo  = Math.floor(won / 1e12);
-  const eok = Math.floor((won % 1e12) / 1e8);
-  if (jo > 0 && eok > 0) return jo + '조 ' + eok.toLocaleString() + '억';
-  if (jo > 0)             return jo + '조';
-  return eok.toLocaleString() + '억';
-}
+// fmtCap, chgColor, chgStr → config.js 공통 헬퍼 사용
 
 
 function pFinancials() {
@@ -158,14 +150,14 @@ async function loadMarketData(el) {
     </tr></thead>
     <tbody>${rows.map(r => {
       const chg = r.price_change_rate;
-      const chgColor = chg > 0 ? 'var(--red)' : chg < 0 ? '#4a9eff' : 'var(--text3)';
-      const chgStr = chg != null && chg !== 0 ? `${chg > 0 ? '+' : ''}${chg.toFixed(2)}%` : (chg === 0 ? '0.00%' : '—');
+      const cc  = chgColor(chg);
+      const cs  = chg != null ? (chg !== 0 ? chgStr(chg) : '0.00%') : '—';
       const cap = fmtCap(r.market_cap);
       return `<tr>
         <td style="font-weight:500">${r.corp_name}</td>
         <td>${cap}</td>
         <td>${r.price ? r.price.toLocaleString() + '원' : '—'}</td>
-        <td style="color:${chgColor};font-weight:500">${chgStr}</td>
+        <td style="color:${cc};font-weight:500">${cs}</td>
         <td>${r.per != null && r.per !== 0 ? r.per.toFixed(1) : '—'}</td>
         <td>${r.pbr != null && r.pbr !== 0 ? r.pbr.toFixed(2) : '—'}</td>
         <td>${r.eps ? r.eps.toLocaleString() : '—'}</td>
@@ -320,12 +312,12 @@ async function loadCombinedData(el) {
     </tr></thead>
     <tbody>${rows.map(r => {
       const chg = r.price_change_rate;
-      const chgColor = chg > 0 ? 'var(--red)' : chg < 0 ? '#4a9eff' : 'var(--text3)';
+      const cc  = chgColor(chg);
       return `<tr>
         <td style="font-weight:500">${r.corp_name}</td>
         <td>${fmtCap(r.market_cap)}</td>
         <td>${r.price?r.price.toLocaleString()+'원':'—'}</td>
-        <td style="color:${chgColor};font-weight:500">${chg!=null?(chg>0?'+':'')+chg.toFixed(2)+'%':'—'}</td>
+        <td style="color:${cc};font-weight:500">${chgStr(chg)}</td>
         <td>${r.per!=null?r.per.toFixed(1):'—'}</td>
         <td>${r.pbr!=null?r.pbr.toFixed(2):'—'}</td>
         <td>${fmt(r.revenue)}</td>
@@ -388,6 +380,9 @@ async function openFinTrend(stockCode, corpName) {
   const opData   = rawData.map(r => r.operating_profit ? Math.round(r.operating_profit / 1e8) : null);
   const netData  = rawData.map(r => r.net_income      ? Math.round(r.net_income      / 1e8) : null);
   const marginData = rawData.map(r => r.operating_margin);
+
+  // balance/margin 차트용 원본 데이터 저장
+  window._finRawData = rawData;
 
   const isDark = document.documentElement.classList.contains('dark') ||
     window.matchMedia('(prefers-color-scheme: dark)').matches;

@@ -567,11 +567,14 @@ async function saveWatchlist(id) {
   }
 
   if (id) {
-    await sb.from('watchlist').update(payload).eq('id', id);
+    const { error } = await sb.from('watchlist').update(payload).eq('id', id);
+    if (error) { toast('저장 실패: ' + error.message, 'error'); return; }
   } else {
-    await sb.from('watchlist').insert(payload);
+    const { error } = await sb.from('watchlist').insert(payload);
+    if (error) { toast('저장 실패: ' + error.message, 'error'); return; }
   }
 
   document.getElementById('m-watchlist').remove();
+  toast('저장 완료', 'success');
   loadWatchlist();
 }

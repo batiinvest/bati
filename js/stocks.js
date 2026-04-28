@@ -339,23 +339,7 @@ async function removeFromSubIndustry(id, name, sub) {
   loadSubIndustryPanel();
 }
 
-async function requestBotReload(btnId = 'reload-btn') {
-  if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
-  const btn = document.getElementById(btnId);
-  const origHTML = btn?.innerHTML;
-  if (btn) { btn.disabled = true; btn.textContent = '전송 중...'; }
-  try {
-    const { error } = await sb.from('app_config')
-      .update({ value: String(Date.now()) })
-      .eq('key', 'reload_flag');
-    if (error) throw error;
-    toast('✓ 재로드 요청 전송 완료 — 봇이 1분 내 반영합니다', 'success');
-  } catch(e) {
-    toast('전송 실패: ' + e.message, 'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = origHTML; }
-  }
-}
+// requestBotReload → config.js 공통 함수 사용
 
 let _allStocks = [];
 
