@@ -1,4 +1,50 @@
 
+function syncWlPrice(from, val) {
+  const shares = window._wlShares;
+  if (!shares || !val) {
+    document.getElementById('wl-target-cap-hint').textContent = '';
+    return;
+  }
+  if (from === 'price') {
+    const price = parseFloat(val);
+    if (!isNaN(price)) {
+      const capEok = Math.round(price * shares / 1e8);
+      document.getElementById('wl-target_cap').value = capEok;
+      document.getElementById('wl-target-cap-hint').textContent = `≈ ${capEok >= 10000 ? (capEok/10000).toFixed(1)+'조' : capEok.toLocaleString()+'억'}`;
+    }
+  } else {
+    const capEok = parseFloat(val);
+    if (!isNaN(capEok)) {
+      const price = Math.round(capEok * 1e8 / shares);
+      document.getElementById('wl-target_price').value = price;
+      document.getElementById('wl-target-cap-hint').textContent = `≈ ${price.toLocaleString()}원`;
+    }
+  }
+}
+
+function syncWlWatchPrice(from, val) {
+  const shares = window._wlShares;
+  if (!shares || !val) {
+    document.getElementById('wl-watch-cap-hint').textContent = '';
+    return;
+  }
+  if (from === 'price') {
+    const price = parseFloat(val);
+    if (!isNaN(price)) {
+      const capEok = Math.round(price * shares / 1e8);
+      document.getElementById('wl-watch_cap').value = capEok;
+      document.getElementById('wl-watch-cap-hint').textContent = `≈ ${capEok >= 10000 ? (capEok/10000).toFixed(1)+'조' : capEok.toLocaleString()+'억'}`;
+    }
+  } else {
+    const capEok = parseFloat(val);
+    if (!isNaN(capEok)) {
+      const price = Math.round(capEok * 1e8 / shares);
+      document.getElementById('wl-watch_price').value = price;
+      document.getElementById('wl-watch-cap-hint').textContent = `≈ ${price.toLocaleString()}원`;
+    }
+  }
+}
+
 let _wlCompanies = null;
 
 async function searchWatchlistStock(query) {
@@ -67,6 +113,16 @@ async function selectWatchlistStock(code, name, industry, market) {
     document.getElementById('wl-auto-cap').textContent = m.market_cap ? fmtCap(m.market_cap) : '—';
     document.getElementById('wl-auto-per').textContent = m.per ? m.per.toFixed(1) : '—';
     document.getElementById('wl-auto-pbr').textContent = m.pbr ? m.pbr.toFixed(2) : '—';
+
+    // 주식수 = 시총 / 현재가 (계산용 저장)
+    if (m.market_cap && m.price) {
+      window._wlShares = Math.round(m.market_cap / m.price);
+      document.getElementById('wl-shares-hint').textContent =
+        `발행주식수 약 ${Math.round(window._wlShares/10000).toLocaleString()}만주 기준`;
+    } else {
+      window._wlShares = null;
+      document.getElementById('wl-shares-hint').textContent = '';
+    }
   }
 
   // 재무 데이터 자동 입력 (업계 평균 PER 참고용)
@@ -377,6 +433,52 @@ async function renderWatchlistForm(id) {
         </div>
       </div>
 
+      <!-- 가격 기준 (시총↔주가 연동) -->
+      <div style="font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:6px">💰 가격 기준</div>
+      <div id="wl-shares-hint" style="font-size:11px;color:var(--text3);margin-top:-6px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
+        <div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">적정가 (원)</div>
+          <input type="number" class="form-input" id="wl-target_price" value="${w.target_price||''}"
+            placeholder="예: 280000"
+            oninput="syncWlPrice('price', this.value)"
+            style="width:100%;box-sizing:border-box">
+          <div id="wl-target-cap-hint" style="font-size:10px;color:var(--text3);margin-top:2px"></div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">적정 시총</div>
+          <input type="number" class="form-input" id="wl-target_cap"
+            placeholder="억원 단위"
+            oninput="syncWlPrice('cap', this.value)"
+            style="width:100%;box-sizing:border-box">
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">관심가격 (원)</div>
+          <input type="number" class="form-input" id="wl-watch_price" value="${w.watch_price||''}"
+            placeholder="매수 고려 가격"
+            oninput="syncWlWatchPrice('price', this.value)"
+            style="width:100%;box-sizing:border-box">
+          <div id="wl-watch-cap-hint" style="font-size:10px;color:var(--text3);margin-top:2px"></div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">관심 시총</div>
+          <input type="number" class="form-input" id="wl-watch_cap"
+            placeholder="억원 단위"
+            oninput="syncWlWatchPrice('cap', this.value)"
+            style="width:100%;box-sizing:border-box">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        ${inp('avg_price','평균 매수가 (원)','','number')}
+        ${inp('quantity','보유 수량 (주)','','number')}
+        ${inp('peer_per','업계 평균 PER','','number')}
+      </div>
+
+      <!-- 밸류에이션 -->
+      <div style="font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:6px">📊 밸류에이션</div>
+      ${ta('valuation_note','밸류에이션 근거','예: DCF 기준 적정 시총 20조, 현재 15조로 25% 할인')}
+      ${inp('competitor','경쟁사','예: 할로자임, 아비타스')}
+
       ${inp('catalyst','⚡ 주가 상승 트리거 (예정 이벤트)','예: 2025 Q2 FDA 임상 결과 발표')}
 
       <!-- 투자포인트 -->
@@ -395,22 +497,7 @@ async function renderWatchlistForm(id) {
       <div style="font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:6px">🚫 논리 붕괴 조건</div>
       ${ta('break_condition','이 조건이 충족되면 즉시 매도 검토','예: 로슈 기술이전 계약 해지 or 경쟁 플랫폼 FDA 승인')}
 
-      <!-- 가격 기준 -->
-      <div style="font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:6px">💰 가격 기준</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
-        ${inp('target_price','적정가 (원)','280000','number')}
-        ${inp('watch_price','관심가격 (원)','170000','number')}
-        ${inp('avg_price','평균 매수가 (원)','','number')}
-        ${inp('quantity','보유 수량 (주)','','number')}
-      </div>
 
-      <!-- 밸류에이션 -->
-      <div style="font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:6px">📊 밸류에이션</div>
-      ${ta('valuation_note','밸류에이션 근거','예: DCF 기준 적정 시총 20조, 현재 15조로 25% 할인')}
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        ${inp('competitor','경쟁사','예: 할로자임, 아비타스')}
-        ${inp('peer_per','업계 평균 PER','','number')}
-      </div>
 
       <!-- 다음 확인 -->
       <div style="font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:6px">📅 다음 확인 일정</div>
