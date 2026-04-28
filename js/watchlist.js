@@ -1,4 +1,105 @@
 
+let _wlCompanies = null;
+
+async function searchWatchlistStock(query) {
+  const dd = document.getElementById('wl-search-dropdown');
+  if (!query || query.length < 1) { dd.style.display = 'none'; return; }
+
+  // 전체 companies 캐시 로드 (최초 1회)
+  if (!_wlCompanies) {
+    let all = [], page = 0;
+    while (true) {
+      const { data } = await sb.from('companies')
+        .select('code,name,industry,sub_industry,market')
+        .eq('active', true)
+        .range(page*1000, (page+1)*1000-1);
+      if (!data?.length) break;
+      all = all.concat(data);
+      if (data.length < 1000) break;
+      page++;
+    }
+    _wlCompanies = all;
+  }
+
+  const q = query.toLowerCase();
+  const results = _wlCompanies.filter(c =>
+    c.name?.toLowerCase().includes(q) ||
+    (c.code || '').replace('.KS','').replace('.KQ','').includes(q)
+  ).slice(0, 10);
+
+  if (!results.length) { dd.style.display = 'none'; return; }
+
+  dd.style.display = 'block';
+  dd.innerHTML = results.map(c => {
+    const code = (c.code||'').split('.')[0];
+    return `<div onclick="selectWatchlistStock('${code}','${c.name}','${c.industry||''}','${c.market||''}')"
+      style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px"
+      onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <span style="font-weight:500">${c.name}</span>
+      <span style="font-size:11px;color:var(--text3)">${code}</span>
+      ${c.industry ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:var(--bg3);color:var(--text3)">${c.industry}</span>` : ''}
+      <span style="font-size:10px;color:var(--text3);margin-left:auto">${c.market||''}</span>
+    </div>`;
+  }).join('');
+}
+
+async function selectWatchlistStock(code, name, industry, market) {
+  // 기본 정보 입력
+  document.getElementById('wl-search').value = name;
+  document.getElementById('wl-stock_code').value = code;
+  document.getElementById('wl-corp_name').value = name;
+  document.getElementById('wl-industry').value = industry;
+  document.getElementById('wl-search-dropdown').style.display = 'none';
+
+  // 시장 데이터 자동 입력
+  const { data: mkt } = await sb.from('market_data')
+    .select('price,price_change_rate,market_cap,per,pbr')
+    .eq('stock_code', code)
+    .order('base_date', { ascending: false })
+    .limit(1);
+
+  if (mkt?.[0]) {
+    const m = mkt[0];
+    const chgColor = m.price_change_rate > 0 ? 'var(--green)' : m.price_change_rate < 0 ? 'var(--red)' : 'var(--text2)';
+    document.getElementById('wl-auto-price').textContent = m.price ? m.price.toLocaleString()+'원' : '—';
+    document.getElementById('wl-auto-chg').innerHTML = m.price_change_rate != null
+      ? `<span style="color:${chgColor}">${m.price_change_rate>0?'+':''}${m.price_change_rate.toFixed(2)}%</span>` : '—';
+    document.getElementById('wl-auto-cap').textContent = m.market_cap ? fmtCap(m.market_cap) : '—';
+    document.getElementById('wl-auto-per').textContent = m.per ? m.per.toFixed(1) : '—';
+    document.getElementById('wl-auto-pbr').textContent = m.pbr ? m.pbr.toFixed(2) : '—';
+  }
+
+  // 재무 데이터 자동 입력 (업계 평균 PER 참고용)
+  const { data: fin } = await sb.from('financials')
+    .select('operating_margin,roe,debt_ratio')
+    .eq('stock_code', code)
+    .order('bsns_year', { ascending: false })
+    .order('quarter', { ascending: false })
+    .limit(1);
+
+  if (fin?.[0]) {
+    const f = fin[0];
+    // 밸류에이션 메모에 기본값 제안
+    const memo = document.getElementById('wl-valuation_note');
+    if (memo && !memo.value) {
+      const hints = [];
+      if (f.operating_margin != null) hints.push(`영업이익률 ${f.operating_margin.toFixed(1)}%`);
+      if (f.roe != null) hints.push(`ROE ${f.roe.toFixed(1)}%`);
+      if (f.debt_ratio != null) hints.push(`부채비율 ${f.debt_ratio.toFixed(1)}%`);
+      if (hints.length) memo.placeholder = `최근 재무: ${hints.join(', ')}`;
+    }
+  }
+}
+
+// 드롭다운 외부 클릭 시 닫기
+document.addEventListener('click', e => {
+  const dd = document.getElementById('wl-search-dropdown');
+  if (dd && !dd.contains(e.target) && e.target.id !== 'wl-search') {
+    dd.style.display = 'none';
+  }
+});
+
+
 // =============================================
 //  관심종목 (Watchlist) 페이지
 // =============================================
@@ -219,11 +320,11 @@ async function renderWatchlistForm(id) {
     w = data || {};
   }
 
-  const inp = (field, label, placeholder='', type='text') => `
+  const inp = (field, label, placeholder='', type='text', readonly=false) => `
     <div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:4px">${label}</div>
       <input type="${type}" class="form-input" id="wl-${field}" value="${w[field]||''}"
-        placeholder="${placeholder}" style="width:100%;box-sizing:border-box">
+        placeholder="${placeholder}" ${readonly?'readonly style="width:100%;box-sizing:border-box;opacity:0.7"':'style="width:100%;box-sizing:border-box"'}>
     </div>`;
   const ta = (field, label, placeholder='') => `
     <div>
@@ -237,16 +338,45 @@ async function renderWatchlistForm(id) {
 
       <!-- 기본 정보 -->
       <div style="font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:6px">기본 정보</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-        ${inp('stock_code','종목코드','005930')}
-        ${inp('corp_name','종목명','삼성전자')}
+
+      <!-- 종목 검색 -->
+      <div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">종목 검색</div>
+        <div style="position:relative">
+          <input type="text" class="form-input" id="wl-search"
+            placeholder="종목명 또는 코드 입력..."
+            value="${w.corp_name||''}"
+            oninput="searchWatchlistStock(this.value)"
+            style="width:100%;box-sizing:border-box">
+          <div id="wl-search-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg1);border:1px solid var(--border);border-radius:8px;z-index:999;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.3)"></div>
+        </div>
+      </div>
+
+      <!-- 자동완성된 기본 정보 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
+        ${inp('stock_code','종목코드','자동입력','')}
+        ${inp('corp_name','종목명','자동입력','')}
+        ${inp('industry','산업','자동입력','')}
         <div>
           <div style="font-size:12px;color:var(--text2);margin-bottom:4px">그룹</div>
           <select class="form-select" id="wl-group_name" style="width:100%">
-            ${['관심','후보','보유중'].map(g=>`<option value="${g}" ${w.group_name===g?'selected':''}>${g}</option>`).join('')}
+            ${['관심','후보','보유중'].map(g=>`<option value="${g}" ${(w.group_name||'관심')===g?'selected':''}>${g}</option>`).join('')}
           </select>
         </div>
       </div>
+
+      <!-- 시장 데이터 자동입력 (읽기전용) -->
+      <div style="background:var(--bg2);border-radius:8px;padding:10px 12px">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">📊 시장 데이터 (자동입력)</div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
+          <div><div style="font-size:10px;color:var(--text3)">현재가</div><div id="wl-auto-price" style="font-size:12px;font-weight:600">—</div></div>
+          <div><div style="font-size:10px;color:var(--text3)">등락률</div><div id="wl-auto-chg" style="font-size:12px;font-weight:600">—</div></div>
+          <div><div style="font-size:10px;color:var(--text3)">시총</div><div id="wl-auto-cap" style="font-size:12px;font-weight:600">—</div></div>
+          <div><div style="font-size:10px;color:var(--text3)">PER</div><div id="wl-auto-per" style="font-size:12px;font-weight:600">—</div></div>
+          <div><div style="font-size:10px;color:var(--text3)">PBR</div><div id="wl-auto-pbr" style="font-size:12px;font-weight:600">—</div></div>
+        </div>
+      </div>
+
       ${inp('catalyst','⚡ 주가 상승 트리거 (예정 이벤트)','예: 2025 Q2 FDA 임상 결과 발표')}
 
       <!-- 투자포인트 -->
