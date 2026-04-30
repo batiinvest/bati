@@ -487,6 +487,7 @@ async function runComparison() {
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             ${CMP_METRICS.map(m => `
               <button class="chip ${CMP.metric===m.key?'active':''}"
+                data-metric="${m.key}"
                 onclick="CMP.metric='${m.key}';document.getElementById('cmp-metric').value='${m.key}';renderCmpChart('${m.key}')"
                 style="font-size:11px;padding:3px 8px">${m.label}</button>
             `).join('')}
@@ -606,35 +607,26 @@ function renderCmpDetailTable(metricKey) {
 let _cmpChartInstance = null;
 function renderCmpChart(metricKey) {
   const canvas = document.getElementById('cmp-chart');
-  if (!canvas || !window._cmpChartDatasets) return;
+  if (!canvas || !window._cmpSortedLabels) return;
 
-  const metaDef = CMP_METRICS.find(m => m.key === metricKey) || CMP_METRICS[0];
-  const labels  = window._cmpChartLabels;
-  const period  = parseInt(CMP.period);
+  // CMP.metric 업데이트
+  CMP.metric = metricKey;
 
-  // 선택된 지표의 data로 datasets 재구성
-  const codes = CMP.selectedCodes.map(s => s.code);
-  const finRows = [];  // 이미 stockDataMap에 있음 — 간단히 기존 datasets 활용
-  const datasets = window._cmpChartDatasets.map((ds, i) => {
-    const s = CMP.selectedCodes[i];
-    return {
-      ...ds,
-      // data는 runComparison에서 기본 metric으로 만들어져 있음
-      // 다른 metric 클릭 시 재조회 필요하므로 별도 처리
-    };
+  // 탭 active 업데이트 — data-metric 속성 기반
+  document.querySelectorAll('#cmp-result .chip[data-metric]').forEach(el => {
+    el.classList.toggle('active', el.dataset.metric === metricKey);
   });
 
-  if (_cmpChartInstance) { _cmpChartInstance.destroy(); _cmpChartInstance = null; }
+  const metaDef = CMP_METRICS.find(m => m.key === metricKey) || CMP_METRICS[0];
+  const labels  = window._cmpSortedLabels;
 
-  // 지표가 바뀌면 데이터 재조회 후 차트 재렌더
-  if (metricKey !== CMP.metric || !window._cmpMetricCache?.[metricKey]) {
-    // 캐시 없으면 DB에서 해당 지표 재조회
+  // 캐시 있으면 즉시 렌더, 없으면 DB 조회
+  if (window._cmpMetricCache?.[metricKey]) {
+    drawCmpChart(canvas, window._cmpMetricCache[metricKey], labels, metaDef);
+    renderCmpDetailTable(metricKey);
+  } else {
     fetchCmpMetricAndRender(metricKey, canvas, labels, metaDef);
-    return;
   }
-
-  drawCmpChart(canvas, window._cmpMetricCache[metricKey], labels, metaDef);
-  renderCmpDetailTable(metricKey);
 }
 
 async function fetchCmpMetricAndRender(metricKey, canvas, labels, metaDef) {
@@ -646,33 +638,43 @@ async function fetchCmpMetricAndRender(metricKey, canvas, labels, metaDef) {
   }
 
   const codes = CMP.selectedCodes.map(s => s.code);
-  const period = parseInt(CMP.period);
-  const rows = await fetchAllPages(
-    sb.from('financials')
-      .select(`stock_code,bsns_year,quarter,${metricKey}`)
-      .in('stock_code', codes)
-      .eq('fs_div', 'CFS')
-      .order('bsns_year', { ascending: false })
-      .order('quarter', { ascending: false })
-  );
+
+  // fetchAllPages 대신 직접 쿼리 (정렬+range 충돌 방지)
+  const { data: rows } = await sb.from('financials')
+    .select(`stock_code,bsns_year,quarter,${metricKey}`)
+    .in('stock_code', codes)
+    .eq('fs_div', 'CFS')
+    .order('bsns_year', { ascending: true })
+    .order('quarter', { ascending: true })
+    .limit(500);
 
   const stockMap = {};
   codes.forEach(c => { stockMap[c] = {}; });
-  rows.forEach(r => {
+  (rows || []).forEach(r => {
     if (stockMap[r.stock_code]) {
       stockMap[r.stock_code][`${r.bsns_year} ${r.quarter}`] = r[metricKey];
     }
   });
 
   const datasets = CMP.selectedCodes.map((s, i) => {
-    const color = CMP_COLORS[i % CMP_COLORS.length];
-    const data = labels.map(lbl => {
+    const color   = CMP_COLORS[i % CMP_COLORS.length];
+    const isBar   = metaDef.chartType === 'bar';
+    const data    = labels.map(lbl => {
       const v = stockMap[s.code]?.[lbl];
       return v != null ? (metaDef.scale === 1 ? v : Math.round(v / metaDef.scale)) : null;
     });
+    if (isBar) {
+      return {
+        label: s.name, data,
+        backgroundColor: color + 'cc',
+        borderColor: color,
+        borderWidth: 1,
+        borderRadius: 3,
+        borderSkipped: false,
+      };
+    }
     return {
-      label: s.name,
-      data,
+      label: s.name, data,
       borderColor: color,
       backgroundColor: color + '22',
       borderWidth: 2,
@@ -686,11 +688,12 @@ async function fetchCmpMetricAndRender(metricKey, canvas, labels, metaDef) {
   window._cmpMetricCache[metricKey] = datasets;
 
   // 탭 active 업데이트
-  document.querySelectorAll('.chip').forEach(el => {
-    el.classList.toggle('active', el.textContent.trim() === metaDef.label);
+  document.querySelectorAll('#cmp-result .chip[data-metric]').forEach(el => {
+    el.classList.toggle('active', el.dataset.metric === metricKey);
   });
 
   drawCmpChart(canvas, datasets, labels, metaDef);
+  renderCmpDetailTable(metricKey);
 }
 
 function drawCmpChart(canvas, datasets, labels, metaDef) {
