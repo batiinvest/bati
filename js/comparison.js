@@ -157,16 +157,22 @@ async function onCmpSearch(q) {
 
   _cmpSearchTimer = setTimeout(async () => {
     try {
-      const { data: rows, error } = await sb.from('companies')
+      console.log('[종목검색] 검색어:', q);
+      const { data: rows, error } = await sb
+        .from('companies')
         .select('code,name,industry')
-        .ilike('name', `%${q}%`)
+        .like('name', `%${q}%`)
         .eq('active', true)
         .limit(20);
-      if (error || !rows?.length) { dd.style.display = 'none'; return; }
+
+      console.log('[종목검색] 결과:', rows?.length, '개, 에러:', error);
+
+      if (error) { console.error('[종목검색] 에러:', error); dd.style.display = 'none'; return; }
+      if (!rows?.length) { dd.innerHTML = '<div style="padding:8px 12px;font-size:12px;color:var(--text3)">검색 결과 없음</div>'; dd.style.display = 'block'; return; }
+
       dd.innerHTML = rows.map(r => {
         const code = (r.code || '').split('.')[0];
         const already = CMP.selectedCodes.find(s => s.code === code);
-        // 종목명에 따옴표 포함 시 onclick 속성 깨짐 방지 → data-* 속성 사용
         return `<div
           data-code="${code}"
           data-name="${r.name.replace(/"/g,'&quot;')}"
@@ -182,9 +188,9 @@ async function onCmpSearch(q) {
       }).join('');
       dd.style.display = 'block';
     } catch(e) {
-      console.error('[종목검색]', e);
+      console.error('[종목검색] 예외:', e);
     }
-  }, 200);
+  }, 300);
 }
 
 function addCmpStockFromEl(el) {
