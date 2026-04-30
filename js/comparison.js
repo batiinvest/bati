@@ -148,25 +148,42 @@ async function onCmpSearch(q) {
   if (!q || q.length < 1) { dd.style.display = 'none'; return; }
 
   _cmpSearchTimer = setTimeout(async () => {
-    const rows = await fetchAllPages(
-      sb.from('companies').select('code,name,industry')
-        .ilike('name', `%${q}%`).eq('active', true).limit(20)
-    );
-    if (!rows.length) { dd.style.display = 'none'; return; }
-    dd.innerHTML = rows.map(r => {
-      const code = (r.code || '').split('.')[0];
-      const already = CMP.selectedCodes.find(s => s.code === code);
-      return `<div onclick="addCmpStock('${code}','${r.name}','${r.industry||''}')"
-        style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;
-        border-bottom:1px solid var(--border);${already?'opacity:.4;pointer-events:none':''}">
-        <span>${r.name} <span style="font-size:11px;color:var(--text3)">${code}</span></span>
-        <span style="font-size:11px;color:${CATS[r.industry]||'var(--text3)'}">
-          ${already?'추가됨':r.industry||''}
-        </span>
-      </div>`;
-    }).join('');
-    dd.style.display = 'block';
+    try {
+      const { data: rows, error } = await sb.from('companies')
+        .select('code,name,industry')
+        .ilike('name', `%${q}%`)
+        .eq('active', true)
+        .limit(20);
+      if (error || !rows?.length) { dd.style.display = 'none'; return; }
+      dd.innerHTML = rows.map(r => {
+        const code = (r.code || '').split('.')[0];
+        const already = CMP.selectedCodes.find(s => s.code === code);
+        // 종목명에 따옴표 포함 시 onclick 속성 깨짐 방지 → data-* 속성 사용
+        return `<div
+          data-code="${code}"
+          data-name="${r.name.replace(/"/g,'&quot;')}"
+          data-industry="${(r.industry||'').replace(/"/g,'&quot;')}"
+          onclick="addCmpStockFromEl(this)"
+          style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;
+          border-bottom:1px solid var(--border);${already?'opacity:.4;pointer-events:none':''}">
+          <span style="font-weight:500">${r.name} <span style="font-size:11px;color:var(--text3);font-weight:400">${code}</span></span>
+          <span style="font-size:11px;color:${CATS[r.industry]||'var(--text3)'}">
+            ${already?'추가됨':r.industry||''}
+          </span>
+        </div>`;
+      }).join('');
+      dd.style.display = 'block';
+    } catch(e) {
+      console.error('[종목검색]', e);
+    }
   }, 200);
+}
+
+function addCmpStockFromEl(el) {
+  const code     = el.dataset.code;
+  const name     = el.dataset.name;
+  const industry = el.dataset.industry;
+  addCmpStock(code, name, industry);
 }
 
 function addCmpStock(code, name, industry) {
