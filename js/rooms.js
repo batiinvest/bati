@@ -106,7 +106,116 @@ function onNoticeTargetChange() {
   }
 }
 
-const sendNoticeModal = () => doNotice(document.getElementById('n-content').value.trim(), document.getElementById('n-target').value, 'n-btn', 'n-prog');
+// ── 채팅방 목록 공지 자동 생성 ──
+function autoGenNotice() {
+  const target    = document.getElementById('i-target')?.value || 'all';
+  const parseMode = document.getElementById('i-parse-mode')?.value || 'Markdown';
+
+  // 대상 채팅방 결정
+  let rooms = A.rooms.filter(r => r.room_type !== 'industry'); // 기업방만
+  if (target.startsWith('room:')) {
+    const id = parseInt(target.replace('room:', ''));
+    const r = A.rooms.find(x => x.id === id);
+    rooms = r ? [r] : [];
+  } else if (target === 'open') {
+    rooms = rooms.filter(r => r.status === 'open');
+  } else if (target !== 'all') {
+    rooms = rooms.filter(r => r.cat === target);
+  }
+
+  if (!rooms.length) { toast('대상 채팅방 없음', 'error'); return; }
+
+  // 산업별로 그룹화
+  const grouped = {};
+  rooms.forEach(r => {
+    const cat = r.cat || '기타';
+    if (!grouped[cat]) grouped[cat] = { full: [], open: [] };
+    if (r.status === 'full' || (r.members || 0) >= (r.max_members || 1000)) {
+      grouped[cat].full.push(r);
+    } else {
+      grouped[cat].open.push(r);
+    }
+  });
+
+  const INDUSTRY_EMOJI = {
+    '바이오': '💊', '반도체': '🔬', '2차전지': '🔋', '로봇': '🤖',
+    '조선': '🚢', '우주': '🚀', '신재생': '☀️', '테크': '💻',
+    '엔터': '🎵', '뷰티': '💄', '소비재': '🛒',
+  };
+
+  const linkFmt = (r) => {
+    if (!r.link) return r.name;
+    if (parseMode === 'Markdown') {
+      return `[${r.name}](${r.link})`;
+    } else {
+      return `<a href="${r.link}">${r.name}</a>`;
+    }
+  };
+
+  const lines = [];
+  const bold = (t) => parseMode === 'Markdown' ? `*${t}*` : `<b>${t}</b>`;
+
+  // 산업별 섹션 생성
+  Object.entries(grouped)
+    .sort((a, b) => {
+      // 선택한 산업이 있으면 해당 산업 먼저
+      if (target !== 'all' && !target.startsWith('room:')) {
+        if (a[0] === target) return -1;
+        if (b[0] === target) return 1;
+      }
+      return (b[1].full.length + b[1].open.length) - (a[1].full.length + a[1].open.length);
+    })
+    .forEach(([cat, { full, open }]) => {
+      const emoji = INDUSTRY_EMOJI[cat] || '📌';
+      const total = full.length + open.length;
+
+      // 산업 헤더
+      lines.push(`${emoji} ${bold(cat + ' 종목 채팅방')} (${total}개)`);
+
+      // 산업 채팅방 링크 (있으면)
+      const industryRoom = A.rooms.find(r => r.room_type === 'industry' && r.cat === cat);
+      if (industryRoom?.link) {
+        const indLink = parseMode === 'Markdown'
+          ? `[${cat} 산업 채팅방 바로가기](${industryRoom.link})`
+          : `<a href="${industryRoom.link}">${cat} 산업 채팅방 바로가기</a>`;
+        lines.push(` ➤ ${indLink}`);
+      }
+
+      // 정원 마감
+      if (full.length) {
+        lines.push('');
+        lines.push('🔴 정원 마감');
+        // 3개씩 한 줄
+        for (let i = 0; i < full.length; i += 3) {
+          lines.push(full.slice(i, i+3).map(linkFmt).join('   '));
+        }
+      }
+
+      // 입장 가능
+      if (open.length) {
+        lines.push('');
+        lines.push('🟢 입장 가능');
+        for (let i = 0; i < open.length; i += 3) {
+          lines.push(open.slice(i, i+3).map(linkFmt).join('   '));
+        }
+      }
+
+      lines.push('');
+      lines.push('─'.repeat(20));
+      lines.push('');
+    });
+
+  // 하단 고정 문구
+  lines.push(`📬 신규 채팅방 개설 문의: @BatiInvestment`);
+
+  const text = lines.join('\n').trim();
+  const textarea = document.getElementById('i-content');
+  if (textarea) {
+    textarea.value = text;
+    prev(text, 'i-prev');
+    toast('공지 자동 생성 완료 ✨', 'success');
+  }
+}
 const sendInline = () => doNotice(document.getElementById('i-content').value.trim(), document.getElementById('i-target').value, 'i-btn', 'i-prog');
 
 async function sendSingleNotice(id) {

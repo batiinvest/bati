@@ -149,7 +149,15 @@ function pNotice() {
       </div>
       <div style="align-self:flex-end;font-size:12px;color:var(--text3)" id="i-target-info"></div>
     </div>
-    <div class="form-group"><label class="form-label">내용</label><textarea class="form-input" id="i-content" rows="8" oninput="prev(this.value,'i-prev')"></textarea></div>
+    <div class="form-group"><label class="form-label">내용</label>
+      <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="autoGenNotice()" title="선택한 산업/채팅방 기준으로 공지 자동 생성">
+          ✨ 채팅방 목록 자동 생성
+        </button>
+        <span style="font-size:11px;color:var(--text3);align-self:center">선택한 대상 기준으로 링크 포함 공지 생성</span>
+      </div>
+      <textarea class="form-input" id="i-content" rows="12" oninput="prev(this.value,'i-prev')"></textarea>
+    </div>
     <div class="form-group"><label class="form-label">미리보기</label><div id="i-prev" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;min-height:36px;color:var(--text2);white-space:pre-wrap"></div></div>
     <div id="i-prog" class="hidden" style="font-size:12px;padding:8px;background:var(--bg3);border-radius:var(--radius-sm);color:var(--text2);margin-bottom:.75rem"></div>
     <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary" id="i-btn" onclick="sendInline()">발송 + DB 저장</button></div>
