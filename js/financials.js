@@ -489,8 +489,16 @@ async function openFinTrend(stockCode, corpName) {
       </div>
 
       <!-- 차트 -->
-      <div style="position:relative;height:240px;margin-bottom:1.25rem">
+      <div style="position:relative;height:${window._finChartHeight||240}px;margin-bottom:.5rem" id="fin-chart-wrap">
         <canvas id="fin-chart"></canvas>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem">
+        <span style="font-size:11px;color:var(--text3)">차트 높이</span>
+        <input type="range" min="160" max="500" step="20"
+          value="${window._finChartHeight||240}"
+          style="flex:1;accent-color:var(--tg)"
+          oninput="window._finChartHeight=parseInt(this.value);document.getElementById('fin-chart-wrap').style.height=this.value+'px';document.getElementById('fin-chart-size').textContent=this.value+'px';if(window._finChartInst)window._finChartInst.resize()">
+        <span style="font-size:11px;color:var(--text3);min-width:36px" id="fin-chart-size">${window._finChartHeight||240}px</span>
       </div>
 
       <!-- 손익계산서 -->
