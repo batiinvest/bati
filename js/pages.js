@@ -27,7 +27,7 @@ function pOverview() {
     }
   });
 
-  const top5 = [...companyRooms].sort((a,b) => b.members - a.members).slice(0,5);
+  const sortedRooms = [...companyRooms].sort((a,b) => b.members - a.members);
   return `
   <div class="metrics-grid">
     <div class="metric-card"><div class="metric-label">전체 채팅방</div><div class="metric-value">${total}</div><div class="metric-sub">Supabase DB 기준</div></div>
@@ -70,8 +70,8 @@ function pOverview() {
         </div>`;
       }).join('')}
     </div></div>
-    <div class="card"><div class="card-header"><span class="card-title">멤버 Top 5</span></div><div class="card-body" style="padding:.75rem 1rem">
-      ${top5.map((r,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px"><span style="width:16px;color:var(--text3);font-size:11px;font-weight:600">${i+1}</span><span style="flex:1">${r.name}</span><span style="color:var(--text2);font-size:12px">${(r.members||0).toLocaleString()}</span><div style="width:50px"><div class="progress"><div class="progress-fill" style="background:${CATS[r.cat]||'#888'};width:${Math.min(100,Math.round((r.members||0)/(r.max_members||1000)*100))}%"></div></div></div></div>`).join('')}
+    <div class="card"><div class="card-header"><span class="card-title">채팅방 멤버 순위</span></div><div class="card-body" style="padding:.75rem 1rem;max-height:400px;overflow-y:auto">
+      ${sortedRooms.map((r,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px"><span style="width:16px;color:var(--text3);font-size:11px;font-weight:600">${i+1}</span><span style="flex:1">${r.name}</span><span style="color:var(--text2);font-size:12px">${(r.members||0).toLocaleString()}</span><div style="width:50px"><div class="progress"><div class="progress-fill" style="background:${CATS[r.cat]||'#888'};width:${Math.min(100,Math.round((r.members||0)/(r.max_members||1000)*100))}%"></div></div></div></div>`).join('')}
     </div></div>
   </div>`;
 }
