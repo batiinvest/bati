@@ -1,5 +1,20 @@
 // investment.js — 오늘의 시황 페이지
-// 의존: config.js (fmtCap, chgColor, chgStr, loadingHTML)
+// 의존: config.js (fmtCap, chgColor, chgStr, loadingHTML), Chart.js
+
+// ── 흐름 차트 상태 ──
+const INV = {
+  group:  'global',  // 'global' | 'domestic' | 'fx' | 'commodity'
+  period: 30,        // 30 | 14 | 7
+};
+
+const INV_GROUPS = {
+  global:    { label: '미국 지수',  cols: ['sp500','nasdaq','dow'],           names: ['S&P500','나스닥','다우'] },
+  domestic:  { label: '국내 시장',  cols: ['kospi','kosdaq','kospi200'],      names: ['코스피','코스닥','코스피200'] },
+  fx:        { label: '환율',       cols: ['usd_krw','jpy_krw','eur_krw','cny_krw'], names: ['USD/KRW','JPY/KRW','EUR/KRW','CNY/KRW'] },
+  commodity: { label: '원자재',     cols: ['wti','gold','gas','copper'],       names: ['WTI','금','천연가스','구리'] },
+};
+
+const INV_COLORS = ['#2AABEE','#2dce89','#fb6340','#ffd600','#a259ff'];
 
 function pInvestment() {
   return `
@@ -8,16 +23,19 @@ function pInvestment() {
     <button class="btn btn-sm" onclick="loadInvestment()">🔄 새로고침</button>
   </div>
 
+  <!-- 글로벌 지수 -->
   <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">🌍 글로벌 지수</div>
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:1.25rem" id="inv-global">
     ${['','','','',''].map(()=>'<div class="card" style="padding:12px 14px;min-height:70px"></div>').join('')}
   </div>
 
+  <!-- 국내 시장 -->
   <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">🇰🇷 국내 시장</div>
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:1.25rem" id="inv-domestic">
     ${['','',''].map(()=>'<div class="card" style="padding:12px 14px;min-height:70px"></div>').join('')}
   </div>
 
+  <!-- 환율 / 원자재 -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.25rem">
     <div>
       <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">💱 환율</div>
@@ -33,6 +51,37 @@ function pInvestment() {
     </div>
   </div>
 
+  <!-- 흐름 비교 차트 -->
+  <div class="card" style="margin-bottom:1.25rem">
+    <div class="card-header" style="flex-wrap:wrap;gap:8px">
+      <span class="card-title">📈 흐름 비교</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <div style="display:flex;gap:4px">
+          ${Object.entries(INV_GROUPS).map(([k,v])=>`
+            <button class="chip ${k==='global'?'active':''}" data-inv-group="${k}"
+              onclick="setInvGroup('${k}')" style="font-size:11px;padding:2px 8px">${v.label}</button>
+          `).join('')}
+        </div>
+        <div style="display:flex;gap:4px">
+          ${[7,14,30].map(d=>`
+            <button class="chip ${d===30?'active':''}" data-inv-period="${d}"
+              onclick="setInvPeriod(${d})" style="font-size:11px;padding:2px 8px">${d}일</button>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+    <div style="padding:1rem;position:relative;height:260px">
+      <canvas id="inv-trend-chart"></canvas>
+      <div id="inv-trend-empty" style="display:none;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:13px">
+        데이터 수집 중... (매일 09:00, 16:10 업데이트)
+      </div>
+    </div>
+    <div style="padding:4px 1rem 12px;font-size:11px;color:var(--text3)">
+      * 시작일 기준 100으로 정규화하여 상대적 흐름을 비교합니다
+    </div>
+  </div>
+
+  <!-- 모니터링 종목 현황 -->
   <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">📊 모니터링 종목 현황</div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem" id="inv-summary"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -47,6 +96,7 @@ function pInvestment() {
   </div>`;
 }
 
+// ── 인덱스 카드 ──
 function mkIndexCard(label, value, chg, unit, sub) {
   const cc  = chg != null ? chgColor(chg) : 'var(--text2)';
   const cs  = chg != null ? chgStr(chg) : '—';
@@ -62,11 +112,11 @@ function mkIndexCard(label, value, chg, unit, sub) {
   </div>`;
 }
 
+// ── 메인 로드 ──
 async function loadInvestment() {
-  // 1) macro_data (글로벌/환율/원자재)
   loadMacroData();
+  loadTrendChart();
 
-  // 2) 최신 market_data 날짜
   const { data: dateRow } = await sb.from('market_data')
     .select('base_date').order('base_date', { ascending: false }).limit(1);
   const maxDate = dateRow?.[0]?.base_date;
@@ -74,15 +124,12 @@ async function loadInvestment() {
   if (dateEl) dateEl.textContent = maxDate ? `기준: ${maxDate}` : '';
   if (!maxDate) return;
 
-  // 3) 모니터링 종목 시장 데이터
-  const { data: mktRows, error } = await sb.from('market_data')
+  const { data: mktRows } = await sb.from('market_data')
     .select('stock_code,corp_name,price,price_change_rate,market_cap,market')
     .eq('base_date', maxDate)
     .order('price_change_rate', { ascending: false });
 
-  if (error || !mktRows?.length) return;
-
-  // null 제거 후 처리
+  if (!mktRows?.length) return;
   const rows = mktRows.filter(r => r.price_change_rate != null);
   if (!rows.length) return;
 
@@ -90,8 +137,7 @@ async function loadInvestment() {
   const fall   = rows.filter(r => r.price_change_rate < 0).length;
   const avgChg = rows.reduce((s, r) => s + r.price_change_rate, 0) / rows.length;
 
-  const summaryEl = document.getElementById('inv-summary');
-  if (summaryEl) summaryEl.innerHTML = `
+  document.getElementById('inv-summary').innerHTML = `
     <div class="metric-card"><div class="metric-label">상승 종목</div><div class="metric-value" style="color:var(--red)">${rise}개</div></div>
     <div class="metric-card"><div class="metric-label">하락 종목</div><div class="metric-value" style="color:var(--blue)">${fall}개</div></div>
     <div class="metric-card"><div class="metric-label">평균 등락률</div><div class="metric-value" style="color:${chgColor(avgChg)}">${chgStr(avgChg)}</div></div>`;
@@ -108,6 +154,7 @@ async function loadInvestment() {
   document.getElementById('inv-drop').innerHTML  = [...rows].reverse().slice(0, 5).map(rankRow).join('');
 }
 
+// ── 매크로 카드 ──
 async function loadMacroData() {
   const { data } = await sb.from('macro_data')
     .select('*').order('updated_at', { ascending: false }).limit(1);
@@ -140,4 +187,104 @@ async function loadMacroData() {
     mkIndexCard('천연가스',  m.gas,    m.gas_chg,    '$', 'MMBtu'),
     mkIndexCard('구리',     m.copper, m.copper_chg, '$', '파운드'),
   ].join('');
+}
+
+// ── 흐름 비교 차트 ──
+let _invTrendChart = null;
+
+function setInvGroup(group) {
+  INV.group = group;
+  document.querySelectorAll('[data-inv-group]').forEach(b =>
+    b.classList.toggle('active', b.dataset.invGroup === group));
+  loadTrendChart();
+}
+
+function setInvPeriod(period) {
+  INV.period = period;
+  document.querySelectorAll('[data-inv-period]').forEach(b =>
+    b.classList.toggle('active', b.dataset.invPeriod === String(period)));
+  loadTrendChart();
+}
+
+async function loadTrendChart() {
+  const canvas = document.getElementById('inv-trend-chart');
+  const empty  = document.getElementById('inv-trend-empty');
+  if (!canvas) return;
+
+  const grp = INV_GROUPS[INV.group];
+  const cols = ['base_date', ...grp.cols].join(',');
+
+  const { data: rows } = await sb.from('macro_data')
+    .select(cols)
+    .order('base_date', { ascending: true })
+    .limit(INV.period);
+
+  if (!rows?.length) {
+    canvas.style.display = 'none';
+    if (empty) empty.style.display = 'flex';
+    return;
+  }
+  canvas.style.display = 'block';
+  if (empty) empty.style.display = 'none';
+
+  const labels = rows.map(r => r.base_date);
+
+  // 100 기준 정규화
+  const datasets = grp.cols.map((col, i) => {
+    const values = rows.map(r => r[col]);
+    const base   = values.find(v => v != null);
+    const normalized = values.map(v => v != null && base ? Math.round(v / base * 10000) / 100 : null);
+    const color = INV_COLORS[i % INV_COLORS.length];
+    return {
+      label:           grp.names[i],
+      data:            normalized,
+      borderColor:     color,
+      backgroundColor: color + '15',
+      borderWidth:     2,
+      pointRadius:     2,
+      pointHoverRadius:5,
+      tension:         0.3,
+      fill:            false,
+      spanGaps:        true,
+    };
+  });
+
+  if (_invTrendChart) { _invTrendChart.destroy(); _invTrendChart = null; }
+
+  _invTrendChart = new Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { color: '#a8adc4', font: { size: 11 }, padding: 12, usePointStyle: true },
+        },
+        tooltip: {
+          backgroundColor: '#1a1d27',
+          borderColor: 'rgba(255,255,255,.1)',
+          borderWidth: 1,
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2) ?? '—'}`,
+          }
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#6e7491', font: { size: 10 }, maxTicksLimit: 10 },
+          grid:  { color: 'rgba(255,255,255,.04)' },
+        },
+        y: {
+          ticks: {
+            color: '#6e7491', font: { size: 10 },
+            callback: v => v.toFixed(0),
+          },
+          grid: { color: 'rgba(255,255,255,.06)' },
+        },
+      },
+    },
+  });
 }
