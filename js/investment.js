@@ -103,11 +103,11 @@ function mkIndexCard(label, value, chg, unit, sub) {
   const val = value != null ? Number(value).toLocaleString() + (unit||'') : '—';
   return `
   <div class="card" style="padding:12px 14px">
-    <div style="font-size:11px;color:var(--text3);margin-bottom:4px">${label}</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:4px">${label}</div>
     <div style="font-size:16px;font-weight:700;color:var(--text1)">${val}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px">
       <div style="font-size:12px;color:${cc};font-weight:500">${cs}</div>
-      ${sub ? `<div style="font-size:10px;color:var(--text3)">${sub}</div>` : ''}
+      ${sub ? `<div style="font-size:10px;color:var(--text2)">${sub}</div>` : ''}
     </div>
   </div>`;
 }
