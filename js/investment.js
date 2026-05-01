@@ -4,7 +4,7 @@
 // ── 흐름 차트 상태 ──
 const INV = {
   group:  'global',  // 'global' | 'domestic' | 'fx' | 'commodity'
-  period: 30,        // 30 | 14 | 7
+  period: 7,        // 7 | 30 | 90
 };
 
 const INV_GROUPS = {
@@ -63,9 +63,9 @@ function pInvestment() {
           `).join('')}
         </div>
         <div style="display:flex;gap:4px">
-          ${[7,14,30].map(d=>`
-            <button class="chip ${d===30?'active':''}" data-inv-period="${d}"
-              onclick="setInvPeriod(${d})" style="font-size:11px;padding:2px 8px">${d}일</button>
+          ${[{d:7,l:'1주'},{d:30,l:'1달'},{d:90,l:'3달'}].map(({d,l})=>`
+            <button class="chip ${d===7?'active':''}" data-inv-period="${d}"
+              onclick="setInvPeriod(${d})" style="font-size:11px;padding:2px 8px">${l}</button>
           `).join('')}
         </div>
       </div>
