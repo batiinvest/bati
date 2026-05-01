@@ -18,6 +18,71 @@ function fmtPriceKr(price) {
   return `${price.toLocaleString()}원`;
 }
 
+// ── 시총 텍스트 입력 파서 ──────────────────────────────────────
+// "1조 5000억", "1.5조", "8000억", "15000" → 억 단위 숫자 반환
+function parseCapText(text) {
+  if (!text || !text.trim()) return null;
+  const t = text.trim().replace(/,/g, '').replace(/\s+/g, ' ');
+
+  // 조 + 억 패턴: "1조 5000억", "1조5000억"
+  const joEok = t.match(/^(\d+\.?\d*)\s*조\s*(\d+)\s*억?$/);
+  if (joEok) return Math.round(parseFloat(joEok[1]) * 10000 + parseInt(joEok[2]));
+
+  // 조만: "1.5조", "20조"
+  const jo = t.match(/^(\d+\.?\d*)\s*조$/);
+  if (jo) return Math.round(parseFloat(jo[1]) * 10000);
+
+  // 억만: "8000억", "15000억"
+  const eok = t.match(/^(\d+\.?\d*)\s*억$/);
+  if (eok) return Math.round(parseFloat(eok[1]));
+
+  // 숫자만: 억 단위로 처리
+  const num = t.match(/^(\d+\.?\d*)$/);
+  if (num) return Math.round(parseFloat(num[1]));
+
+  return null;
+}
+
+// 억 숫자 → "1조 5,000억" 표시용
+function fmtCapEok(eok) {
+  if (eok == null || isNaN(eok)) return '';
+  const jo  = Math.floor(eok / 10000);
+  const rem = Math.round(eok % 10000);
+  if (jo > 0 && rem > 0) return `${jo}조 ${rem.toLocaleString()}억`;
+  if (jo > 0)            return `${jo}조`;
+  return `${rem.toLocaleString()}억`;
+}
+
+function onCapInput(type, text) {
+  const eok = parseCapText(text);
+  if (type === 'target') {
+    const hint = document.getElementById('wl-target-cap-eok');
+    if (hint) hint.textContent = eok != null ? `≈ ${fmtCapEok(eok)}` : (text ? '형식 오류' : '');
+    // 주가 연동
+    if (eok != null && window._wlShares) {
+      const price = Math.round(eok * 1e8 / window._wlShares);
+      const priceEl = document.getElementById('wl-target_price');
+      if (priceEl) {
+        priceEl.value = price;
+        const capHint = document.getElementById('wl-target-cap-hint');
+        if (capHint) capHint.textContent = `≈ ${price.toLocaleString()}원/주`;
+      }
+    }
+  } else {
+    const hint = document.getElementById('wl-watch-cap-eok');
+    if (hint) hint.textContent = eok != null ? `≈ ${fmtCapEok(eok)}` : (text ? '형식 오류' : '');
+    if (eok != null && window._wlShares) {
+      const price = Math.round(eok * 1e8 / window._wlShares);
+      const priceEl = document.getElementById('wl-watch_price');
+      if (priceEl) {
+        priceEl.value = price;
+        const capHint = document.getElementById('wl-watch-cap-hint');
+        if (capHint) capHint.textContent = `≈ ${price.toLocaleString()}원/주`;
+      }
+    }
+  }
+}
+
 function syncWlPrice(from, val) {
   const shares = window._wlShares;
   const hint = document.getElementById('wl-target-cap-hint');
@@ -27,15 +92,16 @@ function syncWlPrice(from, val) {
     const price = parseFloat(val);
     if (!isNaN(price)) {
       const capEok = Math.round(price * shares / 1e8);
-      document.getElementById('wl-target_cap').value = capEok;
+      document.getElementById('wl-target_cap').value = fmtCapEok(capEok);
+      document.getElementById('wl-target-cap-eok').textContent = `≈ ${fmtCapEok(capEok)}`;
       if (hint) hint.innerHTML = `<span style="color:var(--tg)">≈ ${fmtCapEok(capEok)}</span>`;
     }
   } else {
-    const capEok = parseFloat(val);
-    if (!isNaN(capEok)) {
+    const capEok = parseCapText(val);
+    if (capEok != null) {
       const price = Math.round(capEok * 1e8 / shares);
       document.getElementById('wl-target_price').value = price;
-      if (hint) hint.innerHTML = `<span style="color:var(--tg)">≈ ${fmtPriceKr(price)}</span>`;
+      if (hint) hint.innerHTML = `<span style="color:var(--tg)">≈ ${price.toLocaleString()}원/주</span>`;
     }
   }
 }
@@ -49,15 +115,16 @@ function syncWlWatchPrice(from, val) {
     const price = parseFloat(val);
     if (!isNaN(price)) {
       const capEok = Math.round(price * shares / 1e8);
-      document.getElementById('wl-watch_cap').value = capEok;
+      document.getElementById('wl-watch_cap').value = fmtCapEok(capEok);
+      document.getElementById('wl-watch-cap-eok').textContent = `≈ ${fmtCapEok(capEok)}`;
       if (hint) hint.innerHTML = `<span style="color:var(--tg)">≈ ${fmtCapEok(capEok)}</span>`;
     }
   } else {
-    const capEok = parseFloat(val);
-    if (!isNaN(capEok)) {
+    const capEok = parseCapText(val);
+    if (capEok != null) {
       const price = Math.round(capEok * 1e8 / shares);
       document.getElementById('wl-watch_price').value = price;
-      if (hint) hint.innerHTML = `<span style="color:var(--tg)">≈ ${fmtPriceKr(price)}</span>`;
+      if (hint) hint.innerHTML = `<span style="color:var(--tg)">≈ ${price.toLocaleString()}원/주</span>`;
     }
   }
 }
@@ -123,10 +190,10 @@ async function selectWatchlistStock(code, name, industry, market) {
 
   if (mkt?.[0]) {
     const m = mkt[0];
-    const cc = m.price_change_rate > 0 ? 'var(--red)' : m.price_change_rate < 0 ? 'var(--blue)' : 'var(--text2)';
+    const chgColor = m.price_change_rate > 0 ? 'var(--green)' : m.price_change_rate < 0 ? 'var(--red)' : 'var(--text2)';
     document.getElementById('wl-auto-price').textContent = m.price ? m.price.toLocaleString()+'원' : '—';
     document.getElementById('wl-auto-chg').innerHTML = m.price_change_rate != null
-      ? `<span style="color:${cc}">${m.price_change_rate>0?'+':''}${m.price_change_rate.toFixed(2)}%</span>` : '—';
+      ? `<span style="color:${chgColor}">${m.price_change_rate>0?'+':''}${m.price_change_rate.toFixed(2)}%</span>` : '—';
     document.getElementById('wl-auto-cap').textContent = m.market_cap ? fmtCap(m.market_cap) : '—';
     document.getElementById('wl-auto-per').textContent = m.per ? m.per.toFixed(1) : '—';
     document.getElementById('wl-auto-pbr').textContent = m.pbr ? m.pbr.toFixed(2) : '—';
@@ -230,7 +297,7 @@ async function loadWatchlist() {
     const price   = mkt.price;
     const chg     = mkt.price_change_rate;
     const cap     = mkt.market_cap;
-    const chgColor = chg > 0 ? 'var(--red)' : chg < 0 ? 'var(--blue)' : 'var(--text3)';
+    const chgColor = chg > 0 ? 'var(--green)' : chg < 0 ? 'var(--red)' : 'var(--text3)';
 
     // 목표가 괴리율
     const gapTarget = (w.target_price && price) ? ((w.target_price - price) / price * 100) : null;
@@ -441,19 +508,19 @@ async function renderWatchlistForm(id) {
       </div>
 
       <!-- 시장 데이터 자동입력 (읽기전용) -->
-      <div style="background:var(--bg2);border-radius:8px;padding:10px 12px">
-        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">📊 시장 데이터 (자동입력)</div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+        <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:8px">📊 시장 데이터 (자동입력)</div>
         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
-          <div><div style="font-size:10px;color:var(--text3)">현재가</div><div id="wl-auto-price" style="font-size:12px;font-weight:600">—</div></div>
-          <div><div style="font-size:10px;color:var(--text3)">등락률</div><div id="wl-auto-chg" style="font-size:12px;font-weight:600">—</div></div>
-          <div><div style="font-size:10px;color:var(--text3)">시총</div><div id="wl-auto-cap" style="font-size:12px;font-weight:600">—</div></div>
-          <div><div style="font-size:10px;color:var(--text3)">PER</div><div id="wl-auto-per" style="font-size:12px;font-weight:600">—</div></div>
-          <div><div style="font-size:10px;color:var(--text3)">PBR</div><div id="wl-auto-pbr" style="font-size:12px;font-weight:600">—</div></div>
+          <div><div style="font-size:10px;color:var(--text2);margin-bottom:2px">현재가</div><div id="wl-auto-price" style="font-size:13px;font-weight:600;color:var(--text1)">—</div></div>
+          <div><div style="font-size:10px;color:var(--text2);margin-bottom:2px">등락률</div><div id="wl-auto-chg" style="font-size:13px;font-weight:600">—</div></div>
+          <div><div style="font-size:10px;color:var(--text2);margin-bottom:2px">시총</div><div id="wl-auto-cap" style="font-size:13px;font-weight:600;color:var(--text1)">—</div></div>
+          <div><div style="font-size:10px;color:var(--text2);margin-bottom:2px">PER</div><div id="wl-auto-per" style="font-size:13px;font-weight:600;color:var(--text1)">—</div></div>
+          <div><div style="font-size:10px;color:var(--text2);margin-bottom:2px">PBR</div><div id="wl-auto-pbr" style="font-size:13px;font-weight:600;color:var(--text1)">—</div></div>
         </div>
       </div>
 
       <!-- 가격 기준 (시총↔주가 연동) -->
-      <div style="font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:6px">💰 가격 기준</div>
+      <div style="font-size:12px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);padding-bottom:6px">💰 가격 기준</div>
       <div id="wl-shares-hint" style="font-size:11px;color:var(--text3);margin-top:-6px"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
         <div>
@@ -462,14 +529,15 @@ async function renderWatchlistForm(id) {
             placeholder="예: 280000"
             oninput="syncWlPrice('price', this.value)"
             style="width:100%;box-sizing:border-box">
-          <div id="wl-target-cap-hint" style="font-size:10px;color:var(--text3);margin-top:2px"></div>
+          <div id="wl-target-cap-hint" style="font-size:10px;color:var(--tg);margin-top:2px"></div>
         </div>
         <div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">적정 시총</div>
-          <input type="number" class="form-input" id="wl-target_cap"
-            placeholder="억원 단위"
-            oninput="syncWlPrice('cap', this.value)"
+          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">목표 시총</div>
+          <input type="text" class="form-input" id="wl-target_cap"
+            placeholder="예: 1조 5000억"
+            oninput="onCapInput('target', this.value)"
             style="width:100%;box-sizing:border-box">
+          <div id="wl-target-cap-eok" style="font-size:10px;color:var(--tg);margin-top:2px"></div>
         </div>
         <div>
           <div style="font-size:12px;color:var(--text2);margin-bottom:4px">관심가격 (원)</div>
@@ -477,14 +545,15 @@ async function renderWatchlistForm(id) {
             placeholder="매수 고려 가격"
             oninput="syncWlWatchPrice('price', this.value)"
             style="width:100%;box-sizing:border-box">
-          <div id="wl-watch-cap-hint" style="font-size:10px;color:var(--text3);margin-top:2px"></div>
+          <div id="wl-watch-cap-hint" style="font-size:10px;color:var(--tg);margin-top:2px"></div>
         </div>
         <div>
           <div style="font-size:12px;color:var(--text2);margin-bottom:4px">관심 시총</div>
-          <input type="number" class="form-input" id="wl-watch_cap"
-            placeholder="억원 단위"
-            oninput="syncWlWatchPrice('cap', this.value)"
+          <input type="text" class="form-input" id="wl-watch_cap"
+            placeholder="예: 8000억"
+            oninput="onCapInput('watch', this.value)"
             style="width:100%;box-sizing:border-box">
+          <div id="wl-watch-cap-eok" style="font-size:10px;color:var(--tg);margin-top:2px"></div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
@@ -530,32 +599,6 @@ async function renderWatchlistForm(id) {
         <button class="btn btn-primary" onclick="saveWatchlist(${id||'null'})">저장</button>
       </div>
     </div>`;
-
-  // ── 기존 종목 수정 시: 시장 데이터 자동 로드 + 시총 초기값 복원 ──
-  if (w.stock_code) {
-    // 시장 데이터 로드 (selectWatchlistStock 재활용)
-    await selectWatchlistStock(w.stock_code, w.corp_name, w.industry || '', '');
-
-    // 적정 시총 / 관심 시총 초기값 복원 (저장된 가격 기반으로 계산)
-    if (w.target_price && window._wlShares) {
-      const capEok = Math.round(w.target_price * window._wlShares / 1e8);
-      const el = document.getElementById('wl-target_cap');
-      if (el) {
-        el.value = capEok;
-        const hint = document.getElementById('wl-target-cap-hint');
-        if (hint) hint.innerHTML = `<span style="color:var(--tg)">≈ ${fmtCapEok(capEok)}</span>`;
-      }
-    }
-    if (w.watch_price && window._wlShares) {
-      const capEok = Math.round(w.watch_price * window._wlShares / 1e8);
-      const el = document.getElementById('wl-watch_cap');
-      if (el) {
-        el.value = capEok;
-        const hint = document.getElementById('wl-watch-cap-hint');
-        if (hint) hint.innerHTML = `<span style="color:var(--tg)">≈ ${fmtCapEok(capEok)}</span>`;
-      }
-    }
-  }
 }
 
 async function saveWatchlist(id) {
@@ -576,7 +619,9 @@ async function saveWatchlist(id) {
     risk_3:          g('risk_3'),
     break_condition: g('break_condition'),
     target_price:    n('target_price'),
+    target_cap:      parseCapText(g('target_cap')),
     watch_price:     n('watch_price'),
+    watch_cap:       parseCapText(g('watch_cap')),
     avg_price:       n('avg_price'),
     quantity:        i('quantity'),
     valuation_note:  g('valuation_note'),
@@ -593,14 +638,11 @@ async function saveWatchlist(id) {
   }
 
   if (id) {
-    const { error } = await sb.from('watchlist').update(payload).eq('id', id);
-    if (error) { toast('저장 실패: ' + error.message, 'error'); return; }
+    await sb.from('watchlist').update(payload).eq('id', id);
   } else {
-    const { error } = await sb.from('watchlist').insert(payload);
-    if (error) { toast('저장 실패: ' + error.message, 'error'); return; }
+    await sb.from('watchlist').insert(payload);
   }
 
   document.getElementById('m-watchlist').remove();
-  toast('저장 완료', 'success');
   loadWatchlist();
 }
