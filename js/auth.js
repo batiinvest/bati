@@ -154,7 +154,7 @@ function showDashboard() {
     document.getElementById('btn-add').classList.add('hidden');
     document.getElementById('sync-btn').classList.add('hidden');
   }
-  go('overview');
+  go('investment');
 }
 
 function showLoginScreen() {
