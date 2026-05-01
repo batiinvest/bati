@@ -28,6 +28,7 @@ function draw() {
   if (A.page === 'stocks')    loadStocks();
   if (A.page === 'investment') loadInvestment();
   if (A.page === 'financials') loadFinancials();
+  if (A.page === 'watchlist')  { window._wlGroup = 'all'; loadWatchlist(); }
   if (A.page === 'comparison') { renderCmpSelected(); }
 }
 

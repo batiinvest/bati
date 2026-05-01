@@ -440,7 +440,7 @@ async function renderWatchlistForm(id) {
         <div>
           <div style="font-size:12px;color:var(--text2);margin-bottom:4px">그룹</div>
           <select class="form-select" id="wl-group_name" style="width:100%">
-            ${['관심','후보','보유중'].map(g=>`<option value="${g}" ${(w.group_name||'관심')===g?'selected':''}>${g}</option>`).join('')}
+            ${['관심','후보','보유중'].map(g=>`<option value="${g}" ${(w.group_name || (window._wlGroup !== 'all' ? window._wlGroup : '관심'))===g?'selected':''}>${g}</option>`).join('')}
           </select>
         </div>
       </div>
