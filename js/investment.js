@@ -9,19 +9,27 @@ function pInvestment() {
   </div>
 
   <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">🌍 글로벌 지수</div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:1.25rem" id="inv-global"></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:1.25rem" id="inv-global">
+    ${['','','','',''].map(()=>'<div class="card" style="padding:12px 14px;min-height:70px"></div>').join('')}
+  </div>
 
   <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">🇰🇷 국내 시장</div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:1.25rem" id="inv-domestic"></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:1.25rem" id="inv-domestic">
+    ${['','',''].map(()=>'<div class="card" style="padding:12px 14px;min-height:70px"></div>').join('')}
+  </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.25rem">
     <div>
       <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">💱 환율</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" id="inv-fx"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" id="inv-fx">
+        ${['','','',''].map(()=>'<div class="card" style="padding:12px 14px;min-height:70px"></div>').join('')}
+      </div>
     </div>
     <div>
       <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">🛢️ 원자재</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" id="inv-commodity"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" id="inv-commodity">
+        ${['','','',''].map(()=>'<div class="card" style="padding:12px 14px;min-height:70px"></div>').join('')}
+      </div>
     </div>
   </div>
 
@@ -40,8 +48,8 @@ function pInvestment() {
 }
 
 function mkIndexCard(label, value, chg, unit, sub) {
-  const cc = chg != null ? chgColor(chg) : 'var(--text2)';
-  const cs = chg != null ? chgStr(chg) : '—';
+  const cc  = chg != null ? chgColor(chg) : 'var(--text2)';
+  const cs  = chg != null ? chgStr(chg) : '—';
   const val = value != null ? Number(value).toLocaleString() + (unit||'') : '—';
   return `
   <div class="card" style="padding:12px 14px">
@@ -55,27 +63,32 @@ function mkIndexCard(label, value, chg, unit, sub) {
 }
 
 async function loadInvestment() {
+  // 1) macro_data (글로벌/환율/원자재)
+  loadMacroData();
+
+  // 2) 최신 market_data 날짜
   const { data: dateRow } = await sb.from('market_data')
     .select('base_date').order('base_date', { ascending: false }).limit(1);
   const maxDate = dateRow?.[0]?.base_date;
   const dateEl = document.getElementById('inv-date');
   if (dateEl) dateEl.textContent = maxDate ? `기준: ${maxDate}` : '';
-
-  loadMacroData();
-
   if (!maxDate) return;
 
-  const { data: mktRows } = await sb.from('market_data')
+  // 3) 모니터링 종목 시장 데이터
+  const { data: mktRows, error } = await sb.from('market_data')
     .select('stock_code,corp_name,price,price_change_rate,market_cap,industry')
     .eq('base_date', maxDate)
-    .not('price_change_rate', 'is', null)
     .order('price_change_rate', { ascending: false });
 
-  if (!mktRows?.length) return;
+  if (error || !mktRows?.length) return;
 
-  const rise = mktRows.filter(r => (r.price_change_rate||0) > 0).length;
-  const fall = mktRows.filter(r => (r.price_change_rate||0) < 0).length;
-  const avgChg = mktRows.reduce((s,r) => s+(r.price_change_rate||0), 0) / mktRows.length;
+  // null 제거 후 처리
+  const rows = mktRows.filter(r => r.price_change_rate != null);
+  if (!rows.length) return;
+
+  const rise   = rows.filter(r => r.price_change_rate > 0).length;
+  const fall   = rows.filter(r => r.price_change_rate < 0).length;
+  const avgChg = rows.reduce((s, r) => s + r.price_change_rate, 0) / rows.length;
 
   const summaryEl = document.getElementById('inv-summary');
   if (summaryEl) summaryEl.innerHTML = `
@@ -91,10 +104,8 @@ async function loadInvestment() {
       <span style="font-size:13px;font-weight:600;color:${chgColor(r.price_change_rate)}">${chgStr(r.price_change_rate)}</span>
     </div>`;
 
-  const surgeEl = document.getElementById('inv-surge');
-  if (surgeEl) surgeEl.innerHTML = mktRows.slice(0,5).map(rankRow).join('');
-  const dropEl = document.getElementById('inv-drop');
-  if (dropEl) dropEl.innerHTML = [...mktRows].reverse().slice(0,5).map(rankRow).join('');
+  document.getElementById('inv-surge').innerHTML = rows.slice(0, 5).map(rankRow).join('');
+  document.getElementById('inv-drop').innerHTML  = [...rows].reverse().slice(0, 5).map(rankRow).join('');
 }
 
 async function loadMacroData() {
@@ -102,32 +113,28 @@ async function loadMacroData() {
     .select('*').order('updated_at', { ascending: false }).limit(1);
   const m = data?.[0] || {};
 
-  const globalEl = document.getElementById('inv-global');
-  if (globalEl) globalEl.innerHTML = [
-    mkIndexCard('S&P 500',      m.sp500,    m.sp500_chg,    '',  'USA'),
-    mkIndexCard('나스닥',        m.nasdaq,   m.nasdaq_chg,   '',  'USA'),
-    mkIndexCard('다우존스',      m.dow,      m.dow_chg,      '',  'USA'),
-    mkIndexCard('VIX',          m.vix,      m.vix_chg,      '',  '공포지수'),
-    mkIndexCard('미 10년 금리',  m.us10y,    m.us10y_chg,    '%', '국채'),
+  document.getElementById('inv-global').innerHTML = [
+    mkIndexCard('S&P 500',     m.sp500,    m.sp500_chg,   '',  'USA'),
+    mkIndexCard('나스닥',       m.nasdaq,   m.nasdaq_chg,  '',  'USA'),
+    mkIndexCard('다우존스',     m.dow,      m.dow_chg,     '',  'USA'),
+    mkIndexCard('VIX',         m.vix,      m.vix_chg,     '',  '공포지수'),
+    mkIndexCard('미 10년 금리', m.us10y,    m.us10y_chg,   '%', '국채'),
   ].join('');
 
-  const domEl = document.getElementById('inv-domestic');
-  if (domEl) domEl.innerHTML = [
-    mkIndexCard('코스피',        m.kospi,    m.kospi_chg,    '',  'KOSPI'),
-    mkIndexCard('코스닥',        m.kosdaq,   m.kosdaq_chg,   '',  'KOSDAQ'),
-    mkIndexCard('코스피200',     m.kospi200, m.kospi200_chg, '',  '선물'),
+  document.getElementById('inv-domestic').innerHTML = [
+    mkIndexCard('코스피',      m.kospi,    m.kospi_chg,   '',  'KOSPI'),
+    mkIndexCard('코스닥',      m.kosdaq,   m.kosdaq_chg,  '',  'KOSDAQ'),
+    mkIndexCard('코스피200',   m.kospi200, m.kospi200_chg,'',  '선물'),
   ].join('');
 
-  const fxEl = document.getElementById('inv-fx');
-  if (fxEl) fxEl.innerHTML = [
+  document.getElementById('inv-fx').innerHTML = [
     mkIndexCard('USD/KRW', m.usd_krw, m.usd_krw_chg, '원', '달러'),
     mkIndexCard('JPY/KRW', m.jpy_krw, m.jpy_krw_chg, '원', '100엔'),
     mkIndexCard('EUR/KRW', m.eur_krw, m.eur_krw_chg, '원', '유로'),
     mkIndexCard('CNY/KRW', m.cny_krw, m.cny_krw_chg, '원', '위안'),
   ].join('');
 
-  const commEl = document.getElementById('inv-commodity');
-  if (commEl) commEl.innerHTML = [
+  document.getElementById('inv-commodity').innerHTML = [
     mkIndexCard('WTI 유가', m.wti,    m.wti_chg,    '$', '배럴'),
     mkIndexCard('금',       m.gold,   m.gold_chg,   '$', '온스'),
     mkIndexCard('천연가스',  m.gas,    m.gas_chg,    '$', 'MMBtu'),
