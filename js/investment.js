@@ -2,19 +2,19 @@
 
 // ── 전체 지표 정의 ──
 const INV_ALL_METRICS = [
-  { col:'sp500',   name:'S&P500',   group:'미국',   color:'#2AABEE' },
-  { col:'nasdaq',  name:'나스닥',    group:'미국',   color:'#4a9eff' },
-  { col:'dow',     name:'다우',      group:'미국',   color:'#a259ff' },
-  { col:'kospi',   name:'코스피',    group:'한국',   color:'#2dce89' },
-  { col:'kosdaq',  name:'코스닥',    group:'한국',   color:'#00d4aa' },
-  { col:'kospi200',name:'코스피200', group:'한국',   color:'#ffd600' },
-  { col:'usd_krw', name:'USD/KRW',  group:'환율',   color:'#fb6340' },
-  { col:'jpy_krw', name:'JPY/KRW',  group:'환율',   color:'#f5365c' },
-  { col:'eur_krw', name:'EUR/KRW',  group:'환율',   color:'#ffc107' },
-  { col:'wti',     name:'WTI',      group:'원자재', color:'#ff6b9d' },
-  { col:'gold',    name:'금',        group:'원자재', color:'#ffd700' },
-  { col:'vix',     name:'VIX',      group:'기타',   color:'#8b90a7' },
-  { col:'us10y',   name:'미 금리',  group:'기타',   color:'#6e7491' },
+  { col:'sp500',   name:'S&P500',   group:'미국',   color:'#2AABEE' },  // 하늘파랑
+  { col:'nasdaq',  name:'나스닥',    group:'미국',   color:'#ff6b35' },  // 주황
+  { col:'dow',     name:'다우',      group:'미국',   color:'#a259ff' },  // 보라
+  { col:'kospi',   name:'코스피',    group:'한국',   color:'#2dce89' },  // 초록
+  { col:'kosdaq',  name:'코스닥',    group:'한국',   color:'#ffd600' },  // 노랑
+  { col:'kospi200',name:'코스피200', group:'한국',   color:'#00d4aa' },  // 청록
+  { col:'usd_krw', name:'USD/KRW',  group:'환율',   color:'#f5365c' },  // 빨강
+  { col:'jpy_krw', name:'JPY/KRW',  group:'환율',   color:'#fb6340' },  // 주황빨강
+  { col:'eur_krw', name:'EUR/KRW',  group:'환율',   color:'#ffc107' },  // 황금
+  { col:'wti',     name:'WTI',      group:'원자재', color:'#8b5cf6' },  // 연보라
+  { col:'gold',    name:'금',        group:'원자재', color:'#f59e0b' },  // 금색
+  { col:'vix',     name:'VIX',      group:'기타',   color:'#64748b' },  // 회청
+  { col:'us10y',   name:'미 금리',  group:'기타',   color:'#94a3b8' },  // 연회
 ];
 
 const INV = {
