@@ -336,7 +336,7 @@ async function loadWatchlist() {
           <div style="text-align:right">
             <div style="font-size:16px;font-weight:700">${price ? price.toLocaleString()+'원' : '—'}</div>
             <div style="font-size:12px;color:${chgColor}">${chg != null ? (chg>0?'+':'')+chg.toFixed(2)+'%' : ''}</div>
-            ${cap ? `<div style="font-size:11px;color:var(--text3)">${fmtCap(cap)}</div>` : ''}
+            ${cap ? `<div style="font-size:12px;color:var(--text2)">${fmtCap(cap)}</div>` : ''}
           </div>
 
           <!-- 액션 버튼 -->
@@ -350,27 +350,27 @@ async function loadWatchlist() {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:.875rem">
           ${w.target_price ? `
           <div style="background:var(--bg2);border-radius:8px;padding:8px 10px">
-            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">적정가</div>
+            <div style="font-size:10px;color:var(--text2);font-weight:500;margin-bottom:2px">적정가</div>
             <div style="font-size:13px;font-weight:600">${w.target_price.toLocaleString()}원</div>
-            ${(cap && w.target_price) ? `<div style="font-size:10px;color:var(--text3)">시총 ≈ ${fmtCap(w.target_price * Math.round(cap / (price||1)))}</div>` : ''}
+            ${(cap && w.target_price) ? `<div style="font-size:11px;color:var(--text2)">시총 ≈ ${fmtCap(w.target_price * Math.round(cap / (price||1)))}</div>` : ''}
             ${gapTarget != null ? `<div style="font-size:11px;color:${gapTarget>0?'var(--green)':'var(--red)'}">${gapTarget>0?'▲':'▼'} ${Math.abs(gapTarget).toFixed(1)}% ${gapTarget>0?'상승여력':'하락위험'}</div>` : ''}
           </div>` : ''}
           ${w.watch_price ? `
           <div style="background:var(--bg2);border-radius:8px;padding:8px 10px">
-            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">관심가격</div>
+            <div style="font-size:10px;color:var(--text2);font-weight:500;margin-bottom:2px">관심가격</div>
             <div style="font-size:13px;font-weight:600">${w.watch_price.toLocaleString()}원</div>
-            ${(cap && w.watch_price) ? `<div style="font-size:10px;color:var(--text3)">시총 ≈ ${fmtCap(w.watch_price * Math.round(cap / (price||1)))}</div>` : ''}
+            ${(cap && w.watch_price) ? `<div style="font-size:11px;color:var(--text2)">시총 ≈ ${fmtCap(w.watch_price * Math.round(cap / (price||1)))}</div>` : ''}
             ${gapWatch != null ? `<div style="font-size:11px;color:${gapWatch<0?'var(--green)':'var(--text3)'}">${gapWatch<0?'✅ 관심가 도달':'현재가 -'+Math.abs(gapWatch).toFixed(1)+'%'}</div>` : ''}
           </div>` : ''}
           ${w.avg_price ? `
           <div style="background:var(--bg2);border-radius:8px;padding:8px 10px">
-            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">평균매수가</div>
+            <div style="font-size:10px;color:var(--text2);font-weight:500;margin-bottom:2px">평균매수가</div>
             <div style="font-size:13px;font-weight:600">${w.avg_price.toLocaleString()}원 ${w.quantity?'× '+w.quantity.toLocaleString()+'주':''}</div>
             ${evalRate != null ? `<div style="font-size:11px;color:${evalRate>0?'var(--green)':'var(--red)'}">${evalRate>0?'+':''}${evalRate.toFixed(2)}% ${evalProfit!=null?'('+fmtCap(evalProfit*100)+')':''}</div>` : ''}
           </div>` : ''}
           ${w.per ? `
           <div style="background:var(--bg2);border-radius:8px;padding:8px 10px">
-            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">PER / 업계평균</div>
+            <div style="font-size:10px;color:var(--text2);font-weight:500;margin-bottom:2px">PER / 업계평균</div>
             <div style="font-size:13px;font-weight:600">${mkt.per?.toFixed(1)||'—'} / ${w.peer_per?.toFixed(1)||'—'}</div>
             ${(mkt.per && w.peer_per) ? `<div style="font-size:11px;color:${mkt.per<w.peer_per?'var(--green)':'var(--red)'}">${mkt.per<w.peer_per?'업계 저평가':'업계 고평가'}</div>` : ''}
           </div>` : ''}
@@ -406,7 +406,7 @@ async function loadWatchlist() {
         <!-- 밸류에이션 메모 -->
         ${w.valuation_note ? `
         <div style="background:var(--bg2);border-radius:8px;padding:8px 12px;margin-bottom:.75rem">
-          <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:3px">📊 밸류에이션 근거</div>
+          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:3px">📊 밸류에이션 근거</div>
           <div style="font-size:12px;color:var(--text2)">${w.valuation_note}</div>
         </div>` : ''}
 
@@ -416,9 +416,9 @@ async function loadWatchlist() {
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:11px;color:var(--text3)">📅 ${w.next_check_date}</span>
             <span style="font-size:11px;font-weight:600;color:${ddayColor}">${ddayStr}</span>
-            ${w.next_check_memo ? `<span style="font-size:11px;color:var(--text3)">— ${w.next_check_memo}</span>` : ''}
+            ${w.next_check_memo ? `<span style="font-size:11px;color:var(--text2)">— ${w.next_check_memo}</span>` : ''}
           </div>` : ''}
-          ${w.competitor ? `<span style="font-size:11px;color:var(--text3)">🏢 경쟁사: ${w.competitor}</span>` : ''}
+          ${w.competitor ? `<span style="font-size:11px;color:var(--text2)">🏢 경쟁사: ${w.competitor}</span>` : ''}
         </div>
 
       </div>
