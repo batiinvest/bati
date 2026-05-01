@@ -193,7 +193,7 @@ function pWatchlist() {
 }
 
 function setWlGroup(el, group) {
-  document.querySelectorAll('#main-content .chip[data-group]').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.chip[data-group]').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   window._wlGroup = group;
   loadWatchlist();

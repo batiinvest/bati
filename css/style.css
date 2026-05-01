@@ -3,7 +3,7 @@
   --bg:#0f1117; --bg2:#1a1d27; --bg3:#222535;
   --border:rgba(255,255,255,0.08); --border2:rgba(255,255,255,0.14);
   --text:#e8eaf0; --text2:#8b90a7; --text3:#555a70;
-  --tg:#2AABEE; --tg2:#1e96d3; --green:#2dce89; --red:#f5365c; --yellow:#fb6340; --blue:#4a9eff;
+  --tg:#2AABEE; --tg2:#1e96d3; --green:#2dce89; --red:#f5365c; --yellow:#fb6340;
   --radius:10px; --radius-sm:6px;
 }
 body { background:var(--bg); color:var(--text); font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,sans-serif; font-size:14px; line-height:1.5; min-height:100vh; }
@@ -27,10 +27,10 @@ body { background:var(--bg); color:var(--text); font-family:'Pretendard','Apple 
 .logo-text { font-size:13px; font-weight:600; }
 .logo-sub { font-size:11px; color:var(--text3); }
 .nav { padding:.75rem 0; flex:1; overflow-y:auto; }
-.nav-sec { padding:.75rem 1.25rem .25rem; font-size:10px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.1em; }
-.nav-item { display:flex; align-items:center; gap:10px; padding:9px 1.25rem; cursor:pointer; font-size:13px; color:var(--text2); border-left:2px solid transparent; transition:all .15s; user-select:none; }
-.nav-item:hover { color:var(--text); background:rgba(255,255,255,.04); }
-.nav-item.active { color:var(--tg); background:rgba(42,171,238,.08); border-left-color:var(--tg); font-weight:500; }
+.nav-sec { padding:.75rem 1.25rem .25rem; font-size:10px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:.1em; }
+.nav-item { display:flex; align-items:center; gap:10px; padding:9px 1.25rem; cursor:pointer; font-size:13px; color:var(--text); border-left:2px solid transparent; transition:all .15s; user-select:none; opacity:.75; }
+.nav-item:hover { color:var(--text); background:rgba(255,255,255,.05); opacity:1; }
+.nav-item.active { color:var(--tg); background:rgba(42,171,238,.08); border-left-color:var(--tg); font-weight:500; opacity:1; }
 .nav-item.disabled { opacity:.3; cursor:not-allowed; pointer-events:none; }
 .nav-item svg { width:15px; height:15px; flex-shrink:0; opacity:.8; }
 .nav-badge { margin-left:auto; background:var(--tg); color:#fff; font-size:10px; font-weight:700; padding:1px 6px; border-radius:100px; }
