@@ -185,11 +185,19 @@ async function loadInvestment() {
 
 // ── 전체 종목 + 산업별 동향 ──
 async function loadMarketOverview(maxDate) {
-  // 전체 종목 조회
-  const { data: all } = await sb.from('market_data')
-    .select('stock_code,corp_name,price_change_rate,market_cap,market')
-    .eq('base_date', maxDate)
-    .order('price_change_rate', { ascending: false });
+  // 전체 종목 조회 — 페이지네이션 (Supabase 기본 limit 1000 우회)
+  let all = [], from = 0;
+  while (true) {
+    const { data, error } = await sb.from('market_data')
+      .select('stock_code,corp_name,price_change_rate,market_cap,market')
+      .eq('base_date', maxDate)
+      .order('price_change_rate', { ascending: false })
+      .range(from, from + 999);
+    if (error || !data?.length) break;
+    all = all.concat(data);
+    if (data.length < 1000) break;
+    from += 1000;
+  }
 
   const rows = (all||[]).filter(r => r.price_change_rate != null);
   if (!rows.length) return;
