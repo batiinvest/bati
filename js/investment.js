@@ -146,10 +146,16 @@ function pInvestment() {
         </div>
       </div>
       <div style="display:flex;gap:4px;padding:.5rem 1rem;border-bottom:1px solid var(--border);align-items:center;flex-wrap:wrap;gap:8px">
-        <button class="chip active" data-earnings="revenue" onclick="setEarningsMetric(this,'revenue')" style="font-size:11px">매출액</button>
-        <button class="chip" data-earnings="operating_profit" onclick="setEarningsMetric(this,'operating_profit')" style="font-size:11px">영업이익</button>
-        <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
-          <span style="font-size:12px;color:var(--text3)">기준 분기</span>
+        <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+          <span style="font-size:12px;color:var(--text3)">전분기</span>
+          <input type="number" id="inv-qoq-threshold" value="${localStorage.getItem('earnings_qoq_threshold')||20}" min="0" max="200" step="5"
+            style="width:52px;padding:2px 6px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;text-align:center">
+          <span style="font-size:12px;color:var(--text3)">% / 전년동기</span>
+          <input type="number" id="inv-yoy-threshold" value="${localStorage.getItem('earnings_yoy_threshold')||20}" min="0" max="200" step="5"
+            style="width:52px;padding:2px 6px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;text-align:center">
+          <span style="font-size:12px;color:var(--text3)">% 이상</span>
+          <button class="chip" onclick="loadEarningsSurge()" style="font-size:11px;padding:2px 8px">적용</button>
+          <span style="font-size:12px;color:var(--text3);margin-left:4px">기준 분기</span>
           <select class="form-select" id="inv-earnings-quarter" style="width:130px;padding:3px 8px;font-size:12px"
             onchange="loadEarningsSurge()">
             <option value="">로딩 중...</option>
@@ -438,9 +444,7 @@ async function loadEarningsSurge() {
 
   const qoqThreshold = parseFloat(document.getElementById('inv-qoq-threshold')?.value || 20);
   const yoyThreshold = parseFloat(document.getElementById('inv-yoy-threshold')?.value || 20);
-  const metric = _earningsMetric;
 
-  // 설정값 localStorage에 저장
   try {
     localStorage.setItem('earnings_qoq_threshold', qoqThreshold);
     localStorage.setItem('earnings_yoy_threshold', yoyThreshold);
@@ -450,43 +454,30 @@ async function loadEarningsSurge() {
   const qSelect = document.getElementById('inv-earnings-quarter');
   if (qSelect && (qSelect.options.length === 0 || qSelect.options[0].value === '')) {
     const { data: quarters } = await sb.from('financials')
-      .select('bsns_year,quarter')
-      .eq('fs_div', 'CFS')
+      .select('bsns_year,quarter').eq('fs_div', 'CFS')
       .order('bsns_year', { ascending: false })
       .order('quarter', { ascending: false })
       .limit(1000);
-
-    // 중복 제거 후 최신순 정렬
     const seen = new Set();
-    const qList = (quarters || []).filter(r => {
+    const qList = (quarters||[]).filter(r => {
       const key = `${r.bsns_year}-${r.quarter}`;
       if (seen.has(key)) return false;
       seen.add(key); return true;
-    }).slice(0, 12); // 최근 12개 분기
-
+    }).slice(0, 12);
     if (qList.length) {
-      qSelect.innerHTML = qList.map((q, i) =>
+      qSelect.innerHTML = qList.map((q,i) =>
         `<option value="${q.bsns_year}-${q.quarter}">${q.bsns_year} ${q.quarter}${i===0?' (최신)':''}</option>`
       ).join('');
     }
   }
 
-  // 선택된 분기 파싱
   const selVal = qSelect?.value || '';
   let filterYear = null, filterQuarter = null;
-  if (selVal) {
-    [filterYear, filterQuarter] = selVal.split('-');
-  }
-
-  // 해당 분기 데이터 조회
-  const yoyCol = metric === 'revenue' ? 'revenue_yoy' : 'op_profit_yoy';
-  const qoqCol = metric === 'revenue' ? 'revenue_qoq' : 'op_profit_qoq';
+  if (selVal) [filterYear, filterQuarter] = selVal.split('-');
 
   let query = sb.from('financials')
-    .select(`corp_name, stock_code, bsns_year, quarter, ${metric}, revenue_yoy, op_profit_yoy, revenue_qoq, op_profit_qoq`)
-    .eq('fs_div', 'CFS')
-    .not(metric, 'is', null);
-
+    .select('corp_name,stock_code,bsns_year,quarter,revenue,operating_profit,revenue_yoy,revenue_qoq,op_profit_yoy,op_profit_qoq')
+    .eq('fs_div', 'CFS');
   if (filterYear)    query = query.eq('bsns_year', filterYear);
   if (filterQuarter) query = query.eq('quarter', filterQuarter);
 
@@ -500,7 +491,6 @@ async function loadEarningsSurge() {
     return;
   }
 
-  // 분기 미선택 시 종목별 최신 분기만 추출
   let targets = rows;
   if (!filterYear) {
     const latestMap = {};
@@ -508,65 +498,59 @@ async function loadEarningsSurge() {
     targets = Object.values(latestMap);
   }
 
-  // 기준 초과 종목 필터 (QoQ 또는 YoY)
-  const surges = targets
-    .filter(r => {
-      const yoy = r[yoyCol];
-      const qoq = r[qoqCol];
-      return (yoy != null && yoy >= yoyThreshold) || (qoq != null && qoq >= qoqThreshold);
-    })
-    .sort((a, b) => {
-      const aMax = Math.max(a[yoyCol] ?? -999, a[qoqCol] ?? -999);
-      const bMax = Math.max(b[yoyCol] ?? -999, b[qoqCol] ?? -999);
-      return bMax - aMax;
-    })
-    .slice(0, 20);
+  const filter = (col, qoqCol, yoyCol) => targets
+    .filter(r => r[col] != null && (
+      (r[qoqCol] != null && r[qoqCol] >= qoqThreshold) ||
+      (r[yoyCol] != null && r[yoyCol] >= yoyThreshold)
+    ))
+    .sort((a,b) => Math.max(b[qoqCol]??-999,b[yoyCol]??-999) - Math.max(a[qoqCol]??-999,a[yoyCol]??-999))
+    .slice(0, 15);
 
-  if (!surges.length) {
-    el.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:12px">
-      기준(QoQ ${qoqThreshold}% / YoY ${yoyThreshold}% 이상) 충족 종목 없음
-    </div>`;
-    return;
-  }
+  const revSurges = filter('revenue',          'revenue_qoq',   'revenue_yoy');
+  const opSurges  = filter('operating_profit', 'op_profit_qoq', 'op_profit_yoy');
 
   const chgBadge = (v, label) => {
     if (v == null) return '';
-    const color = v > 0 ? 'var(--red)' : v < 0 ? 'var(--blue)' : 'var(--text3)';
-    const arrow = v > 0 ? '▲' : '▼';
-    return `<span style="font-size:11px;color:${color};margin-left:4px">${label} ${arrow}${Math.abs(v).toFixed(1)}%</span>`;
+    const color = v > 0 ? 'var(--red)' : 'var(--blue)';
+    return `<span style="font-size:11px;color:${color};margin-left:4px">${v>0?'▲':'▼'}${Math.abs(v).toFixed(1)}% <span style="color:var(--text3)">${label}</span></span>`;
   };
 
+  const renderRow = (r, i, qoqCol, yoyCol, valCol) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border)">
+      <span style="width:18px;font-size:11px;color:var(--text3);font-weight:600">${i+1}</span>
+      <div style="flex:1;min-width:0">
+        <span style="font-size:13px;font-weight:600">${r.corp_name}</span>
+        <span style="font-size:10px;color:var(--text3);margin-left:5px">${r.bsns_year} ${r.quarter}</span>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:13px;font-weight:600">${fmtCap(r[valCol])}</div>
+        <div>${chgBadge(r[qoqCol],'QoQ')}${chgBadge(r[yoyCol],'YoY')}</div>
+      </div>
+    </div>`;
+
+  const noData = `<div style="padding:2rem;text-align:center;color:var(--text3);font-size:12px">해당 기준 종목 없음</div>`;
+
   el.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding:.75rem 1rem">
-      ${surges.map((r, i) => {
-        const qoq = r[qoqCol];
-        const yoy = r[yoyCol];
-        const qoqColor = qoq > 0 ? 'var(--red)' : 'var(--blue)';
-        const yoyColor = yoy > 0 ? 'var(--red)' : 'var(--blue)';
-        return `
-        <div class="card" style="padding:12px 14px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-            <span style="font-size:13px;font-weight:600">${r.corp_name}</span>
-            <span style="font-size:10px;color:var(--text3);background:var(--bg3);padding:2px 6px;border-radius:100px">${r.bsns_year} ${r.quarter}</span>
-          </div>
-          <div style="font-size:16px;font-weight:700;color:var(--text1);margin-bottom:8px">${fmtCap(r[metric])}</div>
-          <div style="display:flex;gap:8px">
-            ${qoq != null ? `<div style="flex:1;background:var(--bg3);border-radius:6px;padding:5px 8px;text-align:center">
-              <div style="font-size:10px;color:var(--text3);margin-bottom:2px">전분기</div>
-              <div style="font-size:13px;font-weight:600;color:${qoqColor}">${qoq>0?'▲':'▼'}${Math.abs(qoq).toFixed(1)}%</div>
-            </div>` : ''}
-            ${yoy != null ? `<div style="flex:1;background:var(--bg3);border-radius:6px;padding:5px 8px;text-align:center">
-              <div style="font-size:10px;color:var(--text3);margin-bottom:2px">전년동기</div>
-              <div style="font-size:13px;font-weight:600;color:${yoyColor}">${yoy>0?'▲':'▼'}${Math.abs(yoy).toFixed(1)}%</div>
-            </div>` : ''}
-          </div>
-        </div>`;
-      }).join('')}
+    <div style="display:grid;grid-template-columns:1fr 1fr">
+      <div style="border-right:1px solid var(--border)">
+        <div style="padding:8px 12px;font-size:12px;font-weight:600;color:var(--text2);background:var(--bg3);border-bottom:1px solid var(--border)">
+          📈 매출액 급등 (${revSurges.length}개)
+        </div>
+        ${revSurges.length ? revSurges.map((r,i) => renderRow(r,i,'revenue_qoq','revenue_yoy','revenue')).join('') : noData}
+      </div>
+      <div>
+        <div style="padding:8px 12px;font-size:12px;font-weight:600;color:var(--text2);background:var(--bg3);border-bottom:1px solid var(--border)">
+          💰 영업이익 급등 (${opSurges.length}개)
+        </div>
+        ${opSurges.length ? opSurges.map((r,i) => renderRow(r,i,'op_profit_qoq','op_profit_yoy','operating_profit')).join('') : noData}
+      </div>
     </div>
-    <div style="padding:4px 1rem 10px;font-size:11px;color:var(--text3)">총 ${surges.length}개 종목</div>`;
+    <div style="padding:6px 12px;font-size:11px;color:var(--text3)">
+      QoQ ${qoqThreshold}% 또는 YoY ${yoyThreshold}% 이상 · 각 상위 15개
+    </div>`;
 }
 
-// ── 매크로 카드 ──
+
 async function loadMacroData() {
   const { data } = await sb.from('macro_data')
     .select('*').order('updated_at', { ascending: false }).limit(1);
