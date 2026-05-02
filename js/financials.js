@@ -1,12 +1,24 @@
 // financials.js — 재무 조회 (시장/재무제표/종합)
 
 function fmtCap(won) {
-  if (won == null || won === 0) return '—';
-  const jo  = Math.floor(won / 1e12);
-  const eok = Math.floor((won % 1e12) / 1e8);
-  if (jo > 0 && eok > 0) return jo + '조 ' + eok.toLocaleString() + '억';
-  if (jo > 0)             return jo + '조';
-  return eok.toLocaleString() + '억';
+  if (won == null) return '—';
+  const abs  = Math.abs(won);
+  const sign = won < 0 ? '-' : '';
+  const EOK  = 1e8;
+  const JO   = 1e12;
+
+  if (abs >= JO) {
+    const jo     = Math.floor(abs / JO);
+    const eokRem = Math.floor((abs % JO) / EOK);
+    return sign + (eokRem > 0 ? jo + '조 ' + eokRem.toLocaleString() + '억' : jo + '조');
+  }
+  if (abs >= EOK) {
+    return sign + Math.round(abs / EOK).toLocaleString() + '억';
+  }
+  // 1억 미만: 소수점 첫째 자리 (최소 0.1억)
+  const eokVal = Math.round(abs / EOK * 10) / 10;
+  if (eokVal === 0) return '—';
+  return sign + eokVal.toFixed(1) + '억';
 }
 
 

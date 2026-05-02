@@ -88,12 +88,24 @@ const F = { mode: 'market', industry: '전체', q: '', sortBy: 'market_cap', sor
 
 // 원 단위 → 조/억 표시 (예: 1500000000000 → "1조 5,000억")
 function fmtCap(won) {
-  if (won == null || won === 0) return '—';
-  const jo  = Math.floor(won / 1e12);
-  const eok = Math.floor((won % 1e12) / 1e8);
-  if (jo > 0 && eok > 0) return jo + '조 ' + eok.toLocaleString() + '억';
-  if (jo > 0)             return jo + '조';
-  return eok.toLocaleString() + '억';
+  if (won == null) return '—';
+  const abs  = Math.abs(won);
+  const sign = won < 0 ? '-' : '';
+  const EOK  = 1e8;
+  const JO   = 1e12;
+
+  if (abs >= JO) {
+    const jo     = Math.floor(abs / JO);
+    const eokRem = Math.floor((abs % JO) / EOK);
+    return sign + (eokRem > 0 ? jo + '조 ' + eokRem.toLocaleString() + '억' : jo + '조');
+  }
+  if (abs >= EOK) {
+    return sign + Math.round(abs / EOK).toLocaleString() + '억';
+  }
+  // 1억 미만: 소수점 첫째 자리 (최소 0.1억)
+  const eokVal = Math.round(abs / EOK * 10) / 10;
+  if (eokVal === 0) return '—';
+  return sign + eokVal.toFixed(1) + '억';
 }
 
 // 등락률 색상 — 한국 주식 관행 (상승=빨강, 하락=파랑)
