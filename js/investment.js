@@ -136,18 +136,25 @@ function pInvestment() {
         <span class="card-title">🚀 실적 급등 종목</span>
         <div style="display:flex;align-items:center;gap:8px;margin-left:auto;font-size:12px">
           <span style="color:var(--text3)">전분기 대비</span>
-          <input type="number" id="inv-qoq-threshold" value="20" min="0" max="200" step="5"
+          <input type="number" id="inv-qoq-threshold" value="${localStorage.getItem('earnings_qoq_threshold')||20}" min="0" max="200" step="5"
             style="width:56px;padding:2px 6px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;text-align:center">
           <span style="color:var(--text3)">% / 전년동기 대비</span>
-          <input type="number" id="inv-yoy-threshold" value="20" min="0" max="200" step="5"
+          <input type="number" id="inv-yoy-threshold" value="${localStorage.getItem('earnings_yoy_threshold')||20}" min="0" max="200" step="5"
             style="width:56px;padding:2px 6px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;text-align:center">
           <span style="color:var(--text3)">% 이상</span>
           <button class="chip" onclick="loadEarningsSurge()" style="font-size:11px;padding:2px 8px">적용</button>
         </div>
       </div>
-      <div style="display:flex;gap:4px;padding:.5rem 1rem;border-bottom:1px solid var(--border)">
+      <div style="display:flex;gap:4px;padding:.5rem 1rem;border-bottom:1px solid var(--border);align-items:center;flex-wrap:wrap;gap:8px">
         <button class="chip active" data-earnings="revenue" onclick="setEarningsMetric(this,'revenue')" style="font-size:11px">매출액</button>
         <button class="chip" data-earnings="operating_profit" onclick="setEarningsMetric(this,'operating_profit')" style="font-size:11px">영업이익</button>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+          <span style="font-size:12px;color:var(--text3)">기준 분기</span>
+          <select class="form-select" id="inv-earnings-quarter" style="width:130px;padding:3px 8px;font-size:12px"
+            onchange="loadEarningsSurge()">
+            <option value="">로딩 중...</option>
+          </select>
+        </div>
       </div>
       <div id="inv-earnings-list" style="padding:.5rem 0">
         <div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:12px"><span class="loading"></span></div>
@@ -432,41 +439,77 @@ async function loadEarningsSurge() {
   const qoqThreshold = parseFloat(document.getElementById('inv-qoq-threshold')?.value || 20);
   const yoyThreshold = parseFloat(document.getElementById('inv-yoy-threshold')?.value || 20);
   const metric = _earningsMetric;
-  const metricLabel = metric === 'revenue' ? '매출액' : '영업이익';
 
-  // 설정값 저장
+  // 설정값 localStorage에 저장
   try {
-    await sb.from('app_config').upsert([
-      { key: 'earnings_qoq_threshold', value: String(qoqThreshold), description: '전분기 대비 급등 기준 (%)' },
-      { key: 'earnings_yoy_threshold', value: String(yoyThreshold), description: '전년동기 대비 급등 기준 (%)' },
-    ], { onConflict: 'key' });
+    localStorage.setItem('earnings_qoq_threshold', qoqThreshold);
+    localStorage.setItem('earnings_yoy_threshold', yoyThreshold);
   } catch(e) {}
 
-  // 최근 2개 분기 조회 (모니터링 종목만)
-  const { data: rows } = await sb.from('financials')
+  // 분기 목록 조회 (최초 1회)
+  const qSelect = document.getElementById('inv-earnings-quarter');
+  if (qSelect && (qSelect.options.length === 0 || qSelect.options[0].value === '')) {
+    const { data: quarters } = await sb.from('financials')
+      .select('bsns_year,quarter')
+      .eq('fs_div', 'CFS')
+      .order('bsns_year', { ascending: false })
+      .order('quarter', { ascending: false })
+      .limit(1000);
+
+    // 중복 제거 후 최신순 정렬
+    const seen = new Set();
+    const qList = (quarters || []).filter(r => {
+      const key = `${r.bsns_year}-${r.quarter}`;
+      if (seen.has(key)) return false;
+      seen.add(key); return true;
+    }).slice(0, 12); // 최근 12개 분기
+
+    if (qList.length) {
+      qSelect.innerHTML = qList.map((q, i) =>
+        `<option value="${q.bsns_year}-${q.quarter}">${q.bsns_year} ${q.quarter}${i===0?' (최신)':''}</option>`
+      ).join('');
+    }
+  }
+
+  // 선택된 분기 파싱
+  const selVal = qSelect?.value || '';
+  let filterYear = null, filterQuarter = null;
+  if (selVal) {
+    [filterYear, filterQuarter] = selVal.split('-');
+  }
+
+  // 해당 분기 데이터 조회
+  const yoyCol = metric === 'revenue' ? 'revenue_yoy' : 'op_profit_yoy';
+  const qoqCol = metric === 'revenue' ? 'revenue_qoq' : 'op_profit_qoq';
+
+  let query = sb.from('financials')
     .select(`corp_name, stock_code, bsns_year, quarter, ${metric}, revenue_yoy, op_profit_yoy, revenue_qoq, op_profit_qoq`)
     .eq('fs_div', 'CFS')
-    .not(metric, 'is', null)
+    .not(metric, 'is', null);
+
+  if (filterYear)    query = query.eq('bsns_year', filterYear);
+  if (filterQuarter) query = query.eq('quarter', filterQuarter);
+
+  const { data: rows } = await query
     .order('bsns_year', { ascending: false })
     .order('quarter', { ascending: false })
-    .limit(2000);
+    .limit(3000);
 
   if (!rows?.length) {
     el.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:12px">데이터 없음</div>`;
     return;
   }
 
-  // 종목별 최신 분기만 추출
-  const latestMap = {};
-  rows.forEach(r => {
-    if (!latestMap[r.stock_code]) latestMap[r.stock_code] = r;
-  });
-
-  const yoyCol = metric === 'revenue' ? 'revenue_yoy' : 'op_profit_yoy';
-  const qoqCol = metric === 'revenue' ? 'revenue_qoq' : 'op_profit_qoq';
+  // 분기 미선택 시 종목별 최신 분기만 추출
+  let targets = rows;
+  if (!filterYear) {
+    const latestMap = {};
+    rows.forEach(r => { if (!latestMap[r.stock_code]) latestMap[r.stock_code] = r; });
+    targets = Object.values(latestMap);
+  }
 
   // 기준 초과 종목 필터 (QoQ 또는 YoY)
-  const surges = Object.values(latestMap)
+  const surges = targets
     .filter(r => {
       const yoy = r[yoyCol];
       const qoq = r[qoqCol];
