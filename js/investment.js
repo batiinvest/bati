@@ -190,7 +190,6 @@ function setInvTab(tab) {
 async function loadInvestment() {
   loadMacroData();
   loadTrendChart();
-  loadMarketOverview(maxDate);
 
   // 공시 탭이 활성화된 경우에만 로드
   if (window._invTab === 'disclosure') {
