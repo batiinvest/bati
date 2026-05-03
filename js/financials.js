@@ -439,36 +439,51 @@ async function openFinTrend(stockCode, corpName) {
     const revData = chartSrc.map(r => r.revenue         != null ? Math.round(r.revenue         / 1e8) : null);
     const opData  = chartSrc.map(r => r.operating_profit != null ? Math.round(r.operating_profit / 1e8) : null);
     const netData = chartSrc.map(r => r.net_income       != null ? Math.round(r.net_income       / 1e8) : null);
-    const marginData = chartSrc.map(r => r.operating_margin);
 
     const textColor = '#8b90a7';
     const gridColor = 'rgba(255,255,255,0.06)';
 
+    // 비율 데이터
+    const gpmData    = chartSrc.map(r => r.gross_margin);
+    const sgarData   = chartSrc.map(r => r.sga_ratio);
+    const marginData = chartSrc.map(r => r.operating_margin);
+    const netMarginData = chartSrc.map(r => r.net_margin);
+
+    // 우축 라인 공통 옵션
+    const lineRight = (label, data, color) => ({
+      label, data, type: 'line',
+      borderColor: color, backgroundColor: color+'22',
+      borderWidth: 2, tension: 0.3, fill: false,
+      pointRadius: 3, pointHoverRadius: 5,
+      yAxisID: 'y2', spanGaps: true,
+    });
+
     // 차트 탭별 dataset
     const chartConfigs = {
       revenue: {
-        label: '매출액 추이',
+        label: '매출액 · GPM · 판관비율',
         datasets: [
-          { label: '매출액(억)', data: revData, backgroundColor: 'rgba(42,171,238,0.7)', borderColor: '#2AABEE', borderWidth: 1, borderRadius: 3 },
+          { label: '매출액(억)', data: revData, backgroundColor: 'rgba(42,171,238,0.7)', borderColor: '#2AABEE', borderWidth: 1, borderRadius: 3, type: 'bar', yAxisID: 'y' },
+          lineRight('GPM(%)',    gpmData,  '#fb6340'),
+          lineRight('판관비율(%)', sgarData, '#a259ff'),
         ],
-        type: 'bar',
+        dualAxis: true,
       },
       operating_profit: {
-        label: '영업이익 추이',
+        label: '영업이익 · 영업이익률',
         datasets: [
-          { label: '영업이익(억)', data: opData, backgroundColor: opData.map(v => v >= 0 ? 'rgba(45,206,137,0.7)' : 'rgba(245,54,92,0.6)'), borderColor: opData.map(v => v >= 0 ? '#2dce89' : '#f5365c'), borderWidth: 1, borderRadius: 3 },
+          { label: '영업이익(억)', data: opData, backgroundColor: opData.map(v => v >= 0 ? 'rgba(45,206,137,0.7)' : 'rgba(245,54,92,0.6)'), borderColor: opData.map(v => v >= 0 ? '#2dce89' : '#f5365c'), borderWidth: 1, borderRadius: 3, type: 'bar', yAxisID: 'y' },
+          lineRight('영업이익률(%)', marginData, '#2dce89'),
+          lineRight('순이익률(%)',   netMarginData, '#ffd600'),
         ],
-        type: 'bar',
+        dualAxis: true,
       },
       combined: {
         label: '동일 분기 연도별 비교 (YoY)',
         datasets: (() => {
-          // Q별로 연도를 묶어서 grouped bar
           const quarters = ['Q1','Q2','Q3','Q4'];
           const yearColors = ['rgba(42,171,238,0.75)','rgba(45,206,137,0.75)','rgba(251,99,64,0.75)','rgba(162,89,255,0.75)'];
           const years = [...new Set(chartSrc.map(r => r.bsns_year))];
-          // x축: Q1, Q2, Q3, Q4
-          // dataset: 연도별
           return years.map((year, yi) => ({
             label: `${year}년`,
             data: quarters.map(q => {
@@ -481,14 +496,18 @@ async function openFinTrend(stockCode, corpName) {
         })(),
         labels: ['Q1','Q2','Q3','Q4'],
         type: 'bar',
+        dualAxis: false,
       },
       margin: {
-        label: '영업이익률 / ROE',
+        label: '이익률 추이',
         datasets: [
-          { label: '영업이익률(%)', data: marginData, borderColor: '#2dce89', backgroundColor: 'rgba(45,206,137,0.15)', borderWidth: 2, tension: 0.3, type: 'line', fill: true, pointRadius: 4 },
-          { label: 'ROE(%)', data: chartSrc.map(r => r.roe), borderColor: '#ffd600', backgroundColor: 'rgba(255,214,0,0.1)', borderWidth: 2, tension: 0.3, type: 'line', fill: true, pointRadius: 4 },
+          { label: 'GPM(%)',      data: gpmData,       borderColor: '#fb6340', backgroundColor: 'rgba(251,99,64,0.1)',  borderWidth: 2, tension: 0.3, type: 'line', fill: false, pointRadius: 3 },
+          { label: '영업이익률(%)', data: marginData,   borderColor: '#2dce89', backgroundColor: 'rgba(45,206,137,0.1)', borderWidth: 2, tension: 0.3, type: 'line', fill: false, pointRadius: 3 },
+          { label: '순이익률(%)',   data: netMarginData, borderColor: '#ffd600', backgroundColor: 'rgba(255,214,0,0.1)', borderWidth: 2, tension: 0.3, type: 'line', fill: false, pointRadius: 3 },
+          { label: 'ROE(%)',       data: chartSrc.map(r => r.roe), borderColor: '#a259ff', backgroundColor: 'rgba(162,89,255,0.1)', borderWidth: 2, tension: 0.3, type: 'line', fill: false, pointRadius: 3 },
         ],
         type: 'line',
+        dualAxis: false,
       },
     };
 
@@ -502,8 +521,8 @@ async function openFinTrend(stockCode, corpName) {
           <button class="chip ${isAnnual?'active':''}" onclick="window._finViewMode='annual';renderFinTrendBody()">연간별</button>
         </div>
         <div style="display:flex;gap:6px">
-          <button class="chip ${tab==='revenue'?'active':''}" onclick="window._finChartTab='revenue';renderFinTrendBody()">매출액</button>
-          <button class="chip ${tab==='operating_profit'?'active':''}" onclick="window._finChartTab='operating_profit';renderFinTrendBody()">영업이익</button>
+          <button class="chip ${tab==='revenue'?'active':''}" onclick="window._finChartTab='revenue';renderFinTrendBody()">매출액·GPM</button>
+          <button class="chip ${tab==='operating_profit'?'active':''}" onclick="window._finChartTab='operating_profit';renderFinTrendBody()">영업이익·이익률</button>
           <button class="chip ${tab==='combined'?'active':''}" onclick="window._finChartTab='combined';renderFinTrendBody()">분기비교</button>
           <button class="chip ${tab==='margin'?'active':''}" onclick="window._finChartTab='margin';renderFinTrendBody()">이익률</button>
         </div>
@@ -599,7 +618,7 @@ async function openFinTrend(stockCode, corpName) {
     if (window._finChartInst) { window._finChartInst.destroy(); window._finChartInst = null; }
 
     window._finChartInst = new Chart(ctx, {
-      type: cfg.type,
+      type: cfg.type || 'bar',
       data: { labels: cfg.labels || labels, datasets: cfg.datasets },
       options: {
         responsive: true, maintainAspectRatio: false,
@@ -612,8 +631,8 @@ async function openFinTrend(stockCode, corpName) {
               label: ctx => {
                 const v = ctx.parsed.y;
                 if (v == null) return `${ctx.dataset.label}: —`;
-                const unit = tab === 'margin' ? '%' : '억';
-                return `${ctx.dataset.label}: ${v.toLocaleString()}${unit}`;
+                const isRate = ctx.dataset.yAxisID === 'y2' || tab === 'margin';
+                return `${ctx.dataset.label}: ${v.toLocaleString()}${isRate ? '%' : '억'}`;
               }
             }
           }
@@ -621,6 +640,7 @@ async function openFinTrend(stockCode, corpName) {
         scales: {
           x: { ticks: { color: textColor, font: { size: 10 } }, grid: { color: gridColor } },
           y: {
+            position: 'left',
             ticks: {
               color: textColor, font: { size: 10 },
               callback: v => tab === 'margin' ? v + '%' : v.toLocaleString() + '억'
@@ -629,7 +649,14 @@ async function openFinTrend(stockCode, corpName) {
               color: ctx => ctx.tick.value === 0 ? 'rgba(255,255,255,.2)' : gridColor,
               lineWidth: ctx => ctx.tick.value === 0 ? 1.5 : 1,
             }
-          }
+          },
+          ...(cfg.dualAxis ? {
+            y2: {
+              position: 'right',
+              ticks: { color: textColor, font: { size: 10 }, callback: v => v + '%' },
+              grid: { drawOnChartArea: false },
+            }
+          } : {})
         }
       }
     });
