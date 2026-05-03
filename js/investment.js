@@ -145,10 +145,10 @@ function pInvestment() {
         <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap">
           <div style="display:flex;gap:4px">
             <button class="chip active" data-surge-grade="all"   onclick="setSurgeGrade(this,'all')"  style="font-size:12px">전체</button>
-            <button class="chip"        data-surge-grade="🏆"    onclick="setSurgeGrade(this,'🏆')"   style="font-size:12px">🏆 S급</button>
-            <button class="chip"        data-surge-grade="🥇"    onclick="setSurgeGrade(this,'🥇')"   style="font-size:12px">🥇 A급</button>
-            <button class="chip"        data-surge-grade="🥈"    onclick="setSurgeGrade(this,'🥈')"   style="font-size:12px">🥈 B급</button>
-            <button class="chip"        data-surge-grade="⚡"    onclick="setSurgeGrade(this,'⚡')"   style="font-size:12px">⚡ 관찰</button>
+            <button class="chip"        data-surge-grade="S"    onclick="setSurgeGrade(this,'S')"   style="font-size:12px">S급</button>
+            <button class="chip"        data-surge-grade="A"    onclick="setSurgeGrade(this,'A')"   style="font-size:12px">A급</button>
+            <button class="chip"        data-surge-grade="B"    onclick="setSurgeGrade(this,'B')"   style="font-size:12px">B급</button>
+            <button class="chip"        data-surge-grade="관찰"    onclick="setSurgeGrade(this,'관찰')"   style="font-size:12px">관찰</button>
           </div>
           <select class="form-select" id="inv-earnings-quarter" style="width:130px;padding:3px 8px;font-size:12px"
             onchange="loadEarningsSurge()">
@@ -707,7 +707,7 @@ function renderSurgeList() {
   }
 
   // 등급별 그룹핑 (전체 필터 시) 또는 단일 등급
-  const gradeOrder = ['🏆','🥇','🥈','⚡'];
+  const gradeOrder = ['S','A','B','관찰'];
   const gradesToShow = _surgeGradeFilter === 'all'
     ? gradeOrder.filter(g => filtered.some(r => r._grade === g))
     : [_surgeGradeFilter];
@@ -840,10 +840,10 @@ async function loadEarningsSurge() {
       const marginImproved = margin != null && prevMargin != null && (margin - prevMargin) >= 2;
       const continuous     = prevQ && prevQ[yoyCol] != null && prevQ[yoyCol] >= 20;
       if (marginImproved && continuous) {
-        grade = '🏆'; score = 100 + (yoy||0) + (opY||0) + (margin||0);
+        grade = 'S'; score = 100 + (yoy||0) + (opY||0) + (margin||0);
       } else if (marginImproved || continuous) {
         // 이익률 개선 or 연속성 중 하나만 충족 → A급으로 강등
-        grade = '🥇'; score = 85 + (yoy||0) + (opY||0);
+        grade = 'A'; score = 85 + (yoy||0) + (opY||0);
       }
     }
 
@@ -852,13 +852,13 @@ async function loadEarningsSurge() {
       const isBlackTurn = prevYVal != null && prevYVal < 0 && (rev||0) > 0;
       const opGood      = opY != null && opY >= 0;
       if (isBlackTurn || opGood) {
-        grade = '🥇'; score = 80 + (yoy||0);
+        grade = 'A'; score = 80 + (yoy||0);
       }
     }
 
     // 🥈 B급: YoY 매출 20%↑ + 영업이익 흑자 유지
     if (!grade && yoy != null && yoy >= yoyThreshold && op != null && op >= 0) {
-      grade = '🥈'; score = 50 + (yoy||0);
+      grade = 'B'; score = 50 + (yoy||0);
     }
 
     // ⚡ 관찰: QoQ 급등 + 적자 축소(2분기 연속) 또는 흑자전환 조짐
@@ -870,7 +870,7 @@ async function loadEarningsSurge() {
                         && op > prevQ[opCol]  // 이번이 전분기보다 덜 적자
                         && prevQ2 && prevQ[opCol] > prevQ2[opCol]; // 전분기도 전전분기보다 덜 적자
       if (isBlack || isTurn || lossReduce) {
-        grade = '⚡'; score = 30 + (qoq||0);
+        grade = '관찰'; score = 30 + (qoq||0);
       }
     }
 
@@ -900,7 +900,7 @@ async function loadEarningsSurge() {
     .map(r => gradeRow(r, previewHistMap))
     .filter(Boolean)
     .sort((a,b) => {
-      const gradeOrder = {'🏆':4,'🥇':3,'🥈':2,'⚡':1};
+      const gradeOrder = {'S':4,'A':3,'B':2,'관찰':1};
       const gd = (gradeOrder[b._grade]||0) - (gradeOrder[a._grade]||0);
       return gd !== 0 ? gd : b._score - a._score;
     })
@@ -954,8 +954,8 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
   const qoqCol = metric === 'revenue' ? 'revenue_qoq' : 'op_profit_qoq';
   const yoyCol = metric === 'revenue' ? 'revenue_yoy' : 'op_profit_yoy';
   const gradeHistMap = window._surgeGradeHistMap || {};
-  const gradeOrder   = ['🏆','🥇','🥈','⚡'];
-  const GRADE_ORDER  = {'🏆':4,'🥇':3,'🥈':2,'⚡':1};
+  const gradeOrder   = ['S','A','B','관찰'];
+  const GRADE_ORDER  = {'S':4,'A':3,'B':2,'관찰':1};
 
   // 등급 이력 분석 함수
   const getGradeMeta = (r) => {
@@ -993,8 +993,8 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
     // 이력 흐름 텍스트 (최근 3분기 → 현재)
     const recentHist = hist.slice(0, 3).reverse();
     if (recentHist.length) {
-      const GRADE_NAMES = {'🏆':'S','🥇':'A','🥈':'B','⚡':'관찰'};
-      const GRADE_COLORS = {'🏆':'#ffd600','🥇':'#fb6340','🥈':'#2AABEE','⚡':'#2dce89'};
+      const GRADE_NAMES = {'S':'S','A':'A','B':'B','관찰':'관찰'};
+      const GRADE_COLORS = {'S':'#ffd600','A':'#fb6340','B':'#2AABEE','관찰':'#2dce89'};
       const flowItems = [...recentHist, { grade: r._grade, bsns_year: r.bsns_year, quarter: r.quarter, isCurrent: true }];
       histLine = `<div style="display:flex;align-items:center;gap:3px;margin-top:2px">
         ${flowItems.map((h, i) => {
@@ -1048,10 +1048,10 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
 
   // ── 등급별 섹션 렌더링 ──
   const GRADE_LABELS = {
-    '🏆': { label: 'S급 — YoY 30%↑ + 영업이익 20%↑ + 이익률 개선 + 연속 성장', color: '#ffd600' },
-    '🥇': { label: 'A급 — YoY 30%↑ + 흑자전환 또는 영업이익 성장',              color: '#fb6340' },
-    '🥈': { label: 'B급 — YoY 20%↑ + 영업이익 흑자 유지',                      color: '#2AABEE' },
-    '⚡': { label: '관찰 — QoQ 급등 + 적자 축소 또는 흑자전환 조짐',              color: '#2dce89' },
+    'S': { label: 'S급 — YoY 30%↑ + 영업이익 20%↑ + 이익률 개선 + 연속 성장', color: '#ffd600' },
+    'A': { label: 'A급 — YoY 30%↑ + 흑자전환 또는 영업이익 성장',              color: '#fb6340' },
+    'B': { label: 'B급 — YoY 20%↑ + 영업이익 흑자 유지',                      color: '#2AABEE' },
+    '관찰': { label: '관찰 — QoQ 급등 + 적자 축소 또는 흑자전환 조짐',              color: '#2dce89' },
   };
 
   const renderMiniBar = (vals, maxVal, colors) => {
@@ -1083,7 +1083,7 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
     return `
     <div style="border-bottom:2px solid var(--border)">
       <div style="padding:6px 14px;background:var(--bg3);display:flex;align-items:center;gap:8px">
-        <span style="font-size:16px">${grade}</span>
+        <span style="font-size:13px;font-weight:800;padding:2px 10px;border-radius:4px;background:${ {'S':'rgba(255,214,0,.15)','A':'rgba(251,99,64,.15)','B':'rgba(42,171,238,.15)','관찰':'rgba(45,206,137,.15)'}[grade] };color:${ {'S':'#ffd600','A':'#fb6340','B':'#2AABEE','관찰':'#2dce89'}[grade] }">${grade}급</span>
         <span style="font-size:12px;color:${meta.color};font-weight:600">${meta.label}</span>
         <span style="font-size:11px;color:var(--text3);margin-left:auto">${items.length}개</span>
       </div>
@@ -1125,7 +1125,7 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
           <!-- 종목 정보 -->
           <div style="padding-right:12px;border-right:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;gap:3px">
             <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-              <span style="font-size:14px">${r._grade}</span>
+              <span style="font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:${ {'S':'rgba(255,214,0,.15)','A':'rgba(251,99,64,.15)','B':'rgba(42,171,238,.15)','관찰':'rgba(45,206,137,.15)'}[r._grade]||'var(--bg3)' };color:${ {'S':'#ffd600','A':'#fb6340','B':'#2AABEE','관찰':'#2dce89'}[r._grade]||'var(--text)' }">${r._grade}급</span>
               <span style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.corp_name}</span>
               ${gradeMeta.statusBadge}
             </div>
