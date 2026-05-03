@@ -712,6 +712,7 @@ function renderSurgeList() {
     : [_surgeGradeFilter];
 
   el.innerHTML = renderSurgeHTML(filtered, gradesToShow, _surgeHistMap);
+}
 
 function setEarningsSurgeTab(tab) {
   _earningsSurgeTab = tab;
@@ -1151,4 +1152,4 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
   }).join('') + `<div style="padding:6px 12px;font-size:11px;color:var(--text3)">매출 50억↑ · S/A/B/관찰 등급 · 클릭 시 재무 추이</div>`;
   return html;
 }
-}
+
