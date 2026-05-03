@@ -954,6 +954,7 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
   const qoqCol = metric === 'revenue' ? 'revenue_qoq' : 'op_profit_qoq';
   const yoyCol = metric === 'revenue' ? 'revenue_yoy' : 'op_profit_yoy';
   const gradeHistMap = window._surgeGradeHistMap || {};
+  const gradeOrder   = ['🏆','🥇','🥈','⚡'];
   const GRADE_ORDER  = {'🏆':4,'🥇':3,'🥈':2,'⚡':1};
 
   // 등급 이력 분석 함수
