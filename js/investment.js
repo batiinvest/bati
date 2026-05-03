@@ -869,15 +869,19 @@ async function loadEarningsSurge() {
     if (curIdx >= 2 && curVal != null) {
       const vals = histSorted.slice(Math.max(0, curIdx-4), curIdx+1).map(h => h[metric]||0);
       const cur  = vals[vals.length-1];
-      const p1   = vals[vals.length-2]; // 직전 분기
-      const p2   = vals.length >= 3 ? vals[vals.length-3] : null; // 2분기 전
-      const p3   = vals.length >= 4 ? vals[vals.length-4] : null; // 3분기 전
+      const p1   = vals[vals.length-2];
+      const p2   = vals.length >= 3 ? vals[vals.length-3] : null;
+      const p3   = vals.length >= 4 ? vals[vals.length-4] : null;
 
       // 베이스 효과: 직전 분기가 현재의 10% 미만
       if (p1 != null && Math.abs(p1) < Math.abs(cur) * 0.1 && Math.abs(cur) > 0) {
         qoqSignal = '<span title="직전 분기가 너무 작아 QoQ 수치 과장 가능" style="font-size:13px;cursor:help">⚠️</span>';
       }
-      // 추세전환: 직전 2분기 이상 하락 후 이번 분기 반등
+      // 적자→흑자 전환
+      else if (p1 != null && p1 < 0 && cur > 0) {
+        qoqSignal = '<span title="적자→흑자 전환 (QoQ)" style="font-size:13px;cursor:help">💚</span>';
+      }
+      // 추세전환: 직전 2분기 이상 하락 후 반등
       else if (p2 != null && p1 != null && p1 < p2 && cur > p1) {
         qoqSignal = '<span title="하락 후 반등 (추세전환 신호)" style="font-size:13px;cursor:help">↩️</span>';
       }
@@ -891,6 +895,39 @@ async function loadEarningsSurge() {
       }
     }
 
+    // YoY 패턴 분석
+    let yoySignal = '';
+    if (yoyPrev != null && curVal != null) {
+      const cur = curVal;
+      const py  = yoyPrev;
+
+      // YoY 베이스 효과: 전년 동기가 현재의 10% 미만
+      if (Math.abs(py) < Math.abs(cur) * 0.1 && Math.abs(cur) > 0) {
+        yoySignal = '<span title="전년 동기가 너무 작아 YoY 수치 과장 가능" style="font-size:11px;cursor:help">⚠️</span>';
+      }
+      // YoY 흑자전환
+      else if (py < 0 && cur > 0) {
+        yoySignal = '<span title="전년 적자→흑자 전환 (YoY)" style="font-size:11px;cursor:help">🔄</span>';
+      }
+      else if (cur > py) {
+        // YoY 연속 성장 확인 (전전년 동기)
+        const ppy = histSorted.find(h =>
+          h.bsns_year === String(parseInt(r.bsns_year)-2) && h.quarter === r.quarter);
+        const ppyVal = ppy ? ppy[metric] : null;
+
+        // YoY 성장 가속: 성장률이 전년보다 커짐
+        if (ppyVal != null && ppyVal !== 0) {
+          const prevGrowth = (py - ppyVal) / Math.abs(ppyVal) * 100;
+          const curGrowth  = r[yoyCol] || 0;
+          if (curGrowth > prevGrowth && prevGrowth > 0) {
+            yoySignal = '<span title="YoY 성장률 가속" style="font-size:11px;cursor:help">🚀</span>';
+          } else if (py > ppyVal) {
+            yoySignal = '<span title="2년+ 연속 YoY 성장 (지속성장)" style="font-size:11px;cursor:help">📊</span>';
+          }
+        }
+      }
+    }
+
     return `
     <div style="display:grid;grid-template-columns:220px 1fr 1fr;align-items:center;gap:0;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer"
       onclick="openFinTrend('${r.stock_code}','${r.corp_name}')"
@@ -901,15 +938,20 @@ async function loadEarningsSurge() {
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
           <span style="font-size:11px;color:var(--text3);font-weight:600;width:16px">${i+1}</span>
           <span style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.corp_name}</span>
-          ${qoqSignal}
         </div>
         <div style="display:flex;align-items:baseline;gap:6px;padding-left:22px">
           <span style="font-size:14px;font-weight:700">${fmtCap(r[metric])}</span>
           <span style="font-size:10px;color:var(--text3)">${r.bsns_year} ${r.quarter}</span>
         </div>
         <div style="display:flex;flex-direction:column;gap:3px;padding-left:22px;margin-top:4px">
-          ${chgBadge(r[qoqCol], 'QoQ', qoqPrev, curVal)}
-          ${chgBadge(r[yoyCol], 'YoY', yoyPrev, curVal)}
+          <div style="display:flex;align-items:center;gap:4px">
+            ${chgBadge(r[qoqCol], 'QoQ', qoqPrev, curVal)}
+            ${qoqSignal}
+          </div>
+          <div style="display:flex;align-items:center;gap:4px">
+            ${chgBadge(r[yoyCol], 'YoY', yoyPrev, curVal)}
+            ${yoySignal}
+          </div>
         </div>
       </div>
 
