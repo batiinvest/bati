@@ -371,7 +371,7 @@ async function openFinTrend(stockCode, corpName) {
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 
   const { data: rawData, error } = await sb.from('financials')
-    .select('bsns_year,quarter,fs_div,revenue,operating_profit,net_income,operating_margin,roe,roa,debt_ratio,total_assets,total_equity,total_liabilities,operating_cashflow,revenue_yoy,revenue_qoq,op_profit_yoy,op_profit_qoq')
+    .select('bsns_year,quarter,fs_div,revenue,gross_profit,cogs,sga,rd_expense,operating_profit,net_income,operating_margin,gross_margin,sga_ratio,net_margin,cogs_ratio,roe,roa,debt_ratio,total_assets,total_equity,total_liabilities,operating_cashflow,investing_cashflow,financing_cashflow,revenue_yoy,revenue_qoq,op_profit_yoy,op_profit_qoq')
     .eq('stock_code', stockCode)
     .eq('fs_div', 'CFS')
     .order('bsns_year', { ascending: true })
@@ -517,21 +517,35 @@ async function openFinTrend(stockCode, corpName) {
       <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.5rem">손익계산서</div>
       <div class="table-wrap" style="margin-bottom:1.25rem"><table>
         <thead><tr>
-          <th>기간</th><th>매출액</th>
+          <th>기간</th>
+          <th>매출액</th>
           ${!isAnnual ? '<th>YoY</th><th>QoQ</th>' : '<th>YoY</th>'}
-          <th>영업이익</th><th>영업이익률</th><th>순이익</th><th>ROE</th>
+          <th>매출총이익</th><th>GPM</th>
+          <th>판관비</th><th>판관비율</th>
+          <th>R&D</th>
+          <th>영업이익</th><th>영업이익률</th>
+          <th>순이익</th><th>순이익률</th>
+          <th>ROE</th>
         </tr></thead>
         <tbody>${src.map(r => {
           const opColor = (r.operating_profit||0) >= 0 ? 'var(--green)' : 'var(--red)';
+          const niColor = (r.net_income||0) >= 0 ? 'var(--green)' : 'var(--red)';
+          const gpColor = (r.gross_profit||0) >= 0 ? '' : 'var(--red)';
           return `<tr>
             <td style="font-weight:600">${r.bsns_year} ${r.quarter}</td>
             <td>${fmt(r.revenue)}</td>
             ${!isAnnual
               ? `<td style="font-size:11px">${chgBadge(r.revenue_yoy)}</td><td style="font-size:11px">${chgBadge(r.revenue_qoq)}</td>`
               : '<td>—</td>'}
+            <td style="color:${gpColor}">${fmt(r.gross_profit)}</td>
+            <td>${pct(r.gross_margin)}</td>
+            <td>${fmt(r.sga)}</td>
+            <td>${pct(r.sga_ratio)}</td>
+            <td>${r.rd_expense ? fmt(r.rd_expense) : '—'}</td>
             <td style="color:${opColor}">${fmt(r.operating_profit)}</td>
             <td>${pct(r.operating_margin)}</td>
-            <td>${fmt(r.net_income)}</td>
+            <td style="color:${niColor}">${fmt(r.net_income)}</td>
+            <td>${pct(r.net_margin)}</td>
             <td>${pct(r.roe)}</td>
           </tr>`;
         }).join('')}
