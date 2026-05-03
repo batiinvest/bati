@@ -807,10 +807,13 @@ async function loadEarningsSurge() {
     histMap[r.stock_code].push(r);
   });
 
-  const chgBadge = (v, label) => {
+  const chgBadge = (v, label, prevVal, curVal) => {
     if (v == null) return '';
     const color = v > 0 ? 'var(--red)' : 'var(--blue)';
-    return `<span style="font-size:11px;color:${color}">${v>0?'▲':'▼'}${Math.abs(v).toFixed(1)}% <span style="color:var(--text3);font-size:10px">${label}</span></span>`;
+    const fromTo = (prevVal != null && curVal != null)
+      ? ` <span style="color:var(--text3);font-size:10px">(${fmtCap(prevVal)}→${fmtCap(curVal)})</span>`
+      : '';
+    return `<span style="font-size:11px;color:${color}">${v>0?'▲':'▼'}${Math.abs(v).toFixed(1)}% <span style="color:var(--text3);font-size:10px">${label}</span>${fromTo}</span>`;
   };
 
   // 연간 집계 함수
@@ -851,8 +854,18 @@ async function loadEarningsSurge() {
     const yData = calcAnnual(hist, metric);
     const yMax  = Math.max(...yData.map(([,v]) => Math.abs(v)), 1);
 
+    // 이전 분기/전년동기 값 계산
+    const histSorted = [...hist].sort((a,b) =>
+      a.bsns_year !== b.bsns_year ? a.bsns_year.localeCompare(b.bsns_year) : a.quarter.localeCompare(b.quarter));
+    const curIdx  = histSorted.findIndex(h => h.bsns_year === r.bsns_year && h.quarter === r.quarter);
+    const prevQ   = curIdx > 0 ? histSorted[curIdx - 1] : null;
+    const prevY   = hist.find(h => h.bsns_year === String(parseInt(r.bsns_year)-1) && h.quarter === r.quarter);
+    const curVal  = r[metric];
+    const qoqPrev = prevQ ? prevQ[metric] : null;
+    const yoyPrev = prevY ? prevY[metric] : null;
+
     return `
-    <div style="display:grid;grid-template-columns:200px 1fr 1fr;align-items:center;gap:0;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer"
+    <div style="display:grid;grid-template-columns:220px 1fr 1fr;align-items:center;gap:0;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer"
       onclick="openFinTrend('${r.stock_code}','${r.corp_name}')"
       onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
 
@@ -866,9 +879,9 @@ async function loadEarningsSurge() {
           <span style="font-size:14px;font-weight:700">${fmtCap(r[metric])}</span>
           <span style="font-size:10px;color:var(--text3)">${r.bsns_year} ${r.quarter}</span>
         </div>
-        <div style="display:flex;gap:6px;padding-left:22px;margin-top:3px;flex-wrap:wrap">
-          ${chgBadge(r[qoqCol], 'QoQ')}
-          ${chgBadge(r[yoyCol], 'YoY')}
+        <div style="display:flex;flex-direction:column;gap:3px;padding-left:22px;margin-top:4px">
+          ${chgBadge(r[qoqCol], 'QoQ', qoqPrev, curVal)}
+          ${chgBadge(r[yoyCol], 'YoY', yoyPrev, curVal)}
         </div>
       </div>
 
