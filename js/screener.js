@@ -144,7 +144,7 @@ async function runScreener() {
   if (!combined.length) { el.innerHTML = emptyHTML('조건에 맞는 종목이 없습니다.'); return; }
 
   const pct=v=>v!=null?v.toFixed(1)+'%':'—', num=v=>v!=null?v.toFixed(1):'—';
-  const chgColor=v=>v>0?'var(--green)':v<0?'var(--red)':'var(--text2)';
+  // chgColor, chgStr → config.js 전역 함수 사용 (한국 주식 관행: 상승=빨강)
 
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
@@ -159,9 +159,10 @@ async function runScreener() {
         <td style="font-size:11px;color:var(--text3)">${r.market||'—'}</td>
         <td style="font-size:12px">${fmtCap(r.market_cap)}</td>
         <td style="font-size:12px">${r.price?r.price.toLocaleString()+'원':'—'}</td>
-        <td style="font-size:12px;color:${chgColor(r.price_change_rate)}">${r.price_change_rate!=null?(r.price_change_rate>0?'+':'')+r.price_change_rate.toFixed(2)+'%':'—'}</td>
+        <td style="font-size:12px;color:${chgColor(r.price_change_rate)}">${chgStr(r.price_change_rate)}</td>
         <td>${num(r.per)}</td><td>${num(r.pbr)}</td>
-        <td style="color:${r.operating_margin>0?'var(--green)':'var(--text2)'}">${pct(r.operating_margin)}</td>
+        <td style="color:${r.operating_margin>0?'var(--green)':'var(--text2)'}">
+${pct(r.operating_margin)}</td>
         <td>${pct(r.roe)}</td><td>${pct(r.roa)}</td><td>${pct(r.debt_ratio)}</td>
       </tr>`).join('')}</tbody>
     </table></div>`;

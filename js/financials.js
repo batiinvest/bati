@@ -1,26 +1,5 @@
 // financials.js — 재무 조회 (시장/재무제표/종합)
-
-function fmtCap(won) {
-  if (won == null) return '—';
-  const abs  = Math.abs(won);
-  const sign = won < 0 ? '-' : '';
-  const EOK  = 1e8;
-  const JO   = 1e12;
-
-  if (abs >= JO) {
-    const jo     = Math.floor(abs / JO);
-    const eokRem = Math.floor((abs % JO) / EOK);
-    return sign + (eokRem > 0 ? jo + '조 ' + eokRem.toLocaleString() + '억' : jo + '조');
-  }
-  if (abs >= EOK) {
-    return sign + Math.round(abs / EOK).toLocaleString() + '억';
-  }
-  // 1억 미만: 소수점 첫째 자리 (최소 0.1억)
-  const eokVal = Math.round(abs / EOK * 10) / 10;
-  if (eokVal === 0) return '—';
-  return sign + eokVal.toFixed(1) + '억';
-}
-
+// fmtCap, chgColor, chgStr, loadingHTML, emptyHTML, errorHTML, fetchAllPages → config.js 참조
 
 function pFinancials() {
   const industries = ['전체', ...INDUSTRIES];
@@ -170,14 +149,12 @@ async function loadMarketData(el) {
     </tr></thead>
     <tbody>${rows.map(r => {
       const chg = r.price_change_rate;
-      const chgColor = chg > 0 ? 'var(--red)' : chg < 0 ? '#4a9eff' : 'var(--text3)';
-      const chgStr = chg != null && chg !== 0 ? `${chg > 0 ? '+' : ''}${chg.toFixed(2)}%` : (chg === 0 ? '0.00%' : '—');
       const cap = fmtCap(r.market_cap);
       return `<tr>
         <td style="font-weight:500">${r.corp_name}</td>
         <td>${cap}</td>
         <td>${r.price ? r.price.toLocaleString() + '원' : '—'}</td>
-        <td style="color:${chgColor};font-weight:500">${chgStr}</td>
+        <td style="color:${chgColor(chg)};font-weight:500">${chgStr(chg)}</td>
         <td>${r.per != null && r.per !== 0 ? r.per.toFixed(1) : '—'}</td>
         <td>${r.pbr != null && r.pbr !== 0 ? r.pbr.toFixed(2) : '—'}</td>
         <td>${r.eps ? r.eps.toLocaleString() : '—'}</td>
@@ -341,12 +318,11 @@ async function loadCombinedData(el) {
     </tr></thead>
     <tbody>${rows.map(r => {
       const chg = r.price_change_rate;
-      const chgColor = chg > 0 ? 'var(--red)' : chg < 0 ? '#4a9eff' : 'var(--text3)';
       return `<tr>
         <td style="font-weight:500">${r.corp_name}</td>
         <td>${fmtCap(r.market_cap)}</td>
         <td>${r.price?r.price.toLocaleString()+'원':'—'}</td>
-        <td style="color:${chgColor};font-weight:500">${chg!=null?(chg>0?'+':'')+chg.toFixed(2)+'%':'—'}</td>
+        <td style="color:${chgColor(chg)};font-weight:500">${chgStr(chg)}</td>
         <td>${r.per!=null?r.per.toFixed(1):'—'}</td>
         <td>${r.pbr!=null?r.pbr.toFixed(2):'—'}</td>
         <td>${fmt(r.revenue)}</td>
