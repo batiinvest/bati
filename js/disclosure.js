@@ -41,6 +41,55 @@ async function loadAllDisclosures() {
     return;
   }
 
+  // ── 시총 1000억 미만 필터링 ──────────────────────────────
+  // corp_code → stock_code 매핑 후 market_data 시총 조회
+  const corpCodes = [...new Set(all.map(d => d.corp_code).filter(Boolean))];
+  const CAP_THRESHOLD = 100_000_000_000; // 1000억 (원 단위)
+
+  let capMap = {};  // corp_code → market_cap
+  try {
+    // companies 테이블에서 corp_code → stock_code 매핑
+    const { data: companies } = await sb.from('companies')
+      .select('corp_code,code')
+      .in('corp_code', corpCodes.slice(0, 500));  // Supabase in() 제한
+
+    const codeMap = {};  // corp_code → stock_code (suffix 제거)
+    (companies || []).forEach(c => {
+      codeMap[c.corp_code] = c.code?.replace(/\.(KS|KQ)$/, '');
+    });
+
+    const stockCodes = [...new Set(Object.values(codeMap).filter(Boolean))];
+
+    // 최신 market_data에서 시총 조회
+    const { data: mktDate } = await sb.from('market_data')
+      .select('base_date').order('base_date', { ascending: false }).limit(1);
+    const maxDate = mktDate?.[0]?.base_date;
+
+    if (maxDate && stockCodes.length) {
+      const { data: mktData } = await sb.from('market_data')
+        .select('stock_code,market_cap')
+        .eq('base_date', maxDate)
+        .in('stock_code', stockCodes.slice(0, 500));
+
+      const mktMap = {};  // stock_code → market_cap
+      (mktData || []).forEach(m => { mktMap[m.stock_code] = m.market_cap; });
+
+      // corp_code → market_cap
+      Object.entries(codeMap).forEach(([corpCode, stockCode]) => {
+        if (mktMap[stockCode] != null) capMap[corpCode] = mktMap[stockCode];
+      });
+    }
+  } catch(e) { /* 시총 조회 실패 시 필터링 스킵 */ }
+
+  const beforeCount = all.length;
+  all = all.filter(d => {
+    if (!d.corp_code) return true;  // corp_code 없으면 포함
+    const cap = capMap[d.corp_code];
+    if (cap == null) return true;   // 시총 정보 없으면 포함
+    return cap >= CAP_THRESHOLD;
+  });
+  const filteredCount = beforeCount - all.length;
+
   // 카테고리 분류 (투자 판단 중요도 순)
   const CATEGORIES = [
     { label: '사업보고서',  color: '#2AABEE', bg: 'rgba(42,171,238,.12)',  match: ['사업보고서'] },
@@ -158,7 +207,10 @@ async function loadAllDisclosures() {
 
   el.innerHTML = `
     ${catHTML}
-    <div style="padding:4px 1rem 10px;font-size:11px;color:var(--text3)">총 ${all.length}건</div>`;
+    <div style="padding:4px 1rem 10px;font-size:11px;color:var(--text3)">
+      총 ${all.length}건 표시
+      ${filteredCount > 0 ? `<span style="margin-left:6px">(시총 1000억 미만 ${filteredCount}건 제외)</span>` : ''}
+    </div>`;
 }
 
 // ── 오늘 실적 공시 목록 ──
