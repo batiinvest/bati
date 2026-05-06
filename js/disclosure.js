@@ -86,14 +86,19 @@ async function loadAllDisclosures() {
   const today = new Date().toISOString().slice(0, 10);
   let insiderMap = {};  // rcept_no → [rows]
   try {
-    const { data: insiders } = await sb.from('insider_trades')
+    const { data: insiders, error: insiderErr } = await sb.from('insider_trades')
       .select('rcept_no,reporter,relation,trade_date,reason,shares_change,shares_after,price,stock_type')
       .eq('base_date', today);
+    console.log('[insider_trades] 조회결과:', insiders?.length, '건, 오류:', insiderErr);
     (insiders || []).forEach(r => {
       if (!insiderMap[r.rcept_no]) insiderMap[r.rcept_no] = [];
       insiderMap[r.rcept_no].push(r);
     });
-  } catch(e) { /* insider_trades 없으면 무시 */ }
+    window._insiderMap = insiderMap;
+    console.log('[insiderMap] 키 수:', Object.keys(insiderMap).length);
+  } catch(e) {
+    console.warn('[insider_trades] 조회 실패:', e);
+  }
 
   const fmtShares = n => n != null ? Math.abs(n).toLocaleString() + '주' : '';
   const reasonBadge = (rows) => {
