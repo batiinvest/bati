@@ -1,5 +1,32 @@
 // pages.js — 텔레그램 채널 관련 페이지 (overview, rooms, notice, logs)
 // 투자현황 → investment.js / 스크리너 → screener.js
+
+/**
+ * PAGE_META — 페이지 키 → { title, fn, onLoad } 단일 정의
+ * nav.js와 draw()가 이 테이블을 참조 (타이틀/함수명 중복 정의 방지)
+ *
+ * onLoad: draw() 후 추가로 실행할 초기화 함수명 (문자열 or null)
+ */
+const PAGE_META = {
+  overview:   { title: '전체 현황',     fn: 'pOverview',    onLoad: null },
+  rooms:      { title: '채팅방 관리',   fn: 'pRooms',       onLoad: null },
+  notice:     { title: '전체 공지',     fn: 'pNotice',      onLoad: 'loadNotices' },
+  logs:       { title: '동기화 로그',   fn: 'pLogs',        onLoad: 'loadLogs' },
+  bot:        { title: '봇 모니터링',   fn: 'pBot',         onLoad: 'loadBotStatus' },
+  botconfig:  { title: '봇 설정',       fn: 'pBotConfig',   onLoad: 'loadBotConfig' },
+  investment: { title: '오늘의 시황',   fn: 'pInvestment',  onLoad: 'loadInvestment' },
+  watchlist:  { title: '투자노트',      fn: 'pWatchlist',   onLoad: '_initWatchlist' },
+  screener:   { title: '종목 스크리너', fn: 'pScreener',    onLoad: null },
+  financials: { title: '재무 조회',     fn: 'pFinancials',  onLoad: 'loadFinancials' },
+  comparison: { title: '기업 비교 분석',fn: 'pComparison',  onLoad: 'renderCmpSelected' },
+  stocks:     { title: '종목 관리',     fn: 'pStocks',      onLoad: 'loadStocks' },
+  team:       { title: '팀원 관리',     fn: 'pTeam',        onLoad: 'loadTeam' },
+  settings:   { title: '설정',          fn: 'pSettings',    onLoad: null },
+};
+
+// watchlist 초기화 래퍼 (onLoad 단일 함수 제약 우회)
+function _initWatchlist() { window._wlGroup = 'all'; loadWatchlist(); }
+
 function pOverview() {
   const isFull = r => r.status === 'full' || (r.members || 0) >= (r.max_members || 1000);
 
