@@ -109,7 +109,6 @@ async function loadAllDisclosures() {
         </div>
       </div>`;
   }).join('');
-  }).join('');
 
   el.innerHTML = `
     ${catHTML}
