@@ -1,187 +1,305 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>바티인베스트 채팅방 관리</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4"></script>
-<link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BatiInvest 대시보드</title>
+
+  <!-- ── 폰트 ── -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+
+  <!-- ── 외부 라이브러리 ── -->
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- Chart.js (시황 흐름 차트, 재무 추이 차트) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+
+  <!-- ── 스타일 ── -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- ── 추가 인라인 스타일 (blue 변수: 하락색) ── -->
+  <style>
+    :root { --blue: #4a9eff; }
+    /* 모바일 사이드바 오버레이 */
+    #sidebar-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.5);
+      z-index: 49;
+      display: none;
+    }
+    #sidebar-overlay.active { display: block; }
+  </style>
 </head>
 <body>
 
-<!-- ── Login Screen ── -->
-<div id="login-screen" class="login-wrap">
-  <div class="login-box">
-    <div class="login-logo">
-      <div class="login-logo-icon">B</div>
-      <div>
-        <div class="login-logo-text">바티인베스트</div>
-        <div class="login-logo-sub">채팅방 관리 대시보드</div>
+<!-- ════════════════════════════════════════════
+     로그인 화면
+════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-wrap">
+    <div class="login-box">
+      <div class="login-logo">
+        <div class="login-logo-icon">B</div>
+        <div>
+          <div class="login-logo-text">BatiInvest</div>
+          <div class="login-logo-sub">투자 관리 대시보드</div>
+        </div>
       </div>
-    </div>
-    <div id="login-form">
-      <div class="form-group">
-        <label class="form-label">이메일</label>
-        <input class="form-input" id="login-email" type="email" placeholder="team@example.com" onkeydown="if(event.key==='Enter')doLogin()">
+
+      <!-- 로그인 폼 -->
+      <div id="login-form">
+        <div class="form-group">
+          <label class="form-label">이메일</label>
+          <input class="form-input" id="login-email" type="email" placeholder="이메일 입력"
+                 onkeydown="if(event.key==='Enter') doLogin()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">비밀번호</label>
+          <input class="form-input" id="login-pw" type="password" placeholder="비밀번호 입력"
+                 onkeydown="if(event.key==='Enter') doLogin()">
+        </div>
+        <div id="login-err" class="hidden" style="color:var(--red);font-size:12px;margin-bottom:.75rem"></div>
+        <button class="btn btn-primary" id="login-btn" onclick="doLogin()" style="width:100%">로그인</button>
+        <div style="text-align:center;margin-top:1rem;font-size:12px;color:var(--text3)">
+          계정이 없으신가요?
+          <span style="color:var(--tg);cursor:pointer" onclick="showSignup()">회원가입</span>
+        </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">비밀번호</label>
-        <input class="form-input" id="login-pw" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
-      </div>
-      <div id="login-err" class="hidden" style="font-size:12px;color:var(--red);margin-bottom:.75rem;padding:8px 10px;background:rgba(245,54,92,.1);border-radius:var(--radius-sm)"></div>
-      <button class="btn btn-primary" style="width:100%" id="login-btn" onclick="doLogin()">로그인</button>
-      <div style="margin-top:1rem;text-align:center">
-        <span style="font-size:12px;color:var(--text3)">계정이 없으신가요? </span>
-        <button style="font-size:12px;color:var(--tg);background:none;border:none;cursor:pointer" onclick="showSignup()">회원가입</button>
-      </div>
-    </div>
-    <div id="signup-form" class="hidden">
-      <div class="form-group">
-        <label class="form-label">이름</label>
-        <input class="form-input" id="signup-name" placeholder="홍길동">
-      </div>
-      <div class="form-group">
-        <label class="form-label">이메일</label>
-        <input class="form-input" id="signup-email" type="email" placeholder="team@example.com">
-      </div>
-      <div class="form-group">
-        <label class="form-label">비밀번호</label>
-        <input class="form-input" id="signup-pw" type="password" placeholder="8자 이상">
-        <div class="form-hint">첫 번째 가입자는 자동으로 admin이 됩니다.</div>
-      </div>
-      <div id="signup-err" class="hidden" style="font-size:12px;color:var(--red);margin-bottom:.75rem;padding:8px 10px;background:rgba(245,54,92,.1);border-radius:var(--radius-sm)"></div>
-      <button class="btn btn-primary" style="width:100%" id="signup-btn" onclick="doSignup()">가입하기</button>
-      <div style="margin-top:1rem;text-align:center">
-        <button style="font-size:12px;color:var(--tg);background:none;border:none;cursor:pointer" onclick="showLogin()">← 로그인으로 돌아가기</button>
+
+      <!-- 회원가입 폼 -->
+      <div id="signup-form" class="hidden">
+        <div class="form-group">
+          <label class="form-label">이름</label>
+          <input class="form-input" id="signup-name" placeholder="이름">
+        </div>
+        <div class="form-group">
+          <label class="form-label">이메일</label>
+          <input class="form-input" id="signup-email" type="email" placeholder="이메일">
+        </div>
+        <div class="form-group">
+          <label class="form-label">비밀번호 (8자 이상)</label>
+          <input class="form-input" id="signup-pw" type="password" placeholder="비밀번호">
+        </div>
+        <div id="signup-err" class="hidden" style="font-size:12px;margin-bottom:.75rem"></div>
+        <button class="btn btn-primary" id="signup-btn" onclick="doSignup()" style="width:100%">가입하기</button>
+        <div style="text-align:center;margin-top:1rem;font-size:12px;color:var(--text3)">
+          이미 계정이 있으신가요?
+          <span style="color:var(--tg);cursor:pointer" onclick="showLogin()">로그인</span>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ── Dashboard ── -->
-<div id="dashboard" class="hidden">
-<div class="app">
-  <div class="overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+<!-- ════════════════════════════════════════════
+     대시보드 (로그인 후)
+════════════════════════════════════════════ -->
+<div id="dashboard" class="app hidden">
+
+  <!-- ── 모바일 사이드바 오버레이 ── -->
+  <div id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+  <!-- ══════════════════════════════
+       사이드바
+  ══════════════════════════════ -->
   <nav class="sidebar" id="sidebar">
+    <!-- 로고 -->
     <div class="logo">
       <div class="logo-icon">B</div>
-      <div><div class="logo-text">바티인베스트</div><div class="logo-sub">채팅방 관리 대시보드</div></div>
+      <div>
+        <div class="logo-text">BatiInvest</div>
+        <div class="logo-sub">투자 관리 대시보드</div>
+      </div>
     </div>
+
+    <!-- 네비게이션 -->
     <div class="nav">
-      <div class="nav-sec">주식투자</div>
+
+      <!-- 투자 -->
+      <div class="nav-sec">투자</div>
       <div class="nav-item" data-page="investment" onclick="go('investment')">
-        <svg viewBox="0 0 16 16" fill="none"><path d="M2 12l3-4 3 2 3-5 3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg viewBox="0 0 16 16" fill="none"><path d="M2 12l3-4 3 2 3-5 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         오늘의 시황
       </div>
-      <div class="nav-item" data-page="watchlist" onclick="go('watchlist')">
-        <svg viewBox="0 0 16 16" fill="none"><path d="M8 2l1.5 3h3.5l-2.8 2 1 3.5L8 9l-3.2 1.5 1-3.5L3 5h3.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
-        투자노트
-      </div>
-      <div class="nav-item" data-page="screener" onclick="go('screener')">
-        <svg viewBox="0 0 16 16" fill="none"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-        종목 스크리너
-      </div>
       <div class="nav-item" data-page="financials" onclick="go('financials')">
-        <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 6h14" stroke="currentColor" stroke-width="1.3"/><path d="M5 9h2M9 9h2M5 12h2M9 12h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M5 7h6M5 10h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
         재무 조회
       </div>
-      <div class="nav-item" data-page="stocks" onclick="go('stocks')">
-        <svg viewBox="0 0 16 16" fill="none"><path d="M2 12l3-4 3 2 3-5 3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><rect x="1" y="1" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.3"/></svg>
-        종목 관리
+      <div class="nav-item" data-page="screener" onclick="go('screener')">
+        <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        종목 스크리너
       </div>
-      <div class="nav-sec">텔레그램</div>
-      <div class="nav-item active" data-page="overview" onclick="go('overview')">
-        <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg>
+      <div class="nav-item" data-page="comparison" onclick="go('comparison')">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M3 4h4M3 8h4M3 12h4M9 4h4M9 8h4M9 12h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        기업 비교
+      </div>
+      <div class="nav-item" data-page="watchlist" onclick="go('watchlist')">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M8 2l1.5 3.5L13 6l-2.5 2.5.5 3.5L8 10.5 5 12l.5-3.5L3 6l3.5-.5L8 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        투자노트
+      </div>
+
+      <!-- 채팅방 -->
+      <div class="nav-sec">채팅방</div>
+      <div class="nav-item" data-page="overview" onclick="go('overview')">
+        <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
         전체 현황
+        <span class="nav-badge" id="badge">0</span>
       </div>
       <div class="nav-item" data-page="rooms" onclick="go('rooms')">
-        <svg viewBox="0 0 16 16" fill="none"><path d="M13 3H3a1 1 0 00-1 1v7a1 1 0 001 1h2l3 2 3-2h2a1 1 0 001-1V4a1 1 0 00-1-1z" stroke="currentColor" stroke-width="1.3"/></svg>
-        채팅방 관리 <span class="nav-badge" id="badge">—</span>
+        <svg viewBox="0 0 16 16" fill="none"><path d="M2 3.5A1.5 1.5 0 013.5 2h9A1.5 1.5 0 0114 3.5v7A1.5 1.5 0 0112.5 12H9l-3 2v-2H3.5A1.5 1.5 0 012 10.5v-7z" stroke="currentColor" stroke-width="1.5"/></svg>
+        채팅방 관리
       </div>
       <div class="nav-item" data-page="notice" onclick="go('notice')">
-        <svg viewBox="0 0 16 16" fill="none"><path d="M2 5l6-3 6 3v7H2V5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><rect x="6" y="9" width="4" height="3" rx=".5" stroke="currentColor" stroke-width="1.3"/></svg>
+        <svg viewBox="0 0 16 16" fill="none"><path d="M8 2v2M8 12v2M2 8h2M12 8h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/></svg>
         전체 공지
       </div>
       <div class="nav-item" data-page="logs" onclick="go('logs')">
-        <svg viewBox="0 0 16 16" fill="none"><path d="M2 13L6 8l3 3 5-7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h7M3 12h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
         동기화 로그
       </div>
+
+      <!-- 관리 -->
+      <div class="nav-sec">관리</div>
+      <div class="nav-item" data-page="stocks" onclick="go('stocks')">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M8 2C4.7 2 2 4.7 2 8s2.7 6 6 6 6-2.7 6-6-2.7-6-6-6zm0 2v4l3 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        종목 관리
+      </div>
       <div class="nav-item" data-page="bot" onclick="go('bot')">
-        <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="4" width="12" height="9" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M6 4V3a2 2 0 014 0v1" stroke="currentColor" stroke-width="1.3"/><circle cx="6" cy="8.5" r="1" fill="currentColor"/><circle cx="10" cy="8.5" r="1" fill="currentColor"/></svg>
+        <svg viewBox="0 0 16 16" fill="none"><rect x="3" y="5" width="10" height="8" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M6 9h.01M10 9h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 2v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         봇 모니터링
       </div>
       <div class="nav-item" data-page="botconfig" onclick="go('botconfig')">
-        <svg viewBox="0 0 16 16" fill="none"><path d="M8 2l1.5 3h3l-2.5 2 1 3L8 8.5 5 10l1-3L3.5 5h3z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+        <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14M3.5 3.5l1 1M11.5 11.5l1 1M11.5 3.5l-1 1M4.5 11.5l-1 1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
         봇 설정
       </div>
-      <div class="nav-sec">관리</div>
-      <div class="nav-item" data-page="team" id="nav-team" onclick="go('team')">
-        <svg viewBox="0 0 16 16" fill="none"><circle cx="6" cy="5" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="12" cy="6" r="1.8" stroke="currentColor" stroke-width="1.3"/><path d="M14.5 13c0-1.93-1.12-3.6-2.75-4.38" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+
+      <!-- 설정 -->
+      <div class="nav-sec">설정</div>
+      <div class="nav-item" id="nav-team" data-page="team" onclick="go('team')">
+        <svg viewBox="0 0 16 16" fill="none"><circle cx="6" cy="5" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M1 13c0-2.2 2-4 5-4s5 1.8 5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="5" r="2" stroke="currentColor" stroke-width="1.3"/><path d="M14 13c0-1.6-1.3-3-3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
         팀원 관리
       </div>
-      <div class="nav-item" data-page="settings" id="nav-settings" onclick="go('settings')">
-        <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3 3l1 1M12 12l1 1M3 13l1-1M12 4l1-1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <div class="nav-item" id="nav-settings" data-page="settings" onclick="go('settings')">
+        <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14M3.5 3.5l1 1M11.5 11.5l1 1M11.5 3.5l-1 1M4.5 11.5l-1 1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
         설정
       </div>
     </div>
+
+    <!-- 사이드바 하단 유저 정보 -->
     <div class="sidebar-footer">
       <div class="user-info">
-        <div class="user-avatar" id="user-avatar">?</div>
+        <div class="user-avatar" id="user-avatar">??</div>
         <div style="overflow:hidden">
-          <div class="user-name" id="user-name">—</div>
+          <div class="user-name"  id="user-name">—</div>
           <div class="user-email" id="user-email">—</div>
         </div>
       </div>
-      <button class="btn btn-sm" style="width:100%;font-size:11px" onclick="doLogout()">로그아웃</button>
+      <button class="btn btn-sm" style="width:100%" onclick="doLogout()">로그아웃</button>
     </div>
   </nav>
 
+  <!-- ══════════════════════════════
+       메인 영역
+  ══════════════════════════════ -->
   <div class="main">
+
+    <!-- 탑바 -->
     <div class="topbar">
       <div style="display:flex;align-items:center;gap:10px">
-        <button class="menu-btn" onclick="toggleSidebar()">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <!-- 모바일 햄버거 -->
+        <button class="menu-btn" onclick="toggleSidebar()" aria-label="메뉴">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
         </button>
-        <div class="topbar-title" id="page-title">전체 현황</div>
+        <span class="topbar-title" id="page-title">오늘의 시황</span>
       </div>
       <div class="topbar-actions">
-        <button class="btn" id="sync-btn" onclick="syncAll()">
-          <svg style="width:13px;height:13px;vertical-align:middle;margin-right:4px" viewBox="0 0 16 16" fill="none"><path d="M13.5 8A5.5 5.5 0 112.5 5M2.5 2v3h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <button class="btn btn-sm" id="btn-notice" onclick="go('notice')">
+          <span class="btn-label">📢 공지</span>
+        </button>
+        <button class="btn btn-sm btn-primary" id="btn-add" onclick="openAddModal()">
+          <span class="btn-label">+ 추가</span>
+        </button>
+        <button class="btn btn-sm" id="sync-btn" onclick="syncAll()">
+          <svg style="width:13px;height:13px;vertical-align:middle;margin-right:4px" viewBox="0 0 16 16" fill="none">
+            <path d="M13.5 8A5.5 5.5 0 112.5 5M2.5 2v3h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
           <span class="btn-label">멤버 수 동기화</span>
         </button>
-        <button class="btn" id="btn-notice" onclick="openModal('m-notice')"><span class="btn-label">공지 발송</span></button>
-        <button class="btn btn-primary" id="btn-add" onclick="openModal('m-add')">+ <span class="btn-label">방 추가</span></button>
       </div>
     </div>
+
+    <!-- 콘텐츠 -->
     <div class="content" id="content">
-      <div style="display:flex;align-items:center;justify-content:center;height:300px;color:var(--text3)">
-        <span class="loading"></span>불러오는 중...
+      <!-- draw()가 여기에 페이지 HTML을 주입합니다 -->
+      <div style="padding:2rem;text-align:center;color:var(--text3)">
+        <span class="loading"></span> 로딩 중...
       </div>
     </div>
   </div>
 </div>
-</div>
 
+<!-- ════════════════════════════════════════════
+     Toast 컨테이너
+════════════════════════════════════════════ -->
 <div class="toast-container" id="toasts"></div>
 
-<!-- Add Room Modal -->
-<div class="modal-overlay" id="m-add">
+<!-- ════════════════════════════════════════════
+     모달 — 채팅방 상세 (m-detail)
+════════════════════════════════════════════ -->
+<div class="modal-overlay" id="m-detail" onclick="if(event.target===this) closeModal('m-detail')">
+  <div class="modal" style="width:520px">
+    <div class="modal-header">
+      <span class="modal-title" id="d-title">채팅방 상세</span>
+      <button class="modal-close" onclick="closeModal('m-detail')">×</button>
+    </div>
+    <div class="tabs">
+      <button class="tab active" onclick="dtab('info',this)">정보</button>
+      <button class="tab" onclick="dtab('edit',this)">수정</button>
+      <button class="tab" onclick="dtab('msg',this)">메시지</button>
+      <button class="tab" onclick="dtab('log',this)">동기화 로그</button>
+    </div>
+    <div id="d-body"></div>
+    <div style="margin-top:.75rem">
+      <button class="btn" onclick="window.open(''); " id="d-tg" style="font-size:12px;color:var(--tg)">텔레그램 열기 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     모달 — 채팅방 추가 (m-add)
+════════════════════════════════════════════ -->
+<div class="modal-overlay" id="m-add" onclick="if(event.target===this) closeModal('m-add')">
   <div class="modal">
-    <div class="modal-header"><span class="modal-title">새 채팅방 추가</span><button class="modal-close" onclick="closeModal('m-add')">×</button></div>
-    <div class="form-group"><label class="form-label">채팅방 이름 *</label><input class="form-input" id="a-name" placeholder="예: 카카오뱅크"></div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">산업 *</label>
-        <select class="form-select" id="a-cat"><option>바이오</option><option>뷰티</option><option>로봇</option><option>2차전지</option><option>신재생</option><option>소비재</option><option>테크</option><option>반도체</option><option>엔터</option><option>조선</option><option>우주</option></select>
-      </div>
-      <div class="form-group"><label class="form-label">세부 분야</label><input class="form-input" id="a-sub" placeholder="신약개발"></div>
+    <div class="modal-header">
+      <span class="modal-title">채팅방 추가</span>
+      <button class="modal-close" onclick="closeModal('m-add')">×</button>
     </div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">종목코드</label><input class="form-input" id="a-code" placeholder="196170.KQ"></div>
+      <div class="form-group"><label class="form-label">이름</label><input class="form-input" id="a-name" placeholder="채팅방 이름"></div>
+      <div class="form-group"><label class="form-label">종목코드</label><input class="form-input" id="a-code" placeholder="005930"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">산업</label>
+        <select class="form-select" id="a-cat">
+          <option value="">선택</option>
+          <option>바이오</option><option>뷰티</option><option>로봇</option>
+          <option>2차전지</option><option>신재생</option><option>소비재</option>
+          <option>테크</option><option>반도체</option><option>엔터</option>
+          <option>조선</option><option>우주</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">세부 분야</label><input class="form-input" id="a-sub" placeholder="세부 분야"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Chat ID</label><input class="form-input" id="a-chatid" placeholder="-100xxxxxxxxxx"></div>
       <div class="form-group"><label class="form-label">최대 정원</label><input class="form-input" type="number" id="a-max" value="1000"></div>
     </div>
-    <div class="form-group"><label class="form-label">Chat ID *</label><input class="form-input" id="a-chatid" placeholder="-100xxxxxxxxxx 또는 @channel"></div>
     <div class="form-group"><label class="form-label">초대 링크</label><input class="form-input" id="a-link" placeholder="https://t.me/..."></div>
-    <div class="form-group"><label class="form-label">키워드</label><input class="form-input" id="a-kw" placeholder="키워드1, 키워드2"></div>
+    <div class="form-group"><label class="form-label">키워드</label><input class="form-input" id="a-kw" placeholder="검색용 키워드 (쉼표 구분)"></div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('m-add')">취소</button>
       <button class="btn btn-primary" onclick="addRoom()">추가</button>
@@ -189,74 +307,43 @@
   </div>
 </div>
 
-<!-- Notice Modal -->
-<div class="modal-overlay" id="m-notice">
-  <div class="modal" style="width:520px">
-    <div class="modal-header"><span class="modal-title">전체 공지 발송</span><button class="modal-close" onclick="closeModal('m-notice')">×</button></div>
-    <div class="form-group"><label class="form-label">대상</label>
-      <select class="form-select" id="n-target">
-        <option value="all">전체</option><option value="open">입장 가능 방</option>
-        <option value="바이오">바이오</option><option value="뷰티">뷰티</option><option value="로봇">로봇</option>
-        <option value="2차전지">2차전지</option><option value="테크">테크</option><option value="반도체">반도체</option><option value="신재생">신재생</option>
-      </select>
-    </div>
-    <div class="form-group"><label class="form-label">내용 *</label><textarea class="form-input" id="n-content" oninput="prev(this.value,'n-prev')"></textarea></div>
-    <div class="form-group"><label class="form-label">미리보기</label><div id="n-prev" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;min-height:36px;color:var(--text2)"></div></div>
-    <div id="n-prog" class="hidden" style="font-size:12px;padding:8px;background:var(--bg3);border-radius:var(--radius-sm);color:var(--text2);margin-bottom:.5rem"></div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal('m-notice')">취소</button>
-      <button class="btn btn-primary" id="n-btn" onclick="sendNoticeModal()">발송</button>
-    </div>
-  </div>
-</div>
-
-<!-- Detail Modal -->
-<div class="modal-overlay" id="m-detail">
-  <div class="modal" style="width:520px">
-    <div class="modal-header"><span class="modal-title" id="d-title">채팅방 상세</span><button class="modal-close" onclick="closeModal('m-detail')">×</button></div>
-    <div class="tabs">
-      <button class="tab active" onclick="dtab('info',this)">정보</button>
-      <button class="tab" onclick="dtab('edit',this)">수정</button>
-      <button class="tab" onclick="dtab('msg',this)">개별 공지</button>
-      <button class="tab" onclick="dtab('log',this)">동기화 이력</button>
-    </div>
-    <div id="d-body"></div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal('m-detail')">닫기</button>
-      <button class="btn btn-primary" id="d-tg">텔레그램 열기</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- 종목 추가 Modal -->
-<div class="modal-overlay" id="m-stock-add">
-  <div class="modal" style="width:520px">
-    <div class="modal-header"><span class="modal-title">종목 추가</span><button class="modal-close" onclick="closeModal('m-stock-add')">×</button></div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">종목명 *</label><input class="form-input" id="sa-name" placeholder="예: 삼성전자"></div>
-      <div class="form-group"><label class="form-label">종목코드 *</label><input class="form-input" id="sa-code" placeholder="005930.KS"></div>
+<!-- ════════════════════════════════════════════
+     모달 — 종목 추가 (m-stock-add)
+════════════════════════════════════════════ -->
+<div class="modal-overlay" id="m-stock-add" onclick="if(event.target===this) closeModal('m-stock-add')">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">종목 추가</span>
+      <button class="modal-close" onclick="closeModal('m-stock-add')">×</button>
     </div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">산업 *</label>
+      <div class="form-group"><label class="form-label">종목명</label><input class="form-input" id="sa-name" placeholder="삼성전자"></div>
+      <div class="form-group"><label class="form-label">종목코드</label><input class="form-input" id="sa-code" placeholder="005930"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">산업</label>
         <select class="form-select" id="sa-industry">
-      <option>바이오</option>
-      <option>반도체</option>
-      <option>2차전지</option>
-      <option>로봇</option>
-      <option>뷰티</option>
-      <option>테크</option>
-      <option>조선</option>
-      <option>신재생</option>
-      <option>엔터</option>
-      <option>소비재</option>
-      <option>우주</option>
+          <option value="">선택</option>
+          <option>바이오</option><option>뷰티</option><option>로봇</option>
+          <option>2차전지</option><option>신재생</option><option>소비재</option>
+          <option>테크</option><option>반도체</option><option>엔터</option>
+          <option>조선</option><option>우주</option>
         </select>
       </div>
-      <div class="form-group"><label class="form-label">세부분야</label><input class="form-input" id="sa-sub" placeholder="HBM장비"></div>
+      <div class="form-group"><label class="form-label">세부 분야</label><input class="form-input" id="sa-sub" placeholder="세부 분야"></div>
     </div>
-    <div class="form-group"><label class="form-label">텔레그램 채팅방 ID</label><input class="form-input" id="sa-chatid" placeholder="-1001234567890"><div class="form-hint">개별 채팅방이 있는 경우에만 입력</div></div>
-    <div class="form-group"><label class="form-label">키워드</label><input class="form-input" id="sa-kw" placeholder="스노우피크,스노우피크어패럴"><div class="form-hint">뉴스 검색 시 종목명 외 추가할 키워드 (쉼표 구분)</div></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">키워드</label><input class="form-input" id="sa-kw" placeholder="키워드"></div>
+      <div class="form-group">
+        <label class="form-label">모니터링 레벨</label>
+        <select class="form-select" id="sa-level">
+          <option value="1">1 - 핵심</option>
+          <option value="2">2 - 관심</option>
+          <option value="3">3 - 일반</option>
+        </select>
+      </div>
+    </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('m-stock-add')">취소</button>
       <button class="btn btn-primary" onclick="addStock()">추가</button>
@@ -264,65 +351,114 @@
   </div>
 </div>
 
-<!-- 종목 수정 Modal -->
-<div class="modal-overlay" id="m-stock-edit">
-  <div class="modal" style="width:520px">
-    <div class="modal-header"><span class="modal-title">종목 수정</span><button class="modal-close" onclick="closeModal('m-stock-edit')">×</button></div>
+<!-- ════════════════════════════════════════════
+     모달 — 종목 수정 (m-stock-edit)
+════════════════════════════════════════════ -->
+<div class="modal-overlay" id="m-stock-edit" onclick="if(event.target===this) closeModal('m-stock-edit')">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">종목 수정</span>
+      <button class="modal-close" onclick="closeModal('m-stock-edit')">×</button>
+    </div>
     <input type="hidden" id="se-id">
     <div class="form-row">
-      <div class="form-group"><label class="form-label">종목명 *</label><input class="form-input" id="se-name"></div>
-      <div class="form-group"><label class="form-label">종목코드</label><input class="form-input" id="se-code" placeholder="005930.KS"></div>
+      <div class="form-group"><label class="form-label">종목명</label><input class="form-input" id="se-name"></div>
+      <div class="form-group"><label class="form-label">종목코드</label><input class="form-input" id="se-code"></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">산업</label><input class="form-input" id="se-industry" placeholder="반도체"></div>
-      <div class="form-group"><label class="form-label">세부분야</label><input class="form-input" id="se-sub" placeholder="HBM장비"></div>
+      <div class="form-group">
+        <label class="form-label">산업</label>
+        <select class="form-select" id="se-industry">
+          <option>바이오</option><option>뷰티</option><option>로봇</option>
+          <option>2차전지</option><option>신재생</option><option>소비재</option>
+          <option>테크</option><option>반도체</option><option>엔터</option>
+          <option>조선</option><option>우주</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">세부 분야</label><input class="form-input" id="se-sub"></div>
     </div>
-    <div class="form-group"><label class="form-label">텔레그램 채팅방 ID</label><input class="form-input" id="se-chatid" placeholder="-1001234567890"></div>
-    <div class="form-group"><label class="form-label">키워드</label><input class="form-input" id="se-kw" placeholder="스노우피크,스노우피크어패럴"><div class="form-hint">뉴스 검색 시 추가 키워드 (쉼표 구분)</div></div>
-    <div class="form-group">
-      <label class="form-label">모니터링 레벨</label>
-      <select class="form-select" id="se-level">
-        <option value="full">full — 채팅방 + 뉴스/공시 모니터링</option>
-        <option value="news">news — 뉴스/공시 모니터링만</option>
-        <option value="data">data — 재무/시장 데이터만</option>
-      </select>
-      <div class="form-hint">full/news는 봇이 뉴스·공시를 모니터링합니다. data는 재무 데이터 수집만 합니다.</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">키워드</label><input class="form-input" id="se-kw"></div>
+      <div class="form-group">
+        <label class="form-label">모니터링 레벨</label>
+        <select class="form-select" id="se-level">
+          <option value="1">1 - 핵심</option>
+          <option value="2">2 - 관심</option>
+          <option value="3">3 - 일반</option>
+        </select>
+      </div>
     </div>
-    <div class="form-group" style="display:flex;align-items:center;gap:10px">
-      <input type="checkbox" id="se-active" style="width:16px;height:16px">
-      <label class="form-label" style="margin:0;cursor:pointer" for="se-active">봇 알림 활성화</label>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">활성 여부</label>
+        <select class="form-select" id="se-active">
+          <option value="true">활성</option>
+          <option value="false">비활성</option>
+        </select>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('m-stock-edit')">취소</button>
-      <button class="btn btn-primary" onclick="saveStockEdit()">저장</button>
+      <button class="btn btn-primary" onclick="saveStock()">저장</button>
     </div>
   </div>
 </div>
 
-<!-- 설정 & 인증 -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="js/config.js?v=1777367287" defer></script>
-<script src="js/auth.js?v=1777367287" defer></script>
-<!-- 핵심 기능 -->
-<script src="js/telegram.js?v=1777367287" defer></script>
-<script src="js/rooms.js?v=1777367287" defer></script>
-<script src="js/nav.js?v=1777367287" defer></script>
-<!-- 페이지 렌더링 -->
-<script src="js/watchlist.js?v=1777367287" defer></script>
-    <script src="js/pages.js?v=1777367287" defer></script>
-<script src="js/investment.js?v=1777367287" defer></script>
-<script src="js/screener.js?v=1777367287" defer></script>
-<script src="js/financials.js?v=1777367287" defer></script>
-<script src="js/comparison.js?v=1777367287" defer></script>
-<script src="js/stocks.js?v=1777367287" defer></script>
-<script src="js/bots.js?v=1777367287" defer></script>
-<!-- 유틸리티 -->
-<script src="js/detail.js?v=1777367287" defer></script>
-<!-- 초기화: 모든 defer 스크립트 로드 완료 후 실행 -->
-<script defer>
-  document.addEventListener('DOMContentLoaded', function() {
-    bootAuth();
-  });
+<!-- ════════════════════════════════════════════
+     모달 — 세부산업 배정 (m-assign-sub)
+════════════════════════════════════════════ -->
+<div class="modal-overlay" id="m-assign-sub" onclick="if(event.target===this) closeModal('m-assign-sub')">
+  <div class="modal" style="width:560px;max-height:80vh">
+    <div class="modal-header">
+      <span class="modal-title" id="assign-sub-title">세부산업 배정</span>
+      <button class="modal-close" onclick="closeModal('m-assign-sub')">×</button>
+    </div>
+    <div id="assign-company-list" style="max-height:55vh;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     JS 로드 순서 (의존 관계 순)
+     1. config.js   — Supabase, 전역 상수/유틸 (가장 먼저)
+     2. auth.js     — 로그인/세션 관리
+     3. pages.js    — PAGE_META + 페이지 HTML 함수 (nav.js보다 먼저)
+     4. nav.js      — go(), draw() (PAGE_META 참조)
+     5. detail.js   — 모달, 사이드바, toast 유틸
+     6. telegram.js — TG API, syncAll/syncOne
+     7. rooms.js    — 채팅방 CRUD
+     8. bots.js     — 봇 관리
+     9. stocks.js   — 종목 관리
+    10. watchlist.js      — 투자노트
+    11. screener.js       — 종목 스크리너
+    12. comparison.js     — 기업 비교
+    13. financials.js     — 재무 조회 (openFinTrend 포함)
+    14. market-overview.js — 시황 탭 (매크로/차트/종목동향)  ← 신규
+    15. disclosure.js     — 공시 탭                          ← 신규
+    16. earnings-surge.js — 실적 급등 카드                   ← 신규
+    17. investment.js     — 시황 페이지 뼈대 (위 3개 참조)
+════════════════════════════════════════════ -->
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script src="pages.js"></script>
+<script src="nav.js"></script>
+<script src="detail.js"></script>
+<script src="telegram.js"></script>
+<script src="rooms.js"></script>
+<script src="bots.js"></script>
+<script src="stocks.js"></script>
+<script src="watchlist.js"></script>
+<script src="screener.js"></script>
+<script src="comparison.js"></script>
+<script src="financials.js"></script>
+<script src="market-overview.js"></script>
+<script src="disclosure.js"></script>
+<script src="earnings-surge.js"></script>
+<script src="investment.js"></script>
+
+<script>
+  // 앱 부팅
+  bootAuth();
 </script>
+
 </body>
 </html>
