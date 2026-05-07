@@ -259,6 +259,18 @@ async function loadAllDisclosures() {
                   : insiderMap[d.rcept_no])
               : null;
             const badge   = reasonBadge(insider, badgeType);
+
+            // 지분공시: 동일 corp_code 원본 공시 건수
+            const origItems = isInsider && d.corp_code
+              ? items.filter(x => x.corp_code === d.corp_code)
+              : [d];
+            const countBadge = isInsider && origItems.length > 1
+              ? `<span style="display:inline-flex;align-items:center;justify-content:center;
+                  min-width:18px;height:18px;padding:0 5px;border-radius:100px;
+                  background:var(--tg);color:#fff;font-size:10px;font-weight:700;
+                  flex-shrink:0">${origItems.length}</span>`
+              : '';
+
             return `<div style="display:flex;flex-direction:column;gap:3px;padding:6px 10px;
                 background:var(--bg3);border-radius:var(--radius-sm);
                 border:1px solid ${badge ? 'var(--border2)' : 'var(--border)'};
@@ -267,6 +279,7 @@ async function loadAllDisclosures() {
               <div style="display:flex;align-items:center;gap:6px">
                 <span style="font-size:12px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
                       title="${d.report_nm}">${d.corp_name}</span>
+                ${countBadge}
                 ${link ? `<a href="${link}" target="_blank"
                     style="font-size:10px;color:var(--tg);flex-shrink:0;text-decoration:none"
                     onclick="event.stopPropagation()" title="${d.report_nm}">DART↗</a>` : ''}
