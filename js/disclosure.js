@@ -142,6 +142,7 @@ async function loadAllDisclosures() {
     { label: '임원/주식',   color: '#c084fc', bg: 'rgba(192,132,252,.12)', match: ['임원', '주요주주'] },
     { label: '감사보고서',  color: '#94a3b8', bg: 'rgba(148,163,184,.12)', match: ['감사보고서', '내부회계'] },
     { label: '공정공시',    color: '#00d4aa', bg: 'rgba(0,212,170,.12)',   match: ['공정공시'] },
+    { label: '주식매수선택권', color: '#a3e635', bg: 'rgba(163,230,53,.12)',  match: ['주식매수선택권'] },
     { label: '주요경영사항',  color: '#fb923c', bg: 'rgba(251,146,60,.12)',  match: [
         '투자판단관련주요경영사항',
         '단일판매ㆍ공급계약', '단일판매·공급계약',
