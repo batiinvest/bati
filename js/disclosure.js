@@ -41,6 +41,25 @@ async function loadAllDisclosures() {
     return;
   }
 
+  // ── 투자 판단 무관 공시 필터링 ──────────────────────────────
+  const NOISE_KEYWORDS = [
+    '효력발생안내',           // 펀드 신탁 행정 절차
+    '투자설명서(일괄신고)',    // 펀드 판매 문서
+    '일괄신고추가서류',        // 파생결합사채/ELS 발행 서류
+    '일괄신고서(',             // 파생결합사채 일괄신고
+    '증권발행실적보고서',      // 발행 완료 보고
+    '의결권대리행사권유',      // 주총 위임장 서식
+    '동일인등출자계열회사와의상품ㆍ용역거래', // 계열사 내부거래 정기신고
+    '정정신고서제출요구',      // 금감원 행정
+    '소속부변경',              // 거래소 시장 구분 변경
+    '소액공모공시서류',        // 소규모 발행 서류
+    '집합투자증권',            // 펀드 관련 (효력발생 등)
+  ];
+  all = all.filter(d => {
+    const nm = d.report_nm || '';
+    return !NOISE_KEYWORDS.some(kw => nm.includes(kw));
+  });
+
   // ── 시총 1000억 미만 필터링 (실적공시 종목은 예외) ──────────
   // corp_code → stock_code 매핑 후 market_data 시총 조회
   const corpCodes = [...new Set(all.map(d => d.corp_code).filter(Boolean))];
