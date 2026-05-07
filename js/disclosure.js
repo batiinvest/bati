@@ -152,20 +152,30 @@ async function loadAllDisclosures() {
   }
 
   const fmtShares = n => n != null ? Math.abs(n).toLocaleString() + '주' : '';
-  const reasonBadge = (rows) => {
+  const reasonBadge = (rows, type) => {
     if (!rows?.length) return '';
-    // 취득/처분 집계
-    let buy = 0, sell = 0, other = 0;
+    if (type === 'bulk') {
+      // 대량보유: 증감 기준
+      const row = rows[0];
+      const chg = row.shares_change || 0;
+      const bfRt = row.hold_ratio_before != null ? row.hold_ratio_before.toFixed(2) + '%' : '';
+      const afRt = row.hold_ratio_after  != null ? row.hold_ratio_after.toFixed(2)  + '%' : '';
+      const rtTxt = (bfRt && afRt) ? `${bfRt}→${afRt}` : (afRt || '');
+      if (chg > 0)  return `<span style="color:var(--red);font-size:10px;font-weight:600">▲취득 ${Math.abs(chg).toLocaleString()}주${rtTxt?' ('+rtTxt+')':''}</span>`;
+      if (chg < 0)  return `<span style="color:var(--blue);font-size:10px;font-weight:600">▼처분 ${Math.abs(chg).toLocaleString()}주${rtTxt?' ('+rtTxt+')':''}</span>`;
+      if (rtTxt)    return `<span style="color:var(--text3);font-size:10px">보유 ${rtTxt}</span>`;
+      return '';
+    }
+    // 임원 지분공시: 취득/처분 집계
+    let buy = 0, sell = 0;
     rows.forEach(r => {
       const chg = r.shares_change || 0;
       if (chg > 0) buy += chg;
       else if (chg < 0) sell += Math.abs(chg);
-      else other++;
     });
     const parts = [];
-    if (buy)   parts.push(`<span style="color:var(--red);font-size:10px;font-weight:600">▲취득 ${buy.toLocaleString()}주</span>`);
-    if (sell)  parts.push(`<span style="color:var(--blue);font-size:10px;font-weight:600">▼처분 ${sell.toLocaleString()}주</span>`);
-    if (other && !buy && !sell) parts.push(`<span style="color:var(--text3);font-size:10px">기타</span>`);
+    if (buy)  parts.push(`<span style="color:var(--red);font-size:10px;font-weight:600">▲취득 ${buy.toLocaleString()}주</span>`);
+    if (sell) parts.push(`<span style="color:var(--blue);font-size:10px;font-weight:600">▼처분 ${sell.toLocaleString()}주</span>`);
     return parts.join(' ');
   };
 
@@ -174,6 +184,8 @@ async function loadAllDisclosures() {
     if (!items.length) return '';
 
     const isInsider = cat.label === '지분공시';
+    const isBulk    = cat.label === '대량보유';
+    const needsBadge = isInsider || isBulk;
 
     return `
       <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border)">
@@ -181,11 +193,11 @@ async function loadAllDisclosures() {
           <span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:100px;background:${cat.bg};color:${cat.color}">${cat.label}</span>
           <span style="font-size:11px;color:var(--text3)">${items.length}건</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(${isInsider?'240':'180'}px,1fr));gap:6px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(${needsBadge?'240':'180'}px,1fr));gap:6px">
           ${items.map(d => {
-            const link = dartLink(d);
-            const insider = isInsider ? insiderMap[d.rcept_no] : null;
-            const badge   = reasonBadge(insider);
+            const link    = dartLink(d);
+            const insider = needsBadge ? insiderMap[d.rcept_no] : null;
+            const badge   = reasonBadge(insider, isBulk ? 'bulk' : 'insider');
             return `<div style="display:flex;flex-direction:column;gap:3px;padding:6px 10px;
                 background:var(--bg3);border-radius:var(--radius-sm);
                 border:1px solid ${badge ? 'var(--border2)' : 'var(--border)'};
