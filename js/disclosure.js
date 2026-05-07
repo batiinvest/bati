@@ -41,10 +41,19 @@ async function loadAllDisclosures() {
     return;
   }
 
-  // ── 시총 1000억 미만 필터링 ──────────────────────────────
+  // ── 시총 1000억 미만 필터링 (실적공시 종목은 예외) ──────────
   // corp_code → stock_code 매핑 후 market_data 시총 조회
   const corpCodes = [...new Set(all.map(d => d.corp_code).filter(Boolean))];
   const CAP_THRESHOLD = 100_000_000_000; // 1000억 (원 단위)
+
+  // 실적공시 종목은 시총 무관 표시
+  let earningsCorpCodes = new Set();
+  try {
+    const { data: ecfg } = await sb.from('app_config')
+      .select('value').eq('key', 'today_earnings_corps').single();
+    const ecorps = ecfg?.value ? JSON.parse(ecfg.value) : [];
+    ecorps.forEach(c => { if (c.corp_code) earningsCorpCodes.add(c.corp_code); });
+  } catch(e) { /* 무시 */ }
 
   let capMap = {};  // corp_code → market_cap
   try {
@@ -83,9 +92,10 @@ async function loadAllDisclosures() {
 
   const beforeCount = all.length;
   all = all.filter(d => {
-    if (!d.corp_code) return true;  // corp_code 없으면 포함
+    if (!d.corp_code) return true;               // corp_code 없으면 포함
+    if (earningsCorpCodes.has(d.corp_code)) return true;  // 실적공시 종목 예외
     const cap = capMap[d.corp_code];
-    if (cap == null) return true;   // 시총 정보 없으면 포함
+    if (cap == null) return true;                // 시총 정보 없으면 포함
     return cap >= CAP_THRESHOLD;
   });
   const filteredCount = beforeCount - all.length;
