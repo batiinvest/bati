@@ -154,19 +154,22 @@ async function loadAllDisclosures() {
   const fmtShares = n => n != null ? Math.abs(n).toLocaleString() + '주' : '';
   const reasonBadge = (rows, type) => {
     if (!rows?.length) return '';
+    if (type === 'major') {
+      // 최대주주변동: DART 원문 확인 유도
+      return `<span style="color:var(--yellow);font-size:10px;font-weight:600">⚠ 최대주주 지분변동</span>`;
+    }
     if (type === 'bulk') {
-      // 대량보유: 증감 기준
       const row = rows[0];
-      const chg = row.shares_change || 0;
+      const chg = row.shares_change;
       const bfRt = row.hold_ratio_before != null ? row.hold_ratio_before.toFixed(2) + '%' : '';
       const afRt = row.hold_ratio_after  != null ? row.hold_ratio_after.toFixed(2)  + '%' : '';
-      const rtTxt = (bfRt && afRt) ? `${bfRt}→${afRt}` : (afRt || '');
+      const rtTxt = (bfRt && afRt && bfRt !== afRt) ? `${bfRt}→${afRt}` : (afRt || bfRt || '');
       if (chg > 0)  return `<span style="color:var(--red);font-size:10px;font-weight:600">▲취득 ${Math.abs(chg).toLocaleString()}주${rtTxt?' ('+rtTxt+')':''}</span>`;
       if (chg < 0)  return `<span style="color:var(--blue);font-size:10px;font-weight:600">▼처분 ${Math.abs(chg).toLocaleString()}주${rtTxt?' ('+rtTxt+')':''}</span>`;
-      if (rtTxt)    return `<span style="color:var(--text3);font-size:10px">보유 ${rtTxt}</span>`;
-      return '';
+      if (rtTxt)    return `<span style="color:var(--text3);font-size:10px">보유 ${rtTxt} (변동없음)</span>`;
+      return `<span style="color:var(--text3);font-size:10px">변동없음</span>`;
     }
-    // 임원 지분공시: 취득/처분 집계
+    // 임원 지분공시
     let buy = 0, sell = 0;
     rows.forEach(r => {
       const chg = r.shares_change || 0;
@@ -183,9 +186,11 @@ async function loadAllDisclosures() {
     const items = categorized[cat.label];
     if (!items.length) return '';
 
-    const isInsider = cat.label === '지분공시';
-    const isBulk    = cat.label === '대량보유';
-    const needsBadge = isInsider || isBulk;
+    const isInsider  = cat.label === '지분공시';
+    const isBulk     = cat.label === '대량보유';
+    const isMajor    = cat.label === '최대주주변동';
+    const needsBadge = isInsider || isBulk || isMajor;
+    const badgeType  = isBulk ? 'bulk' : isMajor ? 'major' : 'insider';
 
     return `
       <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border)">
@@ -197,7 +202,7 @@ async function loadAllDisclosures() {
           ${items.map(d => {
             const link    = dartLink(d);
             const insider = needsBadge ? insiderMap[d.rcept_no] : null;
-            const badge   = reasonBadge(insider, isBulk ? 'bulk' : 'insider');
+            const badge   = reasonBadge(insider, badgeType);
             return `<div style="display:flex;flex-direction:column;gap:3px;padding:6px 10px;
                 background:var(--bg3);border-radius:var(--radius-sm);
                 border:1px solid ${badge ? 'var(--border2)' : 'var(--border)'};
