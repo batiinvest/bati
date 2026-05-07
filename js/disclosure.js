@@ -182,6 +182,7 @@ async function loadAllDisclosures() {
       if (parts.length && periodTxt) parts.push(`<span style="color:var(--text3);font-size:10px">${periodTxt}</span>`);
       return parts.join(' ');
     }
+    if (type === 'major') {
       // 최대주주변동: DART 원문 확인 유도
       return `<span style="color:var(--yellow);font-size:10px;font-weight:600">⚠ 최대주주 지분변동</span>`;
     }
