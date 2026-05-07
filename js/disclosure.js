@@ -115,6 +115,7 @@ async function loadAllDisclosures() {
     { label: '배당',        color: '#fbbf24', bg: 'rgba(251,191,36,.12)',  match: ['배당'] },
     { label: '최대주주변동',  color: '#f97316', bg: 'rgba(249,115,22,.12)',  match: ['최대주주등소유주식변동', '최대주주변동'] },
     { label: '대량보유',     color: '#e879f9', bg: 'rgba(232,121,249,.12)', match: ['대량보유상황보고서', '대량보유'] },
+    { label: '거래계획(예고)',color: '#67e8f9', bg: 'rgba(103,232,249,.12)', match: ['거래계획보고서'] },
     { label: '지분공시',    color: '#a259ff', bg: 'rgba(162,89,255,.12)',  match: ['소유상황보고서', '임원ㆍ주요주주', '임원·주요주주'] },
     { label: '임원/주식',   color: '#c084fc', bg: 'rgba(192,132,252,.12)', match: ['임원', '주요주주'] },
     { label: '감사보고서',  color: '#94a3b8', bg: 'rgba(148,163,184,.12)', match: ['감사보고서', '내부회계'] },
@@ -164,7 +165,23 @@ async function loadAllDisclosures() {
   const fmtShares = n => n != null ? Math.abs(n).toLocaleString() + '주' : '';
   const reasonBadge = (rows, type) => {
     if (!rows?.length) return '';
-    if (type === 'major') {
+    if (type === 'plan') {
+      // 거래계획: 예정 취득/처분 표시
+      let buy = 0, sell = 0;
+      const periods = new Set();
+      rows.forEach(r => {
+        const chg = r.shares_change || 0;
+        if (chg > 0) buy += chg;
+        else if (chg < 0) sell += Math.abs(chg);
+        if (r.plan_period) periods.add(r.plan_period);
+      });
+      const periodTxt = periods.size ? ` (${[...periods][0]})` : '';
+      const parts = [];
+      if (buy)  parts.push(`<span style="color:var(--red);font-size:10px;font-weight:600">▲예정취득 ${buy.toLocaleString()}주</span>`);
+      if (sell) parts.push(`<span style="color:var(--blue);font-size:10px;font-weight:600">▼예정처분 ${sell.toLocaleString()}주</span>`);
+      if (parts.length && periodTxt) parts.push(`<span style="color:var(--text3);font-size:10px">${periodTxt}</span>`);
+      return parts.join(' ');
+    }
       // 최대주주변동: DART 원문 확인 유도
       return `<span style="color:var(--yellow);font-size:10px;font-weight:600">⚠ 최대주주 지분변동</span>`;
     }
@@ -199,8 +216,9 @@ async function loadAllDisclosures() {
     const isInsider  = cat.label === '지분공시';
     const isBulk     = cat.label === '대량보유';
     const isMajor    = cat.label === '최대주주변동';
-    const needsBadge = isInsider || isBulk || isMajor;
-    const badgeType  = isBulk ? 'bulk' : isMajor ? 'major' : 'insider';
+    const isPlan     = cat.label === '거래계획(예고)';
+    const needsBadge = isInsider || isBulk || isMajor || isPlan;
+    const badgeType  = isBulk ? 'bulk' : isMajor ? 'major' : isPlan ? 'plan' : 'insider';
 
     return `
       <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border)">
