@@ -156,6 +156,13 @@ async function loadAllDisclosures() {
       if (!insiderMap[r.rcept_no]) insiderMap[r.rcept_no] = [];
       insiderMap[r.rcept_no].push(r);
     });
+    // corp_code 기준 합산 맵 (지분공시 중복 카드 묶기용)
+    window._corpInsiderMap = {};
+    (insiders || []).forEach(r => {
+      if (!r.corp_code) return;
+      if (!window._corpInsiderMap[r.corp_code]) window._corpInsiderMap[r.corp_code] = [];
+      window._corpInsiderMap[r.corp_code].push(r);
+    });
     window._insiderMap = insiderMap;
     console.log('[insiderMap] 키 수:', Object.keys(insiderMap).length);
   } catch(e) {
@@ -221,16 +228,35 @@ async function loadAllDisclosures() {
     const needsBadge = isInsider || isBulk || isMajor || isPlan;
     const badgeType  = isBulk ? 'bulk' : isMajor ? 'major' : isPlan ? 'plan' : 'insider';
 
+    // 지분공시: corp_code 기준으로 deduplicate (동일기업 여러 임원 → 1개 카드로 합산)
+    let displayItems = items;
+    if (isInsider) {
+      const seenCorps = {};
+      displayItems = [];
+      items.forEach(d => {
+        const key = d.corp_code || d.corp_name;
+        if (!seenCorps[key]) {
+          seenCorps[key] = true;
+          displayItems.push(d);
+        }
+      });
+    }
+
     return `
       <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
           <span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:100px;background:${cat.bg};color:${cat.color}">${cat.label}</span>
-          <span style="font-size:11px;color:var(--text3)">${items.length}건</span>
+          <span style="font-size:11px;color:var(--text3)">${displayItems.length}건${isInsider && displayItems.length < items.length ? ` (${items.length}건 공시)` : ''}</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(${needsBadge?'240':'180'}px,1fr));gap:6px">
-          ${items.map(d => {
+          ${displayItems.map(d => {
             const link    = dartLink(d);
-            const insider = needsBadge ? insiderMap[d.rcept_no] : null;
+            // 지분공시는 corp_code 기준 합산, 나머지는 rcept_no 기준
+            const insider = needsBadge
+              ? (isInsider && d.corp_code && window._corpInsiderMap?.[d.corp_code]
+                  ? window._corpInsiderMap[d.corp_code]
+                  : insiderMap[d.rcept_no])
+              : null;
             const badge   = reasonBadge(insider, badgeType);
             return `<div style="display:flex;flex-direction:column;gap:3px;padding:6px 10px;
                 background:var(--bg3);border-radius:var(--radius-sm);
