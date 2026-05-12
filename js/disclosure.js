@@ -1,12 +1,10 @@
 // disclosure.js — 공시 탭: 오늘 실적 공시, 전체 공시 토글
 // 의존: config.js (sb)
 //
-// [v2] 백엔드 _preprocess_disclosures() 전처리 결과를 그대로 사용
-//   - 노이즈 필터, 상장 필터, 시총 필터, 카테고리 분류, insider 요약
-//     → 모두 백엔드에서 처리 후 app_config에 저장
-//   - 프론트 Supabase 쿼리: 기존 4~5회 → 1회
+// [v3] daily_disclosures 테이블 조회 (app_config JSON 탈출)
+//   - 카테고리별 필터 쿼리 가능
+//   - 프론트 Supabase 쿼리: 1회 (category별 분리 조회 불필요 — 오늘 전체 1회)
 
-// ── 전체 공시 토글 ──
 let _allDiscLoaded = false;
 
 function toggleAllDisclosures() {
@@ -30,24 +28,24 @@ async function loadAllDisclosures() {
 
   el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text3);font-size:12px"><span class="loading"></span> 공시 목록 불러오는 중...</div>`;
 
-  // ── 단일 쿼리: 백엔드에서 전처리 완료된 공시 목록 ──
-  const { data: cfg } = await sb.from('app_config')
-    .select('value').eq('key', 'today_all_disclosures').single();
+  // ── 단일 쿼리: daily_disclosures 테이블에서 오늘 전체 조회 ──
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
 
-  if (!cfg?.value) {
-    el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text3);font-size:12px">전체 공시 데이터 없음 (매일 18:30 업데이트)</div>`;
+  const { data: all, error } = await sb.from('daily_disclosures')
+    .select('corp_code,corp_name,report_nm,rcept_no,category,market_cap,insider_summary')
+    .eq('base_date', todayStr)
+    .order('category')
+    .order('corp_name');
+
+  if (error || !all?.length) {
+    el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text3);font-size:12px">
+      ${error ? '조회 오류: ' + error.message : '전체 공시 데이터 없음 (매일 18:30 업데이트)'}
+    </div>`;
     return;
   }
 
-  let all = [];
-  try { all = JSON.parse(cfg.value); } catch { }
-
-  if (!all.length) {
-    el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text3);font-size:12px">오늘 공시 없음</div>`;
-    return;
-  }
-
-  // 카테고리 정의 (색상/스타일 — 분류 로직은 백엔드에서 완료)
+  // 카테고리 스타일 (분류는 백엔드 완료 — 여기선 색상만)
   const CATEGORY_STYLE = {
     '사업보고서':    { color: '#2AABEE', bg: 'rgba(42,171,238,.12)' },
     '반기보고서':    { color: '#2dce89', bg: 'rgba(45,206,137,.12)' },
@@ -75,42 +73,36 @@ async function loadAllDisclosures() {
   };
   const CATEGORY_ORDER = Object.keys(CATEGORY_STYLE);
 
-  // 카테고리별 그룹핑 (분류는 d.category 필드 사용)
+  // 카테고리별 그룹핑 (d.category는 백엔드에서 부여)
   const categorized = {};
   CATEGORY_ORDER.forEach(c => { categorized[c] = []; });
   all.forEach(d => {
     const cat = d.category || '기타';
-    if (categorized[cat]) categorized[cat].push(d);
-    else categorized['기타'].push(d);
+    (categorized[cat] || (categorized['기타'] = categorized['기타'] || [])).push(d);
   });
 
-  // DART 원본 링크
   const dartLink = (d) =>
     d.rcept_no ? `https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${d.rcept_no}` : null;
 
-  // insider_summary → 배지 HTML (백엔드에서 요약된 값 사용)
+  // insider_summary → 배지 HTML
   const reasonBadge = (summary) => {
     if (!summary) return '';
     const { type, buy, sell, change, ratio_before, ratio_after, period } = summary;
-
     if (type === 'plan') {
       const parts = [];
-      if (buy)  parts.push(`<span style="color:var(--red);font-size:10px;font-weight:600">▲예정취득 ${buy.toLocaleString()}주</span>`);
-      if (sell) parts.push(`<span style="color:var(--blue);font-size:10px;font-weight:600">▼예정처분 ${sell.toLocaleString()}주</span>`);
+      if (buy)    parts.push(`<span style="color:var(--red);font-size:10px;font-weight:600">▲예정취득 ${buy.toLocaleString()}주</span>`);
+      if (sell)   parts.push(`<span style="color:var(--blue);font-size:10px;font-weight:600">▼예정처분 ${sell.toLocaleString()}주</span>`);
       if (period) parts.push(`<span style="color:var(--text3);font-size:10px">(${period})</span>`);
       return parts.join(' ');
     }
-    if (type === 'major') {
-      return `<span style="color:var(--yellow);font-size:10px;font-weight:600">⚠ 최대주주 지분변동</span>`;
-    }
+    if (type === 'major') return `<span style="color:var(--yellow);font-size:10px;font-weight:600">⚠ 최대주주 지분변동</span>`;
     if (type === 'bulk') {
       const bfRt = ratio_before != null ? ratio_before.toFixed(2) + '%' : '';
       const afRt = ratio_after  != null ? ratio_after.toFixed(2)  + '%' : '';
       const rtTxt = (bfRt && afRt && bfRt !== afRt) ? `${bfRt}→${afRt}` : (afRt || bfRt || '');
       if (change > 0)  return `<span style="color:var(--red);font-size:10px;font-weight:600">▲취득 ${Math.abs(change).toLocaleString()}주${rtTxt ? ' (' + rtTxt + ')' : ''}</span>`;
       if (change < 0)  return `<span style="color:var(--blue);font-size:10px;font-weight:600">▼처분 ${Math.abs(change).toLocaleString()}주${rtTxt ? ' (' + rtTxt + ')' : ''}</span>`;
-      if (rtTxt)       return `<span style="color:var(--text3);font-size:10px">보유 ${rtTxt} (변동없음)</span>`;
-      return `<span style="color:var(--text3);font-size:10px">변동없음</span>`;
+      return `<span style="color:var(--text3);font-size:10px">${rtTxt ? '보유 ' + rtTxt + ' ' : ''}변동없음</span>`;
     }
     // insider
     const parts = [];
@@ -119,7 +111,7 @@ async function loadAllDisclosures() {
     return parts.join(' ');
   };
 
-  // 지분공시: corp_code 기준으로 deduplicate
+  // 지분공시: corp_code 기준 deduplicate
   const deduplicateByCorpCode = (items) => {
     const seen = {};
     return items.filter(d => {
@@ -134,12 +126,11 @@ async function loadAllDisclosures() {
 
   const catHTML = CATEGORY_ORDER.map(label => {
     const items = categorized[label];
-    if (!items.length) return '';
+    if (!items?.length) return '';
 
-    const style = CATEGORY_STYLE[label];
+    const style      = CATEGORY_STYLE[label];
     const isInsider  = label === '지분공시';
     const needsBadge = NEEDS_BADGE.has(label);
-
     const displayItems = isInsider ? deduplicateByCorpCode(items) : items;
 
     return `
@@ -151,17 +142,13 @@ async function loadAllDisclosures() {
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(${needsBadge ? '240' : '180'}px,1fr));gap:6px">
           ${displayItems.map(d => {
             const link    = dartLink(d);
-            const summary = d.insider_summary || null;
-            const badge   = needsBadge ? reasonBadge(summary) : '';
-
+            const badge   = needsBadge ? reasonBadge(d.insider_summary) : '';
             const origCount = isInsider && d.corp_code
               ? items.filter(x => x.corp_code === d.corp_code).length : 1;
             const countBadge = isInsider && origCount > 1
               ? `<span style="display:inline-flex;align-items:center;justify-content:center;
                   min-width:18px;height:18px;padding:0 5px;border-radius:100px;
-                  background:var(--tg);color:#fff;font-size:10px;font-weight:700;
-                  flex-shrink:0">${origCount}</span>` : '';
-
+                  background:var(--tg);color:#fff;font-size:10px;font-weight:700;flex-shrink:0">${origCount}</span>` : '';
             return `<div style="display:flex;flex-direction:column;gap:3px;padding:6px 10px;
                 background:var(--bg3);border-radius:var(--radius-sm);
                 border:1px solid ${badge ? 'var(--border2)' : 'var(--border)'};
@@ -182,11 +169,7 @@ async function loadAllDisclosures() {
       </div>`;
   }).join('');
 
-  el.innerHTML = `
-    ${catHTML}
-    <div style="padding:4px 1rem 10px;font-size:11px;color:var(--text3)">
-      총 ${all.length}건 표시
-    </div>`;
+  el.innerHTML = catHTML + `<div style="padding:4px 1rem 10px;font-size:11px;color:var(--text3)">총 ${all.length}건 표시</div>`;
 }
 
 // ── 오늘 실적 공시 목록 ──
@@ -197,8 +180,7 @@ async function loadTodayDisclosures() {
 
   if (dateEl) {
     const _d = new Date();
-    const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;
-    dateEl.textContent = today + ' 기준';
+    dateEl.textContent = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')} 기준`;
   }
 
   const { data: cfg } = await sb.from('app_config')
@@ -207,9 +189,7 @@ async function loadTodayDisclosures() {
     .single();
 
   if (!cfg?.value) {
-    el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text3);font-size:12px">
-      오늘 공시 데이터 없음 (매일 18:30 업데이트)
-    </div>`;
+    el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text3);font-size:12px">오늘 공시 데이터 없음 (매일 18:30 업데이트)</div>`;
     return;
   }
 
@@ -222,13 +202,11 @@ async function loadTodayDisclosures() {
   }
 
   const reprtColor = (nm, isAmended) => {
-    const base = nm.includes('사업보고서') ? { bg:'rgba(42,171,238,.15)',  color:'#2AABEE', label:'연간' }
-                : nm.includes('반기')      ? { bg:'rgba(45,206,137,.15)',  color:'#2dce89', label:'반기' }
-                : nm.includes('분기')      ? { bg:'rgba(251,99,64,.15)',   color:'#fb6340', label:'분기' }
-                :                            { bg:'rgba(139,144,167,.15)', color:'#8b90a7', label:'공시' };
-    if (isAmended) {
-      return { ...base, label: base.label + '(정정)', bg:'rgba(253,203,110,.15)', color:'#f59e0b' };
-    }
+    const base = nm.includes('사업보고서') ? { bg: 'rgba(42,171,238,.15)',  color: '#2AABEE', label: '연간' }
+                : nm.includes('반기')      ? { bg: 'rgba(45,206,137,.15)',  color: '#2dce89', label: '반기' }
+                : nm.includes('분기')      ? { bg: 'rgba(251,99,64,.15)',   color: '#fb6340', label: '분기' }
+                :                            { bg: 'rgba(139,144,167,.15)', color: '#8b90a7', label: '공시' };
+    if (isAmended) return { ...base, label: base.label + '(정정)', bg: 'rgba(253,203,110,.15)', color: '#f59e0b' };
     return base;
   };
 
@@ -236,7 +214,8 @@ async function loadTodayDisclosures() {
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;padding:.75rem 1rem">
       ${corps.map(c => {
         const badge = reprtColor(c.report_nm || '', c.is_amended);
-        return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid ${c.is_amended ? 'rgba(245,158,11,.3)' : 'var(--border)'}">
+        return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg3);
+            border-radius:var(--radius-sm);border:1px solid ${c.is_amended ? 'rgba(245,158,11,.3)' : 'var(--border)'}">
           <span style="font-size:10px;padding:2px 6px;border-radius:100px;background:${badge.bg};color:${badge.color};font-weight:600;white-space:nowrap">${badge.label}</span>
           <span style="font-size:13px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.corp_name}</span>
         </div>`;
