@@ -341,9 +341,8 @@ async function runComparison() {
         .order('quarter', { ascending: false })
     );
 
-    // 시장 데이터 조회 (최신 1일치)
-    const { data: dateRow } = await sb.from('market_data').select('base_date').order('base_date', { ascending: false }).limit(1);
-    const maxDate = dateRow?.[0]?.base_date;
+    // 시장 데이터 조회 (최신 1일치) — config.js 전역 캐시 사용
+    const maxDate = await getLatestMarketDate();
     let mktMap = {};
     if (maxDate) {
       const mktRows = await fetchAllPages(

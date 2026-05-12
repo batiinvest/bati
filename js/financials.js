@@ -37,11 +37,10 @@ async function loadFinancials() {
   const el = document.getElementById('fin-table');
   if (!el) return;
 
-  // 산업 필터용 companies 캐시 (없으면 로드)
+  // 산업 필터용 companies 매핑: config.js 전역 캐시 사용
   if (!window._finIndMap) {
-    window._finIndMap = {};
-    const rows = await fetchAllPages(sb.from('companies').select('code,industry'));
-    rows.forEach(r => { if (r.code) window._finIndMap[r.code.split('.')[0]] = r.industry || ''; });
+    const map = await getIndustryMap();  // config.js 전역 캐시 (이미 로드된 경우 즉시 반환)
+    window._finIndMap = map;             // 기존 참조 코드(_finIndMap)와 호환성 유지
   }
 
   // 탭 active 상태 업데이트
@@ -77,10 +76,8 @@ async function loadMarketData(el) {
     monitoredCodes = new Set(compData.map(c => c.code));
   }
 
-  // 가장 최신 base_date 조회
-  const { data: latestDate } = await sb.from('market_data')
-    .select('base_date').order('base_date', { ascending: false }).limit(1);
-  const maxDate = latestDate?.[0]?.base_date;
+  // 가장 최신 base_date — config.js 전역 캐시 사용
+  const maxDate = await getLatestMarketDate();
 
   // 최신 날짜 데이터 전체 로드
   let allMkt = [];

@@ -198,6 +198,9 @@ function setInvTab(tab) {
 
 // ── 새로고침 ──────────────────────────────────────────────────
 async function refreshInvestment() {
+  // 시장 날짜 캐시 리셋 (새로고침 시 최신 날짜 재조회)
+  _latestMarketDate = null;
+
   if (window._invTab === 'disclosure') {
     // 1) 전체공시 패널 플래그 리셋 — DB에 이미 있는 오늘 데이터 즉시 반영
     _allDiscLoaded = false;
@@ -250,9 +253,7 @@ async function loadInvestment() {
     loadEarningsSurge();
   }
 
-  const { data: dateRow } = await sb.from('market_data')
-    .select('base_date').order('base_date', { ascending: false }).limit(1);
-  const maxDate = dateRow?.[0]?.base_date;
+  const maxDate = await getLatestMarketDate();
   if (!maxDate) return;
 
   // 전체 종목 + 산업별 동향

@@ -115,6 +115,56 @@ const chgColor = v => v > 0 ? 'var(--red)' : v < 0 ? 'var(--blue)' : 'var(--text
 const chgStr = v => v != null ? `${v > 0 ? '+' : ''}${v.toFixed(2)}%` : '—';
 
 // ══════════════════════════════════════════
+//  전역 캐시 — companies 산업 매핑
+//  {stock_code(suffix 제거): industry} 형태
+//  사용법: const map = await getIndustryMap();
+// ══════════════════════════════════════════
+let _globalIndustryMap = null;
+
+async function getIndustryMap() {
+  if (_globalIndustryMap) return _globalIndustryMap;
+  const map = {};
+  try {
+    let from = 0;
+    while (true) {
+      const { data } = await sb.from('companies')
+        .select('code,industry')
+        .range(from, from + 999);
+      if (!data?.length) break;
+      data.forEach(c => {
+        if (c.industry) map[c.code.replace(/\.(KS|KQ)$/, '')] = c.industry;
+      });
+      if (data.length < 1000) break;
+      from += 1000;
+    }
+  } catch(e) { console.warn('getIndustryMap 실패:', e); }
+  _globalIndustryMap = map;
+  // market-overview.js의 _industryMapCache와 동기화 (하위 호환)
+  window._industryMapCache = map;
+  return map;
+}
+
+// ══════════════════════════════════════════
+//  전역 캐시 — market_data 최신 날짜
+//  사용법: const maxDate = await getLatestMarketDate();
+//  매 페이지 전환마다 재조회하지 않도록 세션 캐싱
+//  새로고침 필요 시: _latestMarketDate = null; 후 재호출
+// ══════════════════════════════════════════
+let _latestMarketDate = null;
+
+async function getLatestMarketDate() {
+  if (_latestMarketDate) return _latestMarketDate;
+  try {
+    const { data } = await sb.from('market_data')
+      .select('base_date')
+      .order('base_date', { ascending: false })
+      .limit(1);
+    _latestMarketDate = data?.[0]?.base_date || null;
+  } catch(e) { console.warn('getLatestMarketDate 실패:', e); }
+  return _latestMarketDate;
+}
+
+// ══════════════════════════════════════════
 //  봇 재로드 요청 — stocks.js / bots.js 공용
 // ══════════════════════════════════════════
 async function requestBotReload(btnId = 'reload-btn') {

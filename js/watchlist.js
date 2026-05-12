@@ -123,10 +123,9 @@ async function selectWatchlistStock(code, name, industry, market) {
 
   if (mkt?.[0]) {
     const m = mkt[0];
-    const chgColor = m.price_change_rate > 0 ? 'var(--green)' : m.price_change_rate < 0 ? 'var(--red)' : 'var(--text2)';
     document.getElementById('wl-auto-price').textContent = m.price ? m.price.toLocaleString()+'원' : '—';
     document.getElementById('wl-auto-chg').innerHTML = m.price_change_rate != null
-      ? `<span style="color:${chgColor}">${m.price_change_rate>0?'+':''}${m.price_change_rate.toFixed(2)}%</span>` : '—';
+      ? `<span style="color:${chgColor(m.price_change_rate)}">${m.price_change_rate>0?'+':''}${m.price_change_rate.toFixed(2)}%</span>` : '—';
     document.getElementById('wl-auto-cap').textContent = m.market_cap ? fmtCap(m.market_cap) : '—';
     document.getElementById('wl-auto-per').textContent = m.per ? m.per.toFixed(1) : '—';
     document.getElementById('wl-auto-pbr').textContent = m.pbr ? m.pbr.toFixed(2) : '—';
@@ -235,7 +234,7 @@ async function loadWatchlist() {
     const price   = mkt.price;
     const chg     = mkt.price_change_rate;
     const cap     = mkt.market_cap;
-    const chgColor = chg > 0 ? 'var(--green)' : chg < 0 ? 'var(--red)' : 'var(--text3)';
+    // chgColor: config.js 전역 함수 사용 (상승=var(--red), 하락=var(--blue), 한국 주식 관행)
 
     // 목표가 괴리율
     const gapTarget = (w.target_price && price) ? ((w.target_price - price) / price * 100) : null;
@@ -273,7 +272,7 @@ async function loadWatchlist() {
           <!-- 현재가 -->
           <div style="text-align:right">
             <div style="font-size:16px;font-weight:700">${price ? price.toLocaleString()+'원' : '—'}</div>
-            <div style="font-size:12px;color:${chgColor}">${chg != null ? (chg>0?'+':'')+chg.toFixed(2)+'%' : ''}</div>
+            <div style="font-size:12px;color:${chgColor(chg)}">${chg != null ? (chg>0?'+':'')+chg.toFixed(2)+'%' : ''}</div>
             ${cap ? `<div style="font-size:11px;color:var(--text3)">${fmtCap(cap)}</div>` : ''}
           </div>
 

@@ -120,10 +120,8 @@ async function runScreener() {
     capMin:    g('sc-cap-min'),    capMax:    g('sc-cap-max'),
   };
 
-  // ── 최신 base_date ──
-  const { data: latestDate } = await sb.from('market_data')
-    .select('base_date').order('base_date', { ascending: false }).limit(1);
-  const maxDate = latestDate?.[0]?.base_date;
+  // ── 최신 base_date — config.js 전역 캐시 사용 ──
+  const maxDate = await getLatestMarketDate();
   if (!maxDate) { el.innerHTML = emptyHTML('시장 데이터 없음'); return; }
 
   // ── Step 1: market_data에서 밸류에이션/시총 필터 적용 (DB 레벨) ──
@@ -180,19 +178,14 @@ async function runScreener() {
   }
 
   if (hasIndFilter) {
-    // companies 산업 필터 — DB 레벨
-    const { data: compRows } = await sb.from('companies')
-      .select('code,industry')
-      .eq('industry', industry);
-    (compRows || []).forEach(r => { indMap[r.code] = r.industry || ''; });
+    // 산업 필터: 전역 캐시에서 해당 산업만 추출
+    const globalMap = await getIndustryMap();
+    Object.entries(globalMap).forEach(([code, ind]) => {
+      if (ind === industry) indMap[code] = ind;
+    });
   } else {
-    // 산업 필터 없으면 캐시 사용 (market-overview.js의 _industryMapCache 공유)
-    if (window._industryMapCache) {
-      indMap = window._industryMapCache;
-    } else {
-      const { data: compRows } = await sb.from('companies').select('code,industry').limit(3000);
-      (compRows || []).forEach(r => { indMap[r.code] = r.industry || ''; });
-    }
+    // 산업 필터 없으면 전역 캐시 전체 사용
+    indMap = await getIndustryMap();
   }
 
   // ── Step 3: JS에서 남은 조인 처리 (재무 필터 종목 교집합) ──

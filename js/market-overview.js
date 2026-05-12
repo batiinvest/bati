@@ -1,28 +1,7 @@
 // market-overview.js — 시황 탭: 매크로 지표, 흐름 차트, 전체 종목 동향
-// 의존: config.js (sb, chgColor, chgStr), investment.js (INV_ALL_METRICS, INV, mkIndexCard)
+// 의존: config.js (sb, chgColor, chgStr, getIndustryMap, getLatestMarketDate), investment.js (INV_ALL_METRICS, INV, mkIndexCard)
 
-// ── companies industry 매핑 세션 캐시 ──
-// loadInvestment() 호출마다 재조회 방지 (세션 동안 불변 데이터)
-let _industryMapCache = null;
-
-async function _getIndustryMap() {
-  if (_industryMapCache) return _industryMapCache;
-  const map = {};
-  try {
-    let from = 0;
-    while (true) {
-      const { data } = await sb.from('companies').select('code,industry').range(from, from + 999);
-      if (!data?.length) break;
-      data.forEach(c => {
-        if (c.industry) map[c.code.replace(/\.(KS|KQ)$/, '')] = c.industry;
-      });
-      if (data.length < 1000) break;
-      from += 1000;
-    }
-  } catch(e) { /* industry 없이 진행 */ }
-  _industryMapCache = map;
-  return map;
-}
+// ── companies industry 매핑: config.js의 getIndustryMap() 전역 캐시 사용 ──
 
 // ── 전체 종목 + 산업별 동향 ──
 async function loadMacroData() {
@@ -201,7 +180,7 @@ async function loadMarketOverview(maxDate) {
   if (!rows.length) return;
 
   // companies industry 매핑 — 세션 캐시 사용 (매 호출마다 풀스캔 방지)
-  const industryMap = await _getIndustryMap();
+  const industryMap = await getIndustryMap();
 
   const enriched = rows.map(r => ({
     ...r,
