@@ -195,6 +195,30 @@ async function loadMarketOverview(maxDate) {
   const top   = [...enriched].sort((a,b) => b.price_change_rate - a.price_change_rate)[0];
   const bot   = [...enriched].sort((a,b) => a.price_change_rate - b.price_change_rate)[0];
 
+  // 시장별(코스피/코스닥) 집계
+  const mkStat = (mkt) => {
+    const m = enriched.filter(r => r.market === mkt);
+    const r = m.filter(r => r.price_change_rate > 0).length;
+    const f = m.filter(r => r.price_change_rate < 0).length;
+    return { total: m.length, rise: r, fall: f, flat: m.length - r - f };
+  };
+  const kospi  = mkStat('KOSPI');
+  const kosdaq = mkStat('KOSDAQ');
+
+  const mktBadge = (label, st, color) => st.total ? `
+    <div style="display:flex;flex-direction:column;gap:2px;padding:6px 10px;
+      background:var(--bg3);border-radius:6px;min-width:80px">
+      <div style="font-size:10px;color:var(--text3);font-weight:600">${label}</div>
+      <div style="display:flex;gap:6px;align-items:baseline">
+        <span style="font-size:13px;font-weight:700;color:${color}">${st.total}개</span>
+      </div>
+      <div style="display:flex;gap:5px;font-size:11px">
+        <span style="color:var(--red)">▲${st.rise}</span>
+        <span style="color:var(--blue)">▼${st.fall}</span>
+        <span style="color:var(--text3)">━${st.flat}</span>
+      </div>
+    </div>` : '';
+
   const totalEl = document.getElementById('inv-total-summary');
   if (totalEl) totalEl.innerHTML = `
     <div class="metric-card">
@@ -218,6 +242,14 @@ async function loadMarketOverview(maxDate) {
     <div class="metric-card">
       <div class="metric-label">평균 등락률</div>
       <div class="metric-value" style="color:${chgColor(avg)}">${chgStr(avg)}</div>
+    </div>
+    <div class="metric-card" style="border-left:1px solid var(--border);padding-left:12px;
+      display:flex;flex-direction:column;gap:4px;justify-content:center">
+      <div style="font-size:10px;color:var(--text3);font-weight:600;margin-bottom:2px">시장별</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${mktBadge('코스피',  kospi,  '#2AABEE')}
+        ${mktBadge('코스닥', kosdaq, '#2dce89')}
+      </div>
     </div>`;
 
   // 산업별 집계
