@@ -40,67 +40,101 @@ function pInvestment() {
 
   <!-- 시황 탭 -->
   <div id="inv-tab-market" style="display:${window._invTab==='market'?'block':'none'}">
-    <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">🌍 글로벌 지수</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:1.25rem" id="inv-global">
-      ${['','','','',''].map(()=>'<div class="card" style="padding:12px 14px;min-height:70px"></div>').join('')}
-    </div>
-
-    <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">🇰🇷 국내 시장</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:1.25rem" id="inv-domestic">
-      ${['','',''].map(()=>'<div class="card" style="padding:12px 14px;min-height:70px"></div>').join('')}
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.25rem">
-      <div>
-        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">💱 환율</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" id="inv-fx">
-          ${['','','',''].map(()=>'<div class="card" style="padding:12px 14px;min-height:70px"></div>').join('')}
-        </div>
-      </div>
-      <div>
-        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">🛢️ 원자재</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" id="inv-commodity">
-          ${['','','',''].map(()=>'<div class="card" style="padding:12px 14px;min-height:70px"></div>').join('')}
-        </div>
+    <!-- ① 시장 요약 배너 -->
+    <div id="inv-market-banner" style="border-radius:12px;padding:14px 18px;margin-bottom:14px;
+      background:linear-gradient(135deg,var(--bg3) 0%,var(--bg2) 100%);
+      border:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div style="font-size:11px;color:var(--text3);flex-shrink:0">오늘의 시장</div>
+      <div id="inv-banner-content" style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;flex:1">
+        <span style="color:var(--text3);font-size:12px"><span class="loading"></span></span>
       </div>
     </div>
 
+    <!-- ② 국내 + 글로벌 나란히 -->
+    <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:12px;margin-bottom:12px">
+
+      <!-- 국내 시장 -->
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🇰🇷 국내 시장</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px" id="inv-domestic">
+          ${['','',''].map(()=>'<div class="card" style="padding:10px 12px;min-height:60px"></div>').join('')}
+        </div>
+        <!-- 코스피/코스닥 종목 현황 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div id="inv-mkt-kospi" class="card" style="padding:10px 12px;min-height:52px"></div>
+          <div id="inv-mkt-kosdaq" class="card" style="padding:10px 12px;min-height:52px"></div>
+        </div>
+      </div>
+
+      <!-- 글로벌 지수 -->
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🌍 글로벌 지수</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="inv-global">
+          ${['','','','',''].map(()=>'<div class="card" style="padding:10px 12px;min-height:60px"></div>').join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- ③ 환율 + 원자재 한 줄 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">💱 환율</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px" id="inv-fx">
+          ${['','','',''].map(()=>'<div class="card" style="padding:10px 12px;min-height:60px"></div>').join('')}
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🛢️ 원자재</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px" id="inv-commodity">
+          ${['','','',''].map(()=>'<div class="card" style="padding:10px 12px;min-height:60px"></div>').join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- ④ 전체 종목 동향 (코스피/코스닥 분리) -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header">
+        <span class="card-title">📊 전체 종목 동향</span>
+      </div>
+      <div id="inv-total-summary" style="padding:.75rem 1rem;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border)"></div>
+      <div id="inv-industry-grid"></div>
+    </div>
+
+    <!-- ⑤ 흐름 비교 차트 (접기/펼치기) -->
     <div class="card" style="margin-bottom:1.25rem">
-      <div class="card-header" style="flex-wrap:wrap;gap:8px;align-items:flex-start">
-        <div>
-          <span class="card-title">📈 흐름 비교</span>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px">시작일 = 100 기준 정규화 · 원하는 지표를 선택해 비교</div>
+      <div class="card-header" style="cursor:pointer" onclick="toggleTrendChart()">
+        <span class="card-title">📈 흐름 비교 차트</span>
+        <span id="inv-trend-toggle" style="font-size:12px;color:var(--text3);margin-left:auto">펼치기 ▾</span>
+      </div>
+      <div id="inv-trend-body" style="display:none">
+        <div style="flex-wrap:wrap;gap:8px;padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center">
+          <div style="display:flex;gap:4px;margin-left:auto">
+            ${[{d:7,l:'1주'},{d:30,l:'1달'},{d:90,l:'3달'}].map(({d,l})=>`
+              <button class="chip ${d===7?'active':''}" data-inv-period="${d}"
+                onclick="setInvPeriod(${d})" style="font-size:11px;padding:2px 8px">${l}</button>
+            `).join('')}
+          </div>
         </div>
-        <div style="display:flex;gap:4px;margin-left:auto">
-          ${[{d:7,l:'1주'},{d:30,l:'1달'},{d:90,l:'3달'}].map(({d,l})=>`
-            <button class="chip ${d===7?'active':''}" data-inv-period="${d}"
-              onclick="setInvPeriod(${d})" style="font-size:11px;padding:2px 8px">${l}</button>
+        <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:6px" id="inv-metric-checks">
+          ${INV_ALL_METRICS.map(m => `
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:3px 8px;border-radius:100px;border:1px solid var(--border);font-size:12px;user-select:none"
+              id="inv-lbl-${m.col}">
+              <input type="checkbox" style="display:none" id="inv-chk-${m.col}"
+                onchange="toggleInvMetric('${m.col}')" ${['sp500','nasdaq','kospi','kosdaq'].includes(m.col)?'checked':''}>
+              <span style="width:8px;height:8px;border-radius:50%;background:${m.color};flex-shrink:0"></span>
+              <span>${m.name}</span>
+              <span style="font-size:10px;color:var(--text3)">${m.group}</span>
+            </label>
           `).join('')}
         </div>
-      </div>
-      <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:6px" id="inv-metric-checks">
-        ${INV_ALL_METRICS.map(m => `
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:3px 8px;border-radius:100px;border:1px solid var(--border);font-size:12px;user-select:none"
-            id="inv-lbl-${m.col}">
-            <input type="checkbox" style="display:none" id="inv-chk-${m.col}"
-              onchange="toggleInvMetric('${m.col}')" ${['sp500','nasdaq','kospi','kosdaq'].includes(m.col)?'checked':''}>
-            <span style="width:8px;height:8px;border-radius:50%;background:${m.color};flex-shrink:0"></span>
-            <span>${m.name}</span>
-            <span style="font-size:10px;color:var(--text3)">${m.group}</span>
-          </label>
-        `).join('')}
-      </div>
-      <div style="padding:1rem;position:relative;height:280px">
-        <canvas id="inv-trend-chart"></canvas>
-        <div id="inv-trend-empty" style="display:none;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:13px">
-          데이터 수집 중... (매일 09:00, 16:10 업데이트)
+        <div style="padding:1rem;position:relative;height:260px">
+          <canvas id="inv-trend-chart"></canvas>
+          <div id="inv-trend-empty" style="display:none;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:13px">
+            데이터 수집 중... (매일 09:00, 16:10 업데이트)
+          </div>
         </div>
       </div>
     </div>
-
-    <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">📊 전체 종목 동향</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:1rem" id="inv-total-summary"></div>
-    <div id="inv-industry-grid" style="margin-bottom:1.25rem"></div>
 
     <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">⭐ 모니터링 종목 현황</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem" id="inv-summary"></div>
@@ -172,12 +206,12 @@ function mkIndexCard(label, value, chg, unit, sub) {
   const cs  = chg != null ? chgStr(chg) : '—';
   const val = value != null ? Number(value).toLocaleString() + (unit||'') : '—';
   return `
-  <div class="card" style="padding:12px 14px">
-    <div style="font-size:11px;color:var(--text2);margin-bottom:4px">${label}</div>
-    <div style="font-size:16px;font-weight:700;color:var(--text1)">${val}</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px">
-      <div style="font-size:12px;color:${cc};font-weight:500">${cs}</div>
-      ${sub ? `<div style="font-size:10px;color:var(--text2)">${sub}</div>` : ''}
+  <div class="card" style="padding:10px 12px">
+    <div style="font-size:10px;color:var(--text3);margin-bottom:3px">${label}</div>
+    <div style="font-size:15px;font-weight:700;color:var(--text1);line-height:1.2">${val}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+      <div style="font-size:12px;color:${cc};font-weight:600">${cs}</div>
+      ${sub ? `<div style="font-size:10px;color:var(--text3)">${sub}</div>` : ''}
     </div>
   </div>`;
 }

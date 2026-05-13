@@ -3,6 +3,17 @@
 
 // ── companies industry 매핑: config.js의 getIndustryMap() 전역 캐시 사용 ──
 
+// ── 시황 차트 접기/펼치기 ──
+function toggleTrendChart() {
+  const body   = document.getElementById('inv-trend-body');
+  const toggle = document.getElementById('inv-trend-toggle');
+  if (!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  if (toggle) toggle.textContent = open ? '접기 ▴' : '펼치기 ▾';
+  if (open) loadTrendChart();
+}
+
 // ── 전체 종목 + 산업별 동향 ──
 async function loadMacroData() {
   const { data } = await sb.from('macro_data')
@@ -187,6 +198,50 @@ async function loadMarketOverview(maxDate) {
     industry: industryMap[r.stock_code] || r.market || '기타'
   }));
 
+  // ── 시장 요약 배너 ─────────────────────────────────────────
+  const bannerEl = document.getElementById('inv-banner-content');
+  if (bannerEl) {
+    const bannerItems = [
+      { label: '코스피', val: kospi.total  ? `▲${kospi.rise} ▼${kospi.fall}`   : '—',
+        sub:  kospi.total  ? `${(kospi.rise/kospi.total*100).toFixed(0)}% 상승`   : '',
+        color: kospi.rise  > kospi.fall   ? 'var(--red)'   : 'var(--blue)' },
+      { label: '코스닥', val: kosdaq.total ? `▲${kosdaq.rise} ▼${kosdaq.fall}` : '—',
+        sub:  kosdaq.total ? `${(kosdaq.rise/kosdaq.total*100).toFixed(0)}% 상승` : '',
+        color: kosdaq.rise > kosdaq.fall  ? 'var(--red)'   : 'var(--blue)' },
+      { label: '전체 평균', val: chgStr(avg), color: chgColor(avg) },
+      { label: '상승 우위',
+        val:   rise > fall ? `${rise-fall}개 우세` : fall > rise ? `${fall-rise}개 약세` : '팽팽',
+        color: rise > fall ? 'var(--red)' : fall > rise ? 'var(--blue)' : 'var(--text3)' },
+    ];
+    bannerEl.innerHTML = bannerItems.map(b => `
+      <div style="display:flex;flex-direction:column;gap:1px">
+        <div style="font-size:10px;color:var(--text3)">${b.label}</div>
+        <div style="font-size:14px;font-weight:700;color:${b.color}">${b.val}</div>
+        ${b.sub ? `<div style="font-size:10px;color:var(--text3)">${b.sub}</div>` : ''}
+      </div>`).join('<div style="width:1px;background:var(--border);height:32px;flex-shrink:0"></div>');
+  }
+
+  // ── 시장별 종목 현황 카드 ────────────────────────────────────
+  const _mkCard = (id, label, st, color) => {
+    const el = document.getElementById(id);
+    if (!el || !st.total) return;
+    const pct = (st.rise / st.total * 100).toFixed(0);
+    el.innerHTML = `
+      <div style="font-size:10px;font-weight:600;color:${color};margin-bottom:5px">${label}</div>
+      <div style="height:4px;border-radius:2px;overflow:hidden;background:var(--bg3);margin-bottom:5px;display:flex">
+        <div style="width:${pct}%;background:var(--red)"></div>
+        <div style="flex:1;background:var(--blue)"></div>
+      </div>
+      <div style="display:flex;gap:8px;font-size:11px">
+        <span style="color:var(--red);font-weight:600">▲${st.rise}</span>
+        <span style="color:var(--blue)">▼${st.fall}</span>
+        <span style="color:var(--text3)">━${st.flat}</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--text3)">${st.total}개</span>
+      </div>`;
+  };
+  _mkCard('inv-mkt-kospi',  '코스피 종목', kospi,  '#2AABEE');
+  _mkCard('inv-mkt-kosdaq', '코스닥 종목', kosdaq, '#2dce89');
+
   // 전체 요약
   const rise  = enriched.filter(r => r.price_change_rate > 0).length;
   const fall  = enriched.filter(r => r.price_change_rate < 0).length;
@@ -205,19 +260,6 @@ async function loadMarketOverview(maxDate) {
   const kospi  = mkStat('KOSPI');
   const kosdaq = mkStat('KOSDAQ');
 
-  const mktBadge = (label, st, color) => st.total ? `
-    <div style="display:flex;flex-direction:column;gap:2px;padding:6px 10px;
-      background:var(--bg3);border-radius:6px;min-width:80px">
-      <div style="font-size:10px;color:var(--text3);font-weight:600">${label}</div>
-      <div style="display:flex;gap:6px;align-items:baseline">
-        <span style="font-size:13px;font-weight:700;color:${color}">${st.total}개</span>
-      </div>
-      <div style="display:flex;gap:5px;font-size:11px">
-        <span style="color:var(--red)">▲${st.rise}</span>
-        <span style="color:var(--blue)">▼${st.fall}</span>
-        <span style="color:var(--text3)">━${st.flat}</span>
-      </div>
-    </div>` : '';
 
   const totalEl = document.getElementById('inv-total-summary');
   if (totalEl) totalEl.innerHTML = `
@@ -242,14 +284,6 @@ async function loadMarketOverview(maxDate) {
     <div class="metric-card">
       <div class="metric-label">평균 등락률</div>
       <div class="metric-value" style="color:${chgColor(avg)}">${chgStr(avg)}</div>
-    </div>
-    <div class="metric-card" style="border-left:1px solid var(--border);padding-left:12px;
-      display:flex;flex-direction:column;gap:4px;justify-content:center">
-      <div style="font-size:10px;color:var(--text3);font-weight:600;margin-bottom:2px">시장별</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${mktBadge('코스피',  kospi,  '#2AABEE')}
-        ${mktBadge('코스닥', kosdaq, '#2dce89')}
-      </div>
     </div>`;
 
   // 산업별 집계
