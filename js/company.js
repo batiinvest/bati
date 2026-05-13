@@ -69,6 +69,25 @@ async function _loadWatchlistShortcuts() {
     </div>`).join('');
 }
 
+// ── DART 자동수집 트리거 ────────────────────────────────────
+async function collectCmpInfo(code) {
+  const btn = document.getElementById('cmp-collect-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 수집 중...'; }
+  try {
+    await sb.from('app_config').upsert({
+      key:         'collect_company_info_request',
+      value:       JSON.stringify({ code, requested_at: new Date().toISOString() }),
+      description: `기업정보 수집 요청: ${code}`,
+    }, { onConflict: 'key' });
+    toast('수집 요청 전송 완료. 잠시 후 새로고침 해주세요.', 'success');
+    setTimeout(() => { if (_cmpCode === code) cmpTab('overview'); }, 30000);
+  } catch(e) {
+    toast('요청 실패: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 DART 자동수집'; }
+  }
+}
+
 // ── 종목 검색 ──────────────────────────────────
 let _cmpSearchTimer = null;
 async function cmpSearch(q) {
@@ -118,6 +137,7 @@ async function loadCompany(code, name) {
           </div>
         </div>
         <div style="margin-left:auto;display:flex;gap:8px;align-items:center" id="cmp-h-actions">
+          <button class="btn btn-sm" onclick="collectCmpInfo('${code}')" id="cmp-collect-btn">🔄 DART 자동수집</button>
           <button class="btn btn-sm" onclick="openCmpAnalysisModal('${code}','${name}')">✏️ 분석 작성</button>
         </div>
       </div>
