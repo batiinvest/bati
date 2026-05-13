@@ -108,13 +108,13 @@ async function collectCmpInfo(code) {
 }
 
 // ── 종목 검색 ──────────────────────────────────
-let _cmpSearchTimer = null;
+let _coSearchTimer = null;
 async function cmpSearch(q) {
   const dd = document.getElementById('cmp-dropdown');
   if (!dd) return;
-  clearTimeout(_cmpSearchTimer);
+  clearTimeout(_coSearchTimer);
   if (!q?.trim()) { dd.style.display = 'none'; return; }
-  _cmpSearchTimer = setTimeout(async () => {
+  _coSearchTimer = setTimeout(async () => {
     const { data } = await sb.from('companies')
       .select('code,name,market,industry')
       .or(`name.ilike.%${q}%,code.ilike.%${q}%`)
