@@ -53,18 +53,37 @@ function loadCompanyPage() {
 async function _loadWatchlistShortcuts() {
   const el = document.getElementById('cmp-watchlist-shortcuts');
   if (!el) return;
-  const { data } = await sb.from('watchlist')
-    .select('stock_code,corp_name,group_name')
-    .order('group_name').order('corp_name').limit(50);
-  if (!data?.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text3)">투자노트 종목 없음</div>'; return; }
-  el.innerHTML = data.map(w => `
-    <div onclick="loadCompany('${w.stock_code}','${w.corp_name}')"
-      style="padding:7px 10px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:8px;
-        transition:background .12s" id="cmp-sc-${w.stock_code}"
+
+  // watchlist + company_info 수집 종목 병합
+  const [{ data: wlData }, { data: ciData }] = await Promise.all([
+    sb.from('watchlist').select('stock_code,corp_name,group_name').order('group_name').order('corp_name').limit(100),
+    sb.from('company_info').select('stock_code,corp_name').order('corp_name').limit(100),
+  ]);
+
+  // stock_code 기준으로 합치기 (watchlist 우선)
+  const map = {};
+  (ciData || []).forEach(r => {
+    if (r.stock_code) map[r.stock_code] = { stock_code: r.stock_code, corp_name: r.corp_name, group_name: '' };
+  });
+  (wlData || []).forEach(r => {
+    if (r.stock_code) map[r.stock_code] = { stock_code: r.stock_code, corp_name: r.corp_name, group_name: r.group_name || '관심' };
+  });
+
+  const items = Object.values(map).sort((a, b) => (a.corp_name || '').localeCompare(b.corp_name || '', 'ko'));
+
+  if (!items.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:4px 0">종목 없음</div>';
+    return;
+  }
+
+  el.innerHTML = items.map(w => `
+    <div onclick="loadCompany('${w.stock_code}','${w.corp_name || w.stock_code}')"
+      style="padding:7px 10px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:8px"
+      id="cmp-sc-${w.stock_code}"
       onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${w.corp_name}</div>
-        <div style="font-size:10px;color:var(--text3)">${w.stock_code} · ${w.group_name || '관심'}</div>
+        <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${w.corp_name || w.stock_code}</div>
+        <div style="font-size:10px;color:var(--text3)">${w.stock_code}${w.group_name ? ' · ' + w.group_name : ''}</div>
       </div>
     </div>`).join('');
 }
@@ -97,16 +116,16 @@ async function cmpSearch(q) {
   if (!q?.trim()) { dd.style.display = 'none'; return; }
   _cmpSearchTimer = setTimeout(async () => {
     const { data } = await sb.from('companies')
-      .select('code,corp_name,market,industry')
-      .or(`corp_name.ilike.%${q}%,code.ilike.%${q}%`)
+      .select('code,name,market,industry')
+      .or(`name.ilike.%${q}%,code.ilike.%${q}%`)
       .limit(12);
     if (!data?.length) { dd.style.display = 'none'; return; }
     dd.innerHTML = data.map(c => `
-      <div onclick="loadCompany('${c.code}','${c.corp_name}');document.getElementById('cmp-dropdown').style.display='none';document.getElementById('cmp-search').value='${c.corp_name}'"
+      <div onclick="loadCompany('${c.code}','${c.name}');document.getElementById('cmp-dropdown').style.display='none';document.getElementById('cmp-search').value='${c.name}'"
         style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px"
         onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:500">${c.corp_name}</div>
+          <div style="font-size:13px;font-weight:500">${c.name}</div>
           <div style="font-size:11px;color:var(--text3)">${c.code} · ${c.market || ''} · ${c.industry || ''}</div>
         </div>
       </div>`).join('');
@@ -182,7 +201,7 @@ async function loadCompany(code, name) {
 // ── 헤더 서브텍스트 ────────────────────────────
 async function _loadCmpHeader(code) {
   const [{ data: co }, { data: ci }] = await Promise.all([
-    sb.from('companies').select('market,industry,sub_industry,corp_code').eq('code', code).single(),
+    sb.from('companies').select('market,industry,sub_industry,corp_code,name').eq('code', code).single(),
     sb.from('company_info').select('ceo_nm,est_dt,hm_url').eq('stock_code', code).single(),
   ]);
   const el = document.getElementById('cmp-h-sub');
