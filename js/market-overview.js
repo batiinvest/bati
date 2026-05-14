@@ -259,22 +259,6 @@ async function loadMarketOverview(maxDate) {
         <span style="margin-left:auto;font-size:11px;color:var(--text3)">${st.total}개</span>
       </div>`;
   };
-  // macro_data에서 코스피/코스닥 지수값 조회 (이미 loadMacroData에서 로드됐을 수 있음)
-  let _kospiVal = null, _kospiChg = null, _kosdaqVal = null, _kosdaqChg = null;
-  try {
-    const { data: _macro } = await sb.from('macro_data')
-      .select('kospi,kospi_chg,kosdaq,kosdaq_chg')
-      .order('base_date', { ascending: false }).limit(1).single();
-    if (_macro) {
-      _kospiVal  = _macro.kospi;  _kospiChg  = _macro.kospi_chg;
-      _kosdaqVal = _macro.kosdaq; _kosdaqChg = _macro.kosdaq_chg;
-    }
-  } catch(e) { /* 없으면 null 유지 */ }
-
-  _mkCard('inv-mkt-kospi',  '코스피 종목', kospi,  '#2AABEE', _kospiVal,  _kospiChg);
-  _mkCard('inv-mkt-kosdaq', '코스닥 종목', kosdaq, '#2dce89', _kosdaqVal, _kosdaqChg);
-
-
   const totalEl = document.getElementById('inv-total-summary');
   if (totalEl) totalEl.innerHTML = `
     <div class="metric-card">
@@ -298,7 +282,24 @@ async function loadMarketOverview(maxDate) {
     <div class="metric-card">
       <div class="metric-label">평균 등락률</div>
       <div class="metric-value" style="color:${chgColor(avg)}">${chgStr(avg)}</div>
-    </div>`;
+    </div>
+    <div id="inv-mkt-kospi"  style="padding:8px 14px;background:var(--bg3);border-radius:8px;min-width:160px"></div>
+    <div id="inv-mkt-kosdaq" style="padding:8px 14px;background:var(--bg3);border-radius:8px;min-width:160px"></div>`;
+
+  // macro_data에서 코스피/코스닥 지수값 조회
+  let _kospiVal = null, _kospiChg = null, _kosdaqVal = null, _kosdaqChg = null;
+  try {
+    const { data: _macro } = await sb.from('macro_data')
+      .select('kospi,kospi_chg,kosdaq,kosdaq_chg')
+      .order('base_date', { ascending: false }).limit(1).single();
+    if (_macro) {
+      _kospiVal  = _macro.kospi;  _kospiChg  = _macro.kospi_chg;
+      _kosdaqVal = _macro.kosdaq; _kosdaqChg = _macro.kosdaq_chg;
+    }
+  } catch(e) { /* 없으면 null 유지 */ }
+
+  _mkCard('inv-mkt-kospi',  '코스피 종목', kospi,  '#2AABEE', _kospiVal,  _kospiChg);
+  _mkCard('inv-mkt-kosdaq', '코스닥 종목', kosdaq, '#2dce89', _kosdaqVal, _kosdaqChg);
 
   // 산업별 집계
   const indMap = {};

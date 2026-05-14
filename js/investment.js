@@ -49,12 +49,10 @@ function pInvestment() {
           <span style="color:var(--text3);font-size:12px"><span class="loading"></span></span>
         </div>
       </div>
-      <!-- 전체 집계 -->
-      <div id="inv-total-summary" style="padding:.75rem 1rem;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border)"></div>
-      <!-- 코스피/코스닥 종목 현황 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:.75rem 1rem;border-bottom:1px solid var(--border)">
-        <div id="inv-mkt-kospi" style="padding:10px 14px;background:var(--bg3);border-radius:8px"></div>
-        <div id="inv-mkt-kosdaq" style="padding:10px 14px;background:var(--bg3);border-radius:8px"></div>
+      <!-- 전체 집계 + 코스피/코스닥 지수 한 행 -->
+      <div id="inv-total-summary" style="padding:.75rem 1rem;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+        <div id="inv-mkt-kospi"  style="padding:8px 14px;background:var(--bg3);border-radius:8px;min-width:160px"></div>
+        <div id="inv-mkt-kosdaq" style="padding:8px 14px;background:var(--bg3);border-radius:8px;min-width:160px"></div>
       </div>
       <div id="inv-industry-grid"></div>
     </div>
