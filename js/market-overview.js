@@ -375,3 +375,107 @@ async function loadMacroData() {
       '</div>';
   }
 }
+
+function toggleInvMetric(col) {
+  if (INV.selected.has(col)) {
+    INV.selected.delete(col);
+  } else {
+    if (INV.selected.size >= 8) { return; }
+    INV.selected.add(col);
+  }
+  const lbl = document.getElementById('inv-lbl-' + col);
+  const m   = INV_ALL_METRICS.find(x => x.col === col);
+  if (lbl && m) {
+    lbl.style.background  = INV.selected.has(col) ? m.color + '22' : '';
+    lbl.style.borderColor = INV.selected.has(col) ? m.color : 'var(--border)';
+    lbl.style.color       = INV.selected.has(col) ? m.color : '';
+  }
+  loadTrendChart();
+}
+
+function setInvPeriod(period) {
+  INV.period = period;
+  document.querySelectorAll('[data-inv-period]').forEach(b =>
+    b.classList.toggle('active', b.dataset.invPeriod === String(period)));
+  loadTrendChart();
+}
+
+async function loadTrendChart() {
+  const canvas = document.getElementById('inv-trend-chart');
+  const empty  = document.getElementById('inv-trend-empty');
+  if (!canvas) return;
+
+  initInvCheckboxStyles();
+
+  if (!INV.selected.size) {
+    canvas.style.display = 'none';
+    if (empty) { empty.style.display = 'flex'; empty.textContent = '지표를 선택해주세요.'; }
+    return;
+  }
+
+  const selectedMetrics = INV_ALL_METRICS.filter(m => INV.selected.has(m.col));
+  const cols = ['base_date', ...selectedMetrics.map(m => m.col)].join(',');
+
+  const { data: rows } = await sb.from('macro_data')
+    .select(cols)
+    .order('base_date', { ascending: true })
+    .limit(INV.period);
+
+  if (!rows?.length) {
+    canvas.style.display = 'none';
+    if (empty) { empty.style.display = 'flex'; empty.textContent = '데이터 수집 중... (매일 09:00, 16:10 업데이트)'; }
+    return;
+  }
+  canvas.style.display = 'block';
+  if (empty) empty.style.display = 'none';
+
+  const labels = rows.map(r => r.base_date);
+
+  const datasets = selectedMetrics.map(m => {
+    const values = rows.map(r => r[m.col]);
+    const base   = values.find(v => v != null);
+    const normalized = values.map(v => v != null && base ? Math.round(v / base * 10000) / 100 : null);
+    return {
+      label:           m.name,
+      data:            normalized,
+      borderColor:     m.color,
+      backgroundColor: m.color + '15',
+      borderWidth:     2,
+      pointRadius:     2,
+      pointHoverRadius:5,
+      tension:         0.3,
+      fill:            false,
+      spanGaps:        true,
+    };
+  });
+
+  if (_invTrendChart) { _invTrendChart.destroy(); _invTrendChart = null; }
+
+  _invTrendChart = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2)}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: 'var(--text3)', maxTicksLimit: 7, maxRotation: 0 },
+          grid:  { color: 'var(--border)' },
+        },
+        y: {
+          ticks: { color: 'var(--text3)', callback: v => v + '' },
+          grid:  { color: 'var(--border)' },
+        }
+      }
+    }
+  });
+}
