@@ -85,12 +85,9 @@ async function loadMarketOverview(maxDate) {
     const risePct = (rise / enriched.length * 100).toFixed(0);
     totalEl.innerHTML =
       '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;width:100%">' +
-        // 전체 종목 카드
-        '<div id="inv-mkt-total" style="padding:12px 16px;background:var(--bg3);border-radius:8px"></div>' +
-        // 코스피 카드
         '<div id="inv-mkt-kospi"  style="padding:12px 16px;background:var(--bg3);border-radius:8px"></div>' +
-        // 코스닥 카드
         '<div id="inv-mkt-kosdaq" style="padding:12px 16px;background:var(--bg3);border-radius:8px"></div>' +
+        '<div id="inv-mkt-total"  style="padding:12px 16px;background:var(--bg3);border-radius:8px"></div>' +
       '</div>';
 
     // 전체 종목 카드 직접 렌더링
