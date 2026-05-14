@@ -353,7 +353,7 @@ async function loadMarketOverview(maxDate) {
     else                               indMap[ind].subs[sub].flat++;
   });
 
-  const indGrid = document.getElementById('inv-industry-grid');
+  const indGrid = document.getElementById('inv-industry-chart');
   if (!indGrid) return;
 
   const indRows = Object.entries(indMap)
@@ -493,13 +493,13 @@ async function loadMarketOverview(maxDate) {
           <div style="display:flex;gap:4px;flex-wrap:wrap">
             ${top3.map(stock => `
               <span style="font-size:11px;padding:3px 8px;border-radius:4px;
-                background:rgba(245,54,92,0.1);color:var(--red);white-space:nowrap;font-weight:500">
-                ${stock.corp_name} ${chgStr(stock.price_change_rate)}
+                background:var(--bg3);color:var(--text2);white-space:nowrap">
+                ${stock.corp_name} <span style="color:var(--red);font-weight:600">${chgStr(stock.price_change_rate)}</span>
               </span>`).join('')}
             ${bot2.map(stock => `
               <span style="font-size:11px;padding:3px 8px;border-radius:4px;
-                background:rgba(42,171,238,0.1);color:var(--blue);white-space:nowrap;font-weight:500">
-                ${stock.corp_name} ${chgStr(stock.price_change_rate)}
+                background:var(--bg3);color:var(--text2);white-space:nowrap">
+                ${stock.corp_name} <span style="color:var(--blue);font-weight:600">${chgStr(stock.price_change_rate)}</span>
               </span>`).join('')}
           </div>
         </div>`;

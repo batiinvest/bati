@@ -54,12 +54,15 @@ function pInvestment() {
         <div id="inv-mkt-kospi"  style="padding:8px 14px;background:var(--bg3);border-radius:8px;min-width:160px"></div>
         <div id="inv-mkt-kosdaq" style="padding:8px 14px;background:var(--bg3);border-radius:8px;min-width:160px"></div>
       </div>
-      <div id="inv-industry-grid">
-        <div style="padding:10px 14px;font-size:11px;font-weight:700;color:var(--text3);
-          border-top:1px solid var(--border);letter-spacing:.04em">
-          📊 산업별 동향
-        </div>
+      <div id="inv-industry-grid"></div>
+    </div>
+
+    <!-- 🇰🇷 산업 동향 — 별도 카드 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header">
+        <span class="card-title">🇰🇷 산업 동향</span>
       </div>
+      <div id="inv-industry-chart"></div>
     </div>
 
     <!-- ② 국내 + 글로벌 나란히 -->
