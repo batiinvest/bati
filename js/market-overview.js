@@ -35,24 +35,39 @@ async function loadMacroData() {
   // 전체 종목 동향 카드 헤더 배너에 글로벌 지수 인라인 표시
   const bannerEl = document.getElementById('inv-banner-content');
   if (bannerEl) {
-    const mkBannerItem = (label, val, chg) => {
-      if (val == null) return '';
+    const mkB = (label, val, chg, unit='') => {
+      if (val == null || isNaN(val)) return '';
       const color = chg != null ? chgColor(chg) : 'var(--text2)';
-      const chgTxt = chg != null ? `<span style="color:${color};font-size:11px">${chgStr(chg)}</span>` : '';
-      return `<div style="display:flex;align-items:center;gap:5px">
-        <span style="font-size:11px;color:var(--text3)">${label}</span>
-        <span style="font-size:12px;font-weight:700;color:${color}">${Number(val).toLocaleString(undefined,{maximumFractionDigits:2})}</span>
-        ${chgTxt}
+      const valStr = unit === '%'
+        ? val.toFixed(3) + '%'
+        : Number(val).toLocaleString(undefined, {maximumFractionDigits: 2});
+      const chgStr2 = chg != null ? `<span style="color:${color};font-size:10px">${chg>0?'+':''}${chg.toFixed(2)}%</span>` : '';
+      return `<div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">
+        <span style="font-size:9px;color:var(--text3);line-height:1">${label}</span>
+        <div style="display:flex;align-items:baseline;gap:3px">
+          <span style="font-size:12px;font-weight:700;color:var(--text1)">${valStr}</span>
+          ${chgStr2}
+        </div>
       </div>`;
     };
-    const sep = '<span style="color:var(--border)">|</span>';
-    bannerEl.innerHTML = [
-      mkBannerItem('S&P', m.sp500,  m.sp500_chg),
-      mkBannerItem('나스닥', m.nasdaq, m.nasdaq_chg),
-      mkBannerItem('다우', m.dow,    m.dow_chg),
-      mkBannerItem('VIX', m.vix,    m.vix_chg),
-      mkBannerItem('미10Y', m.us10y ? m.us10y+'%' : null, m.us10y_chg),
-    ].filter(Boolean).join(sep);
+    const sep = '<div style="width:1px;background:var(--border);height:28px;flex-shrink:0;align-self:center"></div>';
+    bannerEl.innerHTML = `<div style="display:flex;gap:10px;align-items:center;flex-wrap:nowrap">` + [
+      mkB('S&P500',   m.sp500,       m.sp500_chg),
+      sep,
+      mkB('나스닥',    m.nasdaq,      m.nasdaq_chg),
+      sep,
+      mkB('다우',      m.dow,         m.dow_chg),
+      sep,
+      mkB('S&P선물',   m.sp500_fut,   m.sp500_fut_chg),
+      sep,
+      mkB('나스닥선물', m.nasdaq_fut,  m.nasdaq_fut_chg),
+      sep,
+      mkB('다우선물',   m.dow_fut,     m.dow_fut_chg),
+      sep,
+      mkB('VIX',       m.vix,         m.vix_chg),
+      sep,
+      mkB('미10년',     m.us10y,       m.us10y_chg, '%'),
+    ].filter(Boolean).join('') + `</div>`;
   }
 
   const domEl = document.getElementById('inv-domestic');
