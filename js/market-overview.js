@@ -218,23 +218,22 @@ async function loadMarketOverview(maxDate) {
   const bannerEl = document.getElementById('inv-banner-content');
   if (bannerEl) {
     const bannerItems = [
-      { label: '코스피', val: kospi.total  ? `▲${kospi.rise} ▼${kospi.fall}`   : '—',
-        sub:  kospi.total  ? `${(kospi.rise/kospi.total*100).toFixed(0)}% 상승`   : '',
-        color: kospi.rise  > kospi.fall   ? 'var(--red)'   : 'var(--blue)' },
-      { label: '코스닥', val: kosdaq.total ? `▲${kosdaq.rise} ▼${kosdaq.fall}` : '—',
-        sub:  kosdaq.total ? `${(kosdaq.rise/kosdaq.total*100).toFixed(0)}% 상승` : '',
-        color: kosdaq.rise > kosdaq.fall  ? 'var(--red)'   : 'var(--blue)' },
-      { label: '전체 평균', val: chgStr(avg), color: chgColor(avg) },
-      { label: '상승 우위',
-        val:   rise > fall ? `${rise-fall}개 우세` : fall > rise ? `${fall-rise}개 약세` : '팽팽',
+      { label: '코스피',
+        val: kospi.total ? `▲${kospi.rise} ▼${kospi.fall}` : '—',
+        color: kospi.rise > kospi.fall ? 'var(--red)' : 'var(--blue)' },
+      { label: '코스닥',
+        val: kosdaq.total ? `▲${kosdaq.rise} ▼${kosdaq.fall}` : '—',
+        color: kosdaq.rise > kosdaq.fall ? 'var(--red)' : 'var(--blue)' },
+      { label: '평균',  val: chgStr(avg), color: chgColor(avg) },
+      { label: rise > fall ? '상승 우위' : fall > rise ? '하락 우위' : '팽팽',
+        val:   rise > fall ? `+${rise-fall}개` : fall > rise ? `-${fall-rise}개` : '0',
         color: rise > fall ? 'var(--red)' : fall > rise ? 'var(--blue)' : 'var(--text3)' },
     ];
     bannerEl.innerHTML = bannerItems.map(b => `
-      <div style="display:flex;flex-direction:column;gap:1px">
-        <div style="font-size:10px;color:var(--text3)">${b.label}</div>
-        <div style="font-size:14px;font-weight:700;color:${b.color}">${b.val}</div>
-        ${b.sub ? `<div style="font-size:10px;color:var(--text3)">${b.sub}</div>` : ''}
-      </div>`).join('<div style="width:1px;background:var(--border);height:32px;flex-shrink:0"></div>');
+      <div style="display:flex;align-items:center;gap:5px;font-size:12px">
+        <span style="color:var(--text3)">${b.label}</span>
+        <span style="font-weight:700;color:${b.color}">${b.val}</span>
+      </div>`).join('<span style="color:var(--border);font-size:14px">|</span>');
   }
 
   // ── 시장별 종목 현황 카드 ────────────────────────────────────

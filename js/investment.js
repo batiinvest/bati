@@ -40,17 +40,8 @@ function pInvestment() {
 
   <!-- 시황 탭 -->
   <div id="inv-tab-market" style="display:${window._invTab==='market'?'block':'none'}">
-    <!-- ① 시장 요약 배너 -->
-    <div id="inv-market-banner" style="border-radius:12px;padding:14px 18px;margin-bottom:14px;
-      background:linear-gradient(135deg,var(--bg3) 0%,var(--bg2) 100%);
-      border:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-      <div style="font-size:11px;color:var(--text2);font-weight:600;flex-shrink:0">오늘의 시장</div>
-      <div id="inv-banner-content" style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;flex:1">
-        <span style="color:var(--text3);font-size:12px"><span class="loading"></span></span>
-      </div>
-    </div>
 
-    <!-- ② 국내 + 글로벌 나란히 -->
+    <!-- ① 국내 + 글로벌 나란히 -->
     <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:12px;margin-bottom:12px">
 
       <!-- 국내 시장 -->
@@ -75,7 +66,7 @@ function pInvestment() {
       </div>
     </div>
 
-    <!-- ③ 환율 + 원자재 한 줄 -->
+    <!-- ② 환율 + 원자재 한 줄 -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
       <div>
         <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.04em;margin-bottom:8px">💱 환율</div>
@@ -91,16 +82,19 @@ function pInvestment() {
       </div>
     </div>
 
-    <!-- ④ 전체 종목 동향 (코스피/코스닥 분리) -->
+    <!-- ③ 전체 종목 동향 — 헤더에 요약 통합 -->
     <div class="card" style="margin-bottom:12px">
-      <div class="card-header">
+      <div class="card-header" style="flex-wrap:wrap;gap:6px">
         <span class="card-title">📊 전체 종목 동향</span>
+        <div id="inv-banner-content" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-left:auto">
+          <span style="color:var(--text3);font-size:12px"><span class="loading"></span></span>
+        </div>
       </div>
       <div id="inv-total-summary" style="padding:.75rem 1rem;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border)"></div>
       <div id="inv-industry-grid"></div>
     </div>
 
-    <!-- ⑤ 흐름 비교 차트 (접기/펼치기) -->
+    <!-- ④ 흐름 비교 차트 (접기/펼치기) -->
     <div class="card" style="margin-bottom:1.25rem">
       <div class="card-header" style="cursor:pointer" onclick="toggleTrendChart()">
         <span class="card-title">📈 흐름 비교 차트</span>
