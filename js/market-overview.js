@@ -241,52 +241,66 @@ async function loadMarketOverview(maxDate) {
     const el = document.getElementById(id);
     if (!el || !st.total) return;
     const pct = (st.rise / st.total * 100).toFixed(0);
-    const chgTxt = indexChg != null
-      ? `<span style="color:${chgColor(indexChg)};font-size:12px;font-weight:600">${chgStr(indexChg)}</span>` : '';
     el.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-        <div style="font-size:11px;font-weight:700;color:${color}">${label}</div>
-        ${indexVal != null ? `<div style="font-size:13px;font-weight:700">${indexVal.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} ${chgTxt}</div>` : ''}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <span style="font-size:11px;font-weight:700;color:${color}">${label}</span>
+        ${indexVal != null
+          ? `<span style="font-size:11px;font-weight:700">${indexVal.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+              <span style="color:${chgColor(indexChg)}">${chgStr(indexChg)}</span></span>`
+          : ''}
       </div>
-      <div style="height:4px;border-radius:2px;overflow:hidden;background:var(--bg2);margin-bottom:6px;display:flex">
+      <div style="height:5px;border-radius:3px;overflow:hidden;background:var(--bg2);margin-bottom:3px;display:flex">
         <div style="width:${pct}%;background:var(--red)"></div>
         <div style="flex:1;background:var(--blue)"></div>
       </div>
-      <div style="display:flex;gap:8px;font-size:12px;align-items:center">
-        <span style="color:var(--red);font-weight:600">▲${st.rise}</span>
+      <div style="display:flex;gap:6px;font-size:10px">
+        <span style="color:var(--red)">▲${st.rise}</span>
         <span style="color:var(--blue)">▼${st.fall}</span>
         <span style="color:var(--text3)">━${st.flat}</span>
-        <span style="margin-left:auto;font-size:11px;color:var(--text3)">${st.total}개</span>
+        <span style="margin-left:auto;color:var(--text3)">${st.total}개</span>
       </div>`;
   };
   const totalEl = document.getElementById('inv-total-summary');
-  if (totalEl) totalEl.innerHTML = `
-    <div class="metric-card">
-      <div class="metric-label">전체 종목</div>
-      <div class="metric-value">${enriched.length}개</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-label">상승</div>
-      <div class="metric-value" style="color:var(--red)">${rise}개</div>
-      <div class="metric-sub">${(rise/enriched.length*100).toFixed(0)}%</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-label">하락</div>
-      <div class="metric-value" style="color:var(--blue)">${fall}개</div>
-      <div class="metric-sub">${(fall/enriched.length*100).toFixed(0)}%</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-label">보합</div>
-      <div class="metric-value" style="color:var(--text3)">${flat}개</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-label">평균 등락률</div>
-      <div class="metric-value" style="color:${chgColor(avg)}">${chgStr(avg)}</div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:6px;flex:2;min-width:320px;align-self:stretch">
-      <div id="inv-mkt-kospi"  style="padding:10px 14px;background:var(--bg3);border-radius:6px;flex:1;display:flex;flex-direction:column;justify-content:space-between"></div>
-      <div id="inv-mkt-kosdaq" style="padding:10px 14px;background:var(--bg3);border-radius:6px;flex:1;display:flex;flex-direction:column;justify-content:space-between"></div>
-    </div>`;
+  if (totalEl) {
+    const risePct = (rise / enriched.length * 100).toFixed(0);
+    const fallPct = (fall / enriched.length * 100).toFixed(0);
+    totalEl.innerHTML = `
+      <div style="display:flex;align-items:center;gap:0;width:100%;flex-wrap:nowrap">
+
+        <!-- 전체 종목 수 -->
+        <div style="padding:0 20px 0 0;border-right:1px solid var(--border);flex-shrink:0">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:2px">전체 종목</div>
+          <div style="font-size:22px;font-weight:800">${enriched.length.toLocaleString()}개</div>
+        </div>
+
+        <!-- 상승/보합/하락 바 + 수치 -->
+        <div style="flex:1;padding:0 20px;border-right:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px">
+            <span style="color:var(--red);font-weight:700">▲ ${rise.toLocaleString()} <span style="font-weight:400;font-size:11px">(${risePct}%)</span></span>
+            <span style="color:var(--text3)">━ ${(enriched.length-rise-fall).toLocaleString()}</span>
+            <span style="color:var(--blue);font-weight:700">▼ ${fall.toLocaleString()} <span style="font-weight:400;font-size:11px">(${fallPct}%)</span></span>
+          </div>
+          <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--bg3)">
+            <div style="width:${risePct}%;background:var(--red);transition:width .4s"></div>
+            <div style="width:${(enriched.length-rise-fall)/enriched.length*100}%;background:var(--bg3)"></div>
+            <div style="flex:1;background:var(--blue)"></div>
+          </div>
+        </div>
+
+        <!-- 평균 등락률 -->
+        <div style="padding:0 20px;border-right:1px solid var(--border);flex-shrink:0;text-align:center">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:2px">평균 등락률</div>
+          <div style="font-size:22px;font-weight:800;color:${chgColor(avg)}">${chgStr(avg)}</div>
+        </div>
+
+        <!-- 코스피/코스닥 종목 현황 -->
+        <div style="display:flex;flex-direction:column;gap:5px;flex:1;padding:0 0 0 20px">
+          <div id="inv-mkt-kospi"  style="padding:5px 12px;background:var(--bg3);border-radius:6px;flex:1;display:flex;flex-direction:column;justify-content:space-between"></div>
+          <div id="inv-mkt-kosdaq" style="padding:5px 12px;background:var(--bg3);border-radius:6px;flex:1;display:flex;flex-direction:column;justify-content:space-between"></div>
+        </div>
+
+      </div>`;
+  }
 
   // macro_data에서 코스피/코스닥 지수값 조회
   let _kospiVal = null, _kospiChg = null, _kosdaqVal = null, _kosdaqChg = null;
