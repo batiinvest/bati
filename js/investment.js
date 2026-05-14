@@ -287,8 +287,8 @@ async function refreshInvestment() {
 
 // ── 메인 로드 ──
 async function loadInvestment() {
-  // 시황 탭 로드 (market-overview.js)
-  loadMacroData();
+  // 시황 탭 로드 (market-overview.js) — 배너 채운 후 나머지 실행
+  await loadMacroData();
   loadTrendChart();
 
   // 우상단 날짜 — 오늘 날짜 즉시 표시 (market_data 조회 전에도 보임)
