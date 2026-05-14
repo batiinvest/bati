@@ -354,7 +354,7 @@ async function loadMarketOverview(maxDate) {
   window._indMapData = indMap;
 
   indGrid.innerHTML = `
-    <div style="display:grid;grid-template-columns:320px 1fr;min-height:400px">
+    <div style="display:grid;grid-template-columns:420px 1fr;min-height:400px">
       <div style="border-right:1px solid var(--border);padding:12px 14px;overflow-y:auto;max-height:520px" id="ind-left">
         <canvas id="ind-bar-chart" style="width:100%" role="img" aria-label="산업별 등락률 막대 차트"></canvas>
       </div>
@@ -421,7 +421,28 @@ async function loadMarketOverview(maxDate) {
             ticks: { color: '#c0c4d8', font: { size: 12 } }
           }
         }
-      }
+      },
+      plugins: [{
+        id: 'valueLabels',
+        afterDatasetsDraw(chart) {
+          const ctx = chart.ctx;
+          chart.data.datasets.forEach((ds, di) => {
+            chart.getDatasetMeta(di).data.forEach((bar, i) => {
+              const val = ds.data[i];
+              const txt = (val > 0 ? '+' : '') + val + '%';
+              const x   = val >= 0 ? bar.x + 4 : bar.x - 4;
+              const align = val >= 0 ? 'left' : 'right';
+              ctx.save();
+              ctx.font = 'bold 11px sans-serif';
+              ctx.fillStyle = val >= 0 ? 'rgba(245,54,92,1)' : 'rgba(42,171,238,1)';
+              ctx.textAlign = align;
+              ctx.textBaseline = 'middle';
+              ctx.fillText(txt, x, bar.y);
+              ctx.restore();
+            });
+          });
+        }
+      }]
     });
     window._indBarChart = chart;
   }
@@ -455,12 +476,10 @@ async function loadMarketOverview(maxDate) {
                        .filter(x => x.price_change_rate < 0).slice(0,2);
         return `
         <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <span style="font-size:13px;font-weight:600">${s.sub}</span>
-            <div style="display:flex;align-items:center;gap:10px">
-              <span style="font-size:11px;color:var(--text3)">▲${s.rise} ▼${s.fall} · ${s.total}개</span>
-              <span style="font-size:14px;font-weight:700;color:${chgColor(s.avg)}">${chgStr(s.avg)}</span>
-            </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+            <span style="font-size:13px;font-weight:700">${s.sub}</span>
+            <span style="font-size:14px;font-weight:800;color:${chgColor(s.avg)}">${chgStr(s.avg)}</span>
+            <span style="font-size:11px;color:var(--text3);margin-left:2px">▲${s.rise} ▼${s.fall} · ${s.total}개</span>
           </div>
           <div style="display:flex;gap:4px;flex-wrap:wrap">
             ${top3.map(stock => `
