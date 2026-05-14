@@ -264,21 +264,26 @@ async function refreshInvestment() {
     return; // 공시 탭은 여기서 종료 (시황 탭 로직 스킵)
   }
 
-  // 시황 탭은 전체 재로드 + 매크로 수집 트리거
+  // 시황 탭은 전체 재로드 + 매크로/시장 전체 수집 트리거
   try {
-    await sb.from('app_config').upsert({
-      key:         'run_macro_flag',
-      value:       String(Date.now()),
-      description: '대시보드 매크로 수동 수집 트리거'
-    }, { onConflict: 'key' });
-    toast('📡 시황 데이터 수집 요청 — 잠시 후 자동 반영됩니다', 'info');
+    await Promise.all([
+      sb.from('app_config').upsert({
+        key: 'run_macro_flag', value: String(Date.now()),
+        description: '대시보드 매크로 수동 수집 트리거'
+      }, { onConflict: 'key' }),
+      sb.from('app_config').upsert({
+        key: 'run_market_all_flag', value: String(Date.now()),
+        description: '대시보드 전체 종목 시장 데이터 수집 트리거'
+      }, { onConflict: 'key' }),
+    ]);
+    toast('📡 시황 데이터 수집 요청 — 약 1분 후 자동 반영됩니다', 'info');
   } catch(e) { /* 무시 */ }
 
-  // 30초 후 자동 재로드 (수집 완료 대기)
+  // 70초 후 자동 재로드 (전체 종목 수집 완료 대기)
   setTimeout(() => {
     _latestMarketDate = null;
-    loadMacroData();
-  }, 30000);
+    loadInvestment();
+  }, 70000);
 
   loadInvestment();
 }
