@@ -356,27 +356,27 @@ async function loadMarketOverview(maxDate) {
         ${indRows.map(d => {
           const barW = Math.round(d.rise / d.total * 100);
           const bgA  = Math.min(Math.abs(d.avg) / 5, 1) * 0.07;
-          const bg   = d.avg > 0 ? \`rgba(245,54,92,\${bgA})\` : d.avg < 0 ? \`rgba(42,171,238,\${bgA})\` : 'transparent';
-          return \`
-          <div class="ind-row" data-ind="\${d.ind}"
-            onclick="showIndDetail('\${d.ind}')"
+          const bg   = d.avg > 0 ? `rgba(245,54,92,${bgA})` : d.avg < 0 ? `rgba(42,171,238,${bgA})` : 'transparent';
+          return `
+          <div class="ind-row" data-ind="${d.ind}"
+            onclick="showIndDetail('${d.ind}')"
             style="padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;position:relative"
             onmouseover="this.style.background='var(--bg3)'"
             onmouseout="if(this.dataset.active!=='1')this.style.background=''"
-            id="ind-row-\${d.ind}">
-            <div style="position:absolute;inset:0;background:\${bg};pointer-events:none"></div>
+            id="ind-row-${d.ind}">
+            <div style="position:absolute;inset:0;background:${bg};pointer-events:none"></div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;position:relative">
-              <span style="font-size:13px;font-weight:700">\${d.ind}</span>
+              <span style="font-size:13px;font-weight:700">${d.ind}</span>
               <div style="display:flex;align-items:center;gap:10px">
-                <span style="font-size:10px;color:var(--text3)">▲\${d.rise} ▼\${d.fall} ━\${d.flat}</span>
-                <span style="font-size:14px;font-weight:800;color:\${chgColor(d.avg)}">\${chgStr(d.avg)}</span>
+                <span style="font-size:10px;color:var(--text3)">▲${d.rise} ▼${d.fall} ━${d.flat}</span>
+                <span style="font-size:14px;font-weight:800;color:${chgColor(d.avg)}">${chgStr(d.avg)}</span>
               </div>
             </div>
             <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--bg3);position:relative">
-              <div style="width:\${barW}%;background:var(--red)"></div>
+              <div style="width:${barW}%;background:var(--red)"></div>
               <div style="flex:1;background:var(--blue)"></div>
             </div>
-          </div>\`;
+          </div>`;
         }).join('')}
       </div>
       <div id="ind-right" style="overflow-y:auto;max-height:520px">
@@ -403,38 +403,38 @@ async function loadMarketOverview(maxDate) {
       .sort((a, b) => b.avg - a.avg);
     const panel = document.getElementById('ind-right');
     if (!panel) return;
-    panel.innerHTML = \`
+    panel.innerHTML = `
       <div style="padding:12px 16px;border-bottom:1px solid var(--border);
         display:flex;justify-content:space-between;align-items:center;
         position:sticky;top:0;background:var(--bg2);z-index:1">
-        <div style="font-size:14px;font-weight:700">\${indName}</div>
-        <span style="font-size:13px;font-weight:800;color:\${chgColor(d.avg)}">\${chgStr(d.avg)} · \${d.total}개</span>
+        <div style="font-size:14px;font-weight:700">${indName}</div>
+        <span style="font-size:13px;font-weight:800;color:${chgColor(d.avg)}">${chgStr(d.avg)} · ${d.total}개</span>
       </div>
-      \${subRows.map(s => {
+      ${subRows.map(s => {
         const bw = Math.round(s.rise / s.total * 100);
         const top4 = [...s.stocks].sort((a,b) => b.price_change_rate - a.price_change_rate).slice(0,4);
-        return \`
+        return `
         <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-            <span style="font-size:12px;font-weight:600;color:var(--text2)">\${s.sub}</span>
+            <span style="font-size:12px;font-weight:600;color:var(--text2)">${s.sub}</span>
             <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:10px;color:var(--text3)">▲\${s.rise} ▼\${s.fall} · \${s.total}개</span>
-              <span style="font-size:13px;font-weight:700;color:\${chgColor(s.avg)}">\${chgStr(s.avg)}</span>
+              <span style="font-size:10px;color:var(--text3)">▲${s.rise} ▼${s.fall} · ${s.total}개</span>
+              <span style="font-size:13px;font-weight:700;color:${chgColor(s.avg)}">${chgStr(s.avg)}</span>
             </div>
           </div>
           <div style="height:5px;border-radius:3px;overflow:hidden;background:var(--bg3);margin-bottom:8px;display:flex">
-            <div style="width:\${bw}%;background:var(--red)"></div>
+            <div style="width:${bw}%;background:var(--red)"></div>
             <div style="flex:1;background:var(--blue)"></div>
           </div>
           <div style="display:flex;gap:4px;flex-wrap:wrap">
-            \${top4.map(stock => \`
+            ${top4.map(stock => `
               <span style="font-size:10px;padding:2px 7px;border-radius:4px;
-                background:var(--bg3);color:\${chgColor(stock.price_change_rate)};white-space:nowrap">
-                \${stock.corp_name} \${chgStr(stock.price_change_rate)}
-              </span>\`).join('')}
+                background:var(--bg3);color:${chgColor(stock.price_change_rate)};white-space:nowrap">
+                ${stock.corp_name} ${chgStr(stock.price_change_rate)}
+              </span>`).join('')}
           </div>
-        </div>\`;
-      }).join('')}\`;
+        </div>`;
+      }).join('')}`;
   };
 
   if (indRows.length) window.showIndDetail(indRows[0].ind);
