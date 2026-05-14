@@ -41,10 +41,10 @@ function pInvestment() {
   <!-- 시황 탭 -->
   <div id="inv-tab-market" style="display:${window._invTab==='market'?'block':'none'}">
 
-    <!-- ① 전체 종목 동향 (최상단) -->
+    <!-- ① 증시 동향 (최상단) -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="flex-wrap:wrap;gap:6px">
-        <span class="card-title">📊 전체 종목 동향</span>
+        <span class="card-title">📊 증시 동향</span>
         <div id="inv-banner-content" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-left:auto">
           <span style="color:var(--text3);font-size:12px"><span class="loading"></span></span>
         </div>
