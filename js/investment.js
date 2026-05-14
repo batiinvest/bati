@@ -62,41 +62,6 @@ function pInvestment() {
       <div id="inv-industry-chart"></div>
     </div>
 
-    <!-- ② 국내 + 글로벌 나란히 -->
-    <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:12px;margin-bottom:12px">
-      <!-- 국내 시장 -->
-      <div>
-        <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.04em;margin-bottom:8px">🇰🇷 국내 시장</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="inv-domestic">
-          ${['',''].map(()=>'<div class="card" style="padding:10px 12px;min-height:60px"></div>').join('')}
-        </div>
-      </div>
-
-      <!-- 글로벌 지수 -->
-      <div>
-        <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.04em;margin-bottom:8px">🌍 글로벌 지수</div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" id="inv-global">
-          ${['','','','','','','',''].map(()=>'<div class="card" style="padding:10px 12px;min-height:60px"></div>').join('')}
-        </div>
-      </div>
-    </div>
-
-    <!-- ③ 환율 + 원자재 한 줄 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-      <div>
-        <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.04em;margin-bottom:8px">💱 환율</div>
-        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px" id="inv-fx">
-          ${['','','',''].map(()=>'<div class="card" style="padding:10px 12px;min-height:60px"></div>').join('')}
-        </div>
-      </div>
-      <div>
-        <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.04em;margin-bottom:8px">🛢️ 원자재</div>
-        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px" id="inv-commodity">
-          ${['','','',''].map(()=>'<div class="card" style="padding:10px 12px;min-height:60px"></div>').join('')}
-        </div>
-      </div>
-    </div>
-
     <!-- ④ 흐름 비교 차트 (접기/펼치기) -->
     <div class="card" style="margin-bottom:1.25rem">
       <div class="card-header" style="cursor:pointer" onclick="toggleTrendChart()">

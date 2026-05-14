@@ -55,27 +55,29 @@ async function loadMarketOverview(maxDate) {
     const el = document.getElementById(id);
     if (!el || !st.total) return;
     const pct = (st.rise / st.total * 100).toFixed(0);
+    const valStr = indexVal != null
+      ? indexVal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})
+      : '';
     el.innerHTML =
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">' +
-        '<div style="font-size:12px;font-weight:700;color:' + color + '">' + label + '</div>' +
+      // 헤더: 라벨 — 지수값 — 등락률 한 줄
+      '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">' +
+        '<span style="font-size:12px;font-weight:700;color:' + color + '">' + label + '</span>' +
         (indexVal != null
-          ? '<div style="text-align:right">' +
-              '<div style="font-size:18px;font-weight:800;line-height:1.1">' +
-                indexVal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) +
-              '</div>' +
-              '<div style="font-size:12px;font-weight:700;color:' + chgColor(indexChg) + '">' + chgStr(indexChg) + '</div>' +
-            '</div>'
+          ? '<span style="font-size:15px;font-weight:800;margin-left:4px">' + valStr + '</span>' +
+            '<span style="font-size:12px;font-weight:700;color:' + chgColor(indexChg) + '">' + chgStr(indexChg) + '</span>'
           : '') +
+        '<span style="margin-left:auto;font-size:10px;color:var(--text3)">' + st.total.toLocaleString() + '개</span>' +
       '</div>' +
-      '<div style="height:6px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.08);margin-bottom:8px;display:flex">' +
+      // 바
+      '<div style="height:5px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.08);margin-bottom:6px;display:flex">' +
         '<div style="width:' + pct + '%;background:var(--red)"></div>' +
         '<div style="flex:1;background:var(--blue)"></div>' +
       '</div>' +
-      '<div style="display:flex;gap:12px;font-size:12px">' +
+      // 수치
+      '<div style="display:flex;gap:8px;font-size:11px">' +
         '<span style="color:var(--red);font-weight:700">▲ ' + st.rise.toLocaleString() + '</span>' +
         '<span style="color:var(--blue);font-weight:700">▼ ' + st.fall.toLocaleString() + '</span>' +
         '<span style="color:var(--text3)">━ ' + st.flat.toLocaleString() + '</span>' +
-        '<span style="margin-left:auto;color:var(--text3);font-size:11px">' + st.total.toLocaleString() + '개</span>' +
       '</div>';
   };
 
@@ -84,10 +86,10 @@ async function loadMarketOverview(maxDate) {
   if (totalEl) {
     const risePct = (rise / enriched.length * 100).toFixed(0);
     totalEl.innerHTML =
-      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;width:100%">' +
-        '<div id="inv-mkt-kospi"  style="padding:12px 16px;background:var(--bg3);border-radius:8px"></div>' +
-        '<div id="inv-mkt-kosdaq" style="padding:12px 16px;background:var(--bg3);border-radius:8px"></div>' +
-        '<div id="inv-mkt-total"  style="padding:12px 16px;background:var(--bg3);border-radius:8px"></div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px;width:100%">' +
+        '<div id="inv-mkt-kospi"  style="padding:10px 14px;background:var(--bg3);border-radius:8px"></div>' +
+        '<div id="inv-mkt-kosdaq" style="padding:10px 14px;background:var(--bg3);border-radius:8px"></div>' +
+        '<div id="inv-mkt-total"  style="padding:10px 14px;background:var(--bg3);border-radius:8px"></div>' +
       '</div>';
 
     // 전체 종목 카드 직접 렌더링
@@ -95,23 +97,21 @@ async function loadMarketOverview(maxDate) {
     if (totalCard) {
       const avg_ = avg;
       totalCard.innerHTML =
-        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">' +
-          '<div style="font-size:12px;font-weight:700;color:var(--text3)">전체 종목</div>' +
-          '<div style="text-align:right">' +
-            '<div style="font-size:18px;font-weight:800;line-height:1.1">' + enriched.length.toLocaleString() + '개</div>' +
-            '<div style="font-size:12px;font-weight:700;color:' + chgColor(avg_) + '">평균 ' + chgStr(avg_) + '</div>' +
-          '</div>' +
+        '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">' +
+          '<span style="font-size:12px;font-weight:700;color:var(--text3)">전체</span>' +
+          '<span style="font-size:15px;font-weight:800;margin-left:4px">' + enriched.length.toLocaleString() + '개</span>' +
+          '<span style="font-size:12px;font-weight:700;color:' + chgColor(avg_) + '">평균 ' + chgStr(avg_) + '</span>' +
+          '<span style="margin-left:auto;font-size:10px;color:var(--text3)">' + enriched.length.toLocaleString() + '개</span>' +
         '</div>' +
-        '<div style="height:6px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.08);margin-bottom:8px;display:flex">' +
+        '<div style="height:5px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.08);margin-bottom:6px;display:flex">' +
           '<div style="width:' + risePct + '%;background:var(--red)"></div>' +
           '<div style="width:' + ((enriched.length-rise-fall)/enriched.length*100).toFixed(1) + '%;background:rgba(255,255,255,0.06)"></div>' +
           '<div style="flex:1;background:var(--blue)"></div>' +
         '</div>' +
-        '<div style="display:flex;gap:12px;font-size:12px">' +
+        '<div style="display:flex;gap:8px;font-size:11px">' +
           '<span style="color:var(--red);font-weight:700">▲ ' + rise.toLocaleString() + '</span>' +
           '<span style="color:var(--blue);font-weight:700">▼ ' + fall.toLocaleString() + '</span>' +
           '<span style="color:var(--text3)">━ ' + flat.toLocaleString() + '</span>' +
-          '<span style="margin-left:auto;color:var(--text3);font-size:11px">' + enriched.length.toLocaleString() + '개</span>' +
         '</div>';
     }
   }
@@ -128,8 +128,8 @@ async function loadMarketOverview(maxDate) {
     }
   } catch(e) { /* null 유지 */ }
 
-  _mkCard('inv-mkt-kospi',  '코스피 종목', kospi,  '#2AABEE', _kospiVal,  _kospiChg);
-  _mkCard('inv-mkt-kosdaq', '코스닥 종목', kosdaq, '#2dce89', _kosdaqVal, _kosdaqChg);
+  _mkCard('inv-mkt-kospi',  '코스피', kospi,  '#2AABEE', _kospiVal,  _kospiChg);
+  _mkCard('inv-mkt-kosdaq', '코스닥', kosdaq, '#2dce89', _kosdaqVal, _kosdaqChg);
 
   // ── 산업별 + 세부섹터별 집계 ─────────────────────────────────
   const indMap = {};
