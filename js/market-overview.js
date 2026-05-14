@@ -32,6 +32,29 @@ async function loadMacroData() {
     mkIndexCard('미 10년 금리', m.us10y,       m.us10y_chg,       '%', '국채'),
   ].join('');
 
+  // 전체 종목 동향 카드 헤더 배너에 글로벌 지수 인라인 표시
+  const bannerEl = document.getElementById('inv-banner-content');
+  if (bannerEl) {
+    const mkBannerItem = (label, val, chg) => {
+      if (val == null) return '';
+      const color = chg != null ? chgColor(chg) : 'var(--text2)';
+      const chgTxt = chg != null ? `<span style="color:${color};font-size:11px">${chgStr(chg)}</span>` : '';
+      return `<div style="display:flex;align-items:center;gap:5px">
+        <span style="font-size:11px;color:var(--text3)">${label}</span>
+        <span style="font-size:12px;font-weight:700;color:${color}">${Number(val).toLocaleString(undefined,{maximumFractionDigits:2})}</span>
+        ${chgTxt}
+      </div>`;
+    };
+    const sep = '<span style="color:var(--border)">|</span>';
+    bannerEl.innerHTML = [
+      mkBannerItem('S&P', m.sp500,  m.sp500_chg),
+      mkBannerItem('나스닥', m.nasdaq, m.nasdaq_chg),
+      mkBannerItem('다우', m.dow,    m.dow_chg),
+      mkBannerItem('VIX', m.vix,    m.vix_chg),
+      mkBannerItem('미10Y', m.us10y ? m.us10y+'%' : null, m.us10y_chg),
+    ].filter(Boolean).join(sep);
+  }
+
   const domEl = document.getElementById('inv-domestic');
   if (domEl) domEl.innerHTML = [
     mkIndexCard('코스피',    m.kospi,    m.kospi_chg,    '',  'KOSPI'),
@@ -219,25 +242,11 @@ async function loadMarketOverview(maxDate) {
   const kosdaq = mkStat('KOSDAQ');
 
   // ── 시장 요약 배너 ─────────────────────────────────────────
+  // 배너는 loadMacroData에서 채움 (글로벌 지수 표시)
+  // 초기 로딩 중 표시
   const bannerEl = document.getElementById('inv-banner-content');
-  if (bannerEl) {
-    const bannerItems = [
-      { label: '코스피',
-        val: kospi.total ? `▲${kospi.rise} ▼${kospi.fall}` : '—',
-        color: kospi.rise > kospi.fall ? 'var(--red)' : 'var(--blue)' },
-      { label: '코스닥',
-        val: kosdaq.total ? `▲${kosdaq.rise} ▼${kosdaq.fall}` : '—',
-        color: kosdaq.rise > kosdaq.fall ? 'var(--red)' : 'var(--blue)' },
-      { label: '평균',  val: chgStr(avg), color: chgColor(avg) },
-      { label: rise > fall ? '상승 우위' : fall > rise ? '하락 우위' : '팽팽',
-        val:   rise > fall ? `+${rise-fall}개` : fall > rise ? `-${fall-rise}개` : '0',
-        color: rise > fall ? 'var(--red)' : fall > rise ? 'var(--blue)' : 'var(--text3)' },
-    ];
-    bannerEl.innerHTML = bannerItems.map(b => `
-      <div style="display:flex;align-items:center;gap:5px;font-size:12px">
-        <span style="color:var(--text3)">${b.label}</span>
-        <span style="font-weight:700;color:${b.color}">${b.val}</span>
-      </div>`).join('<span style="color:var(--border);font-size:14px">|</span>');
+  if (bannerEl && bannerEl.children.length <= 1) {
+    bannerEl.innerHTML = `<span style="color:var(--text3);font-size:12px"><span class="loading"></span></span>`;
   }
 
   // ── 시장별 종목 현황 카드 ────────────────────────────────────
