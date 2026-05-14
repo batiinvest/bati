@@ -41,19 +41,31 @@ function pInvestment() {
   <!-- 시황 탭 -->
   <div id="inv-tab-market" style="display:${window._invTab==='market'?'block':'none'}">
 
-    <!-- ① 국내 + 글로벌 나란히 -->
-    <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:12px;margin-bottom:12px">
+    <!-- ① 전체 종목 동향 (최상단) -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+        <span class="card-title">📊 전체 종목 동향</span>
+        <div id="inv-banner-content" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-left:auto">
+          <span style="color:var(--text3);font-size:12px"><span class="loading"></span></span>
+        </div>
+      </div>
+      <!-- 전체 집계 -->
+      <div id="inv-total-summary" style="padding:.75rem 1rem;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border)"></div>
+      <!-- 코스피/코스닥 종목 현황 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:.75rem 1rem;border-bottom:1px solid var(--border)">
+        <div id="inv-mkt-kospi" style="padding:10px 14px;background:var(--bg3);border-radius:8px"></div>
+        <div id="inv-mkt-kosdaq" style="padding:10px 14px;background:var(--bg3);border-radius:8px"></div>
+      </div>
+      <div id="inv-industry-grid"></div>
+    </div>
 
+    <!-- ② 국내 + 글로벌 나란히 -->
+    <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:12px;margin-bottom:12px">
       <!-- 국내 시장 -->
       <div>
         <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.04em;margin-bottom:8px">🇰🇷 국내 시장</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px" id="inv-domestic">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="inv-domestic">
           ${['',''].map(()=>'<div class="card" style="padding:10px 12px;min-height:60px"></div>').join('')}
-        </div>
-        <!-- 코스피/코스닥 종목 현황 -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div id="inv-mkt-kospi" class="card" style="padding:10px 12px;min-height:52px"></div>
-          <div id="inv-mkt-kosdaq" class="card" style="padding:10px 12px;min-height:52px"></div>
         </div>
       </div>
 
@@ -66,7 +78,7 @@ function pInvestment() {
       </div>
     </div>
 
-    <!-- ② 환율 + 원자재 한 줄 -->
+    <!-- ③ 환율 + 원자재 한 줄 -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
       <div>
         <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.04em;margin-bottom:8px">💱 환율</div>
@@ -80,18 +92,6 @@ function pInvestment() {
           ${['','','',''].map(()=>'<div class="card" style="padding:10px 12px;min-height:60px"></div>').join('')}
         </div>
       </div>
-    </div>
-
-    <!-- ③ 전체 종목 동향 — 헤더에 요약 통합 -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header" style="flex-wrap:wrap;gap:6px">
-        <span class="card-title">📊 전체 종목 동향</span>
-        <div id="inv-banner-content" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-left:auto">
-          <span style="color:var(--text3);font-size:12px"><span class="loading"></span></span>
-        </div>
-      </div>
-      <div id="inv-total-summary" style="padding:.75rem 1rem;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border)"></div>
-      <div id="inv-industry-grid"></div>
     </div>
 
     <!-- ④ 흐름 비교 차트 (접기/펼치기) -->

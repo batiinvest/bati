@@ -237,25 +237,42 @@ async function loadMarketOverview(maxDate) {
   }
 
   // ── 시장별 종목 현황 카드 ────────────────────────────────────
-  const _mkCard = (id, label, st, color) => {
+  const _mkCard = (id, label, st, color, indexVal, indexChg) => {
     const el = document.getElementById(id);
     if (!el || !st.total) return;
     const pct = (st.rise / st.total * 100).toFixed(0);
+    const chgTxt = indexChg != null
+      ? `<span style="color:${chgColor(indexChg)};font-size:12px;font-weight:600">${chgStr(indexChg)}</span>` : '';
     el.innerHTML = `
-      <div style="font-size:10px;font-weight:600;color:${color};margin-bottom:5px">${label}</div>
-      <div style="height:4px;border-radius:2px;overflow:hidden;background:var(--bg3);margin-bottom:5px;display:flex">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div style="font-size:11px;font-weight:700;color:${color}">${label}</div>
+        ${indexVal != null ? `<div style="font-size:13px;font-weight:700">${indexVal.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} ${chgTxt}</div>` : ''}
+      </div>
+      <div style="height:4px;border-radius:2px;overflow:hidden;background:var(--bg2);margin-bottom:6px;display:flex">
         <div style="width:${pct}%;background:var(--red)"></div>
         <div style="flex:1;background:var(--blue)"></div>
       </div>
-      <div style="display:flex;gap:8px;font-size:11px">
+      <div style="display:flex;gap:8px;font-size:12px;align-items:center">
         <span style="color:var(--red);font-weight:600">▲${st.rise}</span>
         <span style="color:var(--blue)">▼${st.fall}</span>
         <span style="color:var(--text3)">━${st.flat}</span>
-        <span style="margin-left:auto;font-size:10px;color:var(--text3)">${st.total}개</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--text3)">${st.total}개</span>
       </div>`;
   };
-  _mkCard('inv-mkt-kospi',  '코스피 종목', kospi,  '#2AABEE');
-  _mkCard('inv-mkt-kosdaq', '코스닥 종목', kosdaq, '#2dce89');
+  // macro_data에서 코스피/코스닥 지수값 조회 (이미 loadMacroData에서 로드됐을 수 있음)
+  let _kospiVal = null, _kospiChg = null, _kosdaqVal = null, _kosdaqChg = null;
+  try {
+    const { data: _macro } = await sb.from('macro_data')
+      .select('kospi,kospi_chg,kosdaq,kosdaq_chg')
+      .order('base_date', { ascending: false }).limit(1).single();
+    if (_macro) {
+      _kospiVal  = _macro.kospi;  _kospiChg  = _macro.kospi_chg;
+      _kosdaqVal = _macro.kosdaq; _kosdaqChg = _macro.kosdaq_chg;
+    }
+  } catch(e) { /* 없으면 null 유지 */ }
+
+  _mkCard('inv-mkt-kospi',  '코스피 종목', kospi,  '#2AABEE', _kospiVal,  _kospiChg);
+  _mkCard('inv-mkt-kosdaq', '코스닥 종목', kosdaq, '#2dce89', _kosdaqVal, _kosdaqChg);
 
 
   const totalEl = document.getElementById('inv-total-summary');
