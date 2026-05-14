@@ -350,52 +350,82 @@ async function loadMarketOverview(maxDate) {
     .map(([ind, d]) => ({ ind, ...d, avg: d.sumChg / d.total }))
     .sort((a, b) => b.avg - a.avg);
 
+  window._indMapData = indMap;
+
   indGrid.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;min-height:300px">
-      <div style="border-right:1px solid var(--border);overflow-y:auto;max-height:520px" id="ind-left">
-        ${indRows.map(d => {
-          const barW = Math.round(d.rise / d.total * 100);
-          const bgA  = Math.min(Math.abs(d.avg) / 5, 1) * 0.07;
-          const bg   = d.avg > 0 ? `rgba(245,54,92,${bgA})` : d.avg < 0 ? `rgba(42,171,238,${bgA})` : 'transparent';
-          return `
-          <div class="ind-row" data-ind="${d.ind}"
-            onclick="showIndDetail('${d.ind}')"
-            style="padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;position:relative"
-            onmouseover="this.style.background='var(--bg3)'"
-            onmouseout="if(this.dataset.active!=='1')this.style.background=''"
-            id="ind-row-${d.ind}">
-            <div style="position:absolute;inset:0;background:${bg};pointer-events:none"></div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;position:relative">
-              <span style="font-size:13px;font-weight:700">${d.ind}</span>
-              <div style="display:flex;align-items:center;gap:10px">
-                <span style="font-size:10px;color:var(--text3)">▲${d.rise} ▼${d.fall} ━${d.flat}</span>
-                <span style="font-size:14px;font-weight:800;color:${chgColor(d.avg)}">${chgStr(d.avg)}</span>
-              </div>
-            </div>
-            <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--bg3);position:relative">
-              <div style="width:${barW}%;background:var(--red)"></div>
-              <div style="flex:1;background:var(--blue)"></div>
-            </div>
-          </div>`;
-        }).join('')}
+    <div style="display:grid;grid-template-columns:320px 1fr;min-height:400px">
+      <div style="border-right:1px solid var(--border);padding:12px 14px;overflow-y:auto;max-height:520px" id="ind-left">
+        <canvas id="ind-bar-chart" style="width:100%" role="img" aria-label="산업별 등락률 막대 차트"></canvas>
       </div>
       <div id="ind-right" style="overflow-y:auto;max-height:520px">
         <div style="display:flex;align-items:center;justify-content:center;height:100%;min-height:200px;
           color:var(--text3);font-size:13px;flex-direction:column;gap:8px">
           <div style="font-size:22px">←</div>
-          <div>산업을 선택하세요</div>
+          <div>막대를 클릭하면 세부 섹터를 볼 수 있습니다</div>
         </div>
       </div>
     </div>`;
 
-  window._indMapData = indMap;
-  window.showIndDetail = (indName) => {
-    document.querySelectorAll('.ind-row').forEach(el => {
-      const active = el.dataset.ind === indName;
-      el.dataset.active = active ? '1' : '';
-      el.style.borderLeft = active ? '3px solid var(--tg)' : '';
-      el.style.background = active ? 'var(--bg3)' : '';
+  // 세로 막대 차트 렌더링
+  const sorted = indRows.slice().sort((a, b) => b.avg - a.avg);
+  const labels  = sorted.map(d => d.ind);
+  const values  = sorted.map(d => parseFloat(d.avg.toFixed(2)));
+  const colors  = values.map(v => v >= 0 ? 'rgba(245,54,92,0.85)' : 'rgba(42,171,238,0.85)');
+  const bHeight = Math.max(sorted.length * 36 + 60, 300);
+  const canvas  = document.getElementById('ind-bar-chart');
+  if (canvas) canvas.style.height = bHeight + 'px';
+
+  if (window.Chart) {
+    const ctx = canvas.getContext('2d');
+    const chart = new window.Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: colors,
+          borderRadius: 3,
+          barThickness: 20,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        onClick: (e, els) => {
+          if (!els.length) return;
+          window.showIndDetail(labels[els[0].index]);
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => `  ${ctx.raw > 0 ? '+' : ''}${ctx.raw}%`
+            },
+            backgroundColor: '#1a1d27',
+            titleColor: '#f0f2f8',
+            bodyColor: '#a8adc4',
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: {
+              color: '#6e7491', font: { size: 11 },
+              callback: v => (v > 0 ? '+' : '') + v + '%'
+            },
+          },
+          y: {
+            grid: { display: false },
+            ticks: { color: '#c0c4d8', font: { size: 12 } }
+          }
+        }
+      }
     });
+    window._indBarChart = chart;
+  }
+
+  window.showIndDetail = (indName) => {
     const d = window._indMapData[indName];
     if (!d) return;
     const subRows = Object.entries(d.subs)
@@ -437,5 +467,5 @@ async function loadMarketOverview(maxDate) {
       }).join('')}`;
   };
 
-  if (indRows.length) window.showIndDetail(indRows[0].ind);
+  if (sorted.length) window.showIndDetail(sorted[0].ind);
 }
