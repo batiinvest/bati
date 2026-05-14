@@ -21,12 +21,15 @@ async function loadMacroData() {
   const m = data?.[0] || {};
 
   const globalEl = document.getElementById('inv-global');
-  if (globalEl) globalEl.innerHTML = [
-    mkIndexCard('S&P 500',     m.sp500,    m.sp500_chg,    '',  'USA'),
-    mkIndexCard('나스닥',       m.nasdaq,   m.nasdaq_chg,   '',  'USA'),
-    mkIndexCard('다우존스',     m.dow,      m.dow_chg,      '',  'USA'),
-    mkIndexCard('VIX',         m.vix,      m.vix_chg,      '',  '공포지수'),
-    mkIndexCard('미 10년 금리', m.us10y,    m.us10y_chg,    '%', '국채'),
+  if (globalEl) globalEl.innerHTML = [\
+    mkIndexCard('S&P 500',     m.sp500,       m.sp500_chg,       '',  'USA 현물'),\
+    mkIndexCard('나스닥',       m.nasdaq,      m.nasdaq_chg,      '',  'USA 현물'),\
+    mkIndexCard('다우존스',     m.dow,         m.dow_chg,         '',  'USA 현물'),\
+    mkIndexCard('S&P 선물',    m.sp500_fut,   m.sp500_fut_chg,   '',  '선물'),\
+    mkIndexCard('나스닥 선물',  m.nasdaq_fut,  m.nasdaq_fut_chg,  '',  '선물'),\
+    mkIndexCard('다우 선물',    m.dow_fut,     m.dow_fut_chg,     '',  '선물'),\
+    mkIndexCard('VIX',         m.vix,         m.vix_chg,         '',  '공포지수'),\
+    mkIndexCard('미 10년 금리', m.us10y,       m.us10y_chg,       '%', '국채'),\
   ].join('');
 
   const domEl = document.getElementById('inv-domestic');

@@ -70,8 +70,8 @@ function pInvestment() {
       <!-- 글로벌 지수 -->
       <div>
         <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.04em;margin-bottom:8px">🌍 글로벌 지수</div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="inv-global">
-          ${['','','','',''].map(()=>'<div class="card" style="padding:10px 12px;min-height:60px"></div>').join('')}
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" id="inv-global">
+          ${['','','','','','','',''].map(()=>'<div class="card" style="padding:10px 12px;min-height:60px"></div>').join('')}
         </div>
       </div>
     </div>
