@@ -89,7 +89,7 @@ async function loadMarketOverview(maxDate) {
   if (totalEl) {
     const risePct = (rise / enriched.length * 100).toFixed(0);
     totalEl.innerHTML =
-      '<div style="display:flex;flex-direction:column;gap:8px;width:100%">' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;width:100%">' +
         '<div id="inv-mkt-kospi"  style="padding:10px 14px;background:var(--bg3);border-radius:8px"></div>' +
         '<div id="inv-mkt-kosdaq" style="padding:10px 14px;background:var(--bg3);border-radius:8px"></div>' +
         '<div id="inv-mkt-total"  style="padding:10px 14px;background:var(--bg3);border-radius:8px"></div>' +
