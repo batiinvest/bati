@@ -44,7 +44,7 @@ function pInvestment() {
     <div id="inv-market-banner" style="border-radius:12px;padding:14px 18px;margin-bottom:14px;
       background:linear-gradient(135deg,var(--bg3) 0%,var(--bg2) 100%);
       border:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-      <div style="font-size:11px;color:var(--text3);flex-shrink:0">오늘의 시장</div>
+      <div style="font-size:11px;color:var(--text2);font-weight:600;flex-shrink:0">오늘의 시장</div>
       <div id="inv-banner-content" style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;flex:1">
         <span style="color:var(--text3);font-size:12px"><span class="loading"></span></span>
       </div>
@@ -55,9 +55,9 @@ function pInvestment() {
 
       <!-- 국내 시장 -->
       <div>
-        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🇰🇷 국내 시장</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.04em;margin-bottom:8px">🇰🇷 국내 시장</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px" id="inv-domestic">
-          ${['','',''].map(()=>'<div class="card" style="padding:10px 12px;min-height:60px"></div>').join('')}
+          ${['',''].map(()=>'<div class="card" style="padding:10px 12px;min-height:60px"></div>').join('')}
         </div>
         <!-- 코스피/코스닥 종목 현황 -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -68,7 +68,7 @@ function pInvestment() {
 
       <!-- 글로벌 지수 -->
       <div>
-        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🌍 글로벌 지수</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.04em;margin-bottom:8px">🌍 글로벌 지수</div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="inv-global">
           ${['','','','',''].map(()=>'<div class="card" style="padding:10px 12px;min-height:60px"></div>').join('')}
         </div>
@@ -78,13 +78,13 @@ function pInvestment() {
     <!-- ③ 환율 + 원자재 한 줄 -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
       <div>
-        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">💱 환율</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.04em;margin-bottom:8px">💱 환율</div>
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px" id="inv-fx">
           ${['','','',''].map(()=>'<div class="card" style="padding:10px 12px;min-height:60px"></div>').join('')}
         </div>
       </div>
       <div>
-        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🛢️ 원자재</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.04em;margin-bottom:8px">🛢️ 원자재</div>
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px" id="inv-commodity">
           ${['','','',''].map(()=>'<div class="card" style="padding:10px 12px;min-height:60px"></div>').join('')}
         </div>
@@ -207,11 +207,11 @@ function mkIndexCard(label, value, chg, unit, sub) {
   const val = value != null ? Number(value).toLocaleString() + (unit||'') : '—';
   return `
   <div class="card" style="padding:10px 12px">
-    <div style="font-size:10px;color:var(--text3);margin-bottom:3px">${label}</div>
+    <div style="font-size:10px;color:var(--text2);margin-bottom:3px;font-weight:500">${label}</div>
     <div style="font-size:15px;font-weight:700;color:var(--text1);line-height:1.2">${val}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
       <div style="font-size:12px;color:${cc};font-weight:600">${cs}</div>
-      ${sub ? `<div style="font-size:10px;color:var(--text3)">${sub}</div>` : ''}
+      ${sub ? `<div style="font-size:10px;color:var(--text2)">${sub}</div>` : ''}
     </div>
   </div>`;
 }
@@ -264,7 +264,22 @@ async function refreshInvestment() {
     return; // 공시 탭은 여기서 종료 (시황 탭 로직 스킵)
   }
 
-  // 시황 탭은 전체 재로드
+  // 시황 탭은 전체 재로드 + 매크로 수집 트리거
+  try {
+    await sb.from('app_config').upsert({
+      key:         'run_macro_flag',
+      value:       String(Date.now()),
+      description: '대시보드 매크로 수동 수집 트리거'
+    }, { onConflict: 'key' });
+    toast('📡 시황 데이터 수집 요청 — 잠시 후 자동 반영됩니다', 'info');
+  } catch(e) { /* 무시 */ }
+
+  // 30초 후 자동 재로드 (수집 완료 대기)
+  setTimeout(() => {
+    _latestMarketDate = null;
+    loadMacroData();
+  }, 30000);
+
   loadInvestment();
 }
 

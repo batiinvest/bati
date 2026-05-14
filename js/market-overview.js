@@ -33,7 +33,6 @@ async function loadMacroData() {
   if (domEl) domEl.innerHTML = [
     mkIndexCard('코스피',    m.kospi,    m.kospi_chg,    '',  'KOSPI'),
     mkIndexCard('코스닥',    m.kosdaq,   m.kosdaq_chg,   '',  'KOSDAQ'),
-    mkIndexCard('코스피200', m.kospi200, m.kospi200_chg, '',  '선물'),
   ].join('');
 
   const fxEl = document.getElementById('inv-fx');
