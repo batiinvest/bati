@@ -50,7 +50,7 @@ function pInvestment() {
         </div>
       </div>
       <!-- 전체 집계 + 코스피/코스닥 지수 한 행 -->
-      <div id="inv-total-summary" style="padding:.75rem 1rem;display:flex;gap:10px;flex-wrap:nowrap;align-items:stretch;border-bottom:1px solid var(--border)">
+      <div id="inv-total-summary" style="padding:.75rem 1rem;border-bottom:1px solid var(--border)"></div>
       <div id="inv-industry-grid"></div>
     </div>
 

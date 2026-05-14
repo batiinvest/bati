@@ -83,34 +83,40 @@ async function loadMarketOverview(maxDate) {
   const totalEl = document.getElementById('inv-total-summary');
   if (totalEl) {
     const risePct = (rise / enriched.length * 100).toFixed(0);
-    const fallPct = (fall / enriched.length * 100).toFixed(0);
     totalEl.innerHTML =
-      '<div style="display:flex;align-items:center;gap:0;width:100%;flex-wrap:nowrap">' +
-        '<div style="padding:0 20px 0 0;border-right:1px solid var(--border);flex-shrink:0">' +
-          '<div style="font-size:11px;color:var(--text3);margin-bottom:2px">전체 종목</div>' +
-          '<div style="font-size:22px;font-weight:800">' + enriched.length.toLocaleString() + '개</div>' +
-        '</div>' +
-        '<div style="flex:1;padding:0 20px;border-right:1px solid var(--border)">' +
-          '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px">' +
-            '<span style="color:var(--red);font-weight:700">▲ ' + rise.toLocaleString() + ' <span style="font-weight:400;font-size:11px">(' + risePct + '%)</span></span>' +
-            '<span style="color:var(--text3)">━ ' + (enriched.length-rise-fall).toLocaleString() + '</span>' +
-            '<span style="color:var(--blue);font-weight:700">▼ ' + fall.toLocaleString() + ' <span style="font-weight:400;font-size:11px">(' + fallPct + '%)</span></span>' +
-          '</div>' +
-          '<div style="display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--bg3)">' +
-            '<div style="width:' + risePct + '%;background:var(--red);transition:width .4s"></div>' +
-            '<div style="width:' + ((enriched.length-rise-fall)/enriched.length*100).toFixed(1) + '%;background:var(--bg3)"></div>' +
-            '<div style="flex:1;background:var(--blue)"></div>' +
-          '</div>' +
-        '</div>' +
-        '<div style="padding:0 20px;flex-shrink:0;text-align:center">' +
-          '<div style="font-size:11px;color:var(--text3);margin-bottom:2px">평균 등락률</div>' +
-          '<div style="font-size:22px;font-weight:800;color:' + chgColor(avg) + '">' + chgStr(avg) + '</div>' +
-        '</div>' +
-      '</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 0 0 0;border-top:1px solid var(--border);margin-top:10px">' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;width:100%">' +
+        // 전체 종목 카드
+        '<div id="inv-mkt-total" style="padding:12px 16px;background:var(--bg3);border-radius:8px"></div>' +
+        // 코스피 카드
         '<div id="inv-mkt-kospi"  style="padding:12px 16px;background:var(--bg3);border-radius:8px"></div>' +
+        // 코스닥 카드
         '<div id="inv-mkt-kosdaq" style="padding:12px 16px;background:var(--bg3);border-radius:8px"></div>' +
       '</div>';
+
+    // 전체 종목 카드 직접 렌더링
+    const totalCard = document.getElementById('inv-mkt-total');
+    if (totalCard) {
+      const avg_ = avg;
+      totalCard.innerHTML =
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">' +
+          '<div style="font-size:12px;font-weight:700;color:var(--text3)">전체 종목</div>' +
+          '<div style="text-align:right">' +
+            '<div style="font-size:18px;font-weight:800;line-height:1.1">' + enriched.length.toLocaleString() + '개</div>' +
+            '<div style="font-size:12px;font-weight:700;color:' + chgColor(avg_) + '">평균 ' + chgStr(avg_) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="height:6px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.08);margin-bottom:8px;display:flex">' +
+          '<div style="width:' + risePct + '%;background:var(--red)"></div>' +
+          '<div style="width:' + ((enriched.length-rise-fall)/enriched.length*100).toFixed(1) + '%;background:rgba(255,255,255,0.06)"></div>' +
+          '<div style="flex:1;background:var(--blue)"></div>' +
+        '</div>' +
+        '<div style="display:flex;gap:12px;font-size:12px">' +
+          '<span style="color:var(--red);font-weight:700">▲ ' + rise.toLocaleString() + '</span>' +
+          '<span style="color:var(--blue);font-weight:700">▼ ' + fall.toLocaleString() + '</span>' +
+          '<span style="color:var(--text3)">━ ' + flat.toLocaleString() + '</span>' +
+          '<span style="margin-left:auto;color:var(--text3);font-size:11px">' + enriched.length.toLocaleString() + '개</span>' +
+        '</div>';
+    }
   }
 
   // macro_data에서 코스피/코스닥 지수값 조회
