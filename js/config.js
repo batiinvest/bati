@@ -123,24 +123,27 @@ let _globalIndustryMap = null;
 
 async function getIndustryMap() {
   if (_globalIndustryMap) return _globalIndustryMap;
-  const map = {};
+  const map    = {};   // stock_code → industry
+  const subMap = {};   // stock_code → sub_industry
   try {
     let from = 0;
     while (true) {
       const { data } = await sb.from('companies')
-        .select('code,industry')
+        .select('code,industry,sub_industry')
         .range(from, from + 999);
       if (!data?.length) break;
       data.forEach(c => {
-        if (c.industry) map[c.code.replace(/\.(KS|KQ)$/, '')] = c.industry;
+        const code = c.code.replace(/\.(KS|KQ)$/, '');
+        if (c.industry)     map[code]    = c.industry;
+        if (c.sub_industry) subMap[code] = c.sub_industry;
       });
       if (data.length < 1000) break;
       from += 1000;
     }
   } catch(e) { console.warn('getIndustryMap 실패:', e); }
   _globalIndustryMap = map;
-  // market-overview.js의 _industryMapCache와 동기화 (하위 호환)
   window._industryMapCache = map;
+  window._subIndustryMap   = subMap;   // 세부섹터 맵 전역 저장
   return map;
 }
 

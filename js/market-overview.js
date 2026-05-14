@@ -194,7 +194,8 @@ async function loadMarketOverview(maxDate) {
 
   const enriched = rows.map(r => ({
     ...r,
-    industry: industryMap[r.stock_code] || r.market || '기타'
+    industry:    industryMap[r.stock_code] || r.market || '기타',
+    sub_industry: (window._subIndustryMap || {})[r.stock_code] || '기타',
   }));
 
   // ── 전체/시장별 집계 (배너/카드보다 먼저 선언) ────────────────
@@ -318,16 +319,25 @@ async function loadMarketOverview(maxDate) {
   _mkCard('inv-mkt-kosdaq', '코스닥 종목', kosdaq, '#2dce89', _kosdaqVal, _kosdaqChg);
 
   // 산업별 집계
+  // ── 산업별 + 세부섹터별 집계 ─────────────────────────────────
   const indMap = {};
   enriched.forEach(r => {
     const ind = r.industry || '기타';
-    if (!indMap[ind]) indMap[ind] = { rise:0, fall:0, flat:0, total:0, sumChg:0, stocks:[] };
+    const sub = r.sub_industry || '기타';
+    if (!indMap[ind]) indMap[ind] = { rise:0, fall:0, flat:0, total:0, sumChg:0, stocks:[], subs:{} };
     indMap[ind].total++;
     indMap[ind].sumChg += r.price_change_rate;
     indMap[ind].stocks.push(r);
     if (r.price_change_rate > 0)      indMap[ind].rise++;
     else if (r.price_change_rate < 0) indMap[ind].fall++;
     else                               indMap[ind].flat++;
+    if (!indMap[ind].subs[sub]) indMap[ind].subs[sub] = { rise:0, fall:0, flat:0, total:0, sumChg:0, stocks:[] };
+    indMap[ind].subs[sub].total++;
+    indMap[ind].subs[sub].sumChg += r.price_change_rate;
+    indMap[ind].subs[sub].stocks.push(r);
+    if (r.price_change_rate > 0)      indMap[ind].subs[sub].rise++;
+    else if (r.price_change_rate < 0) indMap[ind].subs[sub].fall++;
+    else                               indMap[ind].subs[sub].flat++;
   });
 
   const indGrid = document.getElementById('inv-industry-grid');
@@ -338,58 +348,91 @@ async function loadMarketOverview(maxDate) {
     .sort((a, b) => b.avg - a.avg);
 
   indGrid.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1px;background:var(--border)">
-      ${indRows.map(d => {
-        const barW = Math.round(d.rise / d.total * 100);
-        const avg  = d.avg;
-        const top3 = [...d.stocks]
-          .sort((a,b) => b.price_change_rate - a.price_change_rate)
-          .slice(0, 3);
-        const bgAlpha = Math.min(Math.abs(avg) / 5, 1) * 0.06;
-        const bgColor = avg > 0
-          ? `rgba(245,54,92,${bgAlpha})`
-          : avg < 0
-          ? `rgba(42,171,238,${bgAlpha})`
-          : 'transparent';
-
-        return `
-        <div style="padding:12px 14px;background:var(--bg2);position:relative;overflow:hidden">
-          <!-- 배경 강도 표시 -->
-          <div style="position:absolute;inset:0;background:${bgColor};pointer-events:none"></div>
-
-          <!-- 헤더: 산업명 + 평균 등락률 -->
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;position:relative">
-            <div style="font-size:13px;font-weight:700;color:var(--text1)">${d.ind}</div>
-            <div style="font-size:14px;font-weight:800;color:${chgColor(avg)}">${chgStr(avg)}</div>
-          </div>
-
-          <!-- 상승/하락 바 -->
-          <div style="position:relative;margin-bottom:6px">
-            <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--bg3)">
-              <div style="width:${barW}%;background:var(--red);transition:width .3s"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;min-height:300px">
+      <div style="border-right:1px solid var(--border);overflow-y:auto;max-height:520px" id="ind-left">
+        ${indRows.map(d => {
+          const barW = Math.round(d.rise / d.total * 100);
+          const bgA  = Math.min(Math.abs(d.avg) / 5, 1) * 0.07;
+          const bg   = d.avg > 0 ? \`rgba(245,54,92,\${bgA})\` : d.avg < 0 ? \`rgba(42,171,238,\${bgA})\` : 'transparent';
+          return \`
+          <div class="ind-row" data-ind="\${d.ind}"
+            onclick="showIndDetail('\${d.ind}')"
+            style="padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;position:relative"
+            onmouseover="this.style.background='var(--bg3)'"
+            onmouseout="if(this.dataset.active!=='1')this.style.background=''"
+            id="ind-row-\${d.ind}">
+            <div style="position:absolute;inset:0;background:\${bg};pointer-events:none"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;position:relative">
+              <span style="font-size:13px;font-weight:700">\${d.ind}</span>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:10px;color:var(--text3)">▲\${d.rise} ▼\${d.fall} ━\${d.flat}</span>
+                <span style="font-size:14px;font-weight:800;color:\${chgColor(d.avg)}">\${chgStr(d.avg)}</span>
+              </div>
+            </div>
+            <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--bg3);position:relative">
+              <div style="width:\${barW}%;background:var(--red)"></div>
               <div style="flex:1;background:var(--blue)"></div>
             </div>
-          </div>
-
-          <!-- 수치 + 총 종목수 -->
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:11px;position:relative">
-            <span style="color:var(--red);font-weight:600">▲${d.rise}</span>
-            <span style="color:var(--blue)">▼${d.fall}</span>
-            ${d.flat ? `<span style="color:var(--text3)">━${d.flat}</span>` : ''}
-            <span style="margin-left:auto;color:var(--text3)">총 ${d.total}개</span>
-          </div>
-
-          <!-- top3 종목 태그 -->
-          <div style="display:flex;gap:4px;flex-wrap:wrap;position:relative">
-            ${top3.map(s => `
-              <span style="font-size:10px;padding:2px 6px;border-radius:4px;
-                background:var(--bg3);color:${chgColor(s.price_change_rate)};
-                white-space:nowrap">
-                ${s.corp_name} ${chgStr(s.price_change_rate)}
-              </span>`).join('')}
-          </div>
-        </div>`;
-      }).join('')}
+          </div>\`;
+        }).join('')}
+      </div>
+      <div id="ind-right" style="overflow-y:auto;max-height:520px">
+        <div style="display:flex;align-items:center;justify-content:center;height:100%;min-height:200px;
+          color:var(--text3);font-size:13px;flex-direction:column;gap:8px">
+          <div style="font-size:22px">←</div>
+          <div>산업을 선택하세요</div>
+        </div>
+      </div>
     </div>`;
-}
 
+  window._indMapData = indMap;
+  window.showIndDetail = (indName) => {
+    document.querySelectorAll('.ind-row').forEach(el => {
+      const active = el.dataset.ind === indName;
+      el.dataset.active = active ? '1' : '';
+      el.style.borderLeft = active ? '3px solid var(--tg)' : '';
+      el.style.background = active ? 'var(--bg3)' : '';
+    });
+    const d = window._indMapData[indName];
+    if (!d) return;
+    const subRows = Object.entries(d.subs)
+      .map(([sub, s]) => ({ sub, ...s, avg: s.sumChg / s.total }))
+      .sort((a, b) => b.avg - a.avg);
+    const panel = document.getElementById('ind-right');
+    if (!panel) return;
+    panel.innerHTML = \`
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);
+        display:flex;justify-content:space-between;align-items:center;
+        position:sticky;top:0;background:var(--bg2);z-index:1">
+        <div style="font-size:14px;font-weight:700">\${indName}</div>
+        <span style="font-size:13px;font-weight:800;color:\${chgColor(d.avg)}">\${chgStr(d.avg)} · \${d.total}개</span>
+      </div>
+      \${subRows.map(s => {
+        const bw = Math.round(s.rise / s.total * 100);
+        const top4 = [...s.stocks].sort((a,b) => b.price_change_rate - a.price_change_rate).slice(0,4);
+        return \`
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <span style="font-size:12px;font-weight:600;color:var(--text2)">\${s.sub}</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:10px;color:var(--text3)">▲\${s.rise} ▼\${s.fall} · \${s.total}개</span>
+              <span style="font-size:13px;font-weight:700;color:\${chgColor(s.avg)}">\${chgStr(s.avg)}</span>
+            </div>
+          </div>
+          <div style="height:5px;border-radius:3px;overflow:hidden;background:var(--bg3);margin-bottom:8px;display:flex">
+            <div style="width:\${bw}%;background:var(--red)"></div>
+            <div style="flex:1;background:var(--blue)"></div>
+          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            \${top4.map(stock => \`
+              <span style="font-size:10px;padding:2px 7px;border-radius:4px;
+                background:var(--bg3);color:\${chgColor(stock.price_change_rate)};white-space:nowrap">
+                \${stock.corp_name} \${chgStr(stock.price_change_rate)}
+              </span>\`).join('')}
+          </div>
+        </div>\`;
+      }).join('')}\`;
+  };
+
+  if (indRows.length) window.showIndDetail(indRows[0].ind);
+}
