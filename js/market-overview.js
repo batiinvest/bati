@@ -482,3 +482,15 @@ async function loadTrendChart() {
     }
   });
 }
+
+function initInvCheckboxStyles() {
+  INV_ALL_METRICS.forEach(m => {
+    const lbl = document.getElementById('inv-lbl-' + m.col);
+    if (!lbl) return;
+    if (INV.selected.has(m.col)) {
+      lbl.style.background  = m.color + '22';
+      lbl.style.borderColor = m.color;
+      lbl.style.color       = m.color;
+    }
+  });
+}
