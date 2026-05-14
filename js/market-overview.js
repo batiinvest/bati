@@ -283,8 +283,10 @@ async function loadMarketOverview(maxDate) {
       <div class="metric-label">평균 등락률</div>
       <div class="metric-value" style="color:${chgColor(avg)}">${chgStr(avg)}</div>
     </div>
-    <div id="inv-mkt-kospi"  style="padding:8px 14px;background:var(--bg3);border-radius:8px;min-width:160px"></div>
-    <div id="inv-mkt-kosdaq" style="padding:8px 14px;background:var(--bg3);border-radius:8px;min-width:160px"></div>`;
+    <div style="display:flex;flex-direction:column;gap:6px;flex:2;min-width:320px;align-self:stretch">
+      <div id="inv-mkt-kospi"  style="padding:10px 14px;background:var(--bg3);border-radius:6px;flex:1;display:flex;flex-direction:column;justify-content:space-between"></div>
+      <div id="inv-mkt-kosdaq" style="padding:10px 14px;background:var(--bg3);border-radius:6px;flex:1;display:flex;flex-direction:column;justify-content:space-between"></div>
+    </div>`;
 
   // macro_data에서 코스피/코스닥 지수값 조회
   let _kospiVal = null, _kospiChg = null, _kosdaqVal = null, _kosdaqChg = null;
