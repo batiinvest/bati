@@ -198,6 +198,23 @@ async function loadMarketOverview(maxDate) {
     industry: industryMap[r.stock_code] || r.market || '기타'
   }));
 
+  // ── 전체/시장별 집계 (배너/카드보다 먼저 선언) ────────────────
+  const rise  = enriched.filter(r => r.price_change_rate > 0).length;
+  const fall  = enriched.filter(r => r.price_change_rate < 0).length;
+  const flat  = enriched.length - rise - fall;
+  const avg   = enriched.reduce((s,r) => s + r.price_change_rate, 0) / enriched.length;
+  const top   = [...enriched].sort((a,b) => b.price_change_rate - a.price_change_rate)[0];
+  const bot   = [...enriched].sort((a,b) => a.price_change_rate - b.price_change_rate)[0];
+
+  const mkStat = (mkt) => {
+    const m = enriched.filter(r => r.market === mkt);
+    const r = m.filter(r => r.price_change_rate > 0).length;
+    const f = m.filter(r => r.price_change_rate < 0).length;
+    return { total: m.length, rise: r, fall: f, flat: m.length - r - f };
+  };
+  const kospi  = mkStat('KOSPI');
+  const kosdaq = mkStat('KOSDAQ');
+
   // ── 시장 요약 배너 ─────────────────────────────────────────
   const bannerEl = document.getElementById('inv-banner-content');
   if (bannerEl) {
@@ -241,24 +258,6 @@ async function loadMarketOverview(maxDate) {
   };
   _mkCard('inv-mkt-kospi',  '코스피 종목', kospi,  '#2AABEE');
   _mkCard('inv-mkt-kosdaq', '코스닥 종목', kosdaq, '#2dce89');
-
-  // 전체 요약
-  const rise  = enriched.filter(r => r.price_change_rate > 0).length;
-  const fall  = enriched.filter(r => r.price_change_rate < 0).length;
-  const flat  = enriched.length - rise - fall;
-  const avg   = enriched.reduce((s,r) => s + r.price_change_rate, 0) / enriched.length;
-  const top   = [...enriched].sort((a,b) => b.price_change_rate - a.price_change_rate)[0];
-  const bot   = [...enriched].sort((a,b) => a.price_change_rate - b.price_change_rate)[0];
-
-  // 시장별(코스피/코스닥) 집계
-  const mkStat = (mkt) => {
-    const m = enriched.filter(r => r.market === mkt);
-    const r = m.filter(r => r.price_change_rate > 0).length;
-    const f = m.filter(r => r.price_change_rate < 0).length;
-    return { total: m.length, rise: r, fall: f, flat: m.length - r - f };
-  };
-  const kospi  = mkStat('KOSPI');
-  const kosdaq = mkStat('KOSDAQ');
 
 
   const totalEl = document.getElementById('inv-total-summary');
