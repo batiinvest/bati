@@ -326,6 +326,7 @@ async function loadMarketOverview(maxDate) {
   const indMap = {};
   enriched.forEach(r => {
     const ind = r.industry || '기타';
+    if (ind === 'KOSPI' || ind === 'KOSDAQ' || ind === '기타') return; // 시장 전체는 제외
     const sub = r.sub_industry || '기타';
     if (!indMap[ind]) indMap[ind] = { rise:0, fall:0, flat:0, total:0, sumChg:0, stocks:[], subs:{} };
     indMap[ind].total++;
@@ -433,33 +434,43 @@ async function loadMarketOverview(maxDate) {
       .sort((a, b) => b.avg - a.avg);
     const panel = document.getElementById('ind-right');
     if (!panel) return;
+    // 전체 상위/하위 종목 top5
+    const allTop5 = [...d.stocks].sort((a,b) => b.price_change_rate - a.price_change_rate).slice(0,5);
+    const allBot5 = [...d.stocks].sort((a,b) => a.price_change_rate - b.price_change_rate).slice(0,5);
     panel.innerHTML = `
       <div style="padding:12px 16px;border-bottom:1px solid var(--border);
         display:flex;justify-content:space-between;align-items:center;
         position:sticky;top:0;background:var(--bg2);z-index:1">
         <div style="font-size:14px;font-weight:700">${indName}</div>
-        <span style="font-size:13px;font-weight:800;color:${chgColor(d.avg)}">${chgStr(d.avg)} · ${d.total}개</span>
+        <div style="display:flex;gap:12px;align-items:center">
+          <span style="font-size:11px;color:var(--text3)">▲${d.rise} ▼${d.fall} ━${d.flat} · ${d.total}개</span>
+          <span style="font-size:14px;font-weight:800;color:${chgColor(d.avg)}">${chgStr(d.avg)}</span>
+        </div>
       </div>
+
+      <!-- 세부섹터 목록 -->
       ${subRows.map(s => {
-        const bw = Math.round(s.rise / s.total * 100);
-        const top4 = [...s.stocks].sort((a,b) => b.price_change_rate - a.price_change_rate).slice(0,4);
+        const top3 = [...s.stocks].sort((a,b) => b.price_change_rate - a.price_change_rate).slice(0,3);
+        const bot2 = [...s.stocks].sort((a,b) => a.price_change_rate - b.price_change_rate)
+                       .filter(x => x.price_change_rate < 0).slice(0,2);
         return `
         <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-            <span style="font-size:12px;font-weight:600;color:var(--text2)">${s.sub}</span>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:10px;color:var(--text3)">▲${s.rise} ▼${s.fall} · ${s.total}개</span>
-              <span style="font-size:13px;font-weight:700;color:${chgColor(s.avg)}">${chgStr(s.avg)}</span>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:13px;font-weight:600">${s.sub}</span>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:11px;color:var(--text3)">▲${s.rise} ▼${s.fall} · ${s.total}개</span>
+              <span style="font-size:14px;font-weight:700;color:${chgColor(s.avg)}">${chgStr(s.avg)}</span>
             </div>
           </div>
-          <div style="height:5px;border-radius:3px;overflow:hidden;background:var(--bg3);margin-bottom:8px;display:flex">
-            <div style="width:${bw}%;background:var(--red)"></div>
-            <div style="flex:1;background:var(--blue)"></div>
-          </div>
           <div style="display:flex;gap:4px;flex-wrap:wrap">
-            ${top4.map(stock => `
-              <span style="font-size:10px;padding:2px 7px;border-radius:4px;
-                background:var(--bg3);color:${chgColor(stock.price_change_rate)};white-space:nowrap">
+            ${top3.map(stock => `
+              <span style="font-size:11px;padding:3px 8px;border-radius:4px;
+                background:rgba(245,54,92,0.1);color:var(--red);white-space:nowrap;font-weight:500">
+                ${stock.corp_name} ${chgStr(stock.price_change_rate)}
+              </span>`).join('')}
+            ${bot2.map(stock => `
+              <span style="font-size:11px;padding:3px 8px;border-radius:4px;
+                background:rgba(42,171,238,0.1);color:var(--blue);white-space:nowrap;font-weight:500">
                 ${stock.corp_name} ${chgStr(stock.price_change_rate)}
               </span>`).join('')}
           </div>
