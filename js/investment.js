@@ -350,16 +350,16 @@ async function loadInvestment() {
     await Promise.all([
       sb.from('market_data').select('stock_code,corp_name,price_change_rate,market')
         .eq('base_date', maxDate).eq('market','KOSPI').not('price_change_rate','is',null)
-        .order('price_change_rate', {ascending:false}).limit(5),
+        .order('price_change_rate', {ascending:false}).limit(10),
       sb.from('market_data').select('stock_code,corp_name,price_change_rate,market')
         .eq('base_date', maxDate).eq('market','KOSPI').not('price_change_rate','is',null)
-        .order('price_change_rate', {ascending:true}).limit(5),
+        .order('price_change_rate', {ascending:true}).limit(10),
       sb.from('market_data').select('stock_code,corp_name,price_change_rate,market')
         .eq('base_date', maxDate).eq('market','KOSDAQ').not('price_change_rate','is',null)
-        .order('price_change_rate', {ascending:false}).limit(5),
+        .order('price_change_rate', {ascending:false}).limit(10),
       sb.from('market_data').select('stock_code,corp_name,price_change_rate,market')
         .eq('base_date', maxDate).eq('market','KOSDAQ').not('price_change_rate','is',null)
-        .order('price_change_rate', {ascending:true}).limit(5),
+        .order('price_change_rate', {ascending:true}).limit(10),
     ]);
 
   const rankRow = (r, i) => `
