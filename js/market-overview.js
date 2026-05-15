@@ -294,9 +294,11 @@ async function loadMarketOverview(maxDate) {
     let leftHtml =
       '<div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--bg2);z-index:1">' +
         '<div style="font-size:14px;font-weight:700">' + indName + '</div>' +
-        '<div style="display:flex;gap:8px;align-items:center">' +
-          '<span style="font-size:11px;color:var(--text3)">▲' + d.rise + ' ▼' + d.fall + ' · ' + d.total + '개</span>' +
+        '<div style="display:flex;align-items:center;gap:10px">' +
           '<span style="font-size:14px;font-weight:800;color:' + chgColor(d.avg) + '">' + chgStr(d.avg) + '</span>' +
+          '<span style="color:var(--red);font-size:12px;font-weight:600">▲ ' + d.rise + '</span>' +
+          '<span style="color:var(--blue);font-size:12px;font-weight:600">▼ ' + d.fall + '</span>' +
+          (d.flat ? '<span style="color:var(--text3);font-size:12px">━ ' + d.flat + '</span>' : '') +
         '</div>' +
       '</div>';
 
@@ -334,7 +336,6 @@ async function loadMarketOverview(maxDate) {
       return '<div style="padding:10px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1;display:flex;justify-content:space-between;align-items:center">' +
           '<span style="font-size:13px;font-weight:700">' + title + '</span>' +
           '<div style="display:flex;align-items:center;gap:10px">' +
-            '<span style="font-size:14px;font-weight:800;color:' + chgColor(avg) + '">' + chgStr(avg) + '</span>' +
             '<span style="color:var(--red);font-size:12px;font-weight:600">▲ ' + r + '</span>' +
             '<span style="color:var(--blue);font-size:12px;font-weight:600">▼ ' + f + '</span>' +
             (fl ? '<span style="color:var(--text3);font-size:12px">━ ' + fl + '</span>' : '') +
