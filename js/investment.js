@@ -53,19 +53,8 @@ function pInvestment() {
       <div id="inv-industry-grid"></div>
     </div>
 
-    <!-- 🇰🇷 산업 동향 — 별도 카드 -->
+    <!-- 📈 흐름 비교 차트 (접기/펼치기) -->
     <div class="card" style="margin-bottom:12px">
-      <div class="card-header" style="flex-wrap:wrap;gap:6px">
-        <span class="card-title">🇰🇷 산업 동향</span>
-        <div id="inv-industry-banner" style="display:flex;gap:14px;align-items:center;margin-left:auto;font-size:12px">
-          <span style="color:var(--text3)"><span class="loading"></span></span>
-        </div>
-      </div>
-      <div id="inv-industry-chart"></div>
-    </div>
-
-    <!-- ④ 흐름 비교 차트 (접기/펼치기) -->
-    <div class="card" style="margin-bottom:1.25rem">
       <div class="card-header" style="cursor:pointer" onclick="toggleTrendChart()">
         <span class="card-title">📈 흐름 비교 차트</span>
         <span id="inv-trend-toggle" style="font-size:12px;color:var(--text3);margin-left:auto">펼치기 ▾</span>
@@ -98,6 +87,17 @@ function pInvestment() {
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- 🇰🇷 산업 동향 — 별도 카드 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+        <span class="card-title">🇰🇷 산업 동향</span>
+        <div id="inv-industry-banner" style="display:flex;gap:14px;align-items:center;margin-left:auto;font-size:12px">
+          <span style="color:var(--text3)"><span class="loading"></span></span>
+        </div>
+      </div>
+      <div id="inv-industry-chart"></div>
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
