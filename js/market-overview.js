@@ -354,7 +354,7 @@ async function loadMacroData() {
         ? '<span style="color:' + clr + ';font-size:10px">' + (chg>0?'+':'') + chg.toFixed(2) + '%</span>'
         : '';
       return '<div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">' +
-        '<span style="font-size:9px;color:var(--text3);line-height:1">' + label + '</span>' +
+        '<span style="font-size:10px;color:var(--text2);line-height:1;font-weight:500">' + label + '</span>' +
         '<div style="display:flex;align-items:baseline;gap:3px">' +
           '<span style="font-size:12px;font-weight:700;color:var(--text1)">' + valStr + '</span>' +
           chgHtml +
@@ -380,6 +380,12 @@ async function loadMacroData() {
         mkB('VIX',        m.vix,         m.vix_chg),
         sep,
         mkB('미10년',     m.us10y,       m.us10y_chg, '%'),
+        sep,
+        mkB('달러',       m.usd_krw,     m.usd_krw_chg),
+        sep,
+        mkB('엔',         m.jpy_krw,     m.jpy_krw_chg),
+        sep,
+        mkB('유로',       m.eur_krw,     m.eur_krw_chg),
       ].filter(s => s && s !== sep).join(sep) +
       '</div>';
   }
