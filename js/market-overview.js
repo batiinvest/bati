@@ -637,32 +637,23 @@ async function loadIndTrendChart() {
   const canvas = document.getElementById('ind-trend-chart');
   if (!canvas) return;
 
-  // market_data의 distinct 날짜 목록 조회 (최신 N개)
-  // Supabase는 distinct를 지원하지 않으므로 대량 조회 후 클라이언트에서 처리
+  const industryMap = await getIndustryMap();
+
+  // 날짜 목록: 모니터링 종목 중 첫 번째 코드로 날짜 추출
+  const monCodes = Object.keys(industryMap);
+  const refCode = monCodes[0];
+  if (!refCode) return;
+
   const { data: dateRows } = await sb.from('market_data')
     .select('base_date')
-    .eq('stock_code', '005930')  // 삼성전자 기준 (거의 매일 존재)
+    .eq('stock_code', refCode)
     .order('base_date', { ascending: false })
     .limit(_indTrendPeriod + 10);
 
-  let dateList;
-  if (dateRows?.length >= 2) {
-    dateList = [...new Set(dateRows.map(r => r.base_date))].sort().slice(-_indTrendPeriod);
-  } else {
-    // 삼성전자 데이터 없으면 다른 종목으로
-    const { data: fallback } = await sb.from('market_data')
-      .select('base_date')
-      .order('base_date', { ascending: false })
-      .limit((_indTrendPeriod + 10) * 30);
-    if (!fallback?.length) return;
-    dateList = [...new Set(fallback.map(r => r.base_date))].sort().slice(-_indTrendPeriod);
-  }
-
+  if (!dateRows?.length) return;
+  const dateList = [...new Set(dateRows.map(r => r.base_date))].sort().slice(-_indTrendPeriod);
   if (dateList.length < 2) return;
   const oldestDate = dateList[0];
-
-  // 전체 market_data 조회 (해당 기간)
-  const industryMap = await getIndustryMap();
   let allRows = [];
   let from = 0;
   while (true) {
@@ -712,22 +703,25 @@ async function loadIndTrendChart() {
     return chk ? chk.checked : true;
   });
 
-  // 날짜별 누적 지수 계산 (기준점 100)
+  // 날짜별 누적 지수 계산 (공통 시작점 100)
   const datasets = selectedInds.map((ind, i) => {
     const color = IND_COLORS[ind] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length];
     let cumulative = 100;
+    let started = false;
     const data = dateList.map(date => {
       const chgs = indDates[ind]?.[date];
       if (chgs?.length) {
+        started = true;
         const avg = chgs.reduce((s,v) => s+v, 0) / chgs.length;
         cumulative = cumulative * (1 + avg / 100);
       }
-      return parseFloat(cumulative.toFixed(2));
+      return started ? parseFloat(cumulative.toFixed(2)) : null;
     });
     return {
       label: ind, data,
       borderColor: color, backgroundColor: color + '18',
       borderWidth: 2, pointRadius: 2, tension: 0.3, fill: false,
+      spanGaps: true,
     };
   });
 
