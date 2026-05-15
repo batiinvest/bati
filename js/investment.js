@@ -206,9 +206,10 @@ function _updateInvTimestamp() {
   const el = document.getElementById('inv-date');
   if (!el) return;
   const now = new Date();
-  const date = now.toLocaleDateString('ko-KR', {year:'2-digit',month:'2-digit',day:'2-digit'}).replace(/\. /g,'-').replace('.','');
-  const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-  el.textContent = `기준: ${date} ${time}`;
+  const d = now.toLocaleDateString('ko-KR', {year:'numeric', month:'2-digit', day:'2-digit'})
+    .replace(/\. /g, '-').replace('.', '').trim();
+  const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  el.textContent = `기준: ${d} ${t}`;
 }
 
 // ── 새로고침 ──────────────────────────────────────────────────
@@ -283,19 +284,18 @@ async function loadInvestment() {
   await loadMacroData();
   loadTrendChart();
 
-  // 마지막 업데이트 시각 표시 (macro_data.updated_at 기준)
+  // 마지막 업데이트 시각 표시
   try {
     const { data: lastUpdate } = await sb.from('macro_data')
-      .select('updated_at').order('base_date', { ascending: false }).limit(1).single();
-    if (lastUpdate?.updated_at) {
-      const dt = new Date(lastUpdate.updated_at);
-      // UTC → KST (+9)
-      const kst = new Date(dt.getTime() + 9 * 60 * 60 * 1000);
-      const el = document.getElementById('inv-date');
-      if (el) {
-        const d = kst.toISOString().slice(0,10);
-        const t = kst.toISOString().slice(11,16);
-        el.textContent = `업데이트: ${d} ${t}`;
+      .select('base_date,updated_at').order('base_date', { ascending: false }).limit(1).single();
+    const el = document.getElementById('inv-date');
+    if (el && lastUpdate) {
+      if (lastUpdate.updated_at) {
+        const kst = new Date(new Date(lastUpdate.updated_at).getTime() + 9 * 60 * 60 * 1000);
+        const t = `${String(kst.getUTCHours()).padStart(2,'0')}:${String(kst.getUTCMinutes()).padStart(2,'0')}`;
+        el.textContent = `업데이트: ${lastUpdate.base_date} ${t}`;
+      } else {
+        el.textContent = `기준: ${lastUpdate.base_date}`;
       }
     } else {
       _updateInvTimestamp();
@@ -303,12 +303,6 @@ async function loadInvestment() {
   } catch(e) {
     _updateInvTimestamp();
   }
-
-  // 우상단 날짜 — 오늘 날짜 즉시 표시 (market_data 조회 전에도 보임)
-  const _today = new Date();
-  const todayStr = `${_today.getFullYear()}-${String(_today.getMonth()+1).padStart(2,'0')}-${String(_today.getDate()).padStart(2,'0')}`;
-  const dateEl = document.getElementById('inv-date');
-  if (dateEl) dateEl.textContent = `기준: ${todayStr}`;
 
   // 공시 탭이 활성화된 경우에만 로드
   if (window._invTab === 'disclosure') {
