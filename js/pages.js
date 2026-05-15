@@ -15,7 +15,7 @@ const PAGE_META = {
   bot:        { title: '봇 모니터링',   fn: 'pBot',         onLoad: 'loadBotStatus' },
   botconfig:  { title: '봇 설정',       fn: 'pBotConfig',   onLoad: 'loadBotConfig' },
   investment: { title: '오늘의 시황',   fn: 'pInvestment',  onLoad: 'loadInvestment' },
-  company:    { title: '기업정보',       fn: 'pCompany',     onLoad: 'loadCompanyPage' },
+  company:    { title: '종목관리',       fn: 'pCompany',     onLoad: 'loadCompanyPage' },
   watchlist:  { title: '투자노트',      fn: 'pWatchlist',   onLoad: '_initWatchlist' },
   screener:   { title: '종목 스크리너', fn: 'pScreener',    onLoad: null },
   financials: { title: '재무 조회',     fn: 'pFinancials',  onLoad: 'loadFinancials' },
