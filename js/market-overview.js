@@ -326,11 +326,19 @@ async function loadMarketOverview(maxDate) {
     });
 
     // 전체 종목 렌더링 함수
-    const renderStockPanel = (title, avg, stocks) => {
+    const renderStockPanel = (title, avg, stocks, rise, fall, flat) => {
       const all = [...stocks].sort((a,b) => b.price_change_rate - a.price_change_rate);
+      const r = rise  != null ? rise  : all.filter(s => s.price_change_rate > 0).length;
+      const f = fall  != null ? fall  : all.filter(s => s.price_change_rate < 0).length;
+      const fl= flat  != null ? flat  : all.filter(s => s.price_change_rate === 0).length;
       return '<div style="padding:10px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1;display:flex;justify-content:space-between;align-items:center">' +
           '<span style="font-size:13px;font-weight:700">' + title + '</span>' +
-          '<span style="font-size:12px;font-weight:800;color:' + chgColor(avg) + '">' + chgStr(avg) + ' · ' + all.length + '개</span>' +
+          '<div style="display:flex;align-items:center;gap:10px">' +
+            '<span style="font-size:14px;font-weight:800;color:' + chgColor(avg) + '">' + chgStr(avg) + '</span>' +
+            '<span style="color:var(--red);font-size:12px;font-weight:600">▲ ' + r + '</span>' +
+            '<span style="color:var(--blue);font-size:12px;font-weight:600">▼ ' + f + '</span>' +
+            (fl ? '<span style="color:var(--text3);font-size:12px">━ ' + fl + '</span>' : '') +
+          '</div>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:16px 1fr 90px 70px 80px;gap:0;font-size:11px;padding:4px 14px;color:var(--text2);border-bottom:1px solid var(--border)">' +
           '<span></span><span>종목</span><span style="text-align:right;padding-right:0;text-align:right">현재가</span>' +
@@ -355,7 +363,7 @@ async function loadMarketOverview(maxDate) {
     };
 
     // 초기 우측 패널 = 전체 종목
-    const initStockPanel = renderStockPanel(indName + ' 전체', d.avg, d.stocks);
+    const initStockPanel = renderStockPanel(indName + ' 전체', d.avg, d.stocks, d.rise, d.fall, d.flat);
 
     panel.innerHTML =
       '<div style="display:grid;grid-template-columns:1fr 1fr;min-height:300px">' +
@@ -381,7 +389,7 @@ async function loadMarketOverview(maxDate) {
         const s = subRows[si];
         const sp = document.getElementById('sub-stock-panel');
         if (!s || !sp) return;
-        sp.innerHTML = renderStockPanel(s.sub, s.avg, s.stocks);
+        sp.innerHTML = renderStockPanel(s.sub, s.avg, s.stocks, s.rise, s.fall, s.flat);
       });
     });
 
