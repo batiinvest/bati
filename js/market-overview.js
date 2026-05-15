@@ -507,10 +507,12 @@ async function loadTrendChart() {
   const selectedMetrics = INV_ALL_METRICS.filter(m => INV.selected.has(m.col));
   const cols = ['base_date', ...selectedMetrics.map(m => m.col)].join(',');
 
-  const { data: rows } = await sb.from('macro_data')
+  const { data: rawRows } = await sb.from('macro_data')
     .select(cols)
-    .order('base_date', { ascending: true })
+    .order('base_date', { ascending: false })
     .limit(INV.period);
+
+  const rows = (rawRows || []).reverse();
 
   if (!rows?.length) {
     canvas.style.display = 'none';
