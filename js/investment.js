@@ -312,11 +312,12 @@ async function loadInvestment() {
   const kosdaqRows = rows.filter(r => r.market === 'KOSDAQ');
 
   const fillCard = (surgeId, dropId, mktRows) => {
-    const sorted = [...mktRows].sort((a,b) => b.price_change_rate - a.price_change_rate);
+    const surge = [...mktRows].sort((a,b) => b.price_change_rate - a.price_change_rate).slice(0,5);
+    const drop  = [...mktRows].sort((a,b) => a.price_change_rate - b.price_change_rate).slice(0,5);
     const surgeEl = document.getElementById(surgeId);
     const dropEl  = document.getElementById(dropId);
-    if (surgeEl) surgeEl.innerHTML = sorted.slice(0,5).map(rankRow).join('');
-    if (dropEl)  dropEl.innerHTML  = [...sorted].reverse().slice(0,5).map(rankRow).join('');
+    if (surgeEl) surgeEl.innerHTML = surge.map(rankRow).join('');
+    if (dropEl)  dropEl.innerHTML  = drop.map(rankRow).join('');
   };
 
   fillCard('inv-surge-kospi',  'inv-drop-kospi',  kospiRows);
