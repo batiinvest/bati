@@ -303,18 +303,26 @@ async function loadInvestment() {
   // 전체 종목 + 산업별 동향
   loadMarketOverview(maxDate);
 
-  // 모니터링 종목만 조회
+  // 모니터링 종목만 조회 — stock_code로 직접 필터
   const { data: monCodes } = await sb.from('companies')
     .select('code').eq('is_monitored', true);
-  const monSet = new Set((monCodes || []).map(r => r.code.replace(/\.(KS|KQ)$/, '')));
+  const monList = (monCodes || []).map(r => r.code.replace(/\.(KS|KQ)$/, ''));
 
-  const { data: mktRows } = await sb.from('market_data')
-    .select('stock_code,corp_name,price,price_change_rate,market_cap,market')
-    .eq('base_date', maxDate)
-    .order('price_change_rate', { ascending: false });
+  if (!monList.length) return;
 
-  if (!mktRows?.length) return;
-  const rows = mktRows.filter(r => r.price_change_rate != null && monSet.has(r.stock_code));
+  // Supabase in() 500개 제한 대응 — 청크로 분할 조회
+  let mktRows = [];
+  const chunk = 200;
+  for (let i = 0; i < monList.length; i += chunk) {
+    const { data } = await sb.from('market_data')
+      .select('stock_code,corp_name,price,price_change_rate,market_cap,market')
+      .eq('base_date', maxDate)
+      .in('stock_code', monList.slice(i, i + chunk));
+    if (data) mktRows = mktRows.concat(data);
+  }
+
+  if (!mktRows.length) return;
+  const rows = mktRows.filter(r => r.price_change_rate != null);
   if (!rows.length) return;
 
   const rise   = rows.filter(r => r.price_change_rate > 0).length;
