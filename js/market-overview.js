@@ -486,6 +486,8 @@ async function loadMacroData() {
         mkB('엔',         m.jpy_krw,     m.jpy_krw_chg),
         sep,
         mkB('유로',       m.eur_krw,     m.eur_krw_chg),
+        sep,
+        mkB('BTC',        m.bitcoin,     m.bitcoin_chg),
       ].filter(s => s && s !== sep).join(sep) +
       '</div>';
   }
