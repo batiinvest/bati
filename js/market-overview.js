@@ -279,7 +279,10 @@ async function loadMarketOverview(maxDate) {
 
     subRows.forEach(s => {
       const top3 = [...s.stocks].sort((a,b) => b.price_change_rate - a.price_change_rate).slice(0,3);
-      const bot2 = [...s.stocks].sort((a,b) => a.price_change_rate - b.price_change_rate).filter(x => x.price_change_rate < 0).slice(0,2);
+      const top3Codes = new Set(top3.map(x => x.stock_code));
+      const bot2 = [...s.stocks]
+        .filter(x => x.price_change_rate < 0 && !top3Codes.has(x.stock_code))
+        .sort((a,b) => a.price_change_rate - b.price_change_rate).slice(0,2);
       html +=
         '<div style="padding:12px 16px;border-bottom:1px solid var(--border)">' +
           '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">' +
@@ -288,7 +291,7 @@ async function loadMarketOverview(maxDate) {
             '<span style="font-size:11px;color:var(--text3)">▲' + s.rise + ' ▼' + s.fall + ' · ' + s.total + '개</span>' +
           '</div>' +
           '<div style="display:flex;gap:4px;flex-wrap:wrap">' +
-            top3.map(st => mkTag(st, 'var(--red)')).join('') +
+            top3.map(st => mkTag(st, chgColor(st.price_change_rate))).join('') +
             bot2.map(st => mkTag(st, 'var(--blue)')).join('') +
           '</div>' +
         '</div>';
