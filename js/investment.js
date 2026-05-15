@@ -231,7 +231,7 @@ async function refreshInvestment() {
         toast('📡 DART 공시 수집 요청 — 봇이 1분 내 업데이트합니다', 'info');
       } catch(e) { toast('트리거 전송 실패: ' + e.message, 'error'); }
     } else {
-      // 시황 탭 — 서버 트리거 → 1분 후 자동 재로드
+      // 시황 탭 — 서버 트리거 → 수집 완료 후 재로드
       try {
         await Promise.all([
           sb.from('app_config').upsert({
@@ -246,22 +246,34 @@ async function refreshInvestment() {
         toast('📡 서버 수집 요청 완료 — 약 1분 후 자동 반영됩니다', 'info');
       } catch(e) {
         toast('트리거 전송 실패: ' + e.message, 'error');
+        return;
       }
 
-      // 즉시 현재 DB 데이터로 화면 업데이트
-      await loadInvestment();
-      _updateInvTimestamp();
+      // 버튼 로딩 상태 + 카운트다운
+      let remaining = 70;
+      const timer = setInterval(() => {
+        remaining--;
+        if (btn) btn.textContent = `⏳ ${remaining}초`;
+        if (remaining <= 0) clearInterval(timer);
+      }, 1000);
 
-      // 70초 후 자동 재로드 (서버 수집 완료 대기)
+      // 70초 후 재로드 + 버튼 복구
       setTimeout(async () => {
+        clearInterval(timer);
         _latestMarketDate = null;
         await loadInvestment();
         _updateInvTimestamp();
+        if (btn) { btn.disabled = false; btn.textContent = '🔄 새로고침'; }
         toast('✅ 최신 데이터로 업데이트됐습니다', 'success');
       }, 70000);
+
+      return; // finally에서 버튼 복구 안 되도록
     }
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '🔄 새로고침'; }
+    // 시황 탭은 70초 후 자동 복구, 공시 탭만 즉시 복구
+    if (window._invTab === 'disclosure') {
+      if (btn) { btn.disabled = false; btn.textContent = '🔄 새로고침'; }
+    }
   }
 }
 
