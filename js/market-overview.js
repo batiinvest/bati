@@ -637,14 +637,16 @@ async function loadIndTrendChart() {
   const canvas = document.getElementById('ind-trend-chart');
   if (!canvas) return;
 
-  // 최근 N일 날짜 목록 조회
-  const { data: dates } = await sb.from('market_data')
+  // 최근 N일 distinct 날짜 목록 조회
+  const { data: dateRows } = await sb.from('market_data')
     .select('base_date')
     .order('base_date', { ascending: false })
-    .limit(_indTrendPeriod);
-  if (!dates?.length) return;
+    .limit(_indTrendPeriod * 5);  // 여유있게 가져와서 distinct 처리
+  if (!dateRows?.length) return;
 
-  const dateList = dates.map(r => r.base_date).sort();
+  const dateList = [...new Set(dateRows.map(r => r.base_date))]
+    .sort()
+    .slice(-_indTrendPeriod);  // 최신 N개 날짜
   const oldestDate = dateList[0];
 
   // 전체 market_data 조회 (해당 기간)
