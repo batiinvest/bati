@@ -231,9 +231,34 @@ async function refreshInvestment() {
         toast('📡 DART 공시 수집 요청 — 봇이 1분 내 업데이트합니다', 'info');
       } catch(e) { toast('트리거 전송 실패: ' + e.message, 'error'); }
     } else {
-      // 시황 탭 — DB에서 즉시 재조회 (봇 트리거 없음)
+      // 시황 탭 — 서버 트리거 → 1분 후 자동 재로드
+      try {
+        await Promise.all([
+          sb.from('app_config').upsert({
+            key: 'run_macro_flag', value: String(Date.now()),
+            description: '대시보드 매크로 수동 수집 트리거'
+          }, { onConflict: 'key' }),
+          sb.from('app_config').upsert({
+            key: 'run_market_all_flag', value: String(Date.now()),
+            description: '대시보드 전체 종목 시장 데이터 수집 트리거'
+          }, { onConflict: 'key' }),
+        ]);
+        toast('📡 서버 수집 요청 완료 — 약 1분 후 자동 반영됩니다', 'info');
+      } catch(e) {
+        toast('트리거 전송 실패: ' + e.message, 'error');
+      }
+
+      // 즉시 현재 DB 데이터로 화면 업데이트
       await loadInvestment();
       _updateInvTimestamp();
+
+      // 70초 후 자동 재로드 (서버 수집 완료 대기)
+      setTimeout(async () => {
+        _latestMarketDate = null;
+        await loadInvestment();
+        _updateInvTimestamp();
+        toast('✅ 최신 데이터로 업데이트됐습니다', 'success');
+      }, 70000);
     }
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '🔄 새로고침'; }
