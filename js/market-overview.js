@@ -300,14 +300,29 @@ async function loadMarketOverview(maxDate) {
         '</div>';
     });
 
+    // 전체 종목 렌더링 함수
+    const renderStockPanel = (title, avg, stocks) => {
+      const all = [...stocks].sort((a,b) => b.price_change_rate - a.price_change_rate);
+      return '<div style="padding:10px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1;display:flex;justify-content:space-between;align-items:center">' +
+          '<span style="font-size:13px;font-weight:700">' + title + '</span>' +
+          '<span style="font-size:12px;font-weight:800;color:' + chgColor(avg) + '">' + chgStr(avg) + ' · ' + all.length + '개</span>' +
+        '</div>' +
+        all.map((st, i) =>
+          '<div style="display:flex;align-items:center;gap:8px;padding:7px 14px;border-bottom:1px solid var(--border)">' +
+            '<span style="width:16px;font-size:11px;color:var(--text3)">' + (i+1) + '</span>' +
+            '<span style="flex:1;font-size:13px">' + st.corp_name + '</span>' +
+            '<span style="font-size:13px;font-weight:700;color:' + chgColor(st.price_change_rate) + '">' + chgStr(st.price_change_rate) + '</span>' +
+          '</div>'
+        ).join('');
+    };
+
+    // 초기 우측 패널 = 전체 종목
+    const initStockPanel = renderStockPanel(indName + ' 전체', d.avg, d.stocks);
+
     panel.innerHTML =
       '<div style="display:grid;grid-template-columns:1fr 1fr;min-height:300px">' +
         '<div id="sub-left" style="border-right:1px solid var(--border);overflow-y:auto;max-height:480px">' + leftHtml + '</div>' +
-        '<div id="sub-stock-panel" style="overflow-y:auto;max-height:480px">' +
-          '<div style="display:flex;align-items:center;justify-content:center;height:100%;min-height:200px;color:var(--text3);font-size:13px;flex-direction:column;gap:8px">' +
-            '<div style="font-size:20px">←</div><div>섹터를 클릭하면 종목을 볼 수 있습니다</div>' +
-          '</div>' +
-        '</div>' +
+        '<div id="sub-stock-panel" style="overflow-y:auto;max-height:480px">' + initStockPanel + '</div>' +
       '</div>';
 
     // 섹터 클릭 이벤트
@@ -328,25 +343,10 @@ async function loadMarketOverview(maxDate) {
         const s = subRows[si];
         const sp = document.getElementById('sub-stock-panel');
         if (!s || !sp) return;
-        const all = [...s.stocks].sort((a,b) => b.price_change_rate - a.price_change_rate);
-        sp.innerHTML =
-          '<div style="padding:10px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1;display:flex;justify-content:space-between;align-items:center">' +
-            '<span style="font-size:13px;font-weight:700">' + s.sub + '</span>' +
-            '<span style="font-size:12px;font-weight:800;color:' + chgColor(s.avg) + '">' + chgStr(s.avg) + ' · ' + all.length + '개</span>' +
-          '</div>' +
-          all.map((st, i) =>
-            '<div style="display:flex;align-items:center;gap:8px;padding:7px 14px;border-bottom:1px solid var(--border)">' +
-              '<span style="width:16px;font-size:11px;color:var(--text3)">' + (i+1) + '</span>' +
-              '<span style="flex:1;font-size:13px">' + st.corp_name + '</span>' +
-              '<span style="font-size:13px;font-weight:700;color:' + chgColor(st.price_change_rate) + '">' + chgStr(st.price_change_rate) + '</span>' +
-            '</div>'
-          ).join('');
+        sp.innerHTML = renderStockPanel(s.sub, s.avg, s.stocks);
       });
     });
 
-    // 첫 번째 섹터 자동 선택
-    const firstRow = panel.querySelector('.sub-sector-row');
-    if (firstRow) firstRow.click();
   };
   if (sorted.length) window.showIndDetail(sorted[0].ind);
 }
