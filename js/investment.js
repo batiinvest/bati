@@ -55,8 +55,11 @@ function pInvestment() {
 
     <!-- 🇰🇷 산업 동향 — 별도 카드 -->
     <div class="card" style="margin-bottom:12px">
-      <div class="card-header">
+      <div class="card-header" style="flex-wrap:wrap;gap:6px">
         <span class="card-title">🇰🇷 산업 동향</span>
+        <div id="inv-industry-banner" style="display:flex;gap:14px;align-items:center;margin-left:auto;font-size:12px">
+          <span style="color:var(--text3)"><span class="loading"></span></span>
+        </div>
       </div>
       <div id="inv-industry-chart"></div>
     </div>
@@ -300,6 +303,21 @@ async function loadInvestment() {
     <div class="metric-card"><div class="metric-label">상승</div><div class="metric-value" style="color:var(--red)">${rise}개</div></div>
     <div class="metric-card"><div class="metric-label">하락</div><div class="metric-value" style="color:var(--blue)">${fall}개</div></div>
     <div class="metric-card"><div class="metric-label">평균 등락률</div><div class="metric-value" style="color:${chgColor(avgChg)}">${chgStr(avgChg)}</div></div>`;
+
+  // 산업 동향 카드 배너에 모니터링 종목 현황 표시
+  const indBanner = document.getElementById('inv-industry-banner');
+  if (indBanner) {
+    const sep = '<span style="color:var(--border)">|</span>';
+    indBanner.innerHTML = [
+      `<span style="color:var(--text3)">모니터링 ${rows.length}개</span>`,
+      sep,
+      `<span style="color:var(--red);font-weight:600">▲ ${rise}개</span>`,
+      sep,
+      `<span style="color:var(--blue);font-weight:600">▼ ${fall}개</span>`,
+      sep,
+      `<span style="font-weight:600;color:${chgColor(avgChg)}">평균 ${chgStr(avgChg)}</span>`,
+    ].join(' ');
+  }
 
   const rankRow = (r, i) => `
     <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border)">
