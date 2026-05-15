@@ -307,7 +307,7 @@ async function loadMarketOverview(maxDate) {
           '<span style="font-size:13px;font-weight:700">' + title + '</span>' +
           '<span style="font-size:12px;font-weight:800;color:' + chgColor(avg) + '">' + chgStr(avg) + ' · ' + all.length + '개</span>' +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:16px 1fr auto auto auto;gap:0;font-size:11px;padding:4px 14px;color:var(--text3);border-bottom:1px solid var(--border)">' +
+        '<div style="display:grid;grid-template-columns:16px 1fr auto auto auto;gap:0;font-size:11px;padding:4px 14px;color:var(--text2);border-bottom:1px solid var(--border)">' +
           '<span></span><span>종목</span><span style="text-align:right;padding-right:12px">현재가</span>' +
           '<span style="text-align:right;padding-right:12px;min-width:56px">등락률</span>' +
           '<span style="text-align:right;min-width:60px">시총</span>' +
@@ -316,13 +316,13 @@ async function loadMarketOverview(maxDate) {
           '<div style="display:grid;grid-template-columns:16px 1fr auto auto auto;align-items:center;gap:0;padding:7px 14px;border-bottom:1px solid var(--border)">' +
             '<span style="font-size:11px;color:var(--text3)">' + (i+1) + '</span>' +
             '<span style="font-size:13px">' + st.corp_name + '</span>' +
-            '<span style="font-size:12px;color:var(--text2);text-align:right;padding-right:12px">' +
+            '<span style="font-size:12px;color:var(--text1);text-align:right;padding-right:12px">' +
               (st.price != null ? st.price.toLocaleString() + '원' : '—') +
             '</span>' +
             '<span style="font-size:13px;font-weight:700;color:' + chgColor(st.price_change_rate) + ';text-align:right;padding-right:12px;min-width:56px">' +
               chgStr(st.price_change_rate) +
             '</span>' +
-            '<span style="font-size:11px;color:var(--text3);text-align:right;min-width:60px">' +
+            '<span style="font-size:12px;color:var(--text2);text-align:right;min-width:60px">' +
               (st.market_cap != null ? fmtCap(st.market_cap) : '—') +
             '</span>' +
           '</div>'
