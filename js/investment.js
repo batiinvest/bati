@@ -99,14 +99,22 @@ function pInvestment() {
 
     <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">⭐ 모니터링 종목 현황</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem" id="inv-summary"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
       <div class="card">
-        <div class="card-header"><span class="card-title">🔴 급등 Top 5</span></div>
-        <div id="inv-surge" style="padding:.5rem 0"></div>
+        <div class="card-header"><span class="card-title">🔴 코스피 급등</span></div>
+        <div id="inv-surge-kospi" style="padding:.5rem 0"></div>
       </div>
       <div class="card">
-        <div class="card-header"><span class="card-title">🔵 급락 Top 5</span></div>
-        <div id="inv-drop" style="padding:.5rem 0"></div>
+        <div class="card-header"><span class="card-title">🔵 코스피 급락</span></div>
+        <div id="inv-drop-kospi" style="padding:.5rem 0"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🔴 코스닥 급등</span></div>
+        <div id="inv-surge-kosdaq" style="padding:.5rem 0"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🔵 코스닥 급락</span></div>
+        <div id="inv-drop-kosdaq" style="padding:.5rem 0"></div>
       </div>
     </div>
   </div>
@@ -297,12 +305,22 @@ async function loadInvestment() {
     <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border)">
       <span style="width:16px;font-size:11px;color:var(--text3);font-weight:600">${i+1}</span>
       <span style="flex:1;font-size:13px;font-weight:500">${r.corp_name}</span>
-      <span style="font-size:11px;color:var(--text3)">${r.market||''}</span>
       <span style="font-size:13px;font-weight:600;color:${chgColor(r.price_change_rate)}">${chgStr(r.price_change_rate)}</span>
     </div>`;
 
-  document.getElementById('inv-surge').innerHTML = rows.slice(0,5).map(rankRow).join('');
-  document.getElementById('inv-drop').innerHTML  = [...rows].reverse().slice(0,5).map(rankRow).join('');
+  const kospiRows  = rows.filter(r => r.market === 'KOSPI');
+  const kosdaqRows = rows.filter(r => r.market === 'KOSDAQ');
+
+  const fillCard = (surgeId, dropId, mktRows) => {
+    const sorted = [...mktRows].sort((a,b) => b.price_change_rate - a.price_change_rate);
+    const surgeEl = document.getElementById(surgeId);
+    const dropEl  = document.getElementById(dropId);
+    if (surgeEl) surgeEl.innerHTML = sorted.slice(0,5).map(rankRow).join('');
+    if (dropEl)  dropEl.innerHTML  = [...sorted].reverse().slice(0,5).map(rankRow).join('');
+  };
+
+  fillCard('inv-surge-kospi',  'inv-drop-kospi',  kospiRows);
+  fillCard('inv-surge-kosdaq', 'inv-drop-kosdaq', kosdaqRows);
 }
 
 
