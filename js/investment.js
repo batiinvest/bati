@@ -7,6 +7,7 @@ const INV_ALL_METRICS = [
   { col:'dow',     name:'다우',      group:'미국',   color:'#a259ff' },  // 보라
   { col:'kospi',   name:'코스피',    group:'한국',   color:'#2dce89' },  // 초록
   { col:'kosdaq',  name:'코스닥',    group:'한국',   color:'#ffd600' },  // 노랑
+  { col:'bitcoin', name:'비트코인', group:'암호화폐', color:'#f7931a' },  // 비트코인 오렌지
   { col:'usd_krw', name:'USD/KRW',  group:'환율',   color:'#f5365c' },  // 빨강
   { col:'jpy_krw', name:'JPY/KRW',  group:'환율',   color:'#fb6340' },  // 주황빨강
   { col:'eur_krw', name:'EUR/KRW',  group:'환율',   color:'#ffc107' },  // 황금
