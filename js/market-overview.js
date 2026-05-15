@@ -284,6 +284,7 @@ async function loadMarketOverview(maxDate) {
   window.showIndDetail = (indName) => {
     const d = window._indMapData[indName];
     if (!d) return;
+    d.avg = d.total ? d.sumChg / d.total : 0;
     const subRows = Object.entries(d.subs)
       .map(([sub, s]) => ({ sub, ...s, avg: s.sumChg / s.total }))
       .sort((a, b) => b.avg - a.avg);
@@ -291,11 +292,14 @@ async function loadMarketOverview(maxDate) {
     if (!panel) return;
 
     // 헤더
+    const avgStr = (d.avg != null && !isNaN(d.avg)) ? chgStr(d.avg) : '—';
+    const avgClr = (d.avg != null && !isNaN(d.avg)) ? chgColor(d.avg) : 'var(--text3)';
+
     let leftHtml =
       '<div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--bg2);z-index:1">' +
         '<div style="font-size:14px;font-weight:700">' + indName + '</div>' +
         '<div style="display:flex;align-items:center;gap:10px">' +
-          '<span style="font-size:14px;font-weight:800;color:' + chgColor(d.avg) + '">' + chgStr(d.avg) + '</span>' +
+          '<span style="font-size:14px;font-weight:800;color:' + avgClr + '">' + avgStr + '</span>' +
           '<span style="color:var(--red);font-size:12px;font-weight:600">▲ ' + d.rise + '</span>' +
           '<span style="color:var(--blue);font-size:12px;font-weight:600">▼ ' + d.fall + '</span>' +
           (d.flat ? '<span style="color:var(--text3);font-size:12px">━ ' + d.flat + '</span>' : '') +
