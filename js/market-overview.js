@@ -206,19 +206,6 @@ async function loadMarketOverview(maxDate) {
         onClick: (e, els) => {
           if (els.length) {
             window.showIndDetail(labels[els[0].index]);
-            return;
-          }
-          // y축 라벨 클릭 감지
-          const chart = e.chart;
-          const yAxis = chart.scales.y;
-          const x = e.native.offsetX;
-          const y = e.native.offsetY;
-          if (x < yAxis.right) {
-            const idx = yAxis.getValueForPixel(y);
-            const rounded = Math.round(idx);
-            if (rounded >= 0 && rounded < labels.length) {
-              window.showIndDetail(labels[rounded]);
-            }
           }
         },
         plugins: {
@@ -268,6 +255,30 @@ async function loadMarketOverview(maxDate) {
       }]
     });
     window._indBarChart = chart;
+
+    // y축 라벨 위에 클릭 가능한 오버레이 생성
+    setTimeout(() => {
+      const container = canvas.parentElement;
+      container.style.position = 'relative';
+      // 기존 오버레이 제거
+      container.querySelectorAll('.ind-label-overlay').forEach(el => el.remove());
+
+      const yAxis = chart.scales.y;
+      labels.forEach((label, i) => {
+        const yPx = yAxis.getPixelForValue(i);
+        const barH = yAxis.getPixelForValue(0) - yAxis.getPixelForValue(1);
+        const div = document.createElement('div');
+        div.className = 'ind-label-overlay';
+        div.style.cssText =
+          'position:absolute;left:0;width:' + yAxis.right + 'px;' +
+          'top:' + (yPx - barH / 2) + 'px;height:' + barH + 'px;' +
+          'cursor:pointer;z-index:10;';
+        div.addEventListener('click', () => window.showIndDetail(label));
+        div.addEventListener('mouseover', () => div.style.background = 'rgba(255,255,255,0.04)');
+        div.addEventListener('mouseout',  () => div.style.background = '');
+        container.appendChild(div);
+      });
+    }, 100);
   }
 
   window.showIndDetail = (indName) => {
