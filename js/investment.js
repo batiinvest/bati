@@ -303,14 +303,18 @@ async function loadInvestment() {
   // 전체 종목 + 산업별 동향
   loadMarketOverview(maxDate);
 
-  // 모니터링 종목
+  // 모니터링 종목만 조회
+  const { data: monCodes } = await sb.from('companies')
+    .select('code').eq('is_monitored', true);
+  const monSet = new Set((monCodes || []).map(r => r.code.replace(/\.(KS|KQ)$/, '')));
+
   const { data: mktRows } = await sb.from('market_data')
     .select('stock_code,corp_name,price,price_change_rate,market_cap,market')
     .eq('base_date', maxDate)
     .order('price_change_rate', { ascending: false });
 
   if (!mktRows?.length) return;
-  const rows = mktRows.filter(r => r.price_change_rate != null);
+  const rows = mktRows.filter(r => r.price_change_rate != null && monSet.has(r.stock_code));
   if (!rows.length) return;
 
   const rise   = rows.filter(r => r.price_change_rate > 0).length;
