@@ -100,8 +100,6 @@ function pInvestment() {
       </div>
     </div>
 
-    <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">⭐ 모니터링 종목 현황</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem" id="inv-summary"></div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
       <div class="card">
         <div class="card-header"><span class="card-title">🔴 코스피 급등</span></div>
@@ -281,11 +279,6 @@ async function loadInvestment() {
   const rise   = rows.filter(r => r.price_change_rate > 0).length;
   const fall   = rows.filter(r => r.price_change_rate < 0).length;
   const avgChg = rows.reduce((s,r) => s + r.price_change_rate, 0) / rows.length;
-
-  document.getElementById('inv-summary').innerHTML = `
-    <div class="metric-card"><div class="metric-label">상승</div><div class="metric-value" style="color:var(--red)">${rise}개</div></div>
-    <div class="metric-card"><div class="metric-label">하락</div><div class="metric-value" style="color:var(--blue)">${fall}개</div></div>
-    <div class="metric-card"><div class="metric-label">평균 등락률</div><div class="metric-value" style="color:${chgColor(avgChg)}">${chgStr(avgChg)}</div></div>`;
 
   // 산업 동향 카드 배너에 모니터링 종목 현황 표시
   const indBanner = document.getElementById('inv-industry-banner');
