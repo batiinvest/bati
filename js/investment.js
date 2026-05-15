@@ -263,7 +263,6 @@ async function refreshInvestment() {
         clearInterval(timer);
         _latestMarketDate = null;
         await loadInvestment();
-        _updateInvTimestamp();
         if (btn) { btn.disabled = false; btn.textContent = '🔄 새로고침'; }
         toast('✅ 최신 데이터로 업데이트됐습니다', 'success');
       }, 70000);
@@ -283,7 +282,27 @@ async function loadInvestment() {
   // 시황 탭 로드 (market-overview.js) — 배너 채운 후 나머지 실행
   await loadMacroData();
   loadTrendChart();
-  _updateInvTimestamp();
+
+  // 마지막 업데이트 시각 표시 (macro_data.updated_at 기준)
+  try {
+    const { data: lastUpdate } = await sb.from('macro_data')
+      .select('updated_at').order('base_date', { ascending: false }).limit(1).single();
+    if (lastUpdate?.updated_at) {
+      const dt = new Date(lastUpdate.updated_at);
+      // UTC → KST (+9)
+      const kst = new Date(dt.getTime() + 9 * 60 * 60 * 1000);
+      const el = document.getElementById('inv-date');
+      if (el) {
+        const d = kst.toISOString().slice(0,10);
+        const t = kst.toISOString().slice(11,16);
+        el.textContent = `업데이트: ${d} ${t}`;
+      }
+    } else {
+      _updateInvTimestamp();
+    }
+  } catch(e) {
+    _updateInvTimestamp();
+  }
 
   // 우상단 날짜 — 오늘 날짜 즉시 표시 (market_data 조회 전에도 보임)
   const _today = new Date();
