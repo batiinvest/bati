@@ -265,41 +265,89 @@ async function loadMarketOverview(maxDate) {
     const panel = document.getElementById('ind-right');
     if (!panel) return;
 
-    const mkTag = (stock, clr) =>
-      '<span style="font-size:11px;padding:3px 8px;border-radius:4px;background:var(--bg3);color:var(--text2);white-space:nowrap">' +
-      stock.corp_name + ' <span style="color:' + clr + ';font-weight:600">' + chgStr(stock.price_change_rate) + '</span></span>';
-
-    let html =
+    // 헤더
+    let leftHtml =
       '<div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--bg2);z-index:1">' +
         '<div style="font-size:14px;font-weight:700">' + indName + '</div>' +
-        '<div style="display:flex;gap:12px;align-items:center">' +
-          '<span style="font-size:11px;color:var(--text3)">▲' + d.rise + ' ▼' + d.fall + ' ━' + d.flat + ' · ' + d.total + '개</span>' +
+        '<div style="display:flex;gap:8px;align-items:center">' +
+          '<span style="font-size:11px;color:var(--text3)">▲' + d.rise + ' ▼' + d.fall + ' · ' + d.total + '개</span>' +
           '<span style="font-size:14px;font-weight:800;color:' + chgColor(d.avg) + '">' + chgStr(d.avg) + '</span>' +
         '</div>' +
       '</div>';
 
-    subRows.forEach(s => {
+    // 섹터 목록
+    subRows.forEach((s, si) => {
       const top3 = [...s.stocks].sort((a,b) => b.price_change_rate - a.price_change_rate).slice(0,3);
       const top3Codes = new Set(top3.map(x => x.stock_code));
       const bot2 = [...s.stocks]
         .filter(x => x.price_change_rate < 0 && !top3Codes.has(x.stock_code))
         .sort((a,b) => a.price_change_rate - b.price_change_rate).slice(0,2);
-      html +=
-        '<div style="padding:12px 16px;border-bottom:1px solid var(--border)">' +
-          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">' +
-            '<span style="font-size:13px;font-weight:700">' + s.sub + '</span>' +
-            '<span style="font-size:14px;font-weight:800;color:' + chgColor(s.avg) + '">' + chgStr(s.avg) + '</span>' +
-            '<span style="font-size:11px;color:var(--text3)">▲' + s.rise + ' ▼' + s.fall + ' · ' + s.total + '개</span>' +
+      const mkTag = (st, clr) =>
+        '<span style="font-size:11px;padding:2px 7px;border-radius:4px;background:var(--bg3);color:var(--text2);white-space:nowrap">' +
+        st.corp_name + ' <span style="color:' + clr + ';font-weight:600">' + chgStr(st.price_change_rate) + '</span></span>';
+
+      leftHtml +=
+        '<div class="sub-sector-row" data-si="' + si + '" style="padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer">' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">' +
+            '<span style="font-size:12px;font-weight:700">' + s.sub + '</span>' +
+            '<span style="font-size:13px;font-weight:800;color:' + chgColor(s.avg) + '">' + chgStr(s.avg) + '</span>' +
+            '<span style="font-size:10px;color:var(--text3)">▲' + s.rise + ' ▼' + s.fall + ' · ' + s.total + '개</span>' +
           '</div>' +
-          '<div style="display:flex;gap:4px;flex-wrap:wrap">' +
+          '<div style="display:flex;gap:3px;flex-wrap:wrap">' +
             top3.map(st => mkTag(st, chgColor(st.price_change_rate))).join('') +
             bot2.map(st => mkTag(st, 'var(--blue)')).join('') +
           '</div>' +
         '</div>';
     });
-    panel.innerHTML = html;
-  };
 
+    panel.innerHTML =
+      '<div style="display:grid;grid-template-columns:1fr 1fr;min-height:300px">' +
+        '<div id="sub-left" style="border-right:1px solid var(--border);overflow-y:auto;max-height:480px">' + leftHtml + '</div>' +
+        '<div id="sub-stock-panel" style="overflow-y:auto;max-height:480px">' +
+          '<div style="display:flex;align-items:center;justify-content:center;height:100%;min-height:200px;color:var(--text3);font-size:13px;flex-direction:column;gap:8px">' +
+            '<div style="font-size:20px">←</div><div>섹터를 클릭하면 종목을 볼 수 있습니다</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    // 섹터 클릭 이벤트
+    panel.querySelectorAll('.sub-sector-row').forEach(row => {
+      row.addEventListener('mouseover', () => { if (!row.dataset.active) row.style.background = 'var(--bg3)'; });
+      row.addEventListener('mouseout',  () => { if (!row.dataset.active) row.style.background = ''; });
+      row.addEventListener('click', () => {
+        const si = parseInt(row.dataset.si);
+        panel.querySelectorAll('.sub-sector-row').forEach(r => {
+          delete r.dataset.active;
+          r.style.background = '';
+          r.style.borderLeft = '';
+        });
+        row.dataset.active = '1';
+        row.style.background = 'var(--bg3)';
+        row.style.borderLeft = '3px solid var(--tg)';
+
+        const s = subRows[si];
+        const sp = document.getElementById('sub-stock-panel');
+        if (!s || !sp) return;
+        const all = [...s.stocks].sort((a,b) => b.price_change_rate - a.price_change_rate);
+        sp.innerHTML =
+          '<div style="padding:10px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1;display:flex;justify-content:space-between;align-items:center">' +
+            '<span style="font-size:13px;font-weight:700">' + s.sub + '</span>' +
+            '<span style="font-size:12px;font-weight:800;color:' + chgColor(s.avg) + '">' + chgStr(s.avg) + ' · ' + all.length + '개</span>' +
+          '</div>' +
+          all.map((st, i) =>
+            '<div style="display:flex;align-items:center;gap:8px;padding:7px 14px;border-bottom:1px solid var(--border)">' +
+              '<span style="width:16px;font-size:11px;color:var(--text3)">' + (i+1) + '</span>' +
+              '<span style="flex:1;font-size:13px">' + st.corp_name + '</span>' +
+              '<span style="font-size:13px;font-weight:700;color:' + chgColor(st.price_change_rate) + '">' + chgStr(st.price_change_rate) + '</span>' +
+            '</div>'
+          ).join('');
+      });
+    });
+
+    // 첫 번째 섹터 자동 선택
+    const firstRow = panel.querySelector('.sub-sector-row');
+    if (firstRow) firstRow.click();
+  };
   if (sorted.length) window.showIndDetail(sorted[0].ind);
 }
 
