@@ -32,8 +32,8 @@ function pInvestment() {
       <button class="chip ${window._invTab==='disclosure'?'active':''}" onclick="setInvTab('disclosure')">📋 공시</button>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-      <div style="font-size:12px;color:var(--text3)" id="inv-date"></div>
-      <button class="btn btn-sm" onclick="refreshInvestment()">🔄 새로고침</button>
+      <div style="font-size:11px;color:var(--text3)" id="inv-date"></div>
+      <button class="btn btn-sm" id="inv-refresh-btn" onclick="refreshInvestment()">🔄 새로고침</button>
     </div>
   </div>
 
@@ -202,69 +202,50 @@ function setInvTab(tab) {
   }
 }
 
-// ── 새로고침 ──────────────────────────────────────────────────
-async function refreshInvestment() {
-  // 시장 날짜 캐시 리셋 (새로고침 시 최신 날짜 재조회)
-  _latestMarketDate = null;
-
-  if (window._invTab === 'disclosure') {
-    // 1) 전체공시 패널 플래그 리셋 — DB에 이미 있는 오늘 데이터 즉시 반영
-    _allDiscLoaded = false;
-
-    // 2) 실적공시 + 실적급등 즉시 재로드
-    loadTodayDisclosures();
-    loadEarningsSurge();
-
-    // 3) 전체공시 패널이 열려있으면 즉시 재로드
-    const panel = document.getElementById('inv-all-disclosure');
-    if (panel && panel.style.display !== 'none') {
-      loadAllDisclosures();
-    }
-
-    // 4) 봇 트리거 — DART에서 오늘 공시를 아직 못 가져온 경우 백엔드에 수집 요청
-    try {
-      await sb.from('app_config').upsert({
-        key: 'run_disclosure_flag',
-        value: String(Date.now()),
-        description: '대시보드 공시수집 수동 트리거'
-      }, { onConflict: 'key' });
-      toast('📡 DART 공시 수집 요청 — 봇이 1분 내 업데이트합니다', 'info');
-    } catch(e) {
-      toast('트리거 전송 실패: ' + e.message, 'error');
-    }
-
-    return; // 공시 탭은 여기서 종료 (시황 탭 로직 스킵)
-  }
-
-  // 시황 탭은 전체 재로드 + 매크로/시장 전체 수집 트리거
-  try {
-    await Promise.all([
-      sb.from('app_config').upsert({
-        key: 'run_macro_flag', value: String(Date.now()),
-        description: '대시보드 매크로 수동 수집 트리거'
-      }, { onConflict: 'key' }),
-      sb.from('app_config').upsert({
-        key: 'run_market_all_flag', value: String(Date.now()),
-        description: '대시보드 전체 종목 시장 데이터 수집 트리거'
-      }, { onConflict: 'key' }),
-    ]);
-    toast('📡 시황 데이터 수집 요청 — 약 1분 후 자동 반영됩니다', 'info');
-  } catch(e) { /* 무시 */ }
-
-  // 70초 후 자동 재로드 (전체 종목 수집 완료 대기)
-  setTimeout(() => {
-    _latestMarketDate = null;
-    loadInvestment();
-  }, 70000);
-
-  loadInvestment();
+// ── 날짜/시간 업데이트 ────────────────────────────────────────
+function _updateInvTimestamp() {
+  const el = document.getElementById('inv-date');
+  if (!el) return;
+  const now = new Date();
+  const date = now.toLocaleDateString('ko-KR', {year:'2-digit',month:'2-digit',day:'2-digit'}).replace(/\. /g,'-').replace('.','');
+  const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  el.textContent = `기준: ${date} ${time}`;
 }
 
+// ── 새로고침 ──────────────────────────────────────────────────
+async function refreshInvestment() {
+  _latestMarketDate = null;
+  const btn = document.getElementById('inv-refresh-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+
+  try {
+    if (window._invTab === 'disclosure') {
+      _allDiscLoaded = false;
+      loadTodayDisclosures();
+      loadEarningsSurge();
+      const panel = document.getElementById('inv-all-disclosure');
+      if (panel && panel.style.display !== 'none') loadAllDisclosures();
+      try {
+        await sb.from('app_config').upsert({
+          key: 'run_disclosure_flag', value: String(Date.now()),
+          description: '대시보드 공시수집 수동 트리거'
+        }, { onConflict: 'key' });
+        toast('📡 DART 공시 수집 요청 — 봇이 1분 내 업데이트합니다', 'info');
+      } catch(e) { toast('트리거 전송 실패: ' + e.message, 'error'); }
+    } else {
+      // 시황 탭 — DB에서 즉시 재조회 (봇 트리거 없음)
+      await loadInvestment();
+      _updateInvTimestamp();
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 새로고침'; }
+  }
 // ── 메인 로드 ──
 async function loadInvestment() {
   // 시황 탭 로드 (market-overview.js) — 배너 채운 후 나머지 실행
   await loadMacroData();
   loadTrendChart();
+  _updateInvTimestamp();
 
   // 우상단 날짜 — 오늘 날짜 즉시 표시 (market_data 조회 전에도 보임)
   const _today = new Date();
@@ -319,6 +300,23 @@ async function loadInvestment() {
     ].join(' ');
   }
 
+  // 전체 상장사 급등/급락 — 상위/하위 5개씩 별도 조회
+  const [{ data: surgeKospi }, { data: dropKospi }, { data: surgeKosdaq }, { data: dropKosdaq }] =
+    await Promise.all([
+      sb.from('market_data').select('stock_code,corp_name,price_change_rate,market')
+        .eq('base_date', maxDate).eq('market','KOSPI').not('price_change_rate','is',null)
+        .order('price_change_rate', {ascending:false}).limit(5),
+      sb.from('market_data').select('stock_code,corp_name,price_change_rate,market')
+        .eq('base_date', maxDate).eq('market','KOSPI').not('price_change_rate','is',null)
+        .order('price_change_rate', {ascending:true}).limit(5),
+      sb.from('market_data').select('stock_code,corp_name,price_change_rate,market')
+        .eq('base_date', maxDate).eq('market','KOSDAQ').not('price_change_rate','is',null)
+        .order('price_change_rate', {ascending:false}).limit(5),
+      sb.from('market_data').select('stock_code,corp_name,price_change_rate,market')
+        .eq('base_date', maxDate).eq('market','KOSDAQ').not('price_change_rate','is',null)
+        .order('price_change_rate', {ascending:true}).limit(5),
+    ]);
+
   const rankRow = (r, i) => `
     <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border)">
       <span style="width:16px;font-size:11px;color:var(--text3);font-weight:600">${i+1}</span>
@@ -326,20 +324,14 @@ async function loadInvestment() {
       <span style="font-size:13px;font-weight:600;color:${chgColor(r.price_change_rate)}">${chgStr(r.price_change_rate)}</span>
     </div>`;
 
-  const kospiRows  = rows.filter(r => r.market === 'KOSPI');
-  const kosdaqRows = rows.filter(r => r.market === 'KOSDAQ');
-
-  const fillCard = (surgeId, dropId, mktRows) => {
-    const surge = [...mktRows].sort((a,b) => b.price_change_rate - a.price_change_rate).slice(0,5);
-    const drop  = [...mktRows].sort((a,b) => a.price_change_rate - b.price_change_rate).slice(0,5);
-    const surgeEl = document.getElementById(surgeId);
-    const dropEl  = document.getElementById(dropId);
-    if (surgeEl) surgeEl.innerHTML = surge.map(rankRow).join('');
-    if (dropEl)  dropEl.innerHTML  = drop.map(rankRow).join('');
+  const setCard = (id, data) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = (data || []).map(rankRow).join('') || '<div style="padding:12px;color:var(--text3);font-size:12px;text-align:center">데이터 없음</div>';
   };
-
-  fillCard('inv-surge-kospi',  'inv-drop-kospi',  kospiRows);
-  fillCard('inv-surge-kosdaq', 'inv-drop-kosdaq', kosdaqRows);
+  setCard('inv-surge-kospi',  surgeKospi);
+  setCard('inv-drop-kospi',   dropKospi);
+  setCard('inv-surge-kosdaq', surgeKosdaq);
+  setCard('inv-drop-kosdaq',  dropKosdaq);
 }
 
 
