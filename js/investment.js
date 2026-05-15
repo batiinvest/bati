@@ -240,6 +240,8 @@ async function refreshInvestment() {
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '🔄 새로고침'; }
   }
+}
+
 // ── 메인 로드 ──
 async function loadInvestment() {
   // 시황 탭 로드 (market-overview.js) — 배너 채운 후 나머지 실행
