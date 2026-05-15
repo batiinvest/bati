@@ -637,16 +637,28 @@ async function loadIndTrendChart() {
   const canvas = document.getElementById('ind-trend-chart');
   if (!canvas) return;
 
-  // 최근 N일 distinct 날짜 목록 조회
+  // market_data의 distinct 날짜 목록 조회 (최신 N개)
+  // Supabase는 distinct를 지원하지 않으므로 대량 조회 후 클라이언트에서 처리
   const { data: dateRows } = await sb.from('market_data')
     .select('base_date')
+    .eq('stock_code', '005930')  // 삼성전자 기준 (거의 매일 존재)
     .order('base_date', { ascending: false })
-    .limit(_indTrendPeriod * 5);  // 여유있게 가져와서 distinct 처리
-  if (!dateRows?.length) return;
+    .limit(_indTrendPeriod + 10);
 
-  const dateList = [...new Set(dateRows.map(r => r.base_date))]
-    .sort()
-    .slice(-_indTrendPeriod);  // 최신 N개 날짜
+  let dateList;
+  if (dateRows?.length >= 2) {
+    dateList = [...new Set(dateRows.map(r => r.base_date))].sort().slice(-_indTrendPeriod);
+  } else {
+    // 삼성전자 데이터 없으면 다른 종목으로
+    const { data: fallback } = await sb.from('market_data')
+      .select('base_date')
+      .order('base_date', { ascending: false })
+      .limit((_indTrendPeriod + 10) * 30);
+    if (!fallback?.length) return;
+    dateList = [...new Set(fallback.map(r => r.base_date))].sort().slice(-_indTrendPeriod);
+  }
+
+  if (dateList.length < 2) return;
   const oldestDate = dateList[0];
 
   // 전체 market_data 조회 (해당 기간)
