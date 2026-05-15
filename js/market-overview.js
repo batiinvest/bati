@@ -81,6 +81,7 @@ async function loadMarketOverview(maxDate) {
         '<span style="color:var(--red);font-weight:700">▲ ' + st.rise.toLocaleString() + '</span>' +
         '<span style="color:var(--blue);font-weight:700">▼ ' + st.fall.toLocaleString() + '</span>' +
         '<span style="color:var(--text3)">━ ' + st.flat.toLocaleString() + '</span>' +
+        '<span style="margin-left:auto;color:var(--text3)">총 ' + st.total.toLocaleString() + '개</span>' +
       '</div>';
   };
 
