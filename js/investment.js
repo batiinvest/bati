@@ -101,6 +101,23 @@ function pInvestment() {
       <div id="inv-industry-chart"></div>
     </div>
 
+    <!-- 📈 산업별 흐름 비교 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+        <span class="card-title">📈 산업별 흐름 비교</span>
+        <div style="display:flex;gap:4px;margin-left:auto">
+          ${[{d:7,l:'1주'},{d:30,l:'1달'},{d:90,l:'3달'}].map(({d,l})=>`
+            <button class="chip ${d===7?'active':''}" data-ind-period="${d}"
+              onclick="setIndTrendPeriod(${d})" style="font-size:11px;padding:2px 8px">${l}</button>
+          `).join('')}
+        </div>
+      </div>
+      <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:6px" id="ind-trend-checks"></div>
+      <div style="padding:1rem;position:relative;height:300px">
+        <canvas id="ind-trend-chart"></canvas>
+      </div>
+    </div>
+
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
       <div class="card">
         <div class="card-header"><span class="card-title">🔴 코스피 급등</span></div>

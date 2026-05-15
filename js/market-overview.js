@@ -400,6 +400,9 @@ async function loadMarketOverview(maxDate) {
 
   };
   if (sorted.length) window.showIndDetail(sorted[0].ind);
+
+  // 산업별 흐름 비교 차트 로드
+  loadIndTrendChart();
 }
 
 async function loadMacroData() {
@@ -609,4 +612,150 @@ function initInvCheckboxStyles() {
       lbl.style.color       = m.color;
     }
   });
+}
+// ══════════════════════════════════════════
+//  📈 산업별 흐름 비교 차트
+// ══════════════════════════════════════════
+
+// 산업별 색상
+const IND_COLORS = {
+  '반도체':  '#2AABEE', '바이오':  '#2dce89', '2차전지': '#ffd600',
+  '엔터':    '#ff6b35', '소비재':  '#f5365c', '뷰티':    '#a259ff',
+  '조선':    '#00d4aa', '로봇':    '#fb6340', '우주':    '#4fc3f7',
+  '신재생':  '#aed581', '반도체':  '#2AABEE', '테크':    '#e040fb',
+};
+const IND_DEFAULT_COLORS = [
+  '#2AABEE','#2dce89','#ffd600','#ff6b35','#f5365c',
+  '#a259ff','#00d4aa','#fb6340','#4fc3f7','#aed581','#e040fb','#80cbc4',
+];
+
+let _indTrendPeriod = 7;
+let _indTrendChart2 = null;
+let _indTrendSelected = null; // null = 전체
+
+async function loadIndTrendChart() {
+  const canvas = document.getElementById('ind-trend-chart');
+  if (!canvas) return;
+
+  // 최근 N일 날짜 목록 조회
+  const { data: dates } = await sb.from('market_data')
+    .select('base_date')
+    .order('base_date', { ascending: false })
+    .limit(_indTrendPeriod);
+  if (!dates?.length) return;
+
+  const dateList = dates.map(r => r.base_date).sort();
+  const oldestDate = dateList[0];
+
+  // 전체 market_data 조회 (해당 기간)
+  const industryMap = await getIndustryMap();
+  let allRows = [];
+  let from = 0;
+  while (true) {
+    const { data } = await sb.from('market_data')
+      .select('stock_code,base_date,price_change_rate')
+      .gte('base_date', oldestDate)
+      .not('price_change_rate', 'is', null)
+      .range(from, from + 999);
+    if (!data?.length) break;
+    allRows = allRows.concat(data);
+    if (data.length < 1000) break;
+    from += 1000;
+  }
+
+  // 날짜 × 산업별 평균 등락률 집계
+  const indDates = {}; // { '반도체': { '2026-05-09': [chg, chg, ...] } }
+  allRows.forEach(r => {
+    const ind = industryMap[r.stock_code];
+    if (!ind || ind === '기타') return;
+    if (!indDates[ind]) indDates[ind] = {};
+    if (!indDates[ind][r.base_date]) indDates[ind][r.base_date] = [];
+    indDates[ind][r.base_date].push(r.price_change_rate);
+  });
+
+  // 산업 목록 (데이터 있는 것만)
+  const industries = Object.keys(indDates).sort();
+
+  // 체크박스 렌더
+  const checksEl = document.getElementById('ind-trend-checks');
+  if (checksEl && checksEl.children.length === 0) {
+    checksEl.innerHTML = industries.map((ind, i) => {
+      const color = IND_COLORS[ind] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length];
+      return `<label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:3px 8px;
+        border-radius:100px;border:1px solid var(--border);font-size:12px;user-select:none"
+        id="ind-lbl-${ind}">
+        <input type="checkbox" style="display:none" id="ind-chk-${ind}"
+          onchange="toggleIndTrend('${ind}')" checked>
+        <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></span>
+        <span>${ind}</span>
+      </label>`;
+    }).join('');
+  }
+
+  // 선택된 산업만 필터
+  const selectedInds = industries.filter(ind => {
+    const chk = document.getElementById('ind-chk-' + ind);
+    return chk ? chk.checked : true;
+  });
+
+  // 날짜별 누적 지수 계산 (기준점 100)
+  const datasets = selectedInds.map((ind, i) => {
+    const color = IND_COLORS[ind] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length];
+    let cumulative = 100;
+    const data = dateList.map(date => {
+      const chgs = indDates[ind]?.[date];
+      if (chgs?.length) {
+        const avg = chgs.reduce((s,v) => s+v, 0) / chgs.length;
+        cumulative = cumulative * (1 + avg / 100);
+      }
+      return parseFloat(cumulative.toFixed(2));
+    });
+    return {
+      label: ind, data,
+      borderColor: color, backgroundColor: color + '18',
+      borderWidth: 2, pointRadius: 2, tension: 0.3, fill: false,
+    };
+  });
+
+  // 차트 그리기
+  if (_indTrendChart2) { _indTrendChart2.destroy(); _indTrendChart2 = null; }
+  if (!window.Chart) return;
+
+  _indTrendChart2 = new window.Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { labels: dateList, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1d27', titleColor: '#f0f2f8', bodyColor: '#a8adc4',
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2)}`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#6e7491', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' } },
+        y: {
+          ticks: { color: '#6e7491', font: { size: 11 }, callback: v => v.toFixed(0) },
+          grid: { color: 'rgba(255,255,255,.05)' }
+        }
+      }
+    }
+  });
+}
+
+function setIndTrendPeriod(period) {
+  _indTrendPeriod = period;
+  document.querySelectorAll('[data-ind-period]').forEach(b =>
+    b.classList.toggle('active', b.dataset.indPeriod === String(period)));
+  loadIndTrendChart();
+}
+
+function toggleIndTrend(ind) {
+  const lbl = document.getElementById('ind-lbl-' + ind);
+  if (lbl) lbl.style.opacity = document.getElementById('ind-chk-' + ind)?.checked ? '1' : '0.4';
+  loadIndTrendChart();
 }
