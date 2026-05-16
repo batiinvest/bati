@@ -80,7 +80,7 @@ const canDel   = () => isAdmin();
 // ══════════════════════════════════════════
 
 // ── 재무 조회 상태 ──
-const F = { mode: 'market', industry: '전체', q: '', sortBy: 'market_cap', sortDir: 'desc' };
+const F = { mode: 'market', scope: 'monitored', industry: '전체', q: '', sortBy: 'market_cap', sortDir: 'desc' };
 
 // ══════════════════════════════════════════
 //  공통 포맷 헬퍼 — 전 파일에서 참조
