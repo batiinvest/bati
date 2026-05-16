@@ -96,8 +96,8 @@ function _renderIndustryCard(ind, subs) {
   return `
   <div class="card" style="margin-bottom:12px" data-industry="${ind}">
     <div class="card-header" style="flex-wrap:wrap;gap:8px">
-      <span style="font-size:14px;font-weight:700">${ind}</span>
-      <span style="font-size:11px;color:var(--text3)">${total}개</span>
+      <span style="font-size:14px;font-weight:700;color:var(--text1)">${ind}</span>
+      <span style="font-size:11px;color:var(--text2);font-weight:600">${total}개</span>
       <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
         <input type="text" placeholder="서브섹터 추가..." class="form-input"
           id="mon-new-sub-${CSS.escape(ind)}" style="font-size:11px;padding:3px 8px;width:130px"
@@ -121,17 +121,17 @@ function _renderIndustryCard(ind, subs) {
 function _renderSubCard(ind, sub, stocks) {
   return `
   <div class="mon-sub-card" data-industry="${ind}" data-sub="${sub}"
-    style="background:var(--bg3);border-radius:8px;padding:10px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <span style="font-size:12px;font-weight:700">${sub}</span>
+    style="background:var(--bg3);border-radius:8px;padding:10px;border:1px solid var(--border)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:7px;border-bottom:1px solid var(--border)">
+      <span style="font-size:12px;font-weight:700;color:var(--text1)">${sub}</span>
       <div style="display:flex;gap:6px;align-items:center">
-        <span style="font-size:11px;color:var(--text3)">${stocks.length}개</span>
+        <span style="font-size:11px;color:var(--text2);font-weight:600">${stocks.length}개</span>
         <button onclick="monDeleteSub('${ind.replace(/'/g,"\\'")}','${sub.replace(/'/g,"\\'")}')}"
           style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:0">✕</button>
       </div>
     </div>
     <div class="mon-drop-zone" data-industry="${ind}" data-sub="${sub}"
-      style="display:flex;flex-direction:column;gap:3px;min-height:24px">
+      style="display:flex;flex-direction:column;gap:4px;min-height:24px">
       ${stocks.map(s => _renderStockChip(s)).join('')}
     </div>
   </div>`;
@@ -146,20 +146,19 @@ function _renderStockChip(s) {
     data-code="${code}" data-name="${s.name}"
     data-industry="${s.industry||''}" data-sub="${s.sub_industry||''}"
     style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;
-      background:var(--bg2);border-radius:4px;cursor:grab;border:1px solid transparent;
-      font-size:12px;transition:border-color .15s"
+      background:var(--bg1);border-radius:4px;cursor:grab;border:1px solid var(--border);
+      font-size:12px;transition:border-color .15s;gap:6px"
     onmouseenter="this.style.borderColor='var(--tg)'"
-    onmouseleave="this.style.borderColor='transparent'">
-    <div style="display:flex;align-items:center;gap:6px;overflow:hidden">
-      <span style="font-size:10px;color:var(--text3);flex-shrink:0">${code}</span>
-      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</span>
-      <span style="font-size:9px;color:var(--text3);flex-shrink:0">${mkt}</span>
+    onmouseleave="this.style.borderColor='var(--border)'">
+    <div style="display:flex;flex-direction:column;gap:1px;overflow:hidden;flex:1">
+      <span style="font-size:13px;font-weight:600;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</span>
+      <span style="font-size:10px;color:var(--text2)">${code} · ${mkt}</span>
     </div>
     <button onclick="monRemoveStock('${code}','${safeName}')"
-      style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;
-        padding:0 2px;flex-shrink:0;line-height:1"
-      onmouseenter="this.style.color='var(--red)'"
-      onmouseleave="this.style.color='var(--text3)'">✕</button>
+      style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;
+        padding:0 2px;flex-shrink:0;line-height:1;border-radius:3px"
+      onmouseenter="this.style.color='var(--red)';this.style.background='rgba(245,54,92,0.1)'"
+      onmouseleave="this.style.color='var(--text3)';this.style.background='none'">✕</button>
   </div>`;
 }
 
