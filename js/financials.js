@@ -588,6 +588,7 @@ async function _renderFinancialTab(body, code, name) {
       <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
         <button id="btn-quarter" class="chip active" onclick="window._finView='quarter';window._finRender()">분기별</button>
         <button id="btn-annual"  class="chip"        onclick="window._finView='annual'; window._finRender()">연간별</button>
+        <button id="btn-qcomp"   class="chip"        onclick="window._finView='qcomp';  window._finRender()">분기비교</button>
         <div style="display:flex;gap:4px;margin-left:auto;align-items:center">
           <button id="btn-chart-rev"  class="chip active" onclick="window._finChart='revenue'; window._finDrawChart()">매출·영업이익</button>
           <button id="btn-chart-gpm"  class="chip"        onclick="window._finChart='gpm';     window._finDrawChart()">매출·GPM·판관비</button>
@@ -598,6 +599,16 @@ async function _renderFinancialTab(body, code, name) {
             <button onclick="window._finResizeChart(+60)" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text2);width:22px;height:22px;font-size:14px;line-height:1">+</button>
           </div>
         </div>
+      </div>
+      <div id="fin-qcomp-sel" style="display:none;gap:6px;align-items:center;margin-bottom:12px">
+        <span style="font-size:11px;color:var(--text3);margin-right:2px">비교 분기:</span>
+        ${['Q1','Q2','Q3','Q4'].map(q => `
+          <button id="btn-qc-${q}" class="chip ${q==='Q1'?'active':''}"
+            onclick="window._finCompQ='${q}';
+              ['Q1','Q2','Q3','Q4'].forEach(x=>document.getElementById('btn-qc-'+x)?.classList.toggle('active',x==='${q}'));
+              window._finRender()">
+            ${q}
+          </button>`).join('')}
       </div>
       <div id="fin-chart-wrap" style="position:relative;height:220px;margin-bottom:16px">
         <canvas id="fin-chart-canvas"></canvas>
@@ -629,12 +640,19 @@ async function _renderFinancialTab(body, code, name) {
 
     window._finView  = 'quarter';
     window._finChart = 'revenue';
+    window._finCompQ = 'Q1';
     window._fins     = fins;
 
     window._finGetRows = () => {
-      return window._finView === 'annual'
-        ? window._fins.filter(f => f.quarter === 'Q4').map(f => ({...f, label: f.bsns_year+'년'}))
-        : window._fins.map(f => ({...f, label: f.bsns_year+' '+f.quarter}));
+      if (window._finView === 'annual') {
+        return window._fins.filter(f => f.quarter === 'Q4').map(f => ({...f, label: f.bsns_year+'년'}));
+      } else if (window._finView === 'qcomp') {
+        // 분기비교: 선택된 분기만 연도별로 정렬
+        const q = window._finCompQ || 'Q1';
+        return window._fins.filter(f => f.quarter === q).map(f => ({...f, label: f.bsns_year+' '+f.quarter}));
+      } else {
+        return window._fins.map(f => ({...f, label: f.bsns_year+' '+f.quarter}));
+      }
     };
 
     window._finDrawChart = () => {
@@ -757,10 +775,15 @@ async function _renderFinancialTab(body, code, name) {
     };
 
     window._finRender = () => {
-      ['quarter','annual'].forEach(t => {
+      ['quarter','annual','qcomp'].forEach(t => {
         const b = document.getElementById('btn-'+t);
         if (b) b.classList.toggle('active', t === window._finView);
       });
+
+      // 분기비교 모드: 분기 선택 버튼 표시
+      const qsel = document.getElementById('fin-qcomp-sel');
+      if (qsel) qsel.style.display = window._finView === 'qcomp' ? 'flex' : 'none';
+
       const rows = window._finGetRows();
       document.getElementById('fin-table-body').innerHTML = rows.map(f => `<tr>
         <td style="font-size:12px;color:var(--text3);white-space:nowrap">${f.label}</td>
