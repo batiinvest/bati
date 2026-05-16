@@ -347,18 +347,21 @@ async function openStockDetail(code, name, initTab = 'market') {
       height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.5)">
 
       <!-- 헤더 -->
-      <div style="display:flex;align-items:center;justify-content:space-between;
-        padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
-        <div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span style="font-size:16px;font-weight:700">${name}</span>
-            <span style="font-size:12px;color:var(--text3)">${code}</span>
-            <span id="sd-price-badge" style="font-size:13px;color:var(--text3)"></span>
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="font-size:18px;font-weight:700;color:var(--text1)">${name}</span>
+              <span style="font-size:12px;color:var(--text3);padding:2px 6px;background:var(--bg3);border-radius:4px;border:1px solid var(--border)">${code}</span>
+            </div>
+            <div id="sd-industry" style="font-size:11px;color:var(--text3)"></div>
           </div>
-          <div id="sd-industry" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div id="sd-price-badge" style="text-align:right"></div>
+            <button onclick="document.getElementById('m-stock-detail').remove()"
+              style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;padding:0 4px;line-height:1">×</button>
+          </div>
         </div>
-        <button onclick="document.getElementById('m-stock-detail').remove()"
-          style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;padding:0 4px">×</button>
       </div>
 
       <!-- 탭 -->
@@ -455,9 +458,12 @@ async function _renderMarketTab(body, code, name) {
       const chgVal = latest.price_change_rate;
       const chgAmt = latest.price_change;
       priceBadge.innerHTML =
-        `<span style="font-size:15px;font-weight:700;color:var(--text1)">${latest.price.toLocaleString()}원</span>` +
-        `<span style="font-size:13px;font-weight:700;color:${chgColor(chgVal)};margin-left:6px">${chgStr(chgVal)}</span>` +
-        (chgAmt != null ? `<span style="font-size:12px;color:${chgColor(chgVal)};margin-left:4px">${chgAmt>0?'+':''}${chgAmt.toLocaleString()}원</span>` : '');
+        `<div style="font-size:22px;font-weight:700;color:var(--text1)">${latest.price.toLocaleString()}원</div>` +
+        `<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end;margin-top:2px">` +
+          `<span style="font-size:14px;font-weight:700;color:${chgColor(chgVal)}">${chgStr(chgVal)}</span>` +
+          (chgAmt != null ? `<span style="font-size:12px;color:${chgColor(chgVal)}">${chgAmt>0?'+':''}${chgAmt.toLocaleString()}원</span>` : '') +
+          `<span style="font-size:11px;color:var(--text3)">${latest.base_date}</span>` +
+        `</div>`;
     }
 
     const r = latest;
