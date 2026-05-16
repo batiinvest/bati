@@ -571,7 +571,16 @@ async function _renderFinancialTab(body, code, name) {
       return;
     }
 
-    const fmt  = (v, unit='억') => v==null ? '—' : Math.round(v/100000000).toLocaleString()+unit;
+    const fmt  = (v) => {
+      if (v == null) return '—';
+      const 億 = Math.round(v / 100000000);
+      if (Math.abs(億) >= 10000) {
+        const 조 = Math.floor(億 / 10000);
+        const 나머지 = Math.abs(億) % 10000;
+        return 나머지 > 0 ? `${조}조 ${나머지.toLocaleString()}억` : `${조}조`;
+      }
+      return 億.toLocaleString() + '억';
+    };
     const pct  = (v) => v!=null ? v.toFixed(1)+'%' : '—';
     const fmtB = (v) => v==null ? null : Math.round(v/100000000);
 
