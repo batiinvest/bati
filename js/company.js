@@ -133,7 +133,7 @@ function _renderIndustryCard(ind, subs) {
           style="color:var(--text3);background:none;border-color:var(--border)">✕</button>
       </div>
     </div>
-    <div style="padding:.5rem 1rem 1rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
+    <div style="padding:.75rem 1rem 1.25rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px">
       ${subKeys.map(sub => _renderSubCard(ind, sub, subs[sub])).join('')}
       <div class="mon-drop-zone" data-industry="${ind}" data-sub=""
         style="border:2px dashed var(--border);border-radius:8px;padding:12px;min-height:60px;
@@ -157,7 +157,7 @@ function _renderSubCard(ind, sub, stocks) {
       </div>
     </div>
     <div class="mon-drop-zone" data-industry="${ind}" data-sub="${sub}"
-      style="display:flex;flex-direction:column;gap:4px;min-height:24px;padding:6px">
+      style="display:flex;flex-direction:column;gap:4px;min-height:32px;padding:8px">
       ${stocks.map(s => _renderStockChip(s)).join('')}
     </div>
   </div>`;
