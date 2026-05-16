@@ -580,10 +580,9 @@ async function _renderFinancialTab(body, code, name) {
         <button id="btn-quarter" class="chip active" onclick="window._finView='quarter';window._finRender()">분기별</button>
         <button id="btn-annual"  class="chip"        onclick="window._finView='annual'; window._finRender()">연간별</button>
         <div style="display:flex;gap:4px;margin-left:auto;align-items:center">
-          <button id="btn-chart-rev" class="chip active" onclick="window._finChart='revenue';window._finDrawChart()">매출·영업이익</button>
-          <button id="btn-chart-mgn" class="chip"        onclick="window._finChart='margin'; window._finDrawChart()">이익률</button>
-          <button id="btn-chart-cogs" class="chip"       onclick="window._finChart='cogs';   window._finDrawChart()">원가율</button>
-          <button id="btn-chart-cf"  class="chip"        onclick="window._finChart='cf';     window._finDrawChart()">현금흐름</button>
+          <button id="btn-chart-rev"  class="chip active" onclick="window._finChart='revenue'; window._finDrawChart()">매출·영업이익</button>
+          <button id="btn-chart-gpm"  class="chip"        onclick="window._finChart='gpm';     window._finDrawChart()">매출·GPM·판관비</button>
+          <button id="btn-chart-cf"   class="chip"        onclick="window._finChart='cf';      window._finDrawChart()">현금흐름</button>
           <div style="display:flex;align-items:center;gap:6px;margin-left:8px;border-left:1px solid var(--border);padding-left:8px">
             <span style="font-size:11px;color:var(--text3)">차트</span>
             <button onclick="window._finResizeChart(-60)" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text2);width:22px;height:22px;font-size:14px;line-height:1">−</button>
@@ -630,9 +629,9 @@ async function _renderFinancialTab(body, code, name) {
     };
 
     window._finDrawChart = () => {
-      ['rev','mgn','cogs','cf'].forEach(t => {
+      ['rev','gpm','cf'].forEach(t => {
         const b = document.getElementById('btn-chart-'+t);
-        if (b) b.classList.toggle('active', t === {revenue:'rev',margin:'mgn',cogs:'cogs',cf:'cf'}[window._finChart]);
+        if (b) b.classList.toggle('active', t === {revenue:'rev',gpm:'gpm',cf:'cf'}[window._finChart]);
       });
       const rows = window._finGetRows();
       const labels = rows.map(r => r.label);
@@ -640,48 +639,111 @@ async function _renderFinancialTab(body, code, name) {
       if (!canvas || !window.Chart) return;
       if (finChart) { finChart.destroy(); finChart = null; }
 
-      let datasets, chartType = 'bar';
+      let datasets, chartType;
+
       if (window._finChart === 'revenue') {
+        // 매출액(막대) + 영업이익(막대) + 영업이익률(라인, 우축)
+        chartType = 'bar';
         datasets = [
-          { label:'매출액', data: rows.map(r => fmtB(r.revenue)),           backgroundColor:'rgba(42,171,238,0.7)', borderRadius:3 },
-          { label:'영업이익', data: rows.map(r => fmtB(r.operating_profit)), backgroundColor:'rgba(245,54,92,0.7)',  borderRadius:3 },
+          {
+            label: '매출액',
+            data: rows.map(r => fmtB(r.revenue)),
+            backgroundColor: 'rgba(42,171,238,0.65)',
+            borderRadius: 3,
+            yAxisID: 'y',
+          },
+          {
+            label: '영업이익',
+            data: rows.map(r => fmtB(r.operating_profit)),
+            backgroundColor: 'rgba(245,54,92,0.65)',
+            borderRadius: 3,
+            yAxisID: 'y',
+          },
+          {
+            label: '영업이익률(%)',
+            data: rows.map(r => r.operating_margin?.toFixed(1) ?? null),
+            type: 'line',
+            borderColor: 'rgba(255,193,7,0.9)',
+            backgroundColor: 'transparent',
+            pointBackgroundColor: 'rgba(255,193,7,0.9)',
+            tension: 0.3,
+            yAxisID: 'y2',
+            borderWidth: 2,
+          },
         ];
-      } else if (window._finChart === 'margin') {
-        chartType = 'line';
+      } else if (window._finChart === 'gpm') {
+        // 매출액(막대) + GPM(라인) + 판관비비율(라인), 우축 %
+        chartType = 'bar';
         datasets = [
-          { label:'영업이익률', data: rows.map(r => r.operating_margin?.toFixed(1)??null), borderColor:'rgba(245,54,92,0.9)',  backgroundColor:'rgba(245,54,92,0.1)', fill:true, tension:0.3 },
-          { label:'순이익률',   data: rows.map(r => r.net_margin?.toFixed(1)??null),       borderColor:'rgba(42,171,238,0.9)', backgroundColor:'rgba(42,171,238,0.1)', fill:true, tension:0.3 },
-          { label:'ROE',        data: rows.map(r => r.roe?.toFixed(1)??null),              borderColor:'rgba(45,206,137,0.9)', backgroundColor:'transparent',          fill:false, tension:0.3, borderDash:[4,3] },
-        ];
-      } else if (window._finChart === 'cogs') {
-        chartType = 'line';
-        datasets = [
-          { label:'매출원가율(%)', data: rows.map(r => r.cogs_ratio?.toFixed(1)??null),   borderColor:'rgba(245,54,92,0.9)',  backgroundColor:'rgba(245,54,92,0.1)', fill:true, tension:0.3 },
-          { label:'매출총이익률(%)', data: rows.map(r => r.gross_margin?.toFixed(1)??null), borderColor:'rgba(45,206,137,0.9)', backgroundColor:'transparent',         fill:false, tension:0.3, borderDash:[4,3] },
-          { label:'판관비율(%)',    data: rows.map(r => r.sga_ratio?.toFixed(1)??null),    borderColor:'rgba(255,193,7,0.9)',  backgroundColor:'transparent',         fill:false, tension:0.3, borderDash:[2,4] },
+          {
+            label: '매출액',
+            data: rows.map(r => fmtB(r.revenue)),
+            backgroundColor: 'rgba(42,171,238,0.55)',
+            borderRadius: 3,
+            yAxisID: 'y',
+          },
+          {
+            label: '매출총이익률(%)',
+            data: rows.map(r => r.gross_margin?.toFixed(1) ?? null),
+            type: 'line',
+            borderColor: 'rgba(45,206,137,0.9)',
+            backgroundColor: 'transparent',
+            pointBackgroundColor: 'rgba(45,206,137,0.9)',
+            tension: 0.3,
+            yAxisID: 'y2',
+            borderWidth: 2,
+          },
+          {
+            label: '판관비율(%)',
+            data: rows.map(r => r.sga_ratio?.toFixed(1) ?? null),
+            type: 'line',
+            borderColor: 'rgba(255,193,7,0.9)',
+            backgroundColor: 'transparent',
+            pointBackgroundColor: 'rgba(255,193,7,0.9)',
+            tension: 0.3,
+            yAxisID: 'y2',
+            borderWidth: 2,
+            borderDash: [4, 3],
+          },
         ];
       } else {
+        // 현금흐름 막대
+        chartType = 'bar';
         datasets = [
-          { label:'영업현금흐름', data: rows.map(r => fmtB(r.operating_cashflow)),
-            backgroundColor: rows.map(r => (fmtB(r.operating_cashflow)??0)>=0 ? 'rgba(45,206,137,0.7)' : 'rgba(245,54,92,0.7)'), borderRadius:3 },
+          {
+            label: '영업현금흐름',
+            data: rows.map(r => fmtB(r.operating_cashflow)),
+            backgroundColor: rows.map(r => (fmtB(r.operating_cashflow) ?? 0) >= 0
+              ? 'rgba(45,206,137,0.7)' : 'rgba(245,54,92,0.7)'),
+            borderRadius: 3,
+            yAxisID: 'y',
+          },
         ];
       }
 
+      const hasY2 = ['revenue','gpm'].includes(window._finChart);
       finChart = new window.Chart(canvas.getContext('2d'), {
         type: chartType,
         data: { labels, datasets },
         options: {
           responsive: true, maintainAspectRatio: false,
-          interaction: { mode:'index', intersect:false },
+          interaction: { mode: 'index', intersect: false },
           plugins: {
-            legend: { labels: { color:'#a8adc4', font:{size:11} } },
-            tooltip: { backgroundColor:'#1a1d27', titleColor:'#f0f2f8', bodyColor:'#a8adc4' }
+            legend: { labels: { color: '#a8adc4', font: { size: 11 }, boxWidth: 12 } },
+            tooltip: { backgroundColor: '#1a1d27', titleColor: '#f0f2f8', bodyColor: '#a8adc4' },
           },
           scales: {
-            x: { ticks: { color:'#6e7491', font:{size:10}, maxRotation:45 }, grid:{ color:'rgba(255,255,255,0.05)' } },
-            y: { ticks: { color:'#6e7491', font:{size:10} }, grid:{ color:'rgba(255,255,255,0.05)' } }
-          }
-        }
+            x: { ticks: { color: '#6e7491', font: { size: 10 }, maxRotation: 45 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { ticks: { color: '#6e7491', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' }, position: 'left' },
+            ...(hasY2 ? {
+              y2: {
+                ticks: { color: '#a8adc4', font: { size: 10 }, callback: v => v + '%' },
+                grid: { drawOnChartArea: false },
+                position: 'right',
+              }
+            } : {}),
+          },
+        },
       });
     };
 
