@@ -703,8 +703,11 @@ async function openMarketDetail(code, name) {
       <div style="display:flex;align-items:center;justify-content:space-between;
         padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1">
         <div>
-          <span style="font-size:16px;font-weight:700">${name}</span>
-          <span style="font-size:12px;color:var(--text3);margin-left:8px">${code}</span>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:16px;font-weight:700">${name}</span>
+            <span style="font-size:12px;color:var(--text3)">${code}</span>
+          </div>
+          <div id="modal-industry-label" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
         </div>
         <button onclick="document.getElementById('m-market-detail').remove()"
           style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;padding:0 4px">×</button>
@@ -721,10 +724,16 @@ async function openMarketDetail(code, name) {
   // 데이터 로드
   const body = document.getElementById('market-detail-body');
   try {
-    // 최신 시장 데이터
+    // 최신 시장 데이터 + 산업 정보
     const { data: latest } = await sb.from('market_data')
       .select('*').eq('stock_code', code)
       .order('base_date', { ascending: false }).limit(1).single();
+
+    // companies에서 산업 정보 조회
+    const { data: compInfo } = await sb.from('companies')
+      .select('industry,sub_industry')
+      .or(`code.eq.${code},code.eq.${code}.KS,code.eq.${code}.KQ`)
+      .limit(1).single();
 
     // 과거 90일 시장 데이터
     const { data: history } = await sb.from('market_data')
@@ -733,6 +742,17 @@ async function openMarketDetail(code, name) {
       .order('base_date', { ascending: false }).limit(90);
 
     if (!latest) { body.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px">데이터 없음</div>'; return; }
+
+    // 산업 라벨 표시
+    const indLabel = document.getElementById('modal-industry-label');
+    if (indLabel && compInfo) {
+      const parts = [compInfo.industry, compInfo.sub_industry].filter(Boolean);
+      if (parts.length) {
+        indLabel.innerHTML = parts.map((p,i) =>
+          `<span style="color:${i===0?'var(--tg)':'var(--text3)'}">${p}</span>`
+        ).join(' <span style="color:var(--text3)">›</span> ');
+      }
+    }
 
     const r = latest;
     const chg = r.price_change_rate;
@@ -800,10 +820,16 @@ async function openMarketDetail(code, name) {
           ${row2('52주 최고', r.week52_high ? r.week52_high.toLocaleString()+'원' : '—', 'var(--red)')}
           ${row2('52주 최저', r.week52_low ? r.week52_low.toLocaleString()+'원' : '—', 'var(--blue)')}
           <div style="margin:8px 0 12px">
-            <div style="height:4px;background:var(--border);border-radius:2px;position:relative">
-              <div style="position:absolute;left:${rangePct}%;transform:translateX(-50%);width:8px;height:8px;background:var(--text1);border-radius:50%;top:-2px"></div>
+            <div style="height:5px;background:var(--border);border-radius:3px;position:relative">
+              <div style="position:absolute;left:0;width:${rangePct}%;height:100%;background:linear-gradient(90deg,var(--blue),var(--tg));border-radius:3px;opacity:.5"></div>
+              <div style="position:absolute;left:${rangePct}%;transform:translateX(-50%);width:12px;height:12px;
+                background:var(--tg);border:2px solid var(--bg2);border-radius:50%;top:-4px;box-shadow:0 0 0 1px var(--tg)"></div>
             </div>
-            <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--text3)"><span>최저</span><span>현재 ${rangePct}%</span><span>최고</span></div>
+            <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text3)">
+              <span>${lo52.toLocaleString()}원</span>
+              <span style="color:var(--tg);font-weight:700">현재 ${rangePct}%</span>
+              <span>${hi52.toLocaleString()}원</span>
+            </div>
           </div>
           ${row2('1주 수익률', retStr(5))}
           ${row2('1달 수익률', retStr(21))}
