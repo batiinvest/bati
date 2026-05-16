@@ -145,15 +145,26 @@ function _renderIndustryCard(ind, subs) {
 }
 
 function _renderSubCard(ind, sub, stocks) {
+  const safeInd = ind.replace(/'/g, "\\'");
+  const safeSub = sub.replace(/'/g, "\\'");
   return `
   <div class="mon-sub-card" data-industry="${ind}" data-sub="${sub}"
     style="background:var(--bg3);border-radius:8px;padding:10px;border:1px solid var(--border)">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:7px;border-bottom:1px solid var(--border)">
-      <span style="font-size:12px;font-weight:700;color:var(--text1)">${sub}</span>
+      <span class="mon-sub-label" style="font-size:12px;font-weight:700;color:var(--text1);cursor:pointer;flex:1"
+        title="더블클릭으로 이름 수정"
+        ondblclick="monEditSub(this,'${safeInd}','${safeSub}')">${sub}</span>
       <div style="display:flex;gap:6px;align-items:center">
+        <button onclick="monEditSub(this.closest('.mon-sub-card').querySelector('.mon-sub-label'),'${safeInd}','${safeSub}')"
+          style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 2px;color:var(--text3)"
+          title="이름 수정"
+          onmouseenter="this.style.color='var(--tg)'"
+          onmouseleave="this.style.color='var(--text3)'">✎</button>
         <span style="font-size:11px;color:var(--text2);font-weight:600">${stocks.length}개</span>
-        <button onclick="monDeleteSub('${ind.replace(/'/g,"\\'")}','${sub.replace(/'/g,"\\'")}')}"
-          style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:0">✕</button>
+        <button onclick="monDeleteSub('${safeInd}','${safeSub}')"
+          style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:0"
+          onmouseenter="this.style.color='var(--red)'"
+          onmouseleave="this.style.color='var(--text3)'">✕</button>
       </div>
     </div>
     <div class="mon-drop-zone" data-industry="${ind}" data-sub="${sub}"
@@ -373,6 +384,55 @@ async function monAddSub(ind) {
   document.getElementById('mon-board').innerHTML = _monInds.map(i => _renderIndustryCard(i, _monData[i])).join('');
   _monInitDnd(); _monUpdateSelects();
   toast(`✅ 서브섹터 '${val}' 추가`, 'success');
+}
+
+// ── 서브섹터 이름 인라인 편집 ────────────────
+function monEditSub(labelEl, ind, oldSub) {
+  if (labelEl.querySelector('input')) return; // 이미 편집 중
+
+  const currentText = labelEl.textContent.trim();
+  const input = document.createElement('input');
+  input.value = currentText;
+  input.style.cssText = 'font-size:12px;font-weight:700;background:var(--bg1);border:1px solid var(--tg);' +
+    'border-radius:4px;padding:1px 6px;width:100%;color:var(--text1);outline:none;box-sizing:border-box';
+
+  labelEl.textContent = '';
+  labelEl.appendChild(input);
+  input.focus();
+  input.select();
+
+  async function commit() {
+    const newSub = input.value.trim();
+    labelEl.textContent = newSub || oldSub;
+    if (!newSub || newSub === oldSub) return;
+
+    // DB 업데이트 - 해당 서브섹터 종목들 일괄 변경
+    const stocks = _monData[ind]?.[oldSub] || [];
+    for (const s of stocks) {
+      for (const c of [s.code, s.code+'.KS', s.code+'.KQ']) {
+        await sb.from('companies').update({ sub_industry: newSub }).eq('code', c);
+      }
+    }
+    // 내부 상태 업데이트
+    if (_monData[ind]) {
+      _monData[ind][newSub] = _monData[ind][oldSub] || [];
+      delete _monData[ind][oldSub];
+    }
+    _monMarkDirty();
+    // 카드 data-sub 속성 업데이트
+    const card = labelEl.closest('.mon-sub-card');
+    if (card) {
+      card.dataset.sub = newSub;
+      card.querySelectorAll('.mon-drop-zone').forEach(z => z.dataset.sub = newSub);
+    }
+    toast(`✅ '${oldSub}' → '${newSub}'`, 'success');
+  }
+
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.value = oldSub; input.blur(); }
+  });
 }
 
 async function monDeleteSub(ind, sub) {
