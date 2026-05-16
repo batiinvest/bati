@@ -8,6 +8,15 @@ function go(page) {
     el.classList.toggle('active', el.dataset.page === page));
   const meta = PAGE_META[page];
   document.getElementById('page-title').textContent = meta?.title || '';
+
+  // 채팅방 관련 버튼은 전체현황(overview) 페이지에서만 표시
+  const chatBtns = ['btn-notice', 'btn-add', 'sync-btn'];
+  const showChatBtns = page === 'overview';
+  chatBtns.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = showChatBtns ? '' : 'none';
+  });
+
   draw();
 }
 
