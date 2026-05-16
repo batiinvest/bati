@@ -562,7 +562,7 @@ async function _renderMarketTab(body, code, name) {
 async function _renderFinancialTab(body, code, name) {
   try {
     const { data: fins } = await sb.from('financials')
-      .select('bsns_year,quarter,revenue,operating_profit,net_income,operating_margin,net_margin,roe,roa,debt_ratio,total_assets,total_equity,operating_cashflow')
+      .select('bsns_year,quarter,revenue,operating_profit,net_income,operating_margin,net_margin,roe,roa,debt_ratio,total_assets,total_equity,operating_cashflow,cogs_ratio,gross_margin,sga_ratio')
       .eq('stock_code', code)
       .order('bsns_year').order('quarter');
 
@@ -582,6 +582,7 @@ async function _renderFinancialTab(body, code, name) {
         <div style="display:flex;gap:4px;margin-left:auto;align-items:center">
           <button id="btn-chart-rev" class="chip active" onclick="window._finChart='revenue';window._finDrawChart()">매출·영업이익</button>
           <button id="btn-chart-mgn" class="chip"        onclick="window._finChart='margin'; window._finDrawChart()">이익률</button>
+          <button id="btn-chart-cogs" class="chip"       onclick="window._finChart='cogs';   window._finDrawChart()">원가율</button>
           <button id="btn-chart-cf"  class="chip"        onclick="window._finChart='cf';     window._finDrawChart()">현금흐름</button>
           <div style="display:flex;align-items:center;gap:6px;margin-left:8px;border-left:1px solid var(--border);padding-left:8px">
             <span style="font-size:11px;color:var(--text3)">차트</span>
@@ -629,9 +630,9 @@ async function _renderFinancialTab(body, code, name) {
     };
 
     window._finDrawChart = () => {
-      ['rev','mgn','cf'].forEach(t => {
+      ['rev','mgn','cogs','cf'].forEach(t => {
         const b = document.getElementById('btn-chart-'+t);
-        if (b) b.classList.toggle('active', t === {revenue:'rev',margin:'mgn',cf:'cf'}[window._finChart]);
+        if (b) b.classList.toggle('active', t === {revenue:'rev',margin:'mgn',cogs:'cogs',cf:'cf'}[window._finChart]);
       });
       const rows = window._finGetRows();
       const labels = rows.map(r => r.label);
@@ -639,17 +640,25 @@ async function _renderFinancialTab(body, code, name) {
       if (!canvas || !window.Chart) return;
       if (finChart) { finChart.destroy(); finChart = null; }
 
-      let datasets;
+      let datasets, chartType = 'bar';
       if (window._finChart === 'revenue') {
         datasets = [
           { label:'매출액', data: rows.map(r => fmtB(r.revenue)),           backgroundColor:'rgba(42,171,238,0.7)', borderRadius:3 },
           { label:'영업이익', data: rows.map(r => fmtB(r.operating_profit)), backgroundColor:'rgba(245,54,92,0.7)',  borderRadius:3 },
         ];
       } else if (window._finChart === 'margin') {
+        chartType = 'line';
         datasets = [
-          { label:'영업이익률', data: rows.map(r => r.operating_margin?.toFixed(1)??null), borderColor:'rgba(245,54,92,0.9)',  fill:false, tension:0.3, type:'line' },
-          { label:'순이익률',   data: rows.map(r => r.net_margin?.toFixed(1)??null),       borderColor:'rgba(42,171,238,0.9)', fill:false, tension:0.3, type:'line' },
-          { label:'ROE',        data: rows.map(r => r.roe?.toFixed(1)??null),              borderColor:'rgba(45,206,137,0.9)', fill:false, tension:0.3, type:'line' },
+          { label:'영업이익률', data: rows.map(r => r.operating_margin?.toFixed(1)??null), borderColor:'rgba(245,54,92,0.9)',  backgroundColor:'rgba(245,54,92,0.1)', fill:true, tension:0.3 },
+          { label:'순이익률',   data: rows.map(r => r.net_margin?.toFixed(1)??null),       borderColor:'rgba(42,171,238,0.9)', backgroundColor:'rgba(42,171,238,0.1)', fill:true, tension:0.3 },
+          { label:'ROE',        data: rows.map(r => r.roe?.toFixed(1)??null),              borderColor:'rgba(45,206,137,0.9)', backgroundColor:'transparent',          fill:false, tension:0.3, borderDash:[4,3] },
+        ];
+      } else if (window._finChart === 'cogs') {
+        chartType = 'line';
+        datasets = [
+          { label:'매출원가율(%)', data: rows.map(r => r.cogs_ratio?.toFixed(1)??null),   borderColor:'rgba(245,54,92,0.9)',  backgroundColor:'rgba(245,54,92,0.1)', fill:true, tension:0.3 },
+          { label:'매출총이익률(%)', data: rows.map(r => r.gross_margin?.toFixed(1)??null), borderColor:'rgba(45,206,137,0.9)', backgroundColor:'transparent',         fill:false, tension:0.3, borderDash:[4,3] },
+          { label:'판관비율(%)',    data: rows.map(r => r.sga_ratio?.toFixed(1)??null),    borderColor:'rgba(255,193,7,0.9)',  backgroundColor:'transparent',         fill:false, tension:0.3, borderDash:[2,4] },
         ];
       } else {
         datasets = [
@@ -659,7 +668,7 @@ async function _renderFinancialTab(body, code, name) {
       }
 
       finChart = new window.Chart(canvas.getContext('2d'), {
-        type: window._finChart === 'margin' ? 'line' : 'bar',
+        type: chartType,
         data: { labels, datasets },
         options: {
           responsive: true, maintainAspectRatio: false,
