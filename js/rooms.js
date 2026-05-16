@@ -8,6 +8,16 @@ async function addRoom() {
   try {
     const { data, error } = await DB('rooms').insert([{ name, chat_id: chatId, cat: document.getElementById('a-cat').value, sub_cat: document.getElementById('a-sub').value.trim(), code: document.getElementById('a-code').value.trim(), max_members: parseInt(document.getElementById('a-max').value)||1000, link, keywords: document.getElementById('a-kw').value.trim(), members: 0, status:'open', pinned:false }]).select().single();
     if (error) throw error;
+
+    // 채팅방 생성 → 해당 종목 monitoring_level=full로 업데이트
+    const roomCode = document.getElementById('a-code').value.trim().split('.')[0];
+    if (roomCode) {
+      for (const c of [roomCode, roomCode+'.KS', roomCode+'.KQ']) {
+        await sb.from('companies').update({ monitoring_level: 'full' })
+          .eq('code', c).eq('is_monitored', true);
+      }
+    }
+
     A.rooms.push(data); A.rooms.sort((a,b) => a.name.localeCompare(b.name,'ko'));
     document.getElementById('badge').textContent = A.rooms.length;
     closeModal('m-add'); draw(); toast(`${name} 추가 완료`, 'success');
@@ -28,6 +38,16 @@ async function deleteRoom(id) {
   if (!r || !confirm(`"${r.name}" 삭제?`)) return;
   const { error } = await DB('rooms').delete().eq('id', id);
   if (error) { toast('삭제 실패: ' + error.message, 'error'); return; }
+
+  // 채팅방 삭제 → 해당 종목 monitoring_level=news로 다운그레이드
+  const roomCode = (r.code || '').split('.')[0];
+  if (roomCode) {
+    for (const c of [roomCode, roomCode+'.KS', roomCode+'.KQ']) {
+      await sb.from('companies').update({ monitoring_level: 'news' })
+        .eq('code', c).eq('is_monitored', true);
+    }
+  }
+
   A.rooms = A.rooms.filter(x => x.id !== id);
   document.getElementById('badge').textContent = A.rooms.length;
   closeModal('m-detail'); draw(); toast(`${r.name} 삭제됨`, 'info');

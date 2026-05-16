@@ -251,7 +251,7 @@ async function monRemoveStock(code, name) {
   if (!confirm(`'${name}'을(를) 모니터링에서 제거할까요?\n(기업 데이터는 유지됩니다)`)) return;
   try {
     for (const c of [code, code+'.KS', code+'.KQ']) {
-      await sb.from('companies').update({ is_monitored: false }).eq('code', c)
+      await sb.from('companies').update({ is_monitored: false, monitoring_level: 'data' }).eq('code', c)
     }
     _monMarkDirty();
     await _monLoadBoard();
@@ -327,7 +327,7 @@ async function monAddSelected() {
   const { code, name } = _monSelStock;
   try {
     for (const c of [code, code+'.KS', code+'.KQ']) {
-      await sb.from('companies').update({ is_monitored:true, industry:ind, sub_industry:sub||null })
+      await sb.from('companies').update({ is_monitored:true, monitoring_level:'news', industry:ind, sub_industry:sub||null })
         .eq('code', c)
     }
     _monMarkDirty();
@@ -362,7 +362,7 @@ async function monDeleteIndustry(ind) {
   if (!confirm(msg)) return;
   for (const s of stocks) {
     for (const c of [s.code, s.code+'.KS', s.code+'.KQ']) {
-      await sb.from('companies').update({ is_monitored:false }).eq('code',c)
+      await sb.from('companies').update({ is_monitored:false, monitoring_level:'data' }).eq('code',c)
     }
   }
   if (stocks.length) {
