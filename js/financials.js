@@ -350,9 +350,10 @@ async function openStockDetail(code, name, initTab = 'market') {
       <div style="display:flex;align-items:center;justify-content:space-between;
         padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
         <div>
-          <div style="display:flex;align-items:center;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span style="font-size:16px;font-weight:700">${name}</span>
             <span style="font-size:12px;color:var(--text3)">${code}</span>
+            <span id="sd-price-badge" style="font-size:13px;color:var(--text3)"></span>
           </div>
           <div id="sd-industry" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
         </div>
@@ -448,6 +449,17 @@ async function _renderMarketTab(body, code, name) {
 
     if (!latest) { body.innerHTML = '<div style="color:var(--text3);padding:40px;text-align:center">데이터 없음</div>'; return; }
 
+    // 헤더 뱃지 업데이트 (탭 전환해도 유지)
+    const priceBadge = document.getElementById('sd-price-badge');
+    if (priceBadge && latest.price) {
+      const chgVal = latest.price_change_rate;
+      const chgAmt = latest.price_change;
+      priceBadge.innerHTML =
+        `<span style="font-size:15px;font-weight:700;color:var(--text1)">${latest.price.toLocaleString()}원</span>` +
+        `<span style="font-size:13px;font-weight:700;color:${chgColor(chgVal)};margin-left:6px">${chgStr(chgVal)}</span>` +
+        (chgAmt != null ? `<span style="font-size:12px;color:${chgColor(chgVal)};margin-left:4px">${chgAmt>0?'+':''}${chgAmt.toLocaleString()}원</span>` : '');
+    }
+
     const r = latest;
     const chg = r.price_change_rate;
     const hist = (history || []).reverse();
@@ -474,14 +486,6 @@ async function _renderMarketTab(body, code, name) {
       </div>`;
 
     body.innerHTML = `
-      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px">
-        <div style="display:flex;align-items:baseline;gap:10px">
-          <span style="font-size:24px;font-weight:700;color:var(--text1)">${r.price ? r.price.toLocaleString()+'원' : '—'}</span>
-          <span style="font-size:15px;font-weight:700;color:${chgColor(chg)}">${chgStr(chg)}</span>
-          <span style="font-size:13px;color:${chgColor(chg)}">${r.price_change!=null?(r.price_change>0?'+':'')+r.price_change.toLocaleString()+'원':''}</span>
-        </div>
-        <span style="font-size:12px;color:var(--text3)">${r.base_date}</span>
-      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
         ${section('VALUATION', `
           ${row2('시가총액', r.market_cap ? fmtCap(r.market_cap) : '—')}
