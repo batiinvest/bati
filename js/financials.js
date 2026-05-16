@@ -148,7 +148,7 @@ async function loadMarketData(el) {
       const chg = r.price_change_rate;
       const cap = fmtCap(r.market_cap);
       return `<tr>
-        <td style="font-weight:500">${r.corp_name}</td>
+        <td style="font-weight:500;cursor:pointer;color:var(--tg)" onclick="openMarketDetail('${r.stock_code}','${r.corp_name}')">${r.corp_name}</td>
         <td>${cap}</td>
         <td>${r.price ? r.price.toLocaleString() + '원' : '—'}</td>
         <td style="color:${chgColor(chg)};font-weight:500">${chgStr(chg)}</td>
@@ -685,3 +685,115 @@ function exportFinancials() {
   toast('CSV 다운로드 완료', 'success');
 }
 
+
+// ══════════════════════════════════════════
+//  📊 시장 데이터 상세 모달
+// ══════════════════════════════════════════
+async function openMarketDetail(code, name) {
+  // 기존 모달 제거
+  document.getElementById('m-market-detail')?.remove();
+
+  // 모달 생성
+  const modal = document.createElement('div');
+  modal.id = 'm-market-detail';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML = `
+    <div style="background:var(--bg2);border-radius:12px;width:100%;max-width:860px;
+      max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.5)">
+      <div style="display:flex;align-items:center;justify-content:space-between;
+        padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1">
+        <div>
+          <span style="font-size:16px;font-weight:700">${name}</span>
+          <span style="font-size:12px;color:var(--text3);margin-left:8px">${code}</span>
+        </div>
+        <button onclick="document.getElementById('m-market-detail').remove()"
+          style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;padding:0 4px">×</button>
+      </div>
+      <div id="market-detail-body" style="padding:20px">
+        <div style="text-align:center;color:var(--text3);padding:40px">
+          <span class="loading"></span> 로딩 중...
+        </div>
+      </div>
+    </div>`;
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+
+  // 데이터 로드
+  const body = document.getElementById('market-detail-body');
+  try {
+    // 최신 시장 데이터
+    const { data: latest } = await sb.from('market_data')
+      .select('*').eq('stock_code', code)
+      .order('base_date', { ascending: false }).limit(1).single();
+
+    // 과거 90일 시장 데이터
+    const { data: history } = await sb.from('market_data')
+      .select('base_date,price,price_change_rate,market_cap,volume,per,pbr')
+      .eq('stock_code', code)
+      .order('base_date', { ascending: false }).limit(90);
+
+    if (!latest) { body.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px">데이터 없음</div>'; return; }
+
+    const r = latest;
+    const chg = r.price_change_rate;
+    const hist = (history || []).reverse();
+
+    // 오늘 핵심 지표 카드
+    const kpiCard = (label, value, sub='') => `
+      <div style="background:var(--bg3);border-radius:8px;padding:12px 16px;border:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:4px">${label}</div>
+        <div style="font-size:16px;font-weight:700;color:var(--text1)">${value}</div>
+        ${sub ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${sub}</div>` : ''}
+      </div>`;
+
+    body.innerHTML = `
+      <!-- 핵심 지표 -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px">
+        ${kpiCard('현재가', r.price ? r.price.toLocaleString()+'원' : '—', r.base_date)}
+        ${kpiCard('등락률', `<span style="color:${chgColor(chg)}">${chgStr(chg)}</span>`)}
+        ${kpiCard('시가총액', r.market_cap ? fmtCap(r.market_cap) : '—')}
+        ${kpiCard('PER', r.per != null && r.per !== 0 ? r.per.toFixed(1)+'배' : '—')}
+        ${kpiCard('PBR', r.pbr != null && r.pbr !== 0 ? r.pbr.toFixed(2)+'배' : '—')}
+        ${kpiCard('EPS', r.eps ? r.eps.toLocaleString()+'원' : '—')}
+        ${kpiCard('BPS', r.bps ? r.bps.toLocaleString()+'원' : '—')}
+        ${kpiCard('거래량', r.volume ? r.volume.toLocaleString() : '—')}
+      </div>
+
+      <!-- 추가 지표 -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px">
+        ${kpiCard('외국인 보유율', r.foreign_hold_rate != null ? r.foreign_hold_rate.toFixed(2)+'%' : '—')}
+        ${kpiCard('외국인 순매수', r.foreign_net_buy != null ? r.foreign_net_buy.toLocaleString()+'주' : '—')}
+        ${kpiCard('프로그램 순매수', r.program_net_buy != null ? r.program_net_buy.toLocaleString()+'주' : '—')}
+        ${kpiCard('52주 최고', r.week52_high ? r.week52_high.toLocaleString()+'원' : '—')}
+        ${kpiCard('52주 최저', r.week52_low ? r.week52_low.toLocaleString()+'원' : '—')}
+        ${kpiCard('거래회전율', r.vol_turnover != null ? r.vol_turnover.toFixed(2)+'%' : '—')}
+        ${kpiCard('대출잔고율', r.loan_balance_rate != null ? r.loan_balance_rate.toFixed(2)+'%' : '—')}
+        ${kpiCard('시장', r.market || '—')}
+      </div>
+
+      <!-- 과거 데이터 테이블 -->
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px">📈 최근 시장 데이터 (${hist.length}일)</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>기준일</th><th>현재가</th><th>등락률</th><th>시가총액</th>
+            <th>거래량</th><th>PER</th><th>PBR</th>
+          </tr></thead>
+          <tbody>${hist.map(h => {
+            const hc = h.price_change_rate;
+            return `<tr>
+              <td style="font-size:11px;color:var(--text3)">${h.base_date}</td>
+              <td>${h.price ? h.price.toLocaleString()+'원' : '—'}</td>
+              <td style="color:${chgColor(hc)};font-weight:500">${chgStr(hc)}</td>
+              <td>${h.market_cap ? fmtCap(h.market_cap) : '—'}</td>
+              <td>${h.volume ? h.volume.toLocaleString() : '—'}</td>
+              <td>${h.per != null && h.per !== 0 ? h.per.toFixed(1) : '—'}</td>
+              <td>${h.pbr != null && h.pbr !== 0 ? h.pbr.toFixed(2) : '—'}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>`;
+  } catch(e) {
+    body.innerHTML = `<div style="color:var(--red);padding:20px">오류: ${e.message}</div>`;
+  }
+}
