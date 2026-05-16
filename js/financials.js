@@ -71,7 +71,7 @@ async function loadMarketData(el) {
   if (F.scope === 'monitored') {
     // 모니터링 종목만
     const compData = await fetchAllPages(
-      sb.from('companies').select('code').in('monitoring_level', ['full','news'])
+      sb.from('companies').select('code').eq('is_monitored', true)
     );
     monitoredCodes = new Set(compData.map(c => c.code));
   }
@@ -168,7 +168,7 @@ async function loadFinancialData(el) {
   let monitoredCodesFin = null;
   if (F.scope === 'monitored') {
     const compData = await fetchAllPages(
-      sb.from('companies').select('code').in('monitoring_level', ['full','news'])
+      sb.from('companies').select('code').eq('is_monitored', true)
     );
     monitoredCodesFin = new Set(compData.map(c => c.code));
   }

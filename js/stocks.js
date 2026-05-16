@@ -354,7 +354,7 @@ async function loadStocks() {
       let q = sb.from('companies')
         .select('id,name,code,industry,sub_industry,sector,keywords,monitoring_level,active,market')
         .order('name').range(s, e);
-      if (level === 'monitored') q = q.in('monitoring_level', ['full', 'news']);
+      if (level === 'monitored') q = q.eq('is_monitored', true);
       else if (level !== 'all') q = q.eq('monitoring_level', level);
       return q;
     });
