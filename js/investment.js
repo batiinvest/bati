@@ -251,18 +251,26 @@ async function refreshInvestment() {
       } catch(e) { toast('트리거 전송 실패: ' + e.message, 'error'); }
     } else {
       // 시황 탭 — 서버 트리거 → 수집 완료 후 재로드
+      const isWeekend = [0, 6].includes(new Date().getDay()); // 0=일, 6=토
       try {
-        await Promise.all([
+        const upserts = [
           sb.from('app_config').upsert({
             key: 'run_macro_flag', value: String(Date.now()),
             description: '대시보드 매크로 수동 수집 트리거'
           }, { onConflict: 'key' }),
-          sb.from('app_config').upsert({
+        ];
+        if (!isWeekend) {
+          upserts.push(sb.from('app_config').upsert({
             key: 'run_market_all_flag', value: String(Date.now()),
             description: '대시보드 전체 종목 시장 데이터 수집 트리거'
-          }, { onConflict: 'key' }),
-        ]);
-        toast('📡 서버 수집 요청 완료 — 약 1분 후 자동 반영됩니다', 'info');
+          }, { onConflict: 'key' }));
+        }
+        await Promise.all(upserts);
+        if (isWeekend) {
+          toast('📡 매크로(환율·지수) 수집 요청 — 주말은 주식 시장 데이터 수집 제외', 'info');
+        } else {
+          toast('📡 서버 수집 요청 완료 — 약 1분 후 자동 반영됩니다', 'info');
+        }
       } catch(e) {
         toast('트리거 전송 실패: ' + e.message, 'error');
         return;
