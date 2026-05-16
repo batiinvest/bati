@@ -506,9 +506,6 @@ async function _renderMarketTab(body, code, name) {
           ${r.market_warn_code && r.market_warn_code !== '00' ? row2('투자경고', r.market_warn_code, 'var(--red)') : ''}
         `)}
         ${section('가격 범위 · 수익률', `
-          ${row2('시가', r.open_price ? r.open_price.toLocaleString()+'원' : '—')}
-          ${row2('고가', r.high_price ? r.high_price.toLocaleString()+'원' : '—', 'var(--red)')}
-          ${row2('저가', r.low_price ? r.low_price.toLocaleString()+'원' : '—', 'var(--blue)')}
           ${row2('52주 최고', r.week52_high ? r.week52_high.toLocaleString()+'원' : '—', 'var(--red)')}
           ${row2('52주 최저', r.week52_low ? r.week52_low.toLocaleString()+'원' : '—', 'var(--blue)')}
           <div style="margin:8px 0 12px">
