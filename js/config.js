@@ -123,13 +123,14 @@ let _globalIndustryMap = null;
 
 async function getIndustryMap() {
   if (_globalIndustryMap) return _globalIndustryMap;
-  const map    = {};   // stock_code → industry
-  const subMap = {};   // stock_code → sub_industry
+  const map    = {};   // stock_code → industry  (모니터링 종목만)
+  const subMap = {};   // stock_code → sub_industry (모니터링 종목만)
   try {
     let from = 0;
     while (true) {
       const { data } = await sb.from('companies')
         .select('code,industry,sub_industry')
+        .eq('is_monitored', true)   // ✅ 모니터링 종목만 (산업 동향용)
         .range(from, from + 999);
       if (!data?.length) break;
       data.forEach(c => {
@@ -143,7 +144,7 @@ async function getIndustryMap() {
   } catch(e) { console.warn('getIndustryMap 실패:', e); }
   _globalIndustryMap = map;
   window._industryMapCache = map;
-  window._subIndustryMap   = subMap;   // 세부섹터 맵 전역 저장
+  window._subIndustryMap   = subMap;   // ✅ 캐시 HIT 없이 항상 여기서 세팅
   return map;
 }
 

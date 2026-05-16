@@ -135,9 +135,12 @@ async function loadMarketOverview(maxDate) {
   _mkCard('inv-mkt-kospi',  '코스피', kospi,  '#2AABEE', _kospiVal,  _kospiChg);
   _mkCard('inv-mkt-kosdaq', '코스닥', kosdaq, '#2dce89', _kosdaqVal, _kosdaqChg);
 
-  // ── 산업별 + 세부섹터별 집계 ─────────────────────────────────
+  // ── 산업별 + 세부섹터별 집계 (모니터링 종목만) ─────────────────
+  // industryMap 키 = 모니터링 종목 코드만 포함 (getIndustryMap is_monitored=true 필터)
+  const monitoredSet = new Set(Object.keys(industryMap));
   const indMap = {};
   enriched.forEach(r => {
+    if (!monitoredSet.has(r.stock_code)) return;  // ✅ 비모니터링 종목 제외
     const ind = r.industry || '기타';
     const sub = r.sub_industry || '기타';
     if (ind === 'KOSPI' || ind === 'KOSDAQ' || ind === '기타') return;
