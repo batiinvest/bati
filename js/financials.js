@@ -148,7 +148,7 @@ async function loadMarketData(el) {
       const chg = r.price_change_rate;
       const cap = fmtCap(r.market_cap);
       return `<tr>
-        <td style="font-weight:500;cursor:pointer;color:var(--tg)" onclick="openMarketDetail('${r.stock_code}','${r.corp_name}')">${r.corp_name}</td>
+        <td style="font-weight:500;cursor:pointer;color:var(--tg)" onclick="openStockDetail('${r.stock_code}','${r.corp_name}','market')">${r.corp_name}</td>
         <td>${cap}</td>
         <td>${r.price ? r.price.toLocaleString() + '원' : '—'}</td>
         <td style="color:${chgColor(chg)};font-weight:500">${chgStr(chg)}</td>
@@ -236,7 +236,7 @@ async function loadFinancialData(el) {
       const gpColor = (r.gross_profit||0) >= 0 ? '' : 'var(--red)';
       const ocfColor = (r.operating_cashflow||0) >= 0 ? 'var(--green)' : 'var(--red)';
       return `<tr>
-        <td style="font-weight:500;cursor:pointer;color:var(--tg)" onclick="openFinTrend('${r.stock_code}','${r.corp_name}')">${r.corp_name}</td>
+        <td style="font-weight:500;cursor:pointer;color:var(--tg)" onclick="openStockDetail('${r.stock_code}','${r.corp_name}','financial')">${r.corp_name}</td>
         <td style="font-size:11px;color:var(--text2);white-space:nowrap">${r.bsns_year} ${r.quarter}</td>
         <td>${fmt(r.revenue)}</td>
         <td style="color:${gpColor}">${r.gross_profit ? fmt(r.gross_profit) : '—'}</td>
@@ -332,445 +332,134 @@ async function loadCombinedData(el) {
     </tbody></table></div>`;
 }
 
-async function openFinTrend(stockCode, corpName) {
-  const existing = document.getElementById('m-fin-trend');
-  if (existing) existing.remove();
-
-  const overlay = document.createElement('div');
-  overlay.id = 'm-fin-trend';
-  overlay.className = 'modal-overlay open';
-  overlay.innerHTML = `
-    <div class="modal" style="width:900px;max-width:96vw;max-height:92vh;overflow-y:auto">
-      <div class="modal-header">
-        <span class="modal-title">${corpName} — 분기별 재무 추이</span>
-        <button class="modal-close" onclick="document.getElementById('m-fin-trend').remove()">×</button>
-      </div>
-      <div id="fin-trend-body" style="padding:1rem">
-        ${loadingHTML('로딩 중...')}
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-
-  const [{ data: rawData, error }, { data: gradeHist }] = await Promise.all([
-    sb.from('financials')
-      .select('bsns_year,quarter,fs_div,revenue,gross_profit,cogs,sga,rd_expense,operating_profit,net_income,operating_margin,gross_margin,sga_ratio,net_margin,cogs_ratio,roe,roa,current_ratio,debt_ratio,total_assets,total_equity,total_liabilities,current_assets,current_liabilities,operating_cashflow,investing_cashflow,financing_cashflow,revenue_yoy,revenue_qoq,op_profit_yoy,op_profit_qoq')
-      .eq('stock_code', stockCode).eq('fs_div', 'CFS')
-      .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }).limit(24),
-    sb.from('earnings_grade_history')
-      .select('bsns_year,quarter,grade')
-      .eq('stock_code', stockCode)
-      .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
-  ]);
-
-  const body = document.getElementById('fin-trend-body');
-  if (error || !rawData?.length) { body.innerHTML = emptyHTML(); return; }
-
-  // 연간 집계 (Q4 값 사용 — Q4는 연간 합산이 아닌 Q4 단독이므로 직접 합산)
-  const yearMap = {};
-  rawData.forEach(r => {
-    if (!yearMap[r.bsns_year]) yearMap[r.bsns_year] = [];
-    yearMap[r.bsns_year].push(r);
-  });
-  const annualData = Object.entries(yearMap).map(([year, rows]) => {
-    const sum  = col => rows.reduce((s, r) => r[col] != null ? s + r[col] : s, 0);
-    const last  = rows[rows.length - 1];
-    const hasAll4 = rows.length === 4;
-    return {
-      bsns_year: year, quarter: '연간',
-      revenue:          hasAll4 ? sum('revenue')          : null,
-      operating_profit: hasAll4 ? sum('operating_profit') : null,
-      net_income:       hasAll4 ? sum('net_income')        : null,
-      operating_margin: hasAll4 && sum('revenue') ? sum('operating_profit') / sum('revenue') * 100 : null,
-      roe:              last?.roe,
-      total_assets:     last?.total_assets,
-      total_liabilities:last?.total_liabilities,
-      total_equity:     last?.total_equity,
-      debt_ratio:       last?.debt_ratio,
-      operating_cashflow: hasAll4 ? sum('operating_cashflow') : null,
-    };
-  });
-
-  window._finRawData    = rawData;
-  window._finAnnualData = annualData;
-  window._finViewMode   = 'quarter'; // 'quarter' | 'annual'
-  window._finChartTab   = 'revenue';
-
-  const fmt      = v => fmtCap(v);
-  const pct      = v => v != null ? v.toFixed(1) + '%' : '—';
-  const chgBadge = v => {
-    if (v == null) return '—';
-    const color = v > 0 ? 'var(--red)' : v < 0 ? 'var(--blue)' : 'var(--text3)';
-    return `<span style="color:${color}">${v > 0 ? '▲' : '▼'}${Math.abs(v).toFixed(1)}%</span>`;
-  };
-
-  const renderBody = () => {
-    const isAnnual = window._finViewMode === 'annual';
-    const src  = isAnnual ? [...annualData].reverse() : [...rawData].reverse();
-    const chartSrc = isAnnual ? annualData : rawData;
-    const tab  = window._finChartTab;
-
-    // 차트 데이터
-    const labels  = chartSrc.map(r => isAnnual ? r.bsns_year : `${r.bsns_year} ${r.quarter}`);
-    const revData = chartSrc.map(r => r.revenue         != null ? Math.round(r.revenue         / 1e8) : null);
-    const opData  = chartSrc.map(r => r.operating_profit != null ? Math.round(r.operating_profit / 1e8) : null);
-    const netData = chartSrc.map(r => r.net_income       != null ? Math.round(r.net_income       / 1e8) : null);
-
-    const textColor = '#8b90a7';
-    const gridColor = 'rgba(255,255,255,0.06)';
-
-    // 비율 데이터
-    const gpmData    = chartSrc.map(r => r.gross_margin);
-    const sgarData   = chartSrc.map(r => r.sga_ratio);
-    const marginData = chartSrc.map(r => r.operating_margin);
-    const netMarginData = chartSrc.map(r => r.net_margin);
-
-    // 우축 라인 공통 옵션
-    const lineRight = (label, data, color) => ({
-      label, data, type: 'line',
-      borderColor: color, backgroundColor: color+'22',
-      borderWidth: 2, tension: 0.3, fill: false,
-      pointRadius: 3, pointHoverRadius: 5,
-      yAxisID: 'y2', spanGaps: true,
-    });
-
-    // 차트 탭별 dataset
-    const chartConfigs = {
-      revenue: {
-        label: '매출액 · GPM · 판관비율',
-        datasets: [
-          { label: '매출액(억)', data: revData, backgroundColor: 'rgba(42,171,238,0.7)', borderColor: '#2AABEE', borderWidth: 1, borderRadius: 3, type: 'bar', yAxisID: 'y' },
-          lineRight('GPM(%)',    gpmData,  '#fb6340'),
-          lineRight('판관비율(%)', sgarData, '#a259ff'),
-        ],
-        dualAxis: true,
-      },
-      operating_profit: {
-        label: '영업이익 · 영업이익률',
-        datasets: [
-          { label: '영업이익(억)', data: opData, backgroundColor: opData.map(v => v >= 0 ? 'rgba(45,206,137,0.7)' : 'rgba(245,54,92,0.6)'), borderColor: opData.map(v => v >= 0 ? '#2dce89' : '#f5365c'), borderWidth: 1, borderRadius: 3, type: 'bar', yAxisID: 'y' },
-          lineRight('영업이익률(%)', marginData, '#2dce89'),
-          lineRight('순이익률(%)',   netMarginData, '#ffd600'),
-        ],
-        dualAxis: true,
-      },
-      combined: {
-        label: '동일 분기 연도별 비교 (YoY)',
-        datasets: (() => {
-          const quarters = ['Q1','Q2','Q3','Q4'];
-          const yearColors = ['rgba(42,171,238,0.75)','rgba(45,206,137,0.75)','rgba(251,99,64,0.75)','rgba(162,89,255,0.75)'];
-          const years = [...new Set(chartSrc.map(r => r.bsns_year))];
-          return years.map((year, yi) => ({
-            label: `${year}년`,
-            data: quarters.map(q => {
-              const r = chartSrc.find(d => d.bsns_year === year && d.quarter === q);
-              return r?.revenue != null ? Math.round(r.revenue / 1e8) : null;
-            }),
-            backgroundColor: yearColors[yi % yearColors.length],
-            borderRadius: 3,
-          }));
-        })(),
-        labels: ['Q1','Q2','Q3','Q4'],
-        type: 'bar',
-        dualAxis: false,
-      },
-      margin: {
-        label: '이익률 추이',
-        datasets: [
-          { label: 'GPM(%)',      data: gpmData,       borderColor: '#fb6340', backgroundColor: 'rgba(251,99,64,0.1)',  borderWidth: 2, tension: 0.3, type: 'line', fill: false, pointRadius: 3 },
-          { label: '영업이익률(%)', data: marginData,   borderColor: '#2dce89', backgroundColor: 'rgba(45,206,137,0.1)', borderWidth: 2, tension: 0.3, type: 'line', fill: false, pointRadius: 3 },
-          { label: '순이익률(%)',   data: netMarginData, borderColor: '#ffd600', backgroundColor: 'rgba(255,214,0,0.1)', borderWidth: 2, tension: 0.3, type: 'line', fill: false, pointRadius: 3 },
-          { label: 'ROE(%)',       data: chartSrc.map(r => r.roe), borderColor: '#a259ff', backgroundColor: 'rgba(162,89,255,0.1)', borderWidth: 2, tension: 0.3, type: 'line', fill: false, pointRadius: 3 },
-        ],
-        type: 'line',
-        dualAxis: false,
-      },
-    };
-
-    const cfg = chartConfigs[tab];
-
-    body.innerHTML = `
-      <!-- 뷰 토글 + 차트 탭 -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:8px">
-        <div style="display:flex;gap:6px">
-          <button class="chip ${!isAnnual?'active':''}" onclick="window._finViewMode='quarter';renderFinTrendBody()">분기별</button>
-          <button class="chip ${isAnnual?'active':''}" onclick="window._finViewMode='annual';renderFinTrendBody()">연간별</button>
-        </div>
-        <div style="display:flex;gap:6px">
-          <button class="chip ${tab==='revenue'?'active':''}" onclick="window._finChartTab='revenue';renderFinTrendBody()">매출액·GPM</button>
-          <button class="chip ${tab==='operating_profit'?'active':''}" onclick="window._finChartTab='operating_profit';renderFinTrendBody()">영업이익·이익률</button>
-          <button class="chip ${tab==='combined'?'active':''}" onclick="window._finChartTab='combined';renderFinTrendBody()">분기비교</button>
-          <button class="chip ${tab==='margin'?'active':''}" onclick="window._finChartTab='margin';renderFinTrendBody()">이익률</button>
-        </div>
-      </div>
-
-      <!-- 차트 -->
-      <div style="position:relative;height:${window._finChartHeight||240}px;margin-bottom:.5rem" id="fin-chart-wrap">
-        <canvas id="fin-chart"></canvas>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem">
-        <span style="font-size:11px;color:var(--text3)">차트 높이</span>
-        <input type="range" min="160" max="500" step="20"
-          value="${window._finChartHeight||240}"
-          style="flex:1;accent-color:var(--tg)"
-          oninput="window._finChartHeight=parseInt(this.value);document.getElementById('fin-chart-wrap').style.height=this.value+'px';document.getElementById('fin-chart-size').textContent=this.value+'px';if(window._finChartInst)window._finChartInst.resize()">
-        <span style="font-size:11px;color:var(--text3);min-width:36px" id="fin-chart-size">${window._finChartHeight||240}px</span>
-      </div>
-
-      <!-- 등급 이력 -->
-      ${(() => {
-        if (!gradeHist?.length) return '';
-        const GRADE_COLORS = {'S':'#ffd600','A':'#fb6340','B':'#2AABEE','관찰':'#2dce89'};
-        const gradeMap = {};
-        (gradeHist||[]).forEach(h => { gradeMap[`${h.bsns_year}-${h.quarter}`] = h.grade; });
-        const quarters = isAnnual ? [] : chartSrc;
-        if (!quarters.length) return '';
-        return `<div style="margin-bottom:1rem">
-          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.5rem">분기별 실적 등급</div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap">
-            ${chartSrc.map(r => {
-              const key   = `${r.bsns_year}-${r.quarter}`;
-              const grade = gradeMap[key];
-              const color = GRADE_COLORS[grade];
-              return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
-                <div style="font-size:9px;color:var(--text3)">${r.bsns_year.slice(2)}${r.quarter}</div>
-                ${grade
-                  ? `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:4px;background:${color}22;color:${color};border:1px solid ${color}40">${grade}급</span>`
-                  : `<span style="font-size:10px;padding:1px 7px;border-radius:4px;color:var(--text3);border:1px solid var(--border)">—</span>`
-                }
-              </div>`;
-            }).join('')}
-          </div>
-        </div>`;
-      })()}
-
-      <!-- 손익계산서 -->
-      <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.5rem">손익계산서</div>
-      <div class="table-wrap" style="margin-bottom:1.25rem"><table>
-        <thead><tr>
-          <th>기간</th>
-          <th>매출액</th>
-          ${!isAnnual ? '<th>YoY</th><th>QoQ</th>' : '<th>YoY</th>'}
-          <th>매출총이익</th><th>GPM</th>
-          <th>판관비</th><th>판관비율</th>
-          <th>R&D</th>
-          <th>영업이익</th><th>영업이익률</th>
-          <th>순이익</th><th>순이익률</th>
-          <th>ROE</th>
-        </tr></thead>
-        <tbody>${src.map(r => {
-          const opColor = (r.operating_profit||0) >= 0 ? 'var(--green)' : 'var(--red)';
-          const niColor = (r.net_income||0) >= 0 ? 'var(--green)' : 'var(--red)';
-          const gpColor = (r.gross_profit||0) >= 0 ? '' : 'var(--red)';
-          return `<tr>
-            <td style="font-weight:600">${r.bsns_year} ${r.quarter}</td>
-            <td>${fmt(r.revenue)}</td>
-            ${!isAnnual
-              ? `<td style="font-size:11px">${chgBadge(r.revenue_yoy)}</td><td style="font-size:11px">${chgBadge(r.revenue_qoq)}</td>`
-              : '<td>—</td>'}
-            <td style="color:${gpColor}">${fmt(r.gross_profit)}</td>
-            <td>${pct(r.gross_margin)}</td>
-            <td>${fmt(r.sga)}</td>
-            <td>${pct(r.sga_ratio)}</td>
-            <td>${r.rd_expense ? fmt(r.rd_expense) : '—'}</td>
-            <td style="color:${opColor}">${fmt(r.operating_profit)}</td>
-            <td>${pct(r.operating_margin)}</td>
-            <td style="color:${niColor}">${fmt(r.net_income)}</td>
-            <td>${pct(r.net_margin)}</td>
-            <td>${pct(r.roe)}</td>
-          </tr>`;
-        }).join('')}
-        </tbody>
-      </table></div>
-
-      <!-- 재무상태표 -->
-      <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.5rem">재무상태표</div>
-      <div class="table-wrap" style="margin-bottom:.75rem"><table>
-        <thead><tr>
-          <th>기간</th>
-          <th>자산총계</th><th>부채총계</th><th>자본총계</th>
-          <th>부채비율</th><th>유동비율</th>
-          <th>ROE</th><th>ROA</th>
-          <th>영업현금흐름</th><th>투자현금흐름</th><th>재무현금흐름</th>
-        </tr></thead>
-        <tbody>${src.map(r => {
-          const ocfColor = (r.operating_cashflow||0) > 0 ? 'var(--green)' : 'var(--red)';
-          const icfColor = (r.investing_cashflow||0) > 0 ? 'var(--green)' : 'var(--red)';
-          const fcfColor = (r.financing_cashflow||0) > 0 ? 'var(--green)' : 'var(--red)';
-          return `<tr>
-          <td style="font-weight:600">${r.bsns_year} ${r.quarter}</td>
-          <td>${fmt(r.total_assets)}</td>
-          <td>${fmt(r.total_liabilities)}</td>
-          <td>${fmt(r.total_equity)}</td>
-          <td>${pct(r.debt_ratio)}</td>
-          <td>${r.current_ratio ? r.current_ratio.toFixed(1)+'%' : '—'}</td>
-          <td>${pct(r.roe)}</td>
-          <td>${pct(r.roa)}</td>
-          <td style="color:${ocfColor}">${fmt(r.operating_cashflow)}</td>
-          <td style="color:${icfColor}">${r.investing_cashflow ? fmt(r.investing_cashflow) : '—'}</td>
-          <td style="color:${fcfColor}">${r.financing_cashflow ? fmt(r.financing_cashflow) : '—'}</td>
-        </tr>`;
-        }).join('')}
-        </tbody>
-      </table></div>
-      <div style="font-size:11px;color:var(--text3)">연결 재무제표 기준${isAnnual?' · 4개 분기 합산 기준 (연간)':''}</div>`;
-
-    // 차트 렌더링
-    const ctx = document.getElementById('fin-chart')?.getContext('2d');
-    if (!ctx || typeof Chart === 'undefined') return;
-    if (window._finChartInst) { window._finChartInst.destroy(); window._finChartInst = null; }
-
-    window._finChartInst = new Chart(ctx, {
-      type: cfg.type || 'bar',
-      data: { labels: cfg.labels || labels, datasets: cfg.datasets },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { labels: { color: textColor, font: { size: 11 }, usePointStyle: true } },
-          tooltip: {
-            backgroundColor: '#1a1d27', borderColor: 'rgba(255,255,255,.1)', borderWidth: 1,
-            callbacks: {
-              label: ctx => {
-                const v = ctx.parsed.y;
-                if (v == null) return `${ctx.dataset.label}: —`;
-                const isRate = ctx.dataset.yAxisID === 'y2' || tab === 'margin';
-                return `${ctx.dataset.label}: ${v.toLocaleString()}${isRate ? '%' : '억'}`;
-              }
-            }
-          }
-        },
-        scales: {
-          x: { ticks: { color: textColor, font: { size: 10 } }, grid: { color: gridColor } },
-          y: {
-            position: 'left',
-            ticks: {
-              color: textColor, font: { size: 10 },
-              callback: v => tab === 'margin' ? v + '%' : v.toLocaleString() + '억'
-            },
-            grid: {
-              color: ctx => ctx.tick.value === 0 ? 'rgba(255,255,255,.2)' : gridColor,
-              lineWidth: ctx => ctx.tick.value === 0 ? 1.5 : 1,
-            }
-          },
-          ...(cfg.dualAxis ? {
-            y2: {
-              position: 'right',
-              ticks: { color: textColor, font: { size: 10 }, callback: v => v + '%' },
-              grid: { drawOnChartArea: false },
-            }
-          } : {})
-        }
-      }
-    });
-  };
-
-  window.renderFinTrendBody = renderBody;
-  renderBody();
-}
-function exportFinancials() {
-  if (!_finData.length) { toast('데이터가 없습니다.', 'error'); return; }
-  const keys = Object.keys(_finData[0]);
-  const csv = [keys.join(','), ..._finData.map(r =>
-    keys.map(k => {
-      const v = r[k];
-      return v == null ? '' : typeof v === 'string' && v.includes(',') ? `"${v}"` : v;
-    }).join(',')
-  )].join('\n');
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `financials_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click(); URL.revokeObjectURL(url);
-  toast('CSV 다운로드 완료', 'success');
-}
-
-
 // ══════════════════════════════════════════
-//  📊 시장 데이터 상세 모달
+//  📊 종목 상세 통합 모달 (시장데이터 + 재무제표)
 // ══════════════════════════════════════════
-async function openMarketDetail(code, name) {
-  // 기존 모달 제거
-  document.getElementById('m-market-detail')?.remove();
+async function openStockDetail(code, name, initTab = 'market') {
+  document.getElementById('m-stock-detail')?.remove();
 
-  // 모달 생성
   const modal = document.createElement('div');
-  modal.id = 'm-market-detail';
+  modal.id = 'm-stock-detail';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+
   modal.innerHTML = `
-    <div style="background:var(--bg2);border-radius:12px;width:100%;max-width:860px;
-      max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.5)">
+    <div style="background:var(--bg2);border-radius:12px;width:100%;max-width:960px;
+      max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.5)">
+
+      <!-- 헤더 -->
       <div style="display:flex;align-items:center;justify-content:space-between;
-        padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1">
+        padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
         <div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:16px;font-weight:700">${name}</span>
             <span style="font-size:12px;color:var(--text3)">${code}</span>
           </div>
-          <div id="modal-industry-label" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
+          <div id="sd-industry" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
         </div>
-        <button onclick="document.getElementById('m-market-detail').remove()"
+        <button onclick="document.getElementById('m-stock-detail').remove()"
           style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;padding:0 4px">×</button>
       </div>
-      <div id="market-detail-body" style="padding:20px">
+
+      <!-- 탭 -->
+      <div style="display:flex;gap:0;border-bottom:1px solid var(--border);flex-shrink:0;padding:0 20px">
+        <button id="sd-tab-market" onclick="sdSwitchTab('market')"
+          style="background:none;border:none;border-bottom:2px solid transparent;
+            padding:10px 16px;cursor:pointer;font-size:13px;font-weight:600;
+            color:var(--text3);transition:.15s">
+          📊 시장 데이터
+        </button>
+        <button id="sd-tab-financial" onclick="sdSwitchTab('financial')"
+          style="background:none;border:none;border-bottom:2px solid transparent;
+            padding:10px 16px;cursor:pointer;font-size:13px;font-weight:600;
+            color:var(--text3);transition:.15s">
+          💰 재무제표
+        </button>
+      </div>
+
+      <!-- 콘텐츠 -->
+      <div id="sd-body" style="overflow-y:auto;padding:20px;flex:1">
         <div style="text-align:center;color:var(--text3);padding:40px">
           <span class="loading"></span> 로딩 중...
         </div>
       </div>
     </div>`;
+
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
   document.body.appendChild(modal);
 
-  // 데이터 로드
-  const body = document.getElementById('market-detail-body');
+  // 산업 정보 로드
   try {
-    // 최신 시장 데이터 + 산업 정보
-    const { data: latest } = await sb.from('market_data')
-      .select('*').eq('stock_code', code)
-      .order('base_date', { ascending: false }).limit(1).single();
-
-    // companies에서 산업 정보 조회
-    const { data: compInfo } = await sb.from('companies')
+    const { data: ci } = await sb.from('companies')
       .select('industry,sub_industry')
       .or(`code.eq.${code},code.eq.${code}.KS,code.eq.${code}.KQ`)
       .limit(1).single();
-
-    // 과거 90일 시장 데이터
-    const { data: history } = await sb.from('market_data')
-      .select('base_date,price,price_change_rate,market_cap,volume,per,pbr')
-      .eq('stock_code', code)
-      .order('base_date', { ascending: false }).limit(90);
-
-    if (!latest) { body.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px">데이터 없음</div>'; return; }
-
-    // 산업 라벨 표시
-    const indLabel = document.getElementById('modal-industry-label');
-    if (indLabel && compInfo) {
-      const parts = [compInfo.industry, compInfo.sub_industry].filter(Boolean);
-      if (parts.length) {
-        indLabel.innerHTML = parts.map((p,i) =>
+    if (ci) {
+      const el = document.getElementById('sd-industry');
+      if (el) {
+        const parts = [ci.industry, ci.sub_industry].filter(Boolean);
+        el.innerHTML = parts.map((p,i) =>
           `<span style="color:${i===0?'var(--tg)':'var(--text3)'}">${p}</span>`
         ).join(' <span style="color:var(--text3)">›</span> ');
       }
     }
+  } catch(e) {}
+
+  // 탭 전환
+  window._sdCode = code;
+  window._sdName = name;
+  window.sdSwitchTab = async (tab) => {
+    ['market','financial'].forEach(t => {
+      const btn = document.getElementById('sd-tab-'+t);
+      if (btn) {
+        btn.style.color = t === tab ? 'var(--tg)' : 'var(--text3)';
+        btn.style.borderBottomColor = t === tab ? 'var(--tg)' : 'transparent';
+      }
+    });
+    const body = document.getElementById('sd-body');
+    if (!body) return;
+    body.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px"><span class="loading"></span></div>';
+    if (tab === 'market') {
+      await _renderMarketTab(body, window._sdCode, window._sdName);
+    } else {
+      await _renderFinancialTab(body, window._sdCode, window._sdName);
+    }
+  };
+
+  await sdSwitchTab(initTab);
+}
+
+async function openFinTrend(stockCode, corpName) {
+  openStockDetail(stockCode, corpName, 'financial');
+}
+
+async function openMarketDetail(code, name) {
+  openStockDetail(code, name, 'market');
+}
+
+async function _renderMarketTab(body, code, name) {
+  try {
+    const { data: latest } = await sb.from('market_data')
+      .select('*').eq('stock_code', code)
+      .order('base_date', { ascending: false }).limit(1).single();
+    const { data: history } = await sb.from('market_data')
+      .select('base_date,price,price_change_rate,market_cap,volume,per,pbr,foreign_net_buy')
+      .eq('stock_code', code)
+      .order('base_date', { ascending: false }).limit(90);
+
+    if (!latest) { body.innerHTML = '<div style="color:var(--text3);padding:40px;text-align:center">데이터 없음</div>'; return; }
 
     const r = latest;
     const chg = r.price_change_rate;
     const hist = (history || []).reverse();
-
-    // 52주 가격 범위 바 위치 계산
-    const hi52 = r.week52_high || 0;
-    const lo52 = r.week52_low || 0;
-    const cur  = r.price || 0;
+    const hi52 = r.week52_high || 0, lo52 = r.week52_low || 0, cur = r.price || 0;
     const rangePct = hi52 > lo52 ? Math.round((cur - lo52) / (hi52 - lo52) * 100) : 50;
 
-    // 기간별 수익률 (hist에서 계산)
     const retStr = (days) => {
       if (hist.length <= days) return '—';
       const past = hist[Math.max(0, hist.length - 1 - days)]?.price;
       if (!past || !cur) return '—';
       const ret = ((cur - past) / past * 100).toFixed(2);
-      return `<span style="color:${ret>=0?'var(--green)':'var(--red)'}">${ret>=0?'+':''}${ret}%</span>`;
+      return `<span style="color:${ret>=0?'var(--red)':'var(--blue)'}">${ret>=0?'+':''}${ret}%</span>`;
     };
 
     const row2 = (label, val, color='') =>
@@ -778,7 +467,6 @@ async function openMarketDetail(code, name) {
         <span style="font-size:12px;color:var(--text2)">${label}</span>
         <span style="font-size:13px;font-weight:600;color:${color||'var(--text1)'};">${val}</span>
       </div>`;
-
     const section = (title, content) =>
       `<div style="background:var(--bg3);border-radius:10px;padding:14px 16px;border:1px solid var(--border)">
         <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.8px;margin-bottom:10px">${title}</div>
@@ -786,44 +474,38 @@ async function openMarketDetail(code, name) {
       </div>`;
 
     body.innerHTML = `
-      <!-- 상단 헤더: 현재가 + 등락 -->
-      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 2px;margin-bottom:16px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px">
         <div style="display:flex;align-items:baseline;gap:10px">
           <span style="font-size:24px;font-weight:700;color:var(--text1)">${r.price ? r.price.toLocaleString()+'원' : '—'}</span>
           <span style="font-size:15px;font-weight:700;color:${chgColor(chg)}">${chgStr(chg)}</span>
-          <span style="font-size:13px;color:${chgColor(chg)}">${r.price_change != null ? (r.price_change>0?'+':'')+r.price_change.toLocaleString()+'원' : ''}</span>
+          <span style="font-size:13px;color:${chgColor(chg)}">${r.price_change!=null?(r.price_change>0?'+':'')+r.price_change.toLocaleString()+'원':''}</span>
         </div>
         <span style="font-size:12px;color:var(--text3)">${r.base_date}</span>
       </div>
-
-      <!-- 3열 그리드 -->
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
-
         ${section('VALUATION', `
           ${row2('시가총액', r.market_cap ? fmtCap(r.market_cap) : '—')}
-          ${row2('PER', r.per != null && r.per !== 0 ? r.per.toFixed(1)+'배' : '—')}
-          ${row2('PBR', r.pbr != null && r.pbr !== 0 ? r.pbr.toFixed(2)+'배' : '—')}
+          ${row2('PER', r.per!=null&&r.per!==0 ? r.per.toFixed(1)+'배' : '—')}
+          ${row2('PBR', r.pbr!=null&&r.pbr!==0 ? r.pbr.toFixed(2)+'배' : '—')}
           ${row2('EPS', r.eps ? r.eps.toLocaleString()+'원' : '—')}
           ${row2('BPS', r.bps ? r.bps.toLocaleString()+'원' : '—')}
         `)}
-
         ${section('수급', `
-          ${row2('외국인 보유율', r.foreign_hold_rate != null ? r.foreign_hold_rate.toFixed(2)+'%' : '—')}
-          ${row2('외국인 순매수', r.foreign_net_buy != null ? r.foreign_net_buy.toLocaleString()+'주' : '—', r.foreign_net_buy < 0 ? 'var(--blue)' : 'var(--red)')}
-          ${row2('프로그램 순매수', r.program_net_buy != null ? r.program_net_buy.toLocaleString()+'주' : '—', r.program_net_buy < 0 ? 'var(--blue)' : 'var(--red)')}
+          ${row2('외국인 보유율', r.foreign_hold_rate!=null ? r.foreign_hold_rate.toFixed(2)+'%' : '—')}
+          ${row2('외국인 순매수', r.foreign_net_buy!=null ? r.foreign_net_buy.toLocaleString()+'주' : '—', r.foreign_net_buy<0?'var(--blue)':'var(--red)')}
+          ${row2('프로그램 순매수', r.program_net_buy!=null ? r.program_net_buy.toLocaleString()+'주' : '—', r.program_net_buy<0?'var(--blue)':'var(--red)')}
           ${row2('거래량', r.volume ? r.volume.toLocaleString() : '—')}
-          ${row2('거래회전율', r.vol_turnover != null ? r.vol_turnover.toFixed(2)+'%' : '—')}
-          ${row2('대출잔고율', r.loan_balance_rate != null ? r.loan_balance_rate.toFixed(2)+'%' : '—')}
+          ${row2('거래회전율', r.vol_turnover!=null ? r.vol_turnover.toFixed(2)+'%' : '—')}
+          ${row2('대출잔고율', r.loan_balance_rate!=null ? r.loan_balance_rate.toFixed(2)+'%' : '—')}
         `)}
-
         ${section('가격 범위 · 수익률', `
           ${row2('52주 최고', r.week52_high ? r.week52_high.toLocaleString()+'원' : '—', 'var(--red)')}
           ${row2('52주 최저', r.week52_low ? r.week52_low.toLocaleString()+'원' : '—', 'var(--blue)')}
           <div style="margin:8px 0 12px">
             <div style="height:5px;background:var(--border);border-radius:3px;position:relative">
-              <div style="position:absolute;left:0;width:${rangePct}%;height:100%;background:linear-gradient(90deg,var(--blue),var(--tg));border-radius:3px;opacity:.5"></div>
+              <div style="position:absolute;left:0;width:${rangePct}%;height:100%;background:var(--tg);border-radius:3px;opacity:.4"></div>
               <div style="position:absolute;left:${rangePct}%;transform:translateX(-50%);width:12px;height:12px;
-                background:var(--tg);border:2px solid var(--bg2);border-radius:50%;top:-4px;box-shadow:0 0 0 1px var(--tg)"></div>
+                background:var(--tg);border:2px solid var(--bg2);border-radius:50%;top:-4px"></div>
             </div>
             <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text3)">
               <span>${lo52.toLocaleString()}원</span>
@@ -836,32 +518,55 @@ async function openMarketDetail(code, name) {
           ${row2('3달 수익률', retStr(63))}
         `)}
       </div>
-
-      <!-- 히스토리 테이블 -->
       <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;margin-bottom:8px">최근 시장 데이터 (${hist.length}일)</div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th>기준일</th><th>종가</th><th>등락률</th><th>시가총액</th>
-            <th>거래량</th><th>외국인순매수</th><th>PER</th><th>PBR</th>
-          </tr></thead>
-          <tbody>${hist.slice().reverse().map(h => {
-            const hc = h.price_change_rate;
-            return `<tr>
-              <td style="font-size:11px;color:var(--text3)">${h.base_date}</td>
-              <td style="font-weight:600">${h.price ? h.price.toLocaleString()+'원' : '—'}</td>
-              <td style="color:${chgColor(hc)};font-weight:600">${chgStr(hc)}</td>
-              <td style="color:var(--text2)">${h.market_cap ? fmtCap(h.market_cap) : '—'}</td>
-              <td style="color:var(--text2)">${h.volume ? h.volume.toLocaleString() : '—'}</td>
-              <td style="color:${h.foreign_net_buy<0?'var(--blue)':'var(--red)'}">
-                ${h.foreign_net_buy != null ? h.foreign_net_buy.toLocaleString() : '—'}
-              </td>
-              <td style="color:var(--text2)">${h.per != null && h.per !== 0 ? h.per.toFixed(1) : '—'}</td>
-              <td style="color:var(--text2)">${h.pbr != null && h.pbr !== 0 ? h.pbr.toFixed(2) : '—'}</td>
-            </tr>`;
-          }).join('')}</tbody>
-        </table>
-      </div>`;
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>기준일</th><th>종가</th><th>등락률</th><th>시가총액</th>
+          <th>거래량</th><th>외국인순매수</th><th>PER</th><th>PBR</th>
+        </tr></thead>
+        <tbody>${hist.slice().reverse().map(h => {
+          const hc = h.price_change_rate;
+          return `<tr>
+            <td style="font-size:11px;color:var(--text3)">${h.base_date}</td>
+            <td style="font-weight:600">${h.price ? h.price.toLocaleString()+'원' : '—'}</td>
+            <td style="color:${chgColor(hc)};font-weight:600">${chgStr(hc)}</td>
+            <td style="color:var(--text2)">${h.market_cap ? fmtCap(h.market_cap) : '—'}</td>
+            <td style="color:var(--text2)">${h.volume ? h.volume.toLocaleString() : '—'}</td>
+            <td style="color:${h.foreign_net_buy<0?'var(--blue)':'var(--red)'}">
+              ${h.foreign_net_buy!=null ? h.foreign_net_buy.toLocaleString() : '—'}
+            </td>
+            <td style="color:var(--text2)">${h.per!=null&&h.per!==0 ? h.per.toFixed(1) : '—'}</td>
+            <td style="color:var(--text2)">${h.pbr!=null&&h.pbr!==0 ? h.pbr.toFixed(2) : '—'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+  } catch(e) {
+    body.innerHTML = `<div style="color:var(--red);padding:20px">오류: ${e.message}</div>`;
+  }
+}
+
+async function _renderFinancialTab(body, code, name) {
+  try {
+    body.innerHTML = '<div style="text-align:center;color:var(--text3);padding:20px"><span class="loading"></span></div>';
+
+    const [{ data: rawData }, { data: gradeHist }] = await Promise.all([
+      sb.from('financials').select('*').eq('stock_code', code).order('bsns_year').order('quarter'),
+      sb.from('grade_history').select('*').eq('stock_code', code).order('date', {ascending:false}).limit(20)
+    ]);
+
+    if (!rawData?.length) {
+      body.innerHTML = '<div style="color:var(--text3);padding:40px;text-align:center">재무 데이터 없음</div>';
+      return;
+    }
+
+    // fin-trend-body에 렌더링 (기존 함수 재활용)
+    body.id = 'fin-trend-body';
+    window._finTrendData  = rawData;
+    window._finGradeHist  = gradeHist || [];
+    window._finViewMode   = 'quarter';
+    window._finChartTab   = 'revenue';
+    renderFinTrendBody();
+    body.id = 'sd-body'; // id 복원
   } catch(e) {
     body.innerHTML = `<div style="color:var(--red);padding:20px">오류: ${e.message}</div>`;
   }
