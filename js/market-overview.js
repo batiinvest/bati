@@ -23,7 +23,7 @@ async function loadMarketOverview(maxDate) {
   let from = 0;
   while (true) {
     const { data } = await sb.from('market_data')
-      .select('stock_code,corp_name,price,price_change_rate,market,market_cap')
+      .select('stock_code,corp_name,price,price_change_rate,market,market_cap,week_return,month_return,quarter_return')
       .eq('base_date', maxDate)
       .not('price_change_rate', 'is', null)
       .range(from, from + 999);
@@ -332,11 +332,28 @@ async function loadMarketOverview(maxDate) {
     });
 
     // 전체 종목 렌더링 함수
+    // ── 정렬 상태 ──
+    let _sortCol = 'price_change_rate', _sortDir = -1;
+
+    const sortIcon = col => col === _sortCol ? (_sortDir > 0 ? ' ▲' : ' ▼') : '';
+    const retStr = v => v != null
+      ? '<span style="color:' + (v>=0?'var(--red)':'var(--blue)') + '">' + (v>=0?'+':'') + v.toFixed(1) + '%</span>'
+      : '<span style="color:var(--text3)">—</span>';
+    const thStyle = col => 'cursor:pointer;text-align:right;font-size:11px;padding:4px 4px;color:' +
+      (col===_sortCol?'var(--tg)':'var(--text2)') + ';white-space:nowrap;user-select:none';
+    const th = (col, label) =>
+      '<span style="' + thStyle(col) + '" onclick="window._moSort(\'' + col + '\')">' + label + sortIcon(col) + '</span>';
+
     const renderStockPanel = (title, avg, stocks, rise, fall, flat) => {
-      const all = [...stocks].sort((a,b) => b.price_change_rate - a.price_change_rate);
-      const r = rise  != null ? rise  : all.filter(s => s.price_change_rate > 0).length;
-      const f = fall  != null ? fall  : all.filter(s => s.price_change_rate < 0).length;
-      const fl= flat  != null ? flat  : all.filter(s => s.price_change_rate === 0).length;
+      const all = [...stocks].sort((a, b) => {
+        const va = a[_sortCol] ?? -Infinity;
+        const vb = b[_sortCol] ?? -Infinity;
+        return _sortDir * (vb - va);
+      });
+      const r = rise != null ? rise : all.filter(s => s.price_change_rate > 0).length;
+      const f = fall != null ? fall : all.filter(s => s.price_change_rate < 0).length;
+      const fl = flat != null ? flat : all.filter(s => s.price_change_rate === 0).length;
+      const COLS = '16px 1fr 80px 62px 68px 54px 58px 60px';
       return '<div style="padding:10px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1;display:flex;justify-content:space-between;align-items:center">' +
           '<span style="font-size:13px;font-weight:700">' + title + '</span>' +
           '<div style="display:flex;align-items:center;gap:10px">' +
@@ -345,33 +362,58 @@ async function loadMarketOverview(maxDate) {
             (fl ? '<span style="color:var(--text3);font-size:12px">━ ' + fl + '</span>' : '') +
           '</div>' +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:16px 1fr 90px 70px 80px;gap:0;font-size:11px;padding:4px 14px;color:var(--text2);border-bottom:1px solid var(--border)">' +
-          '<span></span><span>종목</span><span style="text-align:right;padding-right:0;text-align:right">현재가</span>' +
-          '<span style="text-align:right;padding-right:0;text-align:right">등락률</span>' +
-          '<span style="text-align:right;min-width:60px">시총</span>' +
+        '<div style="display:grid;grid-template-columns:' + COLS + ';gap:0;padding:4px 14px;border-bottom:1px solid var(--border);background:var(--bg3)">' +
+          '<span></span>' +
+          '<span style="font-size:11px;color:var(--text2)">종목</span>' +
+          th('price', '현재가') +
+          th('price_change_rate', '등락률') +
+          th('market_cap', '시총') +
+          th('week_return', '1주') +
+          th('month_return', '1개월') +
+          th('quarter_return', '3개월') +
         '</div>' +
         all.map((st, i) =>
-          '<div style="display:grid;grid-template-columns:16px 1fr 90px 70px 80px;align-items:center;gap:0;padding:7px 14px;border-bottom:1px solid var(--border)">' +
+          '<div style="display:grid;grid-template-columns:' + COLS + ';align-items:center;gap:0;padding:6px 14px;border-bottom:1px solid var(--border);cursor:pointer" ' +
+            'onclick="openStockDetail(\'' + st.stock_code + '\',\'' + (st.corp_name||'').replace(/'/g,"\\\\'" ) + '\')" ' +
+            'onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"> ' +
             '<span style="font-size:11px;color:var(--text3)">' + (i+1) + '</span>' +
             '<span style="font-size:13px">' + st.corp_name + '</span>' +
-            '<span style="font-size:12px;color:var(--text1);text-align:right;padding-right:12px">' +
+            '<span style="font-size:12px;color:var(--text1);text-align:right;padding-right:8px">' +
               (st.price != null ? st.price.toLocaleString() + '원' : '—') +
             '</span>' +
             '<span style="font-size:13px;font-weight:700;color:' + chgColor(st.price_change_rate) + ';text-align:right">' +
               chgStr(st.price_change_rate) +
             '</span>' +
-            '<span style="font-size:12px;color:var(--text2);text-align:right;min-width:60px">' +
+            '<span style="font-size:11px;color:var(--text2);text-align:right;padding-right:6px">' +
               (st.market_cap != null ? fmtCap(st.market_cap) : '—') +
             '</span>' +
+            '<span style="font-size:11px;text-align:right;padding-right:4px">' + retStr(st.week_return) + '</span>' +
+            '<span style="font-size:11px;text-align:right;padding-right:4px">' + retStr(st.month_return) + '</span>' +
+            '<span style="font-size:11px;text-align:right">' + retStr(st.quarter_return) + '</span>' +
           '</div>'
         ).join('');
+    };
+
+    window._moSort = col => {
+      if (_sortCol === col) _sortDir *= -1;
+      else { _sortCol = col; _sortDir = -1; }
+      const sp = document.getElementById('sub-stock-panel');
+      if (!sp) return;
+      const activeRow = panel.querySelector('.sub-sector-row[data-active]');
+      if (activeRow) {
+        const si = parseInt(activeRow.dataset.si);
+        const s = subRows[si];
+        if (s) sp.innerHTML = renderStockPanel(s.sub, s.avg, s.stocks, s.rise, s.fall, s.flat);
+      } else {
+        sp.innerHTML = renderStockPanel(indName + ' 전체', d.avg, d.stocks, d.rise, d.fall, d.flat);
+      }
     };
 
     // 초기 우측 패널 = 전체 종목
     const initStockPanel = renderStockPanel(indName + ' 전체', d.avg, d.stocks, d.rise, d.fall, d.flat);
 
     panel.innerHTML =
-      '<div style="display:grid;grid-template-columns:1fr 1fr;min-height:300px">' +
+      '<div style="display:grid;grid-template-columns:35% 65%;min-height:300px">' +
         '<div id="sub-left" style="border-right:1px solid var(--border);overflow-y:auto;max-height:480px">' + leftHtml + '</div>' +
         '<div id="sub-stock-panel" style="overflow-y:auto;max-height:480px">' + initStockPanel + '</div>' +
       '</div>';
