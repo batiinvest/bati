@@ -564,49 +564,22 @@ async function _renderFinancialTab(body, code, name) {
       return;
     }
 
-    const fmt = (v, unit='억') => {
-      if (v == null) return '—';
-      const n = Math.round(v / 100000000);
-      return n.toLocaleString() + unit;
-    };
-    const pct = (v) => v != null ? v.toFixed(1)+'%' : '—';
-
-    // 탭 (분기/연간)
-    let viewMode = 'quarter';
-    const render = () => {
-      const rows = viewMode === 'annual'
-        ? fins.filter(f => f.quarter === 'Q4').map(f => ({...f, label: f.bsns_year+'년'}))
-        : fins.map(f => ({...f, label: f.bsns_year+' '+f.quarter}));
-
-      const trs = rows.map(f => `<tr>
-        <td style="font-size:12px;color:var(--text3);white-space:nowrap">${f.label}</td>
-        <td style="text-align:right;font-weight:600">${fmt(f.revenue)}</td>
-        <td style="text-align:right">${fmt(f.operating_profit)}</td>
-        <td style="text-align:right;color:${f.operating_margin>=0?'var(--red)':'var(--blue)'}">${pct(f.operating_margin)}</td>
-        <td style="text-align:right">${fmt(f.net_income)}</td>
-        <td style="text-align:right;color:${f.net_margin>=0?'var(--red)':'var(--blue)'}">${pct(f.net_margin)}</td>
-        <td style="text-align:right">${pct(f.roe)}</td>
-        <td style="text-align:right">${pct(f.debt_ratio)}</td>
-        <td style="text-align:right">${fmt(f.operating_cashflow)}</td>
-      </tr>`).join('');
-
-      document.getElementById('fin-table-body').innerHTML = trs;
-    };
+    const fmt  = (v, unit='억') => v==null ? '—' : Math.round(v/100000000).toLocaleString()+unit;
+    const pct  = (v) => v!=null ? v.toFixed(1)+'%' : '—';
+    const fmtB = (v) => v==null ? null : Math.round(v/100000000);
 
     body.innerHTML = `
-      <div style="display:flex;gap:8px;margin-bottom:16px">
-        <button id="btn-quarter" class="chip active" onclick="
-          document.getElementById('btn-quarter').classList.add('active');
-          document.getElementById('btn-annual').classList.remove('active');
-          window._finView='quarter';
-          window._finRender();
-        ">분기별</button>
-        <button id="btn-annual" class="chip" onclick="
-          document.getElementById('btn-annual').classList.add('active');
-          document.getElementById('btn-quarter').classList.remove('active');
-          window._finView='annual';
-          window._finRender();
-        ">연간별</button>
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+        <button id="btn-quarter" class="chip active" onclick="window._finView='quarter';window._finRender()">분기별</button>
+        <button id="btn-annual"  class="chip"        onclick="window._finView='annual'; window._finRender()">연간별</button>
+        <div style="display:flex;gap:4px;margin-left:auto">
+          <button id="btn-chart-rev" class="chip active" onclick="window._finChart='revenue';window._finDrawChart()">매출·영업이익</button>
+          <button id="btn-chart-mgn" class="chip"        onclick="window._finChart='margin'; window._finDrawChart()">이익률</button>
+          <button id="btn-chart-cf"  class="chip"        onclick="window._finChart='cf';     window._finDrawChart()">현금흐름</button>
+        </div>
+      </div>
+      <div style="position:relative;height:220px;margin-bottom:16px">
+        <canvas id="fin-chart-canvas"></canvas>
       </div>
       <div class="table-wrap"><table>
         <thead><tr>
@@ -623,11 +596,72 @@ async function _renderFinancialTab(body, code, name) {
         <tbody id="fin-table-body"></tbody>
       </table></div>`;
 
-    window._finView = 'quarter';
+    let finChart = null;
+
+    window._finView  = 'quarter';
+    window._finChart = 'revenue';
+    window._fins     = fins;
+
+    window._finGetRows = () => {
+      return window._finView === 'annual'
+        ? window._fins.filter(f => f.quarter === 'Q4').map(f => ({...f, label: f.bsns_year+'년'}))
+        : window._fins.map(f => ({...f, label: f.bsns_year+' '+f.quarter}));
+    };
+
+    window._finDrawChart = () => {
+      ['rev','mgn','cf'].forEach(t => {
+        const b = document.getElementById('btn-chart-'+t);
+        if (b) b.classList.toggle('active', t === {revenue:'rev',margin:'mgn',cf:'cf'}[window._finChart]);
+      });
+      const rows = window._finGetRows();
+      const labels = rows.map(r => r.label);
+      const canvas = document.getElementById('fin-chart-canvas');
+      if (!canvas || !window.Chart) return;
+      if (finChart) { finChart.destroy(); finChart = null; }
+
+      let datasets;
+      if (window._finChart === 'revenue') {
+        datasets = [
+          { label:'매출액', data: rows.map(r => fmtB(r.revenue)),           backgroundColor:'rgba(42,171,238,0.7)', borderRadius:3 },
+          { label:'영업이익', data: rows.map(r => fmtB(r.operating_profit)), backgroundColor:'rgba(245,54,92,0.7)',  borderRadius:3 },
+        ];
+      } else if (window._finChart === 'margin') {
+        datasets = [
+          { label:'영업이익률', data: rows.map(r => r.operating_margin?.toFixed(1)??null), borderColor:'rgba(245,54,92,0.9)',  fill:false, tension:0.3, type:'line' },
+          { label:'순이익률',   data: rows.map(r => r.net_margin?.toFixed(1)??null),       borderColor:'rgba(42,171,238,0.9)', fill:false, tension:0.3, type:'line' },
+          { label:'ROE',        data: rows.map(r => r.roe?.toFixed(1)??null),              borderColor:'rgba(45,206,137,0.9)', fill:false, tension:0.3, type:'line' },
+        ];
+      } else {
+        datasets = [
+          { label:'영업현금흐름', data: rows.map(r => fmtB(r.operating_cashflow)),
+            backgroundColor: rows.map(r => (fmtB(r.operating_cashflow)??0)>=0 ? 'rgba(45,206,137,0.7)' : 'rgba(245,54,92,0.7)'), borderRadius:3 },
+        ];
+      }
+
+      finChart = new window.Chart(canvas.getContext('2d'), {
+        type: window._finChart === 'margin' ? 'line' : 'bar',
+        data: { labels, datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode:'index', intersect:false },
+          plugins: {
+            legend: { labels: { color:'#a8adc4', font:{size:11} } },
+            tooltip: { backgroundColor:'#1a1d27', titleColor:'#f0f2f8', bodyColor:'#a8adc4' }
+          },
+          scales: {
+            x: { ticks: { color:'#6e7491', font:{size:10}, maxRotation:45 }, grid:{ color:'rgba(255,255,255,0.05)' } },
+            y: { ticks: { color:'#6e7491', font:{size:10} }, grid:{ color:'rgba(255,255,255,0.05)' } }
+          }
+        }
+      });
+    };
+
     window._finRender = () => {
-      const rows = window._finView === 'annual'
-        ? fins.filter(f => f.quarter === 'Q4').map(f => ({...f, label: f.bsns_year+'년'}))
-        : fins.map(f => ({...f, label: f.bsns_year+' '+f.quarter}));
+      ['quarter','annual'].forEach(t => {
+        const b = document.getElementById('btn-'+t);
+        if (b) b.classList.toggle('active', t === window._finView);
+      });
+      const rows = window._finGetRows();
       document.getElementById('fin-table-body').innerHTML = rows.map(f => `<tr>
         <td style="font-size:12px;color:var(--text3);white-space:nowrap">${f.label}</td>
         <td style="text-align:right;font-weight:600">${fmt(f.revenue)}</td>
@@ -639,7 +673,9 @@ async function _renderFinancialTab(body, code, name) {
         <td style="text-align:right">${pct(f.debt_ratio)}</td>
         <td style="text-align:right">${fmt(f.operating_cashflow)}</td>
       </tr>`).join('');
+      window._finDrawChart();
     };
+
     window._finRender();
 
   } catch(e) {
