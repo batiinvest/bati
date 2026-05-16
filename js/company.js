@@ -1,6 +1,17 @@
 // company.js — 모니터링 종목 관리 페이지
 // DB: companies (code, name, industry, sub_industry, is_monitored)
 
+// ── 변경사항 추적 ──────────────────────────────
+let _monDirty = false;
+
+function _monMarkDirty() {
+  _monDirty = true;
+  const btn = document.getElementById('mon-apply-btn');
+  if (btn) { btn.style.opacity='1'; btn.disabled=false; }
+  const badge = document.getElementById('mon-dirty-badge');
+  if (badge) badge.style.display='inline-flex';
+}
+
 function pCompany() {
   return `
   <div style="display:grid;grid-template-columns:320px 1fr;gap:0;min-height:calc(100vh - 56px);align-items:start">
@@ -40,7 +51,20 @@ function pCompany() {
     <div style="padding:1.25rem" id="mon-main">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
         <h2 style="font-size:16px;font-weight:700;margin:0">⭐ 모니터링 종목 관리</h2>
-        <div style="font-size:12px;color:var(--text3)" id="mon-summary"></div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span id="mon-dirty-badge" style="display:none;align-items:center;gap:4px;
+            font-size:11px;padding:3px 8px;border-radius:100px;
+            background:rgba(255,193,7,0.15);color:#ffc107;border:1px solid rgba(255,193,7,0.3)">
+            ● 미적용 변경사항
+          </span>
+          <div style="font-size:12px;color:var(--text3)" id="mon-summary"></div>
+          <button id="mon-apply-btn" onclick="monApply()"
+            style="font-size:12px;font-weight:700;padding:6px 16px;border-radius:6px;
+              border:none;cursor:pointer;background:var(--tg);color:#fff;
+              opacity:0.4;transition:opacity .2s" disabled>
+            ✅ 적용
+          </button>
+        </div>
       </div>
       <div id="mon-board">
         <div style="color:var(--text3);font-size:13px;padding:40px;text-align:center"><span class="loading"></span> 로딩 중...</div>
@@ -216,8 +240,7 @@ async function monRemoveStock(code, name) {
     for (const c of [code, code+'.KS', code+'.KQ']) {
       await sb.from('companies').update({ is_monitored: false }).eq('code', c)
     }
-    await sb.from('app_config').upsert({ key:'reload_flag', value:String(Date.now()),
-      description:'모니터링 종목 제거' }, { onConflict:'key' });
+    _monMarkDirty();
     await _monLoadBoard();
     toast(`🗑 ${name} 모니터링 제거`, 'success');
   } catch(e) { toast('삭제 실패: '+e.message, 'error'); }
@@ -294,8 +317,7 @@ async function monAddSelected() {
       await sb.from('companies').update({ is_monitored:true, industry:ind, sub_industry:sub||null })
         .eq('code', c)
     }
-    await sb.from('app_config').upsert({ key:'reload_flag', value:String(Date.now()),
-      description:'모니터링 종목 추가' }, { onConflict:'key' });
+    _monMarkDirty();
     document.getElementById('mon-add-panel').style.display = 'none';
     document.getElementById('mon-search').value = '';
     document.getElementById('mon-search-results').innerHTML = '';
@@ -331,8 +353,7 @@ async function monDeleteIndustry(ind) {
     }
   }
   if (stocks.length) {
-    await sb.from('app_config').upsert({ key:'reload_flag', value:String(Date.now()),
-      description:'산업 삭제' }, { onConflict:'key' });
+    _monMarkDirty();
   }
   delete _monData[ind];
   _monInds = Object.keys(_monData).sort();
@@ -364,4 +385,46 @@ async function monDeleteSub(ind, sub) {
   document.getElementById('mon-board').innerHTML = _monInds.map(i => _renderIndustryCard(i, _monData[i])).join('');
   _monInitDnd();
   toast(`🗑 서브섹터 '${sub}' 삭제`, 'success');
+}
+
+// ── 적용 버튼 ─────────────────────────────────
+async function monApply() {
+  const btn = document.getElementById('mon-apply-btn');
+  const badge = document.getElementById('mon-dirty-badge');
+
+  // 로딩 상태
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 적용 중...'; btn.style.opacity = '1'; }
+  if (badge) badge.innerHTML = '⏳ 봇 반영 중...';
+
+  try {
+    // reload_flag 트리거
+    await sb.from('app_config').upsert({
+      key: 'reload_flag',
+      value: String(Date.now()),
+      description: '모니터링 종목 변경 - 대시보드'
+    }, { onConflict: 'key' });
+
+    toast('📡 봇에 변경사항 전송 완료 — 약 1분 후 반영됩니다', 'success');
+
+    // 1분 카운트다운
+    let sec = 60;
+    const timer = setInterval(() => {
+      sec--;
+      if (btn) btn.textContent = `⏳ 반영 중 (${sec}초)`;
+      if (sec <= 0) {
+        clearInterval(timer);
+        _monDirty = false;
+        if (btn) { btn.textContent = '✅ 적용'; btn.style.opacity = '0.4'; btn.disabled = true; }
+        if (badge) badge.style.display = 'none';
+        // 보드 새로고침
+        _monLoadBoard();
+        toast('✅ 적용 완료', 'success');
+      }
+    }, 1000);
+
+  } catch(e) {
+    toast('적용 실패: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '✅ 적용'; }
+    if (badge) badge.innerHTML = '● 미적용 변경사항';
+  }
 }
