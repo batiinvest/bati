@@ -489,16 +489,22 @@ async function _renderMarketTab(body, code, name) {
           ${row2('PBR', r.pbr!=null&&r.pbr!==0 ? r.pbr.toFixed(2)+'배' : '—')}
           ${row2('EPS', r.eps ? r.eps.toLocaleString()+'원' : '—')}
           ${row2('BPS', r.bps ? r.bps.toLocaleString()+'원' : '—')}
+          ${row2('상장주식수', r.listing_shares ? r.listing_shares.toLocaleString()+'주' : '—')}
         `)}
         ${section('수급', `
           ${row2('외국인 보유율', r.foreign_hold_rate!=null ? r.foreign_hold_rate.toFixed(2)+'%' : '—')}
           ${row2('외국인 순매수', r.foreign_net_buy!=null ? r.foreign_net_buy.toLocaleString()+'주' : '—', r.foreign_net_buy<0?'var(--blue)':'var(--red)')}
           ${row2('프로그램 순매수', r.program_net_buy!=null ? r.program_net_buy.toLocaleString()+'주' : '—', r.program_net_buy<0?'var(--blue)':'var(--red)')}
           ${row2('거래량', r.volume ? r.volume.toLocaleString() : '—')}
+          ${row2('거래대금', r.trading_value ? fmtCap(r.trading_value) : '—')}
           ${row2('거래회전율', r.vol_turnover!=null ? r.vol_turnover.toFixed(2)+'%' : '—')}
           ${row2('대출잔고율', r.loan_balance_rate!=null ? r.loan_balance_rate.toFixed(2)+'%' : '—')}
+          ${r.market_warn_code && r.market_warn_code !== '00' ? row2('투자경고', r.market_warn_code, 'var(--red)') : ''}
         `)}
         ${section('가격 범위 · 수익률', `
+          ${row2('시가', r.open_price ? r.open_price.toLocaleString()+'원' : '—')}
+          ${row2('고가', r.high_price ? r.high_price.toLocaleString()+'원' : '—', 'var(--red)')}
+          ${row2('저가', r.low_price ? r.low_price.toLocaleString()+'원' : '—', 'var(--blue)')}
           ${row2('52주 최고', r.week52_high ? r.week52_high.toLocaleString()+'원' : '—', 'var(--red)')}
           ${row2('52주 최저', r.week52_low ? r.week52_low.toLocaleString()+'원' : '—', 'var(--blue)')}
           <div style="margin:8px 0 12px">
@@ -513,9 +519,10 @@ async function _renderMarketTab(body, code, name) {
               <span>${hi52.toLocaleString()}원</span>
             </div>
           </div>
-          ${row2('1주 수익률', retStr(5))}
-          ${row2('1달 수익률', retStr(21))}
-          ${row2('3달 수익률', retStr(63))}
+          ${row2('1주 수익률', r.week_return!=null ? `<span style="color:${r.week_return>=0?'var(--red)':'var(--blue)'}">${r.week_return>=0?'+':''}${r.week_return.toFixed(2)}%</span>` : retStr(5))}
+          ${row2('1달 수익률', r.month_return!=null ? `<span style="color:${r.month_return>=0?'var(--red)':'var(--blue)'}">${r.month_return>=0?'+':''}${r.month_return.toFixed(2)}%</span>` : retStr(21))}
+          ${row2('3달 수익률', r.quarter_return!=null ? `<span style="color:${r.quarter_return>=0?'var(--red)':'var(--blue)'}">${r.quarter_return>=0?'+':''}${r.quarter_return.toFixed(2)}%</span>` : retStr(63))}
+          ${row2('1년 수익률', r.year_return!=null ? `<span style="color:${r.year_return>=0?'var(--red)':'var(--blue)'}">${r.year_return>=0?'+':''}${r.year_return.toFixed(2)}%</span>` : retStr(252))}
         `)}
       </div>
       <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;margin-bottom:8px">최근 시장 데이터 (${hist.length}일)</div>
@@ -547,26 +554,94 @@ async function _renderMarketTab(body, code, name) {
 
 async function _renderFinancialTab(body, code, name) {
   try {
-    body.innerHTML = '<div style="text-align:center;color:var(--text3);padding:20px"><span class="loading"></span></div>';
+    const { data: fins } = await sb.from('financials')
+      .select('bsns_year,quarter,revenue,operating_profit,net_income,operating_margin,net_margin,roe,roa,debt_ratio,total_assets,total_equity,operating_cashflow')
+      .eq('stock_code', code)
+      .order('bsns_year').order('quarter');
 
-    const [{ data: rawData }, { data: gradeHist }] = await Promise.all([
-      sb.from('financials').select('*').eq('stock_code', code).order('bsns_year').order('quarter'),
-      sb.from('grade_history').select('*').eq('stock_code', code).order('date', {ascending:false}).limit(20)
-    ]);
-
-    if (!rawData?.length) {
+    if (!fins?.length) {
       body.innerHTML = '<div style="color:var(--text3);padding:40px;text-align:center">재무 데이터 없음</div>';
       return;
     }
 
-    // fin-trend-body에 렌더링 (기존 함수 재활용)
-    body.id = 'fin-trend-body';
-    window._finTrendData  = rawData;
-    window._finGradeHist  = gradeHist || [];
-    window._finViewMode   = 'quarter';
-    window._finChartTab   = 'revenue';
-    renderFinTrendBody();
-    body.id = 'sd-body'; // id 복원
+    const fmt = (v, unit='억') => {
+      if (v == null) return '—';
+      const n = Math.round(v / 100000000);
+      return n.toLocaleString() + unit;
+    };
+    const pct = (v) => v != null ? v.toFixed(1)+'%' : '—';
+
+    // 탭 (분기/연간)
+    let viewMode = 'quarter';
+    const render = () => {
+      const rows = viewMode === 'annual'
+        ? fins.filter(f => f.quarter === 'Q4').map(f => ({...f, label: f.bsns_year+'년'}))
+        : fins.map(f => ({...f, label: f.bsns_year+' '+f.quarter}));
+
+      const trs = rows.map(f => `<tr>
+        <td style="font-size:12px;color:var(--text3);white-space:nowrap">${f.label}</td>
+        <td style="text-align:right;font-weight:600">${fmt(f.revenue)}</td>
+        <td style="text-align:right">${fmt(f.operating_profit)}</td>
+        <td style="text-align:right;color:${f.operating_margin>=0?'var(--red)':'var(--blue)'}">${pct(f.operating_margin)}</td>
+        <td style="text-align:right">${fmt(f.net_income)}</td>
+        <td style="text-align:right;color:${f.net_margin>=0?'var(--red)':'var(--blue)'}">${pct(f.net_margin)}</td>
+        <td style="text-align:right">${pct(f.roe)}</td>
+        <td style="text-align:right">${pct(f.debt_ratio)}</td>
+        <td style="text-align:right">${fmt(f.operating_cashflow)}</td>
+      </tr>`).join('');
+
+      document.getElementById('fin-table-body').innerHTML = trs;
+    };
+
+    body.innerHTML = `
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button id="btn-quarter" class="chip active" onclick="
+          document.getElementById('btn-quarter').classList.add('active');
+          document.getElementById('btn-annual').classList.remove('active');
+          window._finView='quarter';
+          window._finRender();
+        ">분기별</button>
+        <button id="btn-annual" class="chip" onclick="
+          document.getElementById('btn-annual').classList.add('active');
+          document.getElementById('btn-quarter').classList.remove('active');
+          window._finView='annual';
+          window._finRender();
+        ">연간별</button>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>기간</th>
+          <th style="text-align:right">매출액</th>
+          <th style="text-align:right">영업이익</th>
+          <th style="text-align:right">영업이익률</th>
+          <th style="text-align:right">순이익</th>
+          <th style="text-align:right">순이익률</th>
+          <th style="text-align:right">ROE</th>
+          <th style="text-align:right">부채비율</th>
+          <th style="text-align:right">영업현금흐름</th>
+        </tr></thead>
+        <tbody id="fin-table-body"></tbody>
+      </table></div>`;
+
+    window._finView = 'quarter';
+    window._finRender = () => {
+      const rows = window._finView === 'annual'
+        ? fins.filter(f => f.quarter === 'Q4').map(f => ({...f, label: f.bsns_year+'년'}))
+        : fins.map(f => ({...f, label: f.bsns_year+' '+f.quarter}));
+      document.getElementById('fin-table-body').innerHTML = rows.map(f => `<tr>
+        <td style="font-size:12px;color:var(--text3);white-space:nowrap">${f.label}</td>
+        <td style="text-align:right;font-weight:600">${fmt(f.revenue)}</td>
+        <td style="text-align:right">${fmt(f.operating_profit)}</td>
+        <td style="text-align:right;color:${f.operating_margin>=0?'var(--red)':'var(--blue)'}">${pct(f.operating_margin)}</td>
+        <td style="text-align:right">${fmt(f.net_income)}</td>
+        <td style="text-align:right;color:${f.net_margin>=0?'var(--red)':'var(--blue)'}">${pct(f.net_margin)}</td>
+        <td style="text-align:right">${pct(f.roe)}</td>
+        <td style="text-align:right">${pct(f.debt_ratio)}</td>
+        <td style="text-align:right">${fmt(f.operating_cashflow)}</td>
+      </tr>`).join('');
+    };
+    window._finRender();
+
   } catch(e) {
     body.innerHTML = `<div style="color:var(--red);padding:20px">오류: ${e.message}</div>`;
   }
