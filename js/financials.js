@@ -344,7 +344,7 @@ async function openStockDetail(code, name, initTab = 'market') {
 
   modal.innerHTML = `
     <div style="background:var(--bg2);border-radius:12px;width:100%;max-width:960px;
-      max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.5)">
+      height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.5)">
 
       <!-- 헤더 -->
       <div style="display:flex;align-items:center;justify-content:space-between;
