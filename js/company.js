@@ -418,8 +418,15 @@ async function monApply() {
         _monDirty = false;
         if (btn) { btn.textContent = '✅ 적용'; btn.style.opacity = '0.4'; btn.disabled = true; }
         if (badge) badge.style.display = 'none';
+        // 시황 페이지 캐시 초기화 → 다음 진입 시 최신 데이터 반영
+        if (typeof _latestMarketDate !== 'undefined') _latestMarketDate = null;
+        if (typeof window._industryMapCache !== 'undefined') window._industryMapCache = null;
         // 보드 새로고침
         _monLoadBoard();
+        // 현재 시황 페이지가 열려있으면 즉시 재로드
+        if (typeof A !== 'undefined' && A.page === 'investment' && typeof loadInvestment === 'function') {
+          loadInvestment();
+        }
         toast('✅ 적용 완료', 'success');
       }
     }, 1000);
