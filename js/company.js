@@ -118,10 +118,12 @@ function _renderIndustryCard(ind, subs) {
   const total = Object.values(subs).reduce((s, arr) => s + arr.length, 0);
   const subKeys = Object.keys(subs).sort();
   return `
-  <div class="card" style="margin-bottom:12px" data-industry="${ind}">
-    <div class="card-header" style="flex-wrap:wrap;gap:8px">
-      <span style="font-size:14px;font-weight:700;color:var(--text1)">${ind}</span>
-      <span style="font-size:11px;color:var(--text2);font-weight:600">${total}개</span>
+  <div class="card" style="margin-bottom:16px;border-left:3px solid var(--tg)" data-industry="${ind}">
+    <div class="card-header" style="flex-wrap:wrap;gap:8px;background:rgba(42,171,238,0.06);border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:15px;font-weight:800;color:var(--text1)">${ind}</span>
+        <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:100px;background:var(--tg);color:#fff">${total}개</span>
+      </div>
       <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
         <input type="text" placeholder="서브섹터 추가..." class="form-input"
           id="mon-new-sub-${CSS.escape(ind)}" style="font-size:11px;padding:3px 8px;width:130px"
@@ -155,7 +157,7 @@ function _renderSubCard(ind, sub, stocks) {
       </div>
     </div>
     <div class="mon-drop-zone" data-industry="${ind}" data-sub="${sub}"
-      style="display:flex;flex-direction:column;gap:4px;min-height:24px">
+      style="display:flex;flex-direction:column;gap:4px;min-height:24px;padding:6px">
       ${stocks.map(s => _renderStockChip(s)).join('')}
     </div>
   </div>`;
@@ -170,7 +172,7 @@ function _renderStockChip(s) {
     data-code="${code}" data-name="${s.name}"
     data-industry="${s.industry||''}" data-sub="${s.sub_industry||''}"
     style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;
-      background:var(--bg1);border-radius:4px;cursor:grab;border:1px solid var(--border);
+      background:var(--bg3);border-radius:4px;cursor:grab;border:1px solid transparent;
       font-size:12px;transition:border-color .15s;gap:6px"
     onmouseenter="this.style.borderColor='var(--tg)'"
     onmouseleave="this.style.borderColor='var(--border)'">
