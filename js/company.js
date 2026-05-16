@@ -76,14 +76,14 @@ async function _monLoadBoard() {
 
   const grouped = {};
   companies.forEach(c => {
-    const ind = c.industry || '미분류';
-    const sub = c.sub_industry || '기타';
+    const ind = (c.industry && c.industry.trim()) ? c.industry.trim() : '미분류';
+    const sub = (c.sub_industry && c.sub_industry.trim()) ? c.sub_industry.trim() : '기타';
     if (!grouped[ind]) grouped[ind] = {};
     if (!grouped[ind][sub]) grouped[ind][sub] = [];
     grouped[ind][sub].push(c);
   });
   _monData = grouped;
-  _monInds = Object.keys(grouped).sort();
+  _monInds = Object.keys(grouped).sort((a,b) => a === '미분류' ? 1 : b === '미분류' ? -1 : a.localeCompare(b));
 
   if (board) board.innerHTML = _monInds.map(ind => _renderIndustryCard(ind, grouped[ind])).join('');
   _monInitDnd();
@@ -203,7 +203,7 @@ async function _monMoveStock(code, name, newInd, newSub) {
   try {
     for (const c of [code, code+'.KS', code+'.KQ']) {
       await sb.from('companies').update({ industry: newInd||null, sub_industry: newSub||null })
-        .eq('code', c).execute();
+        .eq('code', c);
     }
     await _monLoadBoard();
     toast(`✅ ${name} → ${newInd}${newSub ? '/'+newSub : ''}`, 'success');
@@ -215,7 +215,7 @@ async function monRemoveStock(code, name) {
   if (!confirm(`'${name}'을(를) 모니터링에서 제거할까요?\n(기업 데이터는 유지됩니다)`)) return;
   try {
     for (const c of [code, code+'.KS', code+'.KQ']) {
-      await sb.from('companies').update({ is_monitored: false }).eq('code', c).execute();
+      await sb.from('companies').update({ is_monitored: false }).eq('code', c)
     }
     await sb.from('app_config').upsert({ key:'reload_flag', value:String(Date.now()),
       description:'모니터링 종목 제거' }, { onConflict:'key' });
@@ -293,7 +293,7 @@ async function monAddSelected() {
   try {
     for (const c of [code, code+'.KS', code+'.KQ']) {
       await sb.from('companies').update({ is_monitored:true, industry:ind, sub_industry:sub||null })
-        .eq('code', c).execute();
+        .eq('code', c)
     }
     await sb.from('app_config').upsert({ key:'reload_flag', value:String(Date.now()),
       description:'모니터링 종목 추가' }, { onConflict:'key' });
@@ -328,7 +328,7 @@ async function monDeleteIndustry(ind) {
   if (!confirm(msg)) return;
   for (const s of stocks) {
     for (const c of [s.code, s.code+'.KS', s.code+'.KQ']) {
-      await sb.from('companies').update({ is_monitored:false }).eq('code',c).execute();
+      await sb.from('companies').update({ is_monitored:false }).eq('code',c)
     }
   }
   if (stocks.length) {
@@ -358,7 +358,7 @@ async function monDeleteSub(ind, sub) {
   if (stocks.length && !confirm(`'${sub}'의 ${stocks.length}개 종목을 서브섹터에서 제거할까요?\n(모니터링은 유지)`)) return;
   for (const s of stocks) {
     for (const c of [s.code, s.code+'.KS', s.code+'.KQ']) {
-      await sb.from('companies').update({ sub_industry:null }).eq('code',c).execute();
+      await sb.from('companies').update({ sub_industry:null }).eq('code',c)
     }
   }
   delete _monData[ind][sub];
