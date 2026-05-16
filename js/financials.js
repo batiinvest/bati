@@ -573,16 +573,21 @@ async function _renderFinancialTab(body, code, name) {
     const fmtB = (v) => v==null ? null : Math.round(v/100000000);
 
     body.innerHTML = `
-      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
         <button id="btn-quarter" class="chip active" onclick="window._finView='quarter';window._finRender()">분기별</button>
         <button id="btn-annual"  class="chip"        onclick="window._finView='annual'; window._finRender()">연간별</button>
-        <div style="display:flex;gap:4px;margin-left:auto">
+        <div style="display:flex;gap:4px;margin-left:auto;align-items:center">
           <button id="btn-chart-rev" class="chip active" onclick="window._finChart='revenue';window._finDrawChart()">매출·영업이익</button>
           <button id="btn-chart-mgn" class="chip"        onclick="window._finChart='margin'; window._finDrawChart()">이익률</button>
           <button id="btn-chart-cf"  class="chip"        onclick="window._finChart='cf';     window._finDrawChart()">현금흐름</button>
+          <div style="display:flex;align-items:center;gap:6px;margin-left:8px;border-left:1px solid var(--border);padding-left:8px">
+            <span style="font-size:11px;color:var(--text3)">차트</span>
+            <button onclick="window._finResizeChart(-60)" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text2);width:22px;height:22px;font-size:14px;line-height:1">−</button>
+            <button onclick="window._finResizeChart(+60)" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text2);width:22px;height:22px;font-size:14px;line-height:1">+</button>
+          </div>
         </div>
       </div>
-      <div style="position:relative;height:220px;margin-bottom:16px">
+      <div id="fin-chart-wrap" style="position:relative;height:220px;margin-bottom:16px">
         <canvas id="fin-chart-canvas"></canvas>
       </div>
       <div class="table-wrap"><table>
@@ -599,6 +604,14 @@ async function _renderFinancialTab(body, code, name) {
         </tr></thead>
         <tbody id="fin-table-body"></tbody>
       </table></div>`;
+
+    window._finChartH = 220;
+    window._finResizeChart = (delta) => {
+      window._finChartH = Math.max(160, Math.min(600, window._finChartH + delta));
+      const wrap = document.getElementById('fin-chart-wrap');
+      if (wrap) wrap.style.height = window._finChartH + 'px';
+      window._finDrawChart();
+    };
 
     let finChart = null;
 
