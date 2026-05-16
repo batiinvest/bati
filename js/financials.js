@@ -738,57 +738,100 @@ async function openMarketDetail(code, name) {
     const chg = r.price_change_rate;
     const hist = (history || []).reverse();
 
-    // 오늘 핵심 지표 카드
-    const kpiCard = (label, value, sub='') => `
-      <div style="background:var(--bg3);border-radius:8px;padding:12px 16px;border:1px solid var(--border)">
-        <div style="font-size:11px;color:var(--text3);margin-bottom:4px">${label}</div>
-        <div style="font-size:16px;font-weight:700;color:var(--text1)">${value}</div>
-        ${sub ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${sub}</div>` : ''}
+    // 52주 가격 범위 바 위치 계산
+    const hi52 = r.week52_high || 0;
+    const lo52 = r.week52_low || 0;
+    const cur  = r.price || 0;
+    const rangePct = hi52 > lo52 ? Math.round((cur - lo52) / (hi52 - lo52) * 100) : 50;
+
+    // 기간별 수익률 (hist에서 계산)
+    const retStr = (days) => {
+      if (hist.length <= days) return '—';
+      const past = hist[Math.max(0, hist.length - 1 - days)]?.price;
+      if (!past || !cur) return '—';
+      const ret = ((cur - past) / past * 100).toFixed(2);
+      return `<span style="color:${ret>=0?'var(--green)':'var(--red)'}">${ret>=0?'+':''}${ret}%</span>`;
+    };
+
+    const row2 = (label, val, color='') =>
+      `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:12px;color:var(--text2)">${label}</span>
+        <span style="font-size:13px;font-weight:600;color:${color||'var(--text1)'};">${val}</span>
+      </div>`;
+
+    const section = (title, content) =>
+      `<div style="background:var(--bg3);border-radius:10px;padding:14px 16px;border:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.8px;margin-bottom:10px">${title}</div>
+        ${content}
       </div>`;
 
     body.innerHTML = `
-      <!-- 핵심 지표 -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px">
-        ${kpiCard('현재가', r.price ? r.price.toLocaleString()+'원' : '—', r.base_date)}
-        ${kpiCard('등락률', `<span style="color:${chgColor(chg)}">${chgStr(chg)}</span>`)}
-        ${kpiCard('시가총액', r.market_cap ? fmtCap(r.market_cap) : '—')}
-        ${kpiCard('PER', r.per != null && r.per !== 0 ? r.per.toFixed(1)+'배' : '—')}
-        ${kpiCard('PBR', r.pbr != null && r.pbr !== 0 ? r.pbr.toFixed(2)+'배' : '—')}
-        ${kpiCard('EPS', r.eps ? r.eps.toLocaleString()+'원' : '—')}
-        ${kpiCard('BPS', r.bps ? r.bps.toLocaleString()+'원' : '—')}
-        ${kpiCard('거래량', r.volume ? r.volume.toLocaleString() : '—')}
+      <!-- 상단 헤더: 현재가 + 등락 -->
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 2px;margin-bottom:16px">
+        <div style="display:flex;align-items:baseline;gap:10px">
+          <span style="font-size:24px;font-weight:700;color:var(--text1)">${r.price ? r.price.toLocaleString()+'원' : '—'}</span>
+          <span style="font-size:15px;font-weight:700;color:${chgColor(chg)}">${chgStr(chg)}</span>
+          <span style="font-size:13px;color:${chgColor(chg)}">${r.price_change != null ? (r.price_change>0?'+':'')+r.price_change.toLocaleString()+'원' : ''}</span>
+        </div>
+        <span style="font-size:12px;color:var(--text3)">${r.base_date}</span>
       </div>
 
-      <!-- 추가 지표 -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px">
-        ${kpiCard('외국인 보유율', r.foreign_hold_rate != null ? r.foreign_hold_rate.toFixed(2)+'%' : '—')}
-        ${kpiCard('외국인 순매수', r.foreign_net_buy != null ? r.foreign_net_buy.toLocaleString()+'주' : '—')}
-        ${kpiCard('프로그램 순매수', r.program_net_buy != null ? r.program_net_buy.toLocaleString()+'주' : '—')}
-        ${kpiCard('52주 최고', r.week52_high ? r.week52_high.toLocaleString()+'원' : '—')}
-        ${kpiCard('52주 최저', r.week52_low ? r.week52_low.toLocaleString()+'원' : '—')}
-        ${kpiCard('거래회전율', r.vol_turnover != null ? r.vol_turnover.toFixed(2)+'%' : '—')}
-        ${kpiCard('대출잔고율', r.loan_balance_rate != null ? r.loan_balance_rate.toFixed(2)+'%' : '—')}
-        ${kpiCard('시장', r.market || '—')}
+      <!-- 3열 그리드 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+
+        ${section('VALUATION', `
+          ${row2('시가총액', r.market_cap ? fmtCap(r.market_cap) : '—')}
+          ${row2('PER', r.per != null && r.per !== 0 ? r.per.toFixed(1)+'배' : '—')}
+          ${row2('PBR', r.pbr != null && r.pbr !== 0 ? r.pbr.toFixed(2)+'배' : '—')}
+          ${row2('EPS', r.eps ? r.eps.toLocaleString()+'원' : '—')}
+          ${row2('BPS', r.bps ? r.bps.toLocaleString()+'원' : '—')}
+        `)}
+
+        ${section('수급', `
+          ${row2('외국인 보유율', r.foreign_hold_rate != null ? r.foreign_hold_rate.toFixed(2)+'%' : '—')}
+          ${row2('외국인 순매수', r.foreign_net_buy != null ? r.foreign_net_buy.toLocaleString()+'주' : '—', r.foreign_net_buy < 0 ? 'var(--blue)' : 'var(--red)')}
+          ${row2('프로그램 순매수', r.program_net_buy != null ? r.program_net_buy.toLocaleString()+'주' : '—', r.program_net_buy < 0 ? 'var(--blue)' : 'var(--red)')}
+          ${row2('거래량', r.volume ? r.volume.toLocaleString() : '—')}
+          ${row2('거래회전율', r.vol_turnover != null ? r.vol_turnover.toFixed(2)+'%' : '—')}
+          ${row2('대출잔고율', r.loan_balance_rate != null ? r.loan_balance_rate.toFixed(2)+'%' : '—')}
+        `)}
+
+        ${section('가격 범위 · 수익률', `
+          ${row2('52주 최고', r.week52_high ? r.week52_high.toLocaleString()+'원' : '—', 'var(--red)')}
+          ${row2('52주 최저', r.week52_low ? r.week52_low.toLocaleString()+'원' : '—', 'var(--blue)')}
+          <div style="margin:8px 0 12px">
+            <div style="height:4px;background:var(--border);border-radius:2px;position:relative">
+              <div style="position:absolute;left:${rangePct}%;transform:translateX(-50%);width:8px;height:8px;background:var(--text1);border-radius:50%;top:-2px"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--text3)"><span>최저</span><span>현재 ${rangePct}%</span><span>최고</span></div>
+          </div>
+          ${row2('1주 수익률', retStr(5))}
+          ${row2('1달 수익률', retStr(21))}
+          ${row2('3달 수익률', retStr(63))}
+        `)}
       </div>
 
-      <!-- 과거 데이터 테이블 -->
-      <div style="font-size:13px;font-weight:700;margin-bottom:10px">📈 최근 시장 데이터 (${hist.length}일)</div>
+      <!-- 히스토리 테이블 -->
+      <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;margin-bottom:8px">최근 시장 데이터 (${hist.length}일)</div>
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>기준일</th><th>현재가</th><th>등락률</th><th>시가총액</th>
-            <th>거래량</th><th>PER</th><th>PBR</th>
+            <th>기준일</th><th>종가</th><th>등락률</th><th>시가총액</th>
+            <th>거래량</th><th>외국인순매수</th><th>PER</th><th>PBR</th>
           </tr></thead>
-          <tbody>${hist.map(h => {
+          <tbody>${hist.slice().reverse().map(h => {
             const hc = h.price_change_rate;
             return `<tr>
               <td style="font-size:11px;color:var(--text3)">${h.base_date}</td>
-              <td>${h.price ? h.price.toLocaleString()+'원' : '—'}</td>
-              <td style="color:${chgColor(hc)};font-weight:500">${chgStr(hc)}</td>
-              <td>${h.market_cap ? fmtCap(h.market_cap) : '—'}</td>
-              <td>${h.volume ? h.volume.toLocaleString() : '—'}</td>
-              <td>${h.per != null && h.per !== 0 ? h.per.toFixed(1) : '—'}</td>
-              <td>${h.pbr != null && h.pbr !== 0 ? h.pbr.toFixed(2) : '—'}</td>
+              <td style="font-weight:600">${h.price ? h.price.toLocaleString()+'원' : '—'}</td>
+              <td style="color:${chgColor(hc)};font-weight:600">${chgStr(hc)}</td>
+              <td style="color:var(--text2)">${h.market_cap ? fmtCap(h.market_cap) : '—'}</td>
+              <td style="color:var(--text2)">${h.volume ? h.volume.toLocaleString() : '—'}</td>
+              <td style="color:${h.foreign_net_buy<0?'var(--blue)':'var(--red)'}">
+                ${h.foreign_net_buy != null ? h.foreign_net_buy.toLocaleString() : '—'}
+              </td>
+              <td style="color:var(--text2)">${h.per != null && h.per !== 0 ? h.per.toFixed(1) : '—'}</td>
+              <td style="color:var(--text2)">${h.pbr != null && h.pbr !== 0 ? h.pbr.toFixed(2) : '—'}</td>
             </tr>`;
           }).join('')}</tbody>
         </table>
