@@ -1186,44 +1186,52 @@ async function loadUskrChart() {
   if (!tickers) return;
   const krColor = KR_IND_COLORS[ind] || '#2dce89';
 
-  // 날짜 범위 (거래일 기준 여유있게 x2 확보)
-  const from = new Date();
-  from.setDate(from.getDate() - Math.ceil(_uskrPeriod * 2));
-  const fromStr = from.toISOString().split('T')[0];
-
-  // ── KR: loadIndTrendChart와 동일한 방식으로 직접 조회 ──
-  // (industryMap 기준으로 market_data 전체 조회 후 필터 — 두 차트 데이터 일치 보장)
-  const krDates = {};
+  // ── loadIndTrendChart와 완전히 동일한 방식으로 날짜·데이터 확정 ──
+  // Step1: 실제 거래일 목록을 refCode 기준으로 확정 (달력 기준 아님)
   const industryMap = window._industryMapCache || {};
-  const allCodes = Object.keys(industryMap);
-  if (allCodes.length) {
-    const chunk = 300;
-    for (let i = 0; i < allCodes.length; i += chunk) {
-      const { data: kr } = await sb.from('market_data')
-        .select('stock_code,base_date,price_change_rate')
-        .in('stock_code', allCodes.slice(i, i + chunk))
-        .gte('base_date', fromStr)
-        .not('price_change_rate', 'is', null);
-      (kr || []).forEach(r => {
-        if (industryMap[r.stock_code] !== ind) return;  // 해당 산업만
-        if (!krDates[r.base_date]) krDates[r.base_date] = [];
-        krDates[r.base_date].push(r.price_change_rate);
-      });
-    }
-  }
+  const refCode = Object.keys(industryMap)[0];
+  if (!refCode) return;
 
-  // ── US: us_market 테이블에서 해당 산업 ETF 조회 ──
+  const { data: dateRows } = await sb.from('market_data')
+    .select('base_date')
+    .eq('stock_code', refCode)
+    .order('base_date', { ascending: false })
+    .limit(_uskrPeriod + 10);
+
+  if (!dateRows?.length) return;
+  const tradingDays = [...new Set(dateRows.map(r => r.base_date))].sort().slice(-_uskrPeriod);
+  const oldestDate  = tradingDays[0];
+
+  // Step2: KR — loadIndTrendChart와 동일하게 market_data 전체 조회 후 industryMap 필터
+  const krDates = {};
+  let allRows = [], from2 = 0;
+  while (true) {
+    const { data } = await sb.from('market_data')
+      .select('stock_code,base_date,price_change_rate')
+      .gte('base_date', oldestDate)
+      .not('price_change_rate', 'is', null)
+      .range(from2, from2 + 999);
+    if (!data?.length) break;
+    allRows = allRows.concat(data);
+    if (data.length < 1000) break;
+    from2 += 1000;
+  }
+  allRows.forEach(r => {
+    if (industryMap[r.stock_code] !== ind) return;
+    if (!krDates[r.base_date]) krDates[r.base_date] = [];
+    krDates[r.base_date].push(r.price_change_rate);
+  });
+
+  // Step3: US — 동일한 oldestDate 기준 조회
   const { data: usRows } = await sb.from('us_market')
     .select('base_date,ticker,close,chg_pct')
     .eq('industry', ind)
     .in('ticker', tickers)
-    .gte('base_date', fromStr)
+    .gte('base_date', oldestDate)
     .order('base_date', { ascending: true });
 
-  // 날짜 목록 구성 (각각 최근 N 거래일 기준으로 슬라이스)
-  const krDays  = [...new Set(Object.keys(krDates))].sort().slice(-_uskrPeriod);
-  const usDays  = [...new Set((usRows||[]).map(r=>r.base_date))].sort().slice(-_uskrPeriod);
-  const dateList = [...new Set([...krDays, ...usDays])].sort();
+  // Step4: 날짜 목록 — KR 실제 거래일 기준 (loadIndTrendChart와 동일)
+  const dateList = tradingDays;
 
   // ── KR 누적 지수 ──
   const makeKrData = () => {
