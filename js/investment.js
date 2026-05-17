@@ -122,11 +122,16 @@ function pInvestment() {
 
     <!-- 🇰🇷 산업 동향 — 별도 카드 -->
     <div class="card" style="margin-bottom:12px">
-      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+      <div class="card-header" style="flex-wrap:wrap;gap:4px;padding-bottom:6px">
         <span class="card-title">🇰🇷 산업 동향</span>
-        <div id="inv-industry-banner" style="display:flex;gap:14px;align-items:center;margin-left:auto;font-size:12px">
+        <!-- US ETF 배너 -->
+        <div id="inv-etf-banner" style="display:flex;gap:10px;align-items:center;margin-left:auto;font-size:12px;flex-wrap:wrap">
           <span style="color:var(--text3)"><span class="loading"></span></span>
         </div>
+      </div>
+      <!-- KR 모니터링 현황 -->
+      <div id="inv-industry-banner" style="padding:4px 1rem 6px;border-bottom:1px solid var(--border);font-size:12px;display:flex;gap:10px;color:var(--text3)">
+        <span><span class="loading"></span></span>
       </div>
       <div id="inv-industry-chart"></div>
     </div>

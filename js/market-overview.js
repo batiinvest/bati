@@ -541,6 +541,31 @@ async function loadMacroData() {
         mkB('BTC',        m.bitcoin,     m.bitcoin_chg),
       ].filter(s => s && s !== sep).join(sep) +
       '</div>';
+
+  // ── US ETF 배너 ──
+  const etfBanner = document.getElementById('inv-etf-banner');
+  if (etfBanner) {
+    const ETF_LABELS = [
+      { col:'etf_xlk',  name:'XLK 테크' },
+      { col:'etf_xlv',  name:'XLV 헬스' },
+      { col:'etf_xlf',  name:'XLF 금융' },
+      { col:'etf_xle',  name:'XLE 에너지' },
+      { col:'etf_xli',  name:'XLI 산업재' },
+      { col:'etf_xly',  name:'XLY 소비재' },
+      { col:'etf_xlp',  name:'XLP 필수소비' },
+      { col:'etf_xlc',  name:'XLC 통신' },
+      { col:'etf_xlb',  name:'XLB 소재' },
+      { col:'etf_xlre', name:'XLRE 부동산' },
+      { col:'etf_xlu',  name:'XLU 유틸' },
+    ];
+    etfBanner.innerHTML =
+      '<span style="font-size:10px;color:var(--text3);flex-shrink:0">🇺🇸 ETF</span>' +
+      sep +
+      ETF_LABELS.map(e => mkB(e.name, m[e.col], m[e.col + '_chg']))
+        .filter(s => s && s !== sep).join(sep) +
+      '</div>';
+    // 래핑 div가 mkB 내부에 없으므로 전체를 flex 컨테이너로
+    etfBanner.style.overflowX = 'auto';
   }
 }
 
