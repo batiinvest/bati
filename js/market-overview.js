@@ -819,6 +819,23 @@ async function loadIndTrendChart() {
   if (_indTrendChart2) { _indTrendChart2.destroy(); _indTrendChart2 = null; }
   if (!window.Chart) return;
 
+  // ── 호버 하이라이트 헬퍼 ──
+  function _applyIndHover(label) {
+    const chart = _indTrendChart2;
+    if (!chart) return;
+    if (label === window._indHovered) return;
+    window._indHovered = label;
+    chart.data.datasets.forEach((ds, i) => {
+      const active = !label || ds.label === label;
+      ds.borderWidth = active ? 3.5 : 1;
+      ds.pointRadius = active ? 4   : 1;
+      ds.borderColor = active
+        ? (IND_COLORS[ds.label] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length])
+        : (IND_COLORS[ds.label] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length]) + '44';
+    });
+    chart.update('none');
+  }
+
   _indTrendChart2 = new window.Chart(canvas.getContext('2d'), {
     type: 'line',
     data: { labels: dateList, datasets },
@@ -841,25 +858,7 @@ async function loadIndTrendChart() {
           }
         }
       },
-      // ① 호버 시 해당 라인 하이라이트 (chart.update로 처리 — destroy 없음)
-      onHover: (e, elements) => {
-        const chart = _indTrendChart2;
-        if (!chart) return;
-        const hovered = elements.length
-          ? chart.data.datasets[elements[0].datasetIndex]?.label
-          : null;
-        if (hovered === window._indHovered) return;
-        window._indHovered = hovered;
-        chart.data.datasets.forEach((ds, i) => {
-          const active = !hovered || ds.label === hovered;
-          ds.borderWidth  = active ? 3.5 : 1;
-          ds.pointRadius  = active ? 4   : 1;
-          ds.borderColor  = active
-            ? (IND_COLORS[ds.label] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length])
-            : (IND_COLORS[ds.label] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length]) + '55';
-        });
-        chart.update('none');
-      },
+      // onHover는 사용하지 않음 — mousemove로 직접 처리
       scales: {
         x: { ticks: { color: '#6e7491', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' } },
         y: {
@@ -868,6 +867,32 @@ async function loadIndTrendChart() {
         }
       }
     }
+  });
+
+  // canvas 이벤트 재바인딩 (차트 재생성 시 _hoverBound 초기화)
+  const freshCanvas = document.getElementById('ind-trend-chart');
+  if (freshCanvas) freshCanvas._hoverBound = false;
+  _bindIndTrendHover();
+}
+
+// ── canvas 마우스 이벤트로 호버 하이라이트 ──
+// (loadIndTrendChart 호출 후 외부에서 canvas 이벤트 재바인딩)
+function _bindIndTrendHover() {
+  const canvas = document.getElementById('ind-trend-chart');
+  if (!canvas || canvas._hoverBound) return;
+  canvas._hoverBound = true;
+
+  canvas.addEventListener('mousemove', (e) => {
+    const chart = _indTrendChart2;
+    if (!chart) return;
+    const pts = chart.getElementsAtEventForMode(e, 'nearest', { intersect: false }, true);
+    const label = pts.length ? chart.data.datasets[pts[0].datasetIndex]?.label : null;
+    _applyIndHover(label);
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    _applyIndHover(null);
+    window._indHovered = null;
   });
 }
 
