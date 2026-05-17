@@ -446,6 +446,9 @@ async function loadMarketOverview(maxDate) {
   };
   if (sorted.length) window.showIndDetail(sorted[0].ind);
 
+  // US ETF 매핑 먼저 로드 (us_etf_map → USKR_MAP)
+  await loadUskrMap();
+
   // 산업별 흐름 비교 차트 로드 → 완료 후 US vs KR 차트 로드 (_krIndDates 의존)
   await loadIndTrendChart();
   loadUsEtfBanner();
@@ -1137,20 +1140,19 @@ function toggleIndTrend(ind) {
 // ══════════════════════════════════════════════════════════════
 
 // KR 산업 → US ETF 대응
-// 산업별 ETF 목록 (us_market 테이블 ticker 기준)
-const USKR_MAP = {
-  '반도체': ['SOXX','SMH','XSD'],
-  '바이오': ['IBB','XBI','ARKG'],
-  '로봇':   ['BOTZ','ROBO'],
-  '우주':   ['ARKX','UFO','ROKT'],
-  '2차전지':['LIT','BATT','DRIV'],
-  '소비재': ['XLY','ONLN','RTH'],
-  '엔터':   ['XLC','PEJ','HERO','BNGE'],
-  '조선':   ['BOAT','SEA','BDRY'],
-  '테크':   ['VGT','XLK','IYW'],
-  '뷰티':   ['RTH','ONLN'],
-  '신재생': ['ICLN','QCLN','PBW','RNRG','FAN','TAN'],
-};
+// 산업별 ETF 목록 — us_etf_map 테이블에서 동적 로드
+let USKR_MAP = {};
+
+async function loadUskrMap() {
+  const { data } = await sb.from('us_etf_map').select('industry,ticker').order('industry').order('ticker');
+  const map = {};
+  (data || []).forEach(r => {
+    if (!map[r.industry]) map[r.industry] = [];
+    if (!map[r.industry].includes(r.ticker)) map[r.industry].push(r.ticker);
+  });
+  USKR_MAP = map;
+  window.USKR_MAP = map;
+}
 
 const KR_IND_COLORS = {
   '반도체':'#f97316','바이오':'#22c55e','로봇':'#ef4444','우주':'#8b5cf6',

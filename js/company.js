@@ -113,7 +113,6 @@ function switchCompanyTab(tab) {
   _companyTab = tab;
   const monEl = document.getElementById('company-tab-monitoring');
   const etfEl = document.getElementById('company-tab-etf');
-  console.log('[TAB] monEl:', monEl, 'etfEl:', etfEl);
   if (monEl) monEl.style.display = tab === 'monitoring' ? 'grid' : 'none';
   if (etfEl) { etfEl.style.display = tab === 'etf' ? 'block' : 'none'; console.log('[TAB] etfEl display set to:', etfEl.style.display); }
   // 탭 버튼 스타일
@@ -559,65 +558,50 @@ const KR_INDUSTRIES = ['반도체','바이오','로봇','우주','2차전지','�
 
 async function loadEtfMapUI() {
   const wrap = document.getElementById('etf-map-wrap');
-  if (!wrap) {
-    console.warn('[ETF] etf-map-wrap 없음 — 탭이 열려있지 않음');
-    return;
-  }
-  console.log('[ETF] loadEtfMapUI 실행');
+  if (!wrap) return;
   wrap.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:13px">로딩 중...</div>';
 
-  let rows = [], error = null;
-  try {
-    const res = await sb.from('us_market')
-      .select('industry,ticker')
-      .order('industry').order('ticker');
-    rows = res.data || [];
-    error = res.error;
-    console.log('[ETF] 조회 결과:', rows.length, '행, error:', error);
-  } catch(e) {
-    error = { message: e.message };
-    console.error('[ETF] 예외:', e);
-  }
+  const { data: rows, error } = await sb.from('us_etf_map')
+    .select('industry,ticker')
+    .order('industry').order('ticker');
 
   if (error) {
-    wrap.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:13px">오류: ' + error.message + '<br><small style="color:var(--text3)">us_market 테이블 RLS 정책을 확인하세요.</small></div>';
-    console.error('[ETF] 조회 오류:', error);
+    wrap.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:13px">오류: ' + error.message + '</div>';
     return;
   }
-  console.log('[ETF] wrap.innerHTML 세팅 시작, rows:', rows.length);
 
-  // 산업별 티커 그룹핑
+  // 산업별 그룹핑
   const map = {};
   KR_INDUSTRIES.forEach(ind => { map[ind] = []; });
   (rows || []).forEach(r => {
-    if (!map[r.industry]) map[r.industry] = [];
-    if (!map[r.industry].includes(r.ticker)) map[r.industry].push(r.ticker);
+    if (map[r.industry] && !map[r.industry].includes(r.ticker))
+      map[r.industry].push(r.ticker);
   });
 
   const rows_html = KR_INDUSTRIES.map(ind => {
     const tickers = map[ind] || [];
     return `
     <tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:10px 16px;font-weight:600;font-size:13px;width:90px;color:var(--text);white-space:nowrap">${ind}</td>
-      <td style="padding:6px 12px">
-        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center" id="etf-tags-${ind}">
+      <td style="padding:10px 16px;font-weight:600;font-size:13px;width:90px;color:var(--text);white-space:nowrap;vertical-align:top;padding-top:14px">${ind}</td>
+      <td style="padding:8px 12px">
+        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
           ${tickers.map(t => `
-            <span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:100px;padding:2px 10px;font-size:12px">
+            <span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:100px;padding:3px 10px;font-size:12px;font-weight:500">
               ${t}
               <button onclick="removeEtfTicker('${ind}','${t}')"
-                style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;line-height:1;padding:0 0 0 2px">&times;</button>
+                style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;line-height:1;padding:0 0 0 2px;opacity:.7">&times;</button>
             </span>
           `).join('')}
           <button onclick="showAddEtfInput('${ind}')"
-            style="background:none;border:1px dashed var(--border);border-radius:100px;padding:2px 10px;font-size:12px;cursor:pointer;color:var(--text3)">+ 추가</button>
+            style="background:none;border:1px dashed var(--border);border-radius:100px;padding:3px 10px;font-size:12px;cursor:pointer;color:var(--text3)">+ 추가</button>
           <span id="etf-input-${ind}" style="display:none;align-items:center;gap:4px">
             <input id="etf-new-${ind}" placeholder="SOXX" maxlength="10"
-              style="width:80px;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-size:12px"
+              style="width:80px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-size:12px"
               onkeydown="if(event.key==='Enter')addEtfTicker('${ind}')">
             <button onclick="addEtfTicker('${ind}')"
-              style="padding:2px 8px;font-size:12px;background:var(--tg);color:#fff;border:none;border-radius:4px;cursor:pointer">추가</button>
+              style="padding:3px 10px;font-size:12px;background:var(--tg);color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600">추가</button>
             <button onclick="document.getElementById('etf-input-${ind}').style.display='none'"
-              style="padding:2px 6px;font-size:12px;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text3)">취소</button>
+              style="padding:3px 8px;font-size:12px;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text3)">취소</button>
           </span>
         </div>
       </td>
@@ -625,14 +609,14 @@ async function loadEtfMapUI() {
   }).join('');
 
   wrap.innerHTML = `
-    <div style="padding:.5rem 1rem;border-bottom:1px solid var(--border);font-size:12px;color:var(--text3)">
-      티커를 추가하면 수집 스크립트(<code>collect_us_etf.py</code>) 재실행 시 자동으로 데이터가 채워집니다.
+    <div style="padding:.6rem 1rem;border-bottom:1px solid var(--border);font-size:12px;color:var(--text3)">
+      티커 추가 후 <code>python3 collect_us_etf.py --backfill 90</code> 실행 시 데이터 자동 수집
     </div>
     <table style="width:100%;border-collapse:collapse">
       <thead>
         <tr style="background:var(--bg2);border-bottom:1px solid var(--border)">
-          <th style="padding:8px 16px;font-size:11px;color:var(--text3);font-weight:500;text-align:left">KR 산업</th>
-          <th style="padding:8px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:left">매핑 ETF / 종목</th>
+          <th style="padding:8px 16px;font-size:11px;color:var(--text3);font-weight:500;text-align:left;width:90px">KR 산업</th>
+          <th style="padding:8px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:left">매핑 ETF</th>
         </tr>
       </thead>
       <tbody>${rows_html}</tbody>
@@ -649,10 +633,9 @@ async function addEtfTicker(ind) {
   const ticker = input?.value.trim().toUpperCase();
   if (!ticker) return;
 
-  const { error } = await sb.from('us_market').upsert(
-    { base_date: '2000-01-01', ticker, industry: ind, close: null, chg_pct: null },
-    { onConflict: 'base_date,ticker,industry' }
-  );
+  const { error } = await sb.from('us_etf_map')
+    .upsert({ industry: ind, ticker }, { onConflict: 'industry,ticker' });
+
   if (error) { alert('추가 실패: ' + error.message); return; }
 
   if (window.USKR_MAP?.[ind] && !window.USKR_MAP[ind].includes(ticker))
@@ -662,10 +645,11 @@ async function addEtfTicker(ind) {
 }
 
 async function removeEtfTicker(ind, ticker) {
-  if (!confirm(ind + '에서 ' + ticker + '를 제거할까요?\n(수집된 과거 데이터도 삭제됩니다)')) return;
+  if (!confirm(ind + '에서 ' + ticker + '를 제거할까요?')) return;
 
-  const { error } = await sb.from('us_market')
+  const { error } = await sb.from('us_etf_map')
     .delete().eq('industry', ind).eq('ticker', ticker);
+
   if (error) { alert('삭제 실패: ' + error.message); return; }
 
   if (window.USKR_MAP?.[ind])
