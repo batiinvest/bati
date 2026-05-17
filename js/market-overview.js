@@ -1186,13 +1186,29 @@ async function loadUskrChart() {
   if (!tickers) return;
   const krColor = KR_IND_COLORS[ind] || '#2dce89';
 
-  // 날짜 범위
+  // 날짜 범위 (거래일 기준 여유있게 x2 확보)
   const from = new Date();
-  from.setDate(from.getDate() - _uskrPeriod - 10);
+  from.setDate(from.getDate() - Math.ceil(_uskrPeriod * 2));
   const fromStr = from.toISOString().split('T')[0];
 
-  // ── KR: _krIndDates 재활용 ──
-  const krDates = (window._krIndDates || {})[ind] || {};
+  // ── KR: market_data 직접 조회 (_krIndDates는 7일치만 있으므로) ──
+  const krDates = {};
+  const indMap = window._industryMapCache || {};
+  const monCodes = Object.keys(indMap).filter(c => indMap[c] === ind);
+  if (monCodes.length) {
+    const chunk = 300;
+    for (let i = 0; i < monCodes.length; i += chunk) {
+      const { data: kr } = await sb.from('market_data')
+        .select('base_date,price_change_rate')
+        .in('stock_code', monCodes.slice(i, i + chunk))
+        .gte('base_date', fromStr)
+        .not('price_change_rate', 'is', null);
+      (kr || []).forEach(r => {
+        if (!krDates[r.base_date]) krDates[r.base_date] = [];
+        krDates[r.base_date].push(r.price_change_rate);
+      });
+    }
+  }
 
   // ── US: us_market 테이블에서 해당 산업 ETF 조회 ──
   const { data: usRows } = await sb.from('us_market')
@@ -1202,11 +1218,10 @@ async function loadUskrChart() {
     .gte('base_date', fromStr)
     .order('base_date', { ascending: true });
 
-  // 날짜 목록 구성
-  const dateSet = new Set();
-  Object.keys(krDates).forEach(d => dateSet.add(d));
-  (usRows || []).forEach(r => dateSet.add(r.base_date));
-  const dateList = [...dateSet].sort().slice(-_uskrPeriod);
+  // 날짜 목록 구성 (각각 최근 N 거래일 기준으로 슬라이스)
+  const krDays  = [...new Set(Object.keys(krDates))].sort().slice(-_uskrPeriod);
+  const usDays  = [...new Set((usRows||[]).map(r=>r.base_date))].sort().slice(-_uskrPeriod);
+  const dateList = [...new Set([...krDays, ...usDays])].sort();
 
   // ── KR 누적 지수 ──
   const makeKrData = () => {
