@@ -113,8 +113,9 @@ function switchCompanyTab(tab) {
   _companyTab = tab;
   const monEl = document.getElementById('company-tab-monitoring');
   const etfEl = document.getElementById('company-tab-etf');
+  console.log('[TAB] monEl:', monEl, 'etfEl:', etfEl);
   if (monEl) monEl.style.display = tab === 'monitoring' ? 'grid' : 'none';
-  if (etfEl) etfEl.style.display = tab === 'etf'        ? 'block' : 'none';
+  if (etfEl) { etfEl.style.display = tab === 'etf' ? 'block' : 'none'; console.log('[TAB] etfEl display set to:', etfEl.style.display); }
   // 탭 버튼 스타일
   document.querySelectorAll('.company-tab').forEach(btn => {
     const isActive = btn.dataset.tab === tab;
