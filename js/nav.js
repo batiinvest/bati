@@ -20,39 +20,6 @@ function go(page) {
   draw();
 }
 
-// 검색 입력 시 포커스·커서 위치 유지하며 재렌더링
-function drawKeepFocus() {
-  const el  = document.getElementById('room-search-input');
-  const pos = el ? el.selectionStart : null;
-  draw();
-  if (pos !== null) {
-    const newEl = document.getElementById('room-search-input');
-    if (newEl) { newEl.focus(); newEl.setSelectionRange(pos, pos); }
-  }
-}
-
-// 한글 조합(IME) 완료 후에만 재렌더링 — 조합 중 재렌더링 방지
-let _roomComposing = false;
-function _roomSearchInput(el) {
-  A.q = el.value;
-  if (!_roomComposing) drawKeepFocus();
-}
-// compositionend/start 이벤트는 inline으로 못 쓰므로 draw 후 바인딩
-const _origDraw = draw;
-function draw() {
-  _origDraw();
-  const inp = document.getElementById('room-search-input');
-  if (inp && !inp._imebound) {
-    inp._imebound = true;
-    inp.addEventListener('compositionstart', () => { _roomComposing = true; });
-    inp.addEventListener('compositionend',   () => {
-      _roomComposing = false;
-      A.q = inp.value;
-      drawKeepFocus();
-    });
-  }
-}
-
 function draw() {
   const el   = document.getElementById('content');
   const meta = PAGE_META[A.page] || PAGE_META['overview'];
@@ -63,6 +30,28 @@ function draw() {
   // onLoad 콜백 실행
   if (meta.onLoad && typeof window[meta.onLoad] === 'function') {
     window[meta.onLoad]();
+  }
+
+  // 채팅방 검색 input IME 바인딩 (한글 조합 완료 후에만 재렌더링)
+  const inp = document.getElementById('room-search-input');
+  if (inp) {
+    let composing = false;
+    inp.addEventListener('compositionstart', () => { composing = true; });
+    inp.addEventListener('compositionend',   () => {
+      composing = false;
+      A.q = inp.value;
+      draw();
+    });
+    inp.addEventListener('input', () => {
+      if (composing) return;          // 한글 조합 중이면 skip
+      A.q = inp.value;
+      const pos = inp.selectionStart;
+      draw();
+      const next = document.getElementById('room-search-input');
+      if (next) { next.focus(); next.setSelectionRange(pos, pos); }
+    });
+    inp.focus();
+    inp.setSelectionRange(inp.value.length, inp.value.length);
   }
 }
 
