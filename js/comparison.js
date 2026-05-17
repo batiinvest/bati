@@ -296,6 +296,24 @@ function clearCmpStocks() {
   renderCmpSelected();
 }
 
+// ── 페이지 진입 시 상태 초기화 ──
+function initCmpPage() {
+  // 선택 종목, 필터, 차트 모두 초기화
+  CMP.selectedCodes = [];
+  CMP.industry      = '';
+  CMP.subcat        = '';
+  CMP.metric        = 'revenue';
+  CMP.period        = '8';
+
+  // 차트 인스턴스 제거
+  if (_cmpChartInstance) { _cmpChartInstance.destroy(); _cmpChartInstance = null; }
+  window._cmpChartDatasets = null;
+  window._cmpChartLabels   = null;
+
+  // UI 초기화 후 선택 목록 렌더
+  renderCmpSelected();
+}
+
 function renderCmpSelected() {
   const el = document.getElementById('cmp-selected-list');
   const cnt = document.getElementById('cmp-count');

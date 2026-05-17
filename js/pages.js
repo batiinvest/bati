@@ -19,7 +19,7 @@ const PAGE_META = {
   watchlist:  { title: '투자노트',      fn: 'pWatchlist',   onLoad: '_initWatchlist' },
   screener:   { title: '종목 스크리너', fn: 'pScreener',    onLoad: null },
   financials: { title: '재무 조회',     fn: 'pFinancials',  onLoad: 'loadFinancials' },
-  comparison: { title: '기업 비교 분석',fn: 'pComparison',  onLoad: 'renderCmpSelected' },
+  comparison: { title: '기업 비교 분석',fn: 'pComparison',  onLoad: 'initCmpPage' },
   stocks:     { title: '종목 관리',     fn: 'pStocks',      onLoad: 'loadStocks' },
   team:       { title: '팀원 관리',     fn: 'pTeam',        onLoad: 'loadTeam' },
   settings:   { title: '설정',          fn: 'pSettings',    onLoad: null },
