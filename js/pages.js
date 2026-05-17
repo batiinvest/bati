@@ -40,19 +40,18 @@ function pOverview() {
   const open   = companyRooms.filter(r => !isFull(r)).length;
   const totalM = companyRooms.reduce((s,r) => s + (r.members||0), 0);
 
-  // 산업별 집계 (기업 채팅방 기준)
+  // 산업별 집계 (기업 채팅방 기준, 산업채팅방만 있는 경우도 포함)
   const catMap = {};
+  // 산업채팅방만 있는 경우도 catMap에 키 생성
+  industryRooms.forEach(r => {
+    if (!catMap[r.cat]) catMap[r.cat] = { n:0, m:0, industryM:0, industryLink:'' };
+    catMap[r.cat].industryM    = r.members || 0;
+    catMap[r.cat].industryLink = r.link || '';
+  });
   companyRooms.forEach(r => {
     if (!catMap[r.cat]) catMap[r.cat] = { n:0, m:0, industryM:0, industryLink:'' };
     catMap[r.cat].n++;
     catMap[r.cat].m += r.members || 0;
-  });
-  // 산업 채팅방 인원 매핑
-  industryRooms.forEach(r => {
-    if (catMap[r.cat]) {
-      catMap[r.cat].industryM    = r.members || 0;
-      catMap[r.cat].industryLink = r.link || '';
-    }
   });
 
   const sortedRooms = [...companyRooms].sort((a,b) => b.members - a.members);
