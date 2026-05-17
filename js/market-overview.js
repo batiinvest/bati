@@ -1257,14 +1257,14 @@ async function loadUskrChart() {
   };
 
   // ── ETF 색상 팔레트 ──
-  const ETF_COLORS = ['#2AABEE','#4ade80','#fb923c','#a78bfa','#f472b6',
-                      '#34d399','#60a5fa','#fbbf24','#f87171','#67e8f9','#c084fc','#86efac'];
+  const ETF_COLORS = ['#2AABEE','#f97316','#e879f9','#fbbf24','#f87171',
+                      '#818cf8','#34d399','#fb7185','#38bdf8','#a3e635','#c084fc','#fdba74'];
 
   const datasets = [];
 
   // KR 평균 (항상 표시)
   datasets.push({
-    label: `🇰🇷 KR ${ind}`,
+    label: `🇰🇷 ${ind}`,
     data: makeKrData(),
     borderColor: krColor, backgroundColor: krColor + '22',
     borderWidth: 3, pointRadius: 3, tension: 0.3,
@@ -1286,7 +1286,7 @@ async function loadUskrChart() {
       return null;
     });
     datasets.push({
-      label: `🇺🇸 US ${ind} 평균(${tickers.length}개)`,
+      label: `🇺🇸 ${ind} 평균(${tickers.length}개)`,
       data: normAvg,
       borderColor: '#2AABEE', backgroundColor: '#2AABEE22',
       borderWidth: 2, pointRadius: 3, tension: 0.3,
