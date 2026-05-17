@@ -1100,15 +1100,22 @@ const KR_IND_COLORS = {
 let _uskrChart = null;
 let _uskrPeriod = 7;
 
+let _uskrSelected = '반도체';  // 현재 선택 산업
+
+function selectUskrInd(ind) {
+  _uskrSelected = ind;
+  document.querySelectorAll('[id^="uskr-btn-"]').forEach(b =>
+    b.classList.toggle('active', b.id === 'uskr-btn-' + ind));
+  loadUskrChart();
+}
+
 async function loadUskrChart() {
   const canvas = document.getElementById('uskr-chart');
   if (!canvas) return;
 
-  // 선택된 산업
-  const selected = Object.keys(USKR_MAP).filter(ind => {
-    const chk = document.getElementById('uskr-ind-' + ind);
-    return chk ? chk.checked : false;
-  });
+  const ind = _uskrSelected;
+  const etf  = USKR_MAP[ind];
+  if (!etf) return;
 
   // 날짜 범위
   const today = new Date();
@@ -1116,8 +1123,8 @@ async function loadUskrChart() {
   from.setDate(today.getDate() - _uskrPeriod - 10);
   const fromStr = from.toISOString().split('T')[0];
 
-  // ── KR: market_data 산업별 일별 평균 등락률 ──
-  const krIndDates = {};
+  // ── KR: market_data 해당 산업 일별 평균 등락률 ──
+  const krDates = {};  // { '2026-05-01': [chg, ...] }
   const monitoredCodes = Object.keys(window._industryMapCache || {});
   if (monitoredCodes.length) {
     const { data: krRows } = await sb.from('market_data')
@@ -1126,78 +1133,66 @@ async function loadUskrChart() {
       .gte('base_date', fromStr)
       .not('day_change_pct', 'is', null);
     (krRows || []).forEach(r => {
-      const ind = window._industryMapCache?.[r.stock_code];
-      if (!ind || !selected.includes(ind)) return;
-      if (!krIndDates[ind]) krIndDates[ind] = {};
-      if (!krIndDates[ind][r.base_date]) krIndDates[ind][r.base_date] = [];
-      krIndDates[ind][r.base_date].push(r.day_change_pct);
+      if (window._industryMapCache?.[r.stock_code] !== ind) return;
+      if (!krDates[r.base_date]) krDates[r.base_date] = [];
+      krDates[r.base_date].push(r.day_change_pct);
     });
   }
 
-  // ── US: macro_data ETF 가격 ──
-  const usEtfCols = [...new Set(selected.map(ind => USKR_MAP[ind]?.col).filter(Boolean))];
-  let macroRows = [];
-  if (usEtfCols.length) {
-    const { data } = await sb.from('macro_data')
-      .select(['base_date', ...usEtfCols].join(','))
-      .gte('base_date', fromStr)
-      .order('base_date', { ascending: true });
-    macroRows = data || [];
-  }
+  // ── US: macro_data 해당 ETF 가격 ──
+  const { data: macroRows } = await sb.from('macro_data')
+    .select(`base_date,${etf.col}`)
+    .gte('base_date', fromStr)
+    .order('base_date', { ascending: true });
 
   // ── 공통 날짜 목록 ──
   const dateSet = new Set();
-  Object.values(krIndDates).forEach(dm => Object.keys(dm).forEach(d => dateSet.add(d)));
-  macroRows.forEach(r => dateSet.add(r.base_date));
+  Object.keys(krDates).forEach(d => dateSet.add(d));
+  (macroRows || []).forEach(r => { if (r[etf.col] != null) dateSet.add(r.base_date); });
   const dateList = [...dateSet].sort().slice(-_uskrPeriod);
 
-  // ── datasets 생성 ──
-  const datasets = [];
+  // ── datasets: KR 실선 + US 점선 ──
+  const krColor  = KR_IND_COLORS[ind] || '#2dce89';
+  const usColor  = etf.color;
 
-  // KR 산업 (실선)
-  selected.forEach(ind => {
-    const color = KR_IND_COLORS[ind] || '#ffffff';
-    let cum = 100, started = false;
-    const data = dateList.map(date => {
-      const chgs = krIndDates[ind]?.[date];
-      if (chgs?.length) {
-        started = true;
-        cum = cum * (1 + chgs.reduce((s,v)=>s+v,0)/chgs.length/100);
-      }
-      return started ? parseFloat(cum.toFixed(2)) : null;
-    });
-    datasets.push({
-      label: `🇰🇷 ${ind}`, data,
-      borderColor: color, backgroundColor: color + '18',
-      borderWidth: 2, pointRadius: 2, tension: 0.3,
-      fill: false, spanGaps: true,
-    });
+  // KR 누적 지수
+  let cum = 100, started = false;
+  const krData = dateList.map(date => {
+    const chgs = krDates[date];
+    if (chgs?.length) {
+      started = true;
+      cum = cum * (1 + chgs.reduce((s,v)=>s+v,0)/chgs.length/100);
+    }
+    return started ? parseFloat(cum.toFixed(2)) : null;
   });
 
-  // US ETF (점선) — 중복 ETF 제거
-  const addedEtf = new Set();
-  selected.forEach(ind => {
-    const etf = USKR_MAP[ind];
-    if (!etf || addedEtf.has(etf.col)) return;
-    addedEtf.add(etf.col);
-    let base = null;
-    const data = dateList.map(date => {
-      const row = macroRows.find(r => r.base_date === date);
-      const val = row?.[etf.col];
-      if (val != null) {
-        if (base === null) base = val;
-        return parseFloat((val / base * 100).toFixed(2));
-      }
-      return null;
-    });
-    datasets.push({
-      label: `🇺🇸 ${etf.name}`, data,
-      borderColor: etf.color, backgroundColor: etf.color + '18',
-      borderWidth: 1.5, pointRadius: 2, tension: 0.3,
-      borderDash: [5, 3],
-      fill: false, spanGaps: true,
-    });
+  // US 누적 지수
+  let base = null;
+  const usData = dateList.map(date => {
+    const row = (macroRows || []).find(r => r.base_date === date);
+    const val = row?.[etf.col];
+    if (val != null) {
+      if (base === null) base = val;
+      return parseFloat((val / base * 100).toFixed(2));
+    }
+    return null;
   });
+
+  const datasets = [
+    {
+      label: `🇰🇷 KR ${ind}`, data: krData,
+      borderColor: krColor, backgroundColor: krColor + '22',
+      borderWidth: 2.5, pointRadius: 3, tension: 0.3,
+      fill: false, spanGaps: true,
+    },
+    {
+      label: `🇺🇸 US ${etf.name}`, data: usData,
+      borderColor: usColor, backgroundColor: usColor + '22',
+      borderWidth: 2.5, pointRadius: 3, tension: 0.3,
+      borderDash: [6, 3],
+      fill: false, spanGaps: true,
+    },
+  ];
 
   // ── 차트 그리기 ──
   if (_uskrChart) { _uskrChart.destroy(); _uskrChart = null; }

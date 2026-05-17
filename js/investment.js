@@ -170,16 +170,12 @@ function pInvestment() {
           `).join('')}
         </div>
       </div>
-      <!-- 산업 선택 (KR+US 함께 표시) -->
+      <!-- 산업 선택 (하나 선택 → KR+US 1:1 비교) -->
       <div style="padding:.5rem 1rem;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-        ${['반도체','바이오','로봇','우주','2차전지','소비재','엔터','조선','테크','뷰티','신재생'].map(ind=>`
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:2px 8px;border-radius:100px;border:1px solid var(--border);font-size:12px;user-select:none"
-            id="uskr-lbl-${ind}">
-            <input type="checkbox" style="display:none" id="uskr-ind-${ind}"
-              onchange="reloadUskrChart()" checked>
-            <span style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--tg)"></span>
-            <span>${ind}</span>
-          </label>
+        ${['반도체','바이오','로봇','우주','2차전지','소비재','엔터','조선','테크','뷰티','신재생'].map((ind,i)=>`
+          <button class="chip ${i===0?'active':''}" id="uskr-btn-${ind}"
+            onclick="selectUskrInd('${ind}')"
+            style="font-size:12px;padding:3px 10px">${ind}</button>
         `).join('')}
       </div>
       <div style="padding:1rem;position:relative;height:320px">
