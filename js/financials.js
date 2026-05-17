@@ -207,10 +207,11 @@ async function loadFinancialData(el) {
     rows = rows.filter(r => indStocks.has(r.stock_code));
   }
 
-  const sortCol = { 'market_cap': 'revenue', 'price': 'operating_profit' }[F.sortBy] || F.sortBy;
+  // ── 정렬 ──
+  const _finSortCol = F.sortBy || 'revenue';
   rows.sort((a, b) => {
-    const av = a[sortCol] ?? -Infinity;
-    const bv = b[sortCol] ?? -Infinity;
+    const av = a[_finSortCol] ?? -Infinity;
+    const bv = b[_finSortCol] ?? -Infinity;
     return F.sortDir === 'desc' ? bv - av : av - bv;
   });
 
@@ -221,14 +222,30 @@ async function loadFinancialData(el) {
   const fmt = v => fmtCap(v);  // fmtCap: 조/억 단위 자동 변환
   const pct = v => v != null ? v.toFixed(1) + '%' : '—';
 
+  // 정렬 버튼 헬퍼
+  const sBtn = (col, label) => {
+    const active = F.sortBy === col;
+    const icon = active ? (F.sortDir === 'desc' ? ' ↓' : ' ↑') : '';
+    const clr  = active ? 'color:var(--tg);' : '';
+    return `<span style="cursor:pointer;white-space:nowrap;${clr}user-select:none"
+      onclick="F.sortBy='${col}';F.sortDir=(F.sortBy==='${col}'&&F.sortDir==='desc')?'asc':'desc';loadFinancials()"
+    >${label}${icon}</span>`;
+  };
+
   el.innerHTML = `<div class="table-wrap"><table>
     <thead><tr>
       <th>종목명</th><th>기간</th>
-      <th>매출액</th><th>매출총이익</th><th>GPM</th>
-      <th>영업이익</th><th>영업이익률</th>
-      <th>순이익</th><th>순이익률</th>
-      <th>ROE</th><th>부채비율</th>
-      <th>자산총계</th><th>영업현금흐름</th>
+      <th>${sBtn('revenue','매출액')}</th>
+      <th>${sBtn('gross_profit','매출총이익')}</th>
+      <th>${sBtn('gross_margin','GPM')}</th>
+      <th>${sBtn('operating_profit','영업이익')}</th>
+      <th>${sBtn('operating_margin','영업이익률')}</th>
+      <th>${sBtn('net_income','순이익')}</th>
+      <th>${sBtn('net_margin','순이익률')}</th>
+      <th>${sBtn('roe','ROE')}</th>
+      <th>${sBtn('debt_ratio','부채비율')}</th>
+      <th>${sBtn('total_assets','자산총계')}</th>
+      <th>${sBtn('operating_cashflow','영업현금흐름')}</th>
     </tr></thead>
     <tbody>${rows.map(r => {
       const opColor = r.operating_profit > 0 ? 'var(--green)' : r.operating_profit < 0 ? 'var(--red)' : 'var(--text2)';
