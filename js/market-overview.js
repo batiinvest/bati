@@ -1103,23 +1103,23 @@ function toggleIndTrend(ind) {
 
 // KR 산업 → US ETF 대응
 const USKR_MAP = {
-  '반도체': { col:'etf_xlk',  name:'XLK 테크',    color:'#38bdf8' },
-  '바이오': { col:'etf_xlv',  name:'XLV 헬스케어', color:'#4ade80' },
-  '소비재': { col:'etf_xly',  name:'XLY 소비재',   color:'#fbbf24' },
-  '로봇':   { col:'etf_xli',  name:'XLI 산업재',   color:'#f472b6' },
-  '2차전지':{ col:'etf_xlb',  name:'XLB 소재',     color:'#f87171' },
-  '엔터':   { col:'etf_xlc',  name:'XLC 통신',     color:'#60a5fa' },
-  '조선':   { col:'etf_xli',  name:'XLI 산업재',   color:'#c084fc' },
-  '테크':   { col:'etf_xlk',  name:'XLK 테크',     color:'#67e8f9' },
-  '뷰티':   { col:'etf_xlp',  name:'XLP 필수소비', color:'#34d399' },
-  '신재생': { col:'etf_xle',  name:'XLE 에너지',   color:'#fb923c' },
-  '우주':   { col:'etf_xli',  name:'XLI 산업재',   color:'#a78bfa' },
+  '반도체': { col:'etf_xlk',  name:'XLK 테크',    color:'#2AABEE' },
+  '바이오': { col:'etf_xlv',  name:'XLV 헬스케어', color:'#2AABEE' },
+  '소비재': { col:'etf_xly',  name:'XLY 소비재',   color:'#2AABEE' },
+  '로봇':   { col:'etf_xli',  name:'XLI 산업재',   color:'#2AABEE' },
+  '2차전지':{ col:'etf_xlb',  name:'XLB 소재',     color:'#2AABEE' },
+  '엔터':   { col:'etf_xlc',  name:'XLC 통신',     color:'#2AABEE' },
+  '조선':   { col:'etf_xli',  name:'XLI 산업재',   color:'#2AABEE' },
+  '테크':   { col:'etf_xlk',  name:'XLK 테크',     color:'#2AABEE' },
+  '뷰티':   { col:'etf_xlp',  name:'XLP 필수소비', color:'#2AABEE' },
+  '신재생': { col:'etf_xle',  name:'XLE 에너지',   color:'#2AABEE' },
+  '우주':   { col:'etf_xli',  name:'XLI 산업재',   color:'#2AABEE' },
 };
 
 const KR_IND_COLORS = {
-  '반도체':'#2AABEE','바이오':'#2dce89','로봇':'#ff6b35','우주':'#a259ff',
-  '2차전지':'#ffd600','소비재':'#f5365c','엔터':'#fb6340','조선':'#00d4aa',
-  '테크':'#6366f1','뷰티':'#ec4899','신재생':'#84cc16',
+  '반도체':'#f97316','바이오':'#22c55e','로봇':'#ef4444','우주':'#8b5cf6',
+  '2차전지':'#eab308','소비재':'#e879f9','엔터':'#f43f5e','조선':'#06b6d4',
+  '테크':'#a855f7','뷰티':'#fb7185','신재생':'#84cc16',
 };
 
 let _uskrChart = null;
@@ -1207,14 +1207,14 @@ async function loadUskrChart() {
     {
       label: `🇰🇷 KR ${ind}`, data: krData,
       borderColor: krColor, backgroundColor: krColor + '22',
-      borderWidth: 2.5, pointRadius: 3, tension: 0.3,
+      borderWidth: 3, pointRadius: 3, tension: 0.3,
       fill: false, spanGaps: true,
     },
     {
       label: `🇺🇸 US ${etf.name}`, data: usData,
       borderColor: usColor, backgroundColor: usColor + '22',
-      borderWidth: 2.5, pointRadius: 3, tension: 0.3,
-      borderDash: [6, 3],
+      borderWidth: 2, pointRadius: 3, tension: 0.3,
+      borderDash: [8, 4],
       fill: false, spanGaps: true,
     },
   ];
