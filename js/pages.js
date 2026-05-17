@@ -113,7 +113,7 @@ function pRooms() {
   });
   return `
   <div class="filter-bar">
-    <input class="search-box" placeholder="이름·키워드 검색..." value="${A.q}" oninput="A.q=this.value;draw()">
+    <input class="search-box" id="room-search-input" placeholder="이름·키워드 검색..." value="${A.q}" oninput="A.q=this.value;drawKeepFocus()">
     <button class="chip ${A.status==='all'?'active':''}" onclick="A.status='all';draw()">전체</button>
     <button class="chip ${A.status==='open'?'active':''}" onclick="A.status='open';draw()">입장 가능</button>
     <button class="chip ${A.status==='full'?'active':''}" onclick="A.status='full';draw()">정원 마감</button>

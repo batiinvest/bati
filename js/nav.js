@@ -20,6 +20,17 @@ function go(page) {
   draw();
 }
 
+// 검색 입력 시 포커스·커서 위치 유지하며 재렌더링
+function drawKeepFocus() {
+  const el  = document.getElementById('room-search-input');
+  const pos = el ? el.selectionStart : null;
+  draw();
+  if (pos !== null) {
+    const newEl = document.getElementById('room-search-input');
+    if (newEl) { newEl.focus(); newEl.setSelectionRange(pos, pos); }
+  }
+}
+
 function draw() {
   const el   = document.getElementById('content');
   const meta = PAGE_META[A.page] || PAGE_META['overview'];
