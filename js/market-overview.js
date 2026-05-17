@@ -1191,19 +1191,21 @@ async function loadUskrChart() {
   from.setDate(from.getDate() - Math.ceil(_uskrPeriod * 2));
   const fromStr = from.toISOString().split('T')[0];
 
-  // ── KR: market_data 직접 조회 (_krIndDates는 7일치만 있으므로) ──
+  // ── KR: loadIndTrendChart와 동일한 방식으로 직접 조회 ──
+  // (industryMap 기준으로 market_data 전체 조회 후 필터 — 두 차트 데이터 일치 보장)
   const krDates = {};
-  const indMap = window._industryMapCache || {};
-  const monCodes = Object.keys(indMap).filter(c => indMap[c] === ind);
-  if (monCodes.length) {
+  const industryMap = window._industryMapCache || {};
+  const allCodes = Object.keys(industryMap);
+  if (allCodes.length) {
     const chunk = 300;
-    for (let i = 0; i < monCodes.length; i += chunk) {
+    for (let i = 0; i < allCodes.length; i += chunk) {
       const { data: kr } = await sb.from('market_data')
-        .select('base_date,price_change_rate')
-        .in('stock_code', monCodes.slice(i, i + chunk))
+        .select('stock_code,base_date,price_change_rate')
+        .in('stock_code', allCodes.slice(i, i + chunk))
         .gte('base_date', fromStr)
         .not('price_change_rate', 'is', null);
       (kr || []).forEach(r => {
+        if (industryMap[r.stock_code] !== ind) return;  // 해당 산업만
         if (!krDates[r.base_date]) krDates[r.base_date] = [];
         krDates[r.base_date].push(r.price_change_rate);
       });
