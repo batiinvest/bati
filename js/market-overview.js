@@ -620,6 +620,7 @@ async function loadTrendChart() {
 
   if (_invTrendChart) { _invTrendChart.destroy(); _invTrendChart = null; }
   window._invHighlighted = window._invHighlighted || null;
+  window._invHovered = null;
 
   _invTrendChart = new Chart(canvas.getContext('2d'), {
     type: 'line',
@@ -649,20 +650,57 @@ async function loadTrendChart() {
     }
   });
 
-  // ── 클릭으로 라인 하이라이트 (이전 핸들러 제거 후 재바인딩) ──
-  if (canvas._invClickHandler) {
-    canvas.removeEventListener('click', canvas._invClickHandler);
-  }
+  // ── 호버 + 클릭 고정 (이전 핸들러 제거 후 재바인딩) ──
+  ['_invClickHandler','_invMoveHandler','_invLeaveHandler'].forEach(k => {
+    if (canvas[k]) canvas.removeEventListener(
+      k === '_invClickHandler' ? 'click' : k === '_invMoveHandler' ? 'mousemove' : 'mouseleave',
+      canvas[k]
+    );
+  });
+
+  canvas._invMoveHandler = (e) => {
+    if (window._invHighlighted) return;   // 고정 중엔 호버 무시
+    const chart = _invTrendChart;
+    if (!chart) return;
+    const pts = chart.getElementsAtEventForMode(e, 'nearest', { intersect: false }, true);
+    const label = pts.length ? chart.data.datasets[pts[0].datasetIndex]?.label : null;
+    if (label === window._invHovered) return;
+    window._invHovered = label;
+    // 호버용 임시 적용 (pinned 아님)
+    chart.data.datasets.forEach(ds => {
+      const m = INV_ALL_METRICS.find(x => x.name === ds.label);
+      const color = m ? m.color : '#ffffff';
+      if (!label) { ds.borderWidth = 2; ds.pointRadius = 2; ds.borderColor = color; }
+      else {
+        const active = ds.label === label;
+        ds.borderWidth = active ? 4   : 1.2;
+        ds.pointRadius = active ? 4   : 1;
+        ds.borderColor = active ? color : color + '55';
+      }
+    });
+    chart.update('none');
+  };
+
+  canvas._invLeaveHandler = () => {
+    if (window._invHighlighted) return;   // 고정 중엔 복원 안 함
+    window._invHovered = null;
+    _applyInvHighlight();
+  };
+
   canvas._invClickHandler = (e) => {
     const chart = _invTrendChart;
     if (!chart) return;
     const pts = chart.getElementsAtEventForMode(e, 'nearest', { intersect: false }, true);
     const clicked = pts.length ? chart.data.datasets[pts[0].datasetIndex]?.label : null;
-    // 같은 선 재클릭 → 하이라이트 해제
+    // 같은 선 재클릭 → 고정 해제
     window._invHighlighted = (clicked && clicked !== window._invHighlighted) ? clicked : null;
+    window._invHovered = window._invHighlighted;
     _applyInvHighlight();
   };
-  canvas.addEventListener('click', canvas._invClickHandler);
+
+  canvas.addEventListener('mousemove', canvas._invMoveHandler);
+  canvas.addEventListener('mouseleave', canvas._invLeaveHandler);
+  canvas.addEventListener('click',     canvas._invClickHandler);
 }
 
 // 하이라이트 적용 (borderWidth + 투명도)
@@ -670,24 +708,30 @@ function _applyInvHighlight() {
   const chart = _invTrendChart;
   if (!chart) return;
   const hl = window._invHighlighted;
-  const metrics = INV_ALL_METRICS;
-  chart.data.datasets.forEach((ds, i) => {
-    const active = !hl || ds.label === hl;
-    const m = metrics.find(x => x.name === ds.label);
+  chart.data.datasets.forEach((ds) => {
+    const m = INV_ALL_METRICS.find(x => x.name === ds.label);
     const color = m ? m.color : '#ffffff';
-    ds.borderWidth   = active ? (hl ? 4 : 2) : 1.2;
-    ds.pointRadius   = active ? (hl ? 4 : 2) : 1;
-    ds.borderColor   = active ? color : color + '77';
+    if (!hl) {
+      // 완전 해제 — 기본값 복원
+      ds.borderWidth = 2;
+      ds.pointRadius = 2;
+      ds.borderColor = color;
+    } else {
+      const active = ds.label === hl;
+      ds.borderWidth = active ? 4   : 1.2;
+      ds.pointRadius = active ? 4   : 1;
+      ds.borderColor = active ? color : color + '55';
+    }
   });
   chart.update('none');
 
-  // 범례 스타일도 연동
+  // 범례 스타일 연동
   document.querySelectorAll('[id^="inv-lbl-"]').forEach(lbl => {
     const col = lbl.id.replace('inv-lbl-', '');
     const m   = INV_ALL_METRICS.find(x => x.col === col);
     if (!m) return;
     const isHL = hl && m.name === hl;
-    lbl.style.opacity = !hl || isHL ? '1' : '0.35';
+    lbl.style.opacity     = !hl || isHL ? '1' : '0.35';
     lbl.style.borderWidth = isHL ? '2px' : '';
   });
 }
