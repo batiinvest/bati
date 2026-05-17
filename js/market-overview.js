@@ -176,8 +176,8 @@ async function loadMarketOverview(maxDate) {
   const bHeight = Math.max(sorted.length * 36 + 60, 300);
 
   indGrid.innerHTML =
-    '<div style="display:grid;grid-template-columns:30% 70%;min-height:400px">' +
-      '<div style="border-right:1px solid var(--border);padding:12px 14px;overflow-y:auto;max-height:520px" id="ind-left">' +
+    '<div style="display:grid;grid-template-columns:3fr 7fr;min-height:400px">' +
+      '<div style="border-right:1px solid var(--border);padding:12px 14px;overflow-y:auto;max-height:520px;min-width:0" id="ind-left">' +
         '<canvas id="ind-bar-chart" style="width:100%;height:' + bHeight + 'px"></canvas>' +
       '</div>' +
       '<div id="ind-right" style="overflow-y:auto;max-height:520px">' +
@@ -416,7 +416,7 @@ async function loadMarketOverview(maxDate) {
     const initStockPanel = renderStockPanel(indName + ' 전체', d.avg, d.stocks, d.rise, d.fall, d.flat);
 
     panel.innerHTML =
-      '<div style="display:grid;grid-template-columns:42.9% 57.1%;min-height:300px">' +
+      '<div style="display:grid;grid-template-columns:3fr 4fr;min-height:300px">' +
         '<div id="sub-left" style="border-right:1px solid var(--border);overflow-y:auto;max-height:480px">' + leftHtml + '</div>' +
         '<div id="sub-stock-panel" style="overflow-y:auto;max-height:480px">' + initStockPanel + '</div>' +
       '</div>';
@@ -804,16 +804,14 @@ async function loadIndTrendChart() {
       return started ? parseFloat(cumulative.toFixed(2)) : null;
     });
 
-    const isHighlighted = window._indHovered === ind;
     return {
       label: ind, data,
       borderColor: color,
       backgroundColor: color + '18',
-      borderWidth: isHighlighted ? 3.5 : 1.5,           // ① 호버 하이라이트
-      pointRadius: isHighlighted ? 4 : 2,
+      borderWidth: 1.5,
+      pointRadius: 2,
       pointHoverRadius: 6,
       tension: 0.3, fill: false, spanGaps: true,
-      borderOpacity: 1,
     };
   });
 
@@ -843,17 +841,24 @@ async function loadIndTrendChart() {
           }
         }
       },
-      // ① 호버 시 해당 라인 하이라이트
+      // ① 호버 시 해당 라인 하이라이트 (chart.update로 처리 — destroy 없음)
       onHover: (e, elements) => {
-        if (!elements.length) {
-          if (window._indHovered) { window._indHovered = null; loadIndTrendChart(); }
-          return;
-        }
-        const hovered = datasets[elements[0].datasetIndex]?.label;
-        if (hovered !== window._indHovered) {
-          window._indHovered = hovered;
-          loadIndTrendChart();
-        }
+        const chart = _indTrendChart2;
+        if (!chart) return;
+        const hovered = elements.length
+          ? chart.data.datasets[elements[0].datasetIndex]?.label
+          : null;
+        if (hovered === window._indHovered) return;
+        window._indHovered = hovered;
+        chart.data.datasets.forEach((ds, i) => {
+          const active = !hovered || ds.label === hovered;
+          ds.borderWidth  = active ? 3.5 : 1;
+          ds.pointRadius  = active ? 4   : 1;
+          ds.borderColor  = active
+            ? (IND_COLORS[ds.label] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length])
+            : (IND_COLORS[ds.label] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length]) + '55';
+        });
+        chart.update('none');
       },
       scales: {
         x: { ticks: { color: '#6e7491', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' } },
