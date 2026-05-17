@@ -598,17 +598,19 @@ async function loadTrendChart() {
 
   const labels = rows.map(r => r.base_date);
 
+  const _hl = window._invHighlighted || null;
   const datasets = selectedMetrics.map(m => {
     const values = rows.map(r => r[m.col]);
     const base   = values.find(v => v != null);
     const normalized = values.map(v => v != null && base ? Math.round(v / base * 10000) / 100 : null);
+    const active = !_hl || m.name === _hl;
     return {
       label:           m.name,
       data:            normalized,
-      borderColor:     m.color,
+      borderColor:     active ? m.color : m.color + '33',
       backgroundColor: m.color + '15',
-      borderWidth:     2,
-      pointRadius:     2,
+      borderWidth:     active ? (_hl ? 3.5 : 2) : 1,
+      pointRadius:     active ? (_hl ? 4   : 2) : 1,
       pointHoverRadius:5,
       tension:         0.3,
       fill:            false,
@@ -617,6 +619,7 @@ async function loadTrendChart() {
   });
 
   if (_invTrendChart) { _invTrendChart.destroy(); _invTrendChart = null; }
+  window._invHighlighted = window._invHighlighted || null;
 
   _invTrendChart = new Chart(canvas.getContext('2d'), {
     type: 'line',
@@ -644,6 +647,46 @@ async function loadTrendChart() {
         }
       }
     }
+  });
+
+  // ── 클릭으로 라인 하이라이트 ──
+  canvas._invClickBound = false;
+  canvas.addEventListener('click', (e) => {
+    const chart = _invTrendChart;
+    if (!chart) return;
+    const pts = chart.getElementsAtEventForMode(e, 'nearest', { intersect: false }, true);
+    const clicked = pts.length ? chart.data.datasets[pts[0].datasetIndex]?.label : null;
+
+    // 같은 선 재클릭 → 하이라이트 해제
+    window._invHighlighted = (clicked && clicked !== window._invHighlighted) ? clicked : null;
+    _applyInvHighlight();
+  });
+}
+
+// 하이라이트 적용 (borderWidth + 투명도)
+function _applyInvHighlight() {
+  const chart = _invTrendChart;
+  if (!chart) return;
+  const hl = window._invHighlighted;
+  const metrics = INV_ALL_METRICS;
+  chart.data.datasets.forEach((ds, i) => {
+    const active = !hl || ds.label === hl;
+    const m = metrics.find(x => x.name === ds.label);
+    const color = m ? m.color : '#ffffff';
+    ds.borderWidth   = active ? (hl ? 3.5 : 2) : 1;
+    ds.pointRadius   = active ? (hl ? 4   : 2) : 1;
+    ds.borderColor   = active ? color : color + '33';
+  });
+  chart.update('none');
+
+  // 범례 스타일도 연동
+  document.querySelectorAll('[id^="inv-lbl-"]').forEach(lbl => {
+    const col = lbl.id.replace('inv-lbl-', '');
+    const m   = INV_ALL_METRICS.find(x => x.col === col);
+    if (!m) return;
+    const isHL = hl && m.name === hl;
+    lbl.style.opacity = !hl || isHL ? '1' : '0.35';
+    lbl.style.borderWidth = isHL ? '2px' : '';
   });
 }
 
