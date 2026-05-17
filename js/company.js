@@ -31,7 +31,7 @@ function pCompany() {
       style="padding:12px 20px;font-size:13px;font-weight:600;background:none;border:none;
         cursor:pointer;border-bottom:2px solid ${_companyTab==='etf'?'var(--tg)':'transparent'};
         color:${_companyTab==='etf'?'var(--text)':'var(--text3)'};margin-bottom:-1px">
-      🌐 US ETF 매핑
+      🌐 US 종목 관리
     </button>
   </div>
 
@@ -95,12 +95,12 @@ function pCompany() {
     </div>
   </div>
 
-  <!-- US ETF 매핑 탭 -->
+  <!-- US 종목 관리 탭 -->
   <div id="company-tab-etf" style="display:none;padding:1.25rem">
     <div class="card">
       <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span class="card-title">🌐 US ETF 매핑 관리</span>
-        <span style="font-size:12px;color:var(--text3)">KR 산업별 매칭 ETF/종목 추가·삭제</span>
+        <span class="card-title">🌐 US 종목 관리</span>
+        <span style="font-size:12px;color:var(--text3)">KR 산업별 대응 US 종목 추가·삭제</span>
         <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
           <span id="etf-dirty-badge" style="display:none;align-items:center;gap:4px;
             font-size:11px;padding:3px 8px;border-radius:100px;
@@ -567,7 +567,7 @@ async function monApply() {
 
 
 // ══════════════════════════════════════════
-//  🌐 US ETF 매핑 관리
+//  🌐 US 종목 관리
 // ══════════════════════════════════════════
 
 const KR_INDUSTRIES = ['반도체','바이오','로봇','우주','2차전지','소비재','엔터','조선','테크','뷰티','신재생'];
