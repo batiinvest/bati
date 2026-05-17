@@ -607,10 +607,10 @@ async function loadTrendChart() {
     return {
       label:           m.name,
       data:            normalized,
-      borderColor:     active ? m.color : m.color + '33',
+      borderColor:     active ? m.color : m.color + '77',
       backgroundColor: m.color + '15',
-      borderWidth:     active ? (_hl ? 3.5 : 2) : 1,
-      pointRadius:     active ? (_hl ? 4   : 2) : 1,
+      borderWidth:     active ? (_hl ? 4 : 2) : 1.2,
+      pointRadius:     active ? (_hl ? 4 : 2) : 1,
       pointHoverRadius:5,
       tension:         0.3,
       fill:            false,
@@ -673,9 +673,9 @@ function _applyInvHighlight() {
     const active = !hl || ds.label === hl;
     const m = metrics.find(x => x.name === ds.label);
     const color = m ? m.color : '#ffffff';
-    ds.borderWidth   = active ? (hl ? 3.5 : 2) : 1;
-    ds.pointRadius   = active ? (hl ? 4   : 2) : 1;
-    ds.borderColor   = active ? color : color + '33';
+    ds.borderWidth   = active ? (hl ? 4 : 2) : 1.2;
+    ds.pointRadius   = active ? (hl ? 4 : 2) : 1;
+    ds.borderColor   = active ? color : color + '77';
   });
   chart.update('none');
 
