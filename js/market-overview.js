@@ -549,12 +549,21 @@ async function loadUsEtfBanner() {
   const etfBanner = document.getElementById('inv-etf-banner');
   if (!etfBanner) return;
 
-  // 최근 거래일 2일치 조회 (최신 날짜 특정용)
-  const { data: rows } = await sb.from('us_market')
+  try {
+  const { data: rows, error } = await sb.from('us_market')
     .select('base_date,industry,ticker,chg_pct')
     .order('base_date', { ascending: false })
     .limit(500);
-  if (!rows?.length) return;
+
+  if (error) {
+    console.error('[ETF배너] 조회 오류:', error);
+    etfBanner.innerHTML = '<span style="color:var(--text3);font-size:11px">US ETF 데이터 오류</span>';
+    return;
+  }
+  if (!rows?.length) {
+    etfBanner.innerHTML = '<span style="color:var(--text3);font-size:11px">US ETF 수집 대기 중</span>';
+    return;
+  }
 
   // 최신 날짜 확인
   const latestDate = rows[0].base_date;
@@ -587,6 +596,11 @@ async function loadUsEtfBanner() {
       ${fmt(avg)}
     </span>`
   ).join(sep);
+
+  } catch(e) {
+    console.error('[ETF배너] 예외:', e);
+    etfBanner.innerHTML = '<span style="color:var(--text3);font-size:11px">US ETF 로드 실패</span>';
+  }
 }
 
 function toggleInvMetric(col) {
