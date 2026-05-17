@@ -1310,24 +1310,84 @@ async function loadUskrChart() {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { display: true, position: 'top',
-          labels: { color: '#a8adc4', font: { size: 11 }, boxWidth: 24, padding: 8 } },
+        legend: {
+          display: true,
+          position: 'top',
+          labels: {
+            color: '#a8adc4',
+            font: { size: 12 },
+            padding: 16,
+            usePointStyle: true,
+            pointStyle: 'line',
+            generateLabels: (chart) => {
+              return chart.data.datasets.map((ds, i) => {
+                // 마지막 유효값으로 누적 수익률 계산
+                const vals = ds.data.filter(v => v != null);
+                const last = vals.length ? vals[vals.length - 1] : null;
+                const ret  = last != null ? (last - 100) : null;
+                const retStr = ret != null
+                  ? ` ${ret >= 0 ? '+' : ''}${ret.toFixed(1)}%`
+                  : '';
+                const retColor = ret == null ? '#a8adc4' : ret >= 0 ? '#ff6b6b' : '#4a9eff';
+                const isUS = ds.label.startsWith('🇺🇸');
+                return {
+                  text: ds.label + retStr,
+                  fillStyle: ds.borderColor,
+                  strokeStyle: ds.borderColor,
+                  lineWidth: isUS ? 1.5 : 3,
+                  lineDash: isUS ? [6, 3] : [],
+                  pointStyle: 'line',
+                  fontColor: ret == null ? '#a8adc4' : retColor,
+                  hidden: false,
+                  datasetIndex: i,
+                };
+              });
+            }
+          }
+        },
         tooltip: {
-          backgroundColor: '#1a1d27', titleColor: '#f0f2f8', bodyColor: '#a8adc4',
+          backgroundColor: '#1a1d27',
+          titleColor: '#f0f2f8',
+          titleFont: { size: 12, weight: '600' },
+          bodyColor: '#a8adc4',
+          bodyFont: { size: 12 },
+          padding: 12,
+          borderColor: 'rgba(255,255,255,.1)',
+          borderWidth: 1,
           callbacks: {
+            title: items => items[0]?.label || '',
             label: ctx => {
               const v = ctx.parsed.y;
               if (v == null) return '';
-              const ret = (v - 100).toFixed(1);
-              return ` ${ctx.dataset.label}  (${ret >= 0 ? '+' : ''}${ret}%)`;
+              const ret = v - 100;
+              const sign = ret >= 0 ? '+' : '';
+              const arrow = ret >= 0 ? '▲' : '▼';
+              const isUS = ctx.dataset.label.startsWith('🇺🇸');
+              const type = isUS ? '- - -' : '———';
+              return ` ${type} ${ctx.dataset.label}   ${arrow}${sign}${ret.toFixed(2)}%`;
+            },
+            afterBody: items => {
+              // KR과 US 차이 표시 (avg 모드일 때만)
+              if (items.length !== 2) return [];
+              const kr = items.find(i => i.dataset.label.startsWith('🇰🇷'));
+              const us = items.find(i => i.dataset.label.startsWith('🇺🇸'));
+              if (!kr || !us || kr.parsed.y == null || us.parsed.y == null) return [];
+              const diff = (kr.parsed.y - us.parsed.y).toFixed(2);
+              const sign = diff >= 0 ? '+' : '';
+              return ['', ` KR - US 스프레드  ${sign}${diff}%`];
             }
           }
         }
       },
       scales: {
         x: { ticks: { color:'#6e7491', font:{size:10} }, grid:{color:'rgba(255,255,255,.05)'} },
-        y: { ticks: { color:'#6e7491', font:{size:11}, callback: v => v.toFixed(0) },
-             grid: { color:'rgba(255,255,255,.05)' } }
+        y: {
+          ticks: { color:'#6e7491', font:{size:11}, callback: v => {
+            const ret = v - 100;
+            return (ret >= 0 ? '+' : '') + ret.toFixed(0) + '%';
+          }},
+          grid: { color:'rgba(255,255,255,.05)' }
+        }
       }
     }
   });
