@@ -17,7 +17,7 @@ let _companyTab = 'monitoring';  // 'monitoring' | 'etf'
 function pCompany() {
   return `
   <!-- 탭 헤더 -->
-  <div style="display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 1.25rem;background:var(--bg2)">
+  <div style="display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 1.25rem;background:var(--bg2);position:sticky;top:56px;z-index:10">
     <button class="company-tab ${_companyTab==='monitoring'?'active':''}"
       data-tab="monitoring" onclick="switchCompanyTab('monitoring')"
       style="padding:12px 20px;font-size:13px;font-weight:600;background:none;border:none;
