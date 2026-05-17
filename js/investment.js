@@ -90,6 +90,26 @@ function pInvestment() {
       </div>
     </div>
 
+    <!-- 🔴🔵 급등/급락 -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px">
+      <div class="card">
+        <div class="card-header"><span class="card-title">🔴 코스피 급등</span></div>
+        <div id="inv-surge-kospi" style="padding:.5rem 0"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🔵 코스피 급락</span></div>
+        <div id="inv-drop-kospi" style="padding:.5rem 0"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🔴 코스닥 급등</span></div>
+        <div id="inv-surge-kosdaq" style="padding:.5rem 0"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🔵 코스닥 급락</span></div>
+        <div id="inv-drop-kosdaq" style="padding:.5rem 0"></div>
+      </div>
+    </div>
+
     <!-- 🇰🇷 산업 동향 — 별도 카드 -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="flex-wrap:wrap;gap:6px">
@@ -129,24 +149,6 @@ function pInvestment() {
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
-      <div class="card">
-        <div class="card-header"><span class="card-title">🔴 코스피 급등</span></div>
-        <div id="inv-surge-kospi" style="padding:.5rem 0"></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">🔵 코스피 급락</span></div>
-        <div id="inv-drop-kospi" style="padding:.5rem 0"></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">🔴 코스닥 급등</span></div>
-        <div id="inv-surge-kosdaq" style="padding:.5rem 0"></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">🔵 코스닥 급락</span></div>
-        <div id="inv-drop-kosdaq" style="padding:.5rem 0"></div>
-      </div>
-    </div>
   </div>
 
   <!-- 공시 탭 -->
