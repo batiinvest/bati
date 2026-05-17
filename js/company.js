@@ -594,40 +594,48 @@ async function loadEtfMapUI() {
       map[r.industry].push(r.ticker);
   });
 
-  const rows_html = KR_INDUSTRIES.map(ind => {
+  const rows_html = KR_INDUSTRIES.map((ind, idx) => {
     const tickers = map[ind] || [];
+    const isLast = idx === KR_INDUSTRIES.length - 1;
+    const border = isLast ? 'none' : '0.5px solid rgba(255,255,255,.08)';
     return `
-    <tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:10px 16px;font-weight:600;font-size:13px;width:90px;color:var(--text);white-space:nowrap;vertical-align:top;padding-top:14px">${ind}</td>
-      <td style="padding:8px 12px">
-        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-          ${tickers.map(t => `
-            <span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:100px;padding:3px 10px;font-size:12px;font-weight:500">
-              ${t}
-              <button onclick="removeEtfTicker('${ind}','${t}')"
-                style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;line-height:1;padding:0 0 0 2px;opacity:.7">&times;</button>
-            </span>
-          `).join('')}
-          <button onclick="showAddEtfInput('${ind}')"
-            style="background:none;border:1px dashed var(--border);border-radius:100px;padding:3px 10px;font-size:12px;cursor:pointer;color:var(--text3)">+ 추가</button>
-          <span id="etf-input-${ind}" style="display:none;align-items:center;gap:4px">
-            <input id="etf-new-${ind}" placeholder="SOXX" maxlength="10"
-              style="width:80px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-size:12px"
-              onkeydown="if(event.key==='Enter')addEtfTicker('${ind}')">
-            <button onclick="addEtfTicker('${ind}')"
-              style="padding:3px 10px;font-size:12px;background:var(--tg);color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600">추가</button>
-            <button onclick="document.getElementById('etf-input-${ind}').style.display='none'"
-              style="padding:3px 8px;font-size:12px;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text3)">취소</button>
+    <div style="display:grid;grid-template-columns:100px 1fr;border-bottom:${border};align-items:start">
+      <div style="padding:13px 16px;font-size:13px;font-weight:500;color:rgba(255,255,255,.5)">${ind}</div>
+      <div style="padding:9px 12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+        ${tickers.map(t => `
+          <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;
+            border-radius:6px;font-size:12px;font-weight:500;
+            background:rgba(255,255,255,.06);border:0.5px solid rgba(255,255,255,.15);
+            color:rgba(255,255,255,.9)">
+            ${t}
+            <button onclick="removeEtfTicker('${ind}','${t}')"
+              style="display:flex;align-items:center;background:none;border:none;
+                cursor:pointer;color:rgba(255,255,255,.35);padding:0;font-size:12px;line-height:1"
+              title="${t} 제거">&#x2715;</button>
           </span>
-        </div>
-      </td>
-    </tr>`;
+        `).join('')}
+        <button onclick="showAddEtfInput('${ind}')"
+          style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;
+            border-radius:6px;font-size:12px;cursor:pointer;
+            color:rgba(255,255,255,.3);background:none;
+            border:0.5px dashed rgba(255,255,255,.2)">&#43; 추가</button>
+        <span id="etf-input-${ind}" style="display:none;align-items:center;gap:6px">
+          <input id="etf-new-${ind}" placeholder="SOXX" maxlength="10"
+            style="width:76px;padding:4px 8px;border:0.5px solid rgba(255,255,255,.2);
+              border-radius:6px;background:rgba(255,255,255,.06);
+              color:rgba(255,255,255,.9);font-size:12px"
+            onkeydown="if(event.key===\'Enter\')addEtfTicker(\'${ind}\')">
+          <button onclick="addEtfTicker(\'${ind}\')"
+            style="padding:4px 10px;font-size:12px;background:#2AABEE;color:#fff;
+              border:none;border-radius:6px;cursor:pointer;font-weight:500">추가</button>
+          <button onclick="document.getElementById(\'etf-input-${ind}\').style.display=\'none\'"
+            style="padding:4px 8px;font-size:12px;background:none;
+              border:0.5px solid rgba(255,255,255,.2);border-radius:6px;
+              cursor:pointer;color:rgba(255,255,255,.4)">취소</button>
+        </span>
+      </div>
+    </div>`;
   }).join('');
-
-  // CSS 변수를 실제값으로 치환해서 삽입 (탭 컨텍스트에서 변수 미적용 대비)
-  const _border = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || 'rgba(255,255,255,.1)';
-  const _text   = getComputedStyle(document.documentElement).getPropertyValue('--text').trim()   || '#f0f2f8';
-  const _text3  = getComputedStyle(document.documentElement).getPropertyValue('--text3').trim()  || '#6e7491';
   const _bg2    = getComputedStyle(document.documentElement).getPropertyValue('--bg2').trim()    || '#1a1d27';
   const _bg3    = getComputedStyle(document.documentElement).getPropertyValue('--bg3').trim()    || '#232636';
 
@@ -641,18 +649,12 @@ async function loadEtfMapUI() {
     .replaceAll('var(--tg)', '#2AABEE');
 
   wrap.innerHTML = `
-    <div style="padding:.6rem 1rem;border-bottom:1px solid ${_border};font-size:12px;color:${_text3}">
-      티커 추가 후 <code>python3 collect_us_etf.py --backfill 90</code> 실행 시 데이터 자동 수집
+    <div style="display:grid;grid-template-columns:100px 1fr;
+      background:rgba(255,255,255,.03);border-bottom:0.5px solid rgba(255,255,255,.08)">
+      <div style="padding:8px 16px;font-size:11px;color:rgba(255,255,255,.3);font-weight:500">KR 산업</div>
+      <div style="padding:8px 12px;font-size:11px;color:rgba(255,255,255,.3);font-weight:500">매핑 ETF</div>
     </div>
-    <table style="width:100%;border-collapse:collapse">
-      <thead>
-        <tr style="background:${_bg2};border-bottom:1px solid ${_border}">
-          <th style="padding:8px 16px;font-size:11px;color:${_text3};font-weight:500;text-align:left;width:90px">KR 산업</th>
-          <th style="padding:8px 12px;font-size:11px;color:${_text3};font-weight:500;text-align:left">매핑 ETF</th>
-        </tr>
-      </thead>
-      <tbody>${finalHtml}</tbody>
-    </table>`;
+    ${finalHtml}`;
 }
 
 function showAddEtfInput(ind) {
