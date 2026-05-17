@@ -135,8 +135,8 @@
         기업 비교
       </div>
       <div class="nav-item" data-page="company" onclick="go('company')">
-        <svg viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M9.5 9.5L13 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M2 11h2M2 13h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-        리서치 설정
+        <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="6" width="12" height="8" rx="1" stroke="currentColor" stroke-width="1.5"/><path d="M5 6V4a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        기업정보
       </div>
       <div class="nav-item" data-page="watchlist" onclick="go('watchlist')">
         <svg viewBox="0 0 16 16" fill="none"><path d="M8 2l1.5 3.5L13 6l-2.5 2.5.5 3.5L8 10.5 5 12l.5-3.5L3 6l3.5-.5L8 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
@@ -436,7 +436,10 @@
     11. screener.js       — 종목 스크리너
     12. comparison.js     — 기업 비교
     13. financials.js     — 재무 조회 (openFinTrend 포함)
-    14. market-overview.js — 시황 탭 (매크로/차트/종목동향)  ← 신규
+    14. market-overview.js — KR 산업 동향
+    14b. chart-macro.js    — 글로벌 매크로/흐름 비교 차트
+    14c. chart-industry.js — KR 산업별 흐름 비교
+    14d. chart-uskr.js     — US vs KR 비교 차트
     15. disclosure.js     — 공시 탭                          ← 신규
     16. earnings-surge.js — 실적 급등 카드                   ← 신규
     17. investment.js     — 시황 페이지 뼈대 (위 3개 참조)
@@ -456,6 +459,9 @@
 <script src="js/comparison.js"></script>
 <script src="js/financials.js"></script>
 <script src="js/market-overview.js"></script>
+<script src="js/chart-macro.js"></script>
+<script src="js/chart-industry.js"></script>
+<script src="js/chart-uskr.js"></script>
 <script src="js/disclosure.js"></script>
 <script src="js/earnings-surge.js"></script>
 <script src="js/investment.js"></script>
