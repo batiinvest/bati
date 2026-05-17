@@ -567,7 +567,8 @@ async function loadMacroData() {
     // 래핑 div가 mkB 내부에 없으므로 전체를 flex 컨테이너로
     etfBanner.style.overflowX = 'auto';
   }
-}
+  }  // end if (m)
+}  // end loadMacroData
 
 function toggleInvMetric(col) {
   if (INV.selected.has(col)) {
