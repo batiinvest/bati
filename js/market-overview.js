@@ -176,7 +176,7 @@ async function loadMarketOverview(maxDate) {
   const bHeight = Math.max(sorted.length * 36 + 60, 300);
 
   indGrid.innerHTML =
-    '<div style="display:grid;grid-template-columns:45% 55%;min-height:400px">' +
+    '<div style="display:grid;grid-template-columns:30% 70%;min-height:400px">' +
       '<div style="border-right:1px solid var(--border);padding:12px 14px;overflow-y:auto;max-height:520px" id="ind-left">' +
         '<canvas id="ind-bar-chart" style="width:100%;height:' + bHeight + 'px"></canvas>' +
       '</div>' +
@@ -416,7 +416,7 @@ async function loadMarketOverview(maxDate) {
     const initStockPanel = renderStockPanel(indName + ' 전체', d.avg, d.stocks, d.rise, d.fall, d.flat);
 
     panel.innerHTML =
-      '<div style="display:grid;grid-template-columns:35% 65%;min-height:300px">' +
+      '<div style="display:grid;grid-template-columns:42.9% 57.1%;min-height:300px">' +
         '<div id="sub-left" style="border-right:1px solid var(--border);overflow-y:auto;max-height:480px">' + leftHtml + '</div>' +
         '<div id="sub-stock-panel" style="overflow-y:auto;max-height:480px">' + initStockPanel + '</div>' +
       '</div>';
