@@ -446,10 +446,8 @@ async function loadMarketOverview(maxDate) {
   };
   if (sorted.length) window.showIndDetail(sorted[0].ind);
 
-  // 산업별 흐름 비교 차트 로드
-  loadIndTrendChart();
-
-  // US vs KR 비교 차트 로드
+  // 산업별 흐름 비교 차트 로드 → 완료 후 US vs KR 차트 로드 (_krIndDates 의존)
+  await loadIndTrendChart();
   loadUskrChart();
 }
 
@@ -856,6 +854,7 @@ async function loadIndTrendChart() {
     if (!indDates[ind][r.base_date]) indDates[ind][r.base_date] = [];
     indDates[ind][r.base_date].push(r.price_change_rate);
   });
+  window._krIndDates = indDates;  // US vs KR 차트에서 재활용
 
   // 산업 목록 (데이터 있는 것만)
   const industries = Object.keys(indDates).sort();
@@ -1149,21 +1148,9 @@ async function loadUskrChart() {
   from.setDate(today.getDate() - _uskrPeriod - 10);
   const fromStr = from.toISOString().split('T')[0];
 
-  // ── KR: market_data 해당 산업 일별 평균 등락률 ──
-  const krDates = {};  // { '2026-05-01': [chg, ...] }
-  const monitoredCodes = Object.keys(window._industryMapCache || {});
-  if (monitoredCodes.length) {
-    const { data: krRows } = await sb.from('market_data')
-      .select('stock_code, base_date, day_change_pct')
-      .in('stock_code', monitoredCodes)
-      .gte('base_date', fromStr)
-      .not('day_change_pct', 'is', null);
-    (krRows || []).forEach(r => {
-      if (window._industryMapCache?.[r.stock_code] !== ind) return;
-      if (!krDates[r.base_date]) krDates[r.base_date] = [];
-      krDates[r.base_date].push(r.day_change_pct);
-    });
-  }
+  // ── KR: loadIndTrendChart()에서 이미 집계된 데이터 재활용 ──
+  const krIndDates = window._krIndDates || {};
+  const krDates = krIndDates[ind] || {};  // { 'YYYY-MM-DD': [chg, ...] }
 
   // ── US: macro_data 해당 ETF 가격 ──
   const { data: macroRows } = await sb.from('macro_data')
