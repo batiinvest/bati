@@ -26,7 +26,7 @@ function pCompany() {
       ⭐ 모니터링 종목
     </button>
     <button class="company-tab ${_companyTab==='etf'?'active':''}"
-      data-tab="etf" onclick="switchCompanyTab('etf')"
+      data-tab="etf" onclick="switchCompanyTab('etf');setTimeout(loadEtfMapUI,50)"
       style="padding:12px 20px;font-size:13px;font-weight:600;background:none;border:none;
         cursor:pointer;border-bottom:2px solid ${_companyTab==='etf'?'var(--tg)':'transparent'};
         color:${_companyTab==='etf'?'var(--text)':'var(--text3)'};margin-bottom:-1px">
@@ -559,10 +559,10 @@ const KR_INDUSTRIES = ['반도체','바이오','로봇','우주','2차전지','�
 async function loadEtfMapUI() {
   const wrap = document.getElementById('etf-map-wrap');
   if (!wrap) {
-    console.warn('[ETF] etf-map-wrap 엘리먼트 없음');
-    setTimeout(loadEtfMapUI, 300);  // DOM 렌더링 후 재시도
+    console.warn('[ETF] etf-map-wrap 없음 — 탭이 열려있지 않음');
     return;
   }
+  console.log('[ETF] loadEtfMapUI 실행');
   wrap.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:13px">로딩 중...</div>';
 
   let rows = [], error = null;
