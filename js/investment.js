@@ -15,18 +15,6 @@ const INV_ALL_METRICS = [
   { col:'gold',    name:'금',        group:'원자재', color:'#f59e0b' },  // 금색
   { col:'vix',     name:'VIX',      group:'기타',   color:'#64748b' },  // 회청
   { col:'us10y',   name:'미 금리',  group:'기타',   color:'#94a3b8' },  // 연회
-  // ── 미국 SPDR 섹터 ETF ──
-  { col:'etf_xlk',  name:'XLK 테크',    group:'US산업', color:'#38bdf8' },
-  { col:'etf_xlv',  name:'XLV 헬스케어', group:'US산업', color:'#4ade80' },
-  { col:'etf_xlf',  name:'XLF 금융',    group:'US산업', color:'#a78bfa' },
-  { col:'etf_xle',  name:'XLE 에너지',  group:'US산업', color:'#fb923c' },
-  { col:'etf_xli',  name:'XLI 산업재',  group:'US산업', color:'#f472b6' },
-  { col:'etf_xly',  name:'XLY 소비재',  group:'US산업', color:'#fbbf24' },
-  { col:'etf_xlp',  name:'XLP 필수소비', group:'US산업', color:'#34d399' },
-  { col:'etf_xlc',  name:'XLC 통신',    group:'US산업', color:'#60a5fa' },
-  { col:'etf_xlb',  name:'XLB 소재',    group:'US산업', color:'#f87171' },
-  { col:'etf_xlre', name:'XLRE 부동산', group:'US산업', color:'#e879f9' },
-  { col:'etf_xlu',  name:'XLU 유틸리티', group:'US산업', color:'#94a3b8' },
 ];
 
 const INV = {
@@ -84,7 +72,7 @@ function pInvestment() {
         <!-- 그룹 필터 버튼 -->
         <div style="padding:.5rem 1rem;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:4px;align-items:center">
           <span style="font-size:11px;color:var(--text3);margin-right:4px">그룹선택</span>
-          ${['미국','한국','환율','원자재','기타','US산업'].map(g => `
+          ${['미국','한국','환율','원자재','기타'].map(g => `
             <button class="chip" style="font-size:11px;padding:2px 8px"
               onclick="selectInvGroup('${g}')">${g}</button>
           `).join('')}
@@ -168,6 +156,39 @@ function pInvestment() {
       </div>
       <div style="padding:1rem;position:relative;height:300px">
         <canvas id="ind-trend-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- 🌐 US vs KR 산업 비교 차트 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+        <span class="card-title">🌐 US vs KR 산업 비교</span>
+        <div style="display:flex;gap:4px;margin-left:auto">
+          ${[{d:7,l:'1주'},{d:30,l:'1달'},{d:90,l:'3달'}].map(({d,l})=>`
+            <button class="chip ${d===7?'active':''}" data-uskr-period="${d}"
+              onclick="setUskrPeriod(${d})" style="font-size:11px;padding:2px 8px">${l}</button>
+          `).join('')}
+        </div>
+      </div>
+      <!-- KR 산업 선택 -->
+      <div style="padding:.5rem 1rem;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+        <span style="font-size:11px;color:var(--text3);flex-shrink:0">KR 산업</span>
+        ${['반도체','바이오','로봇','우주','2차전지','소비재','엔터','조선','테크','뷰티','신재생'].map(ind=>`
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:2px 8px;border-radius:100px;border:1px solid var(--border);font-size:12px;user-select:none"
+            id="uskr-kr-lbl-${ind}">
+            <input type="checkbox" style="display:none" id="uskr-kr-${ind}"
+              onchange="reloadUskrChart()" checked>
+            <span style="width:7px;height:7px;border-radius:50%;background:var(--tg);flex-shrink:0"></span>
+            <span>${ind}</span>
+          </label>
+        `).join('')}
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:2px 8px;border-radius:100px;border:1px solid var(--border);font-size:12px;user-select:none">
+          <input type="checkbox" style="display:none" id="uskr-show-us" onchange="reloadUskrChart()" checked>
+          <span style="font-size:10px">🇺🇸 ETF 표시</span>
+        </label>
+      </div>
+      <div style="padding:1rem;position:relative;height:320px">
+        <canvas id="uskr-chart"></canvas>
       </div>
     </div>
 

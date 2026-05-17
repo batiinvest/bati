@@ -448,6 +448,9 @@ async function loadMarketOverview(maxDate) {
 
   // 산업별 흐름 비교 차트 로드
   loadIndTrendChart();
+
+  // US vs KR 비교 차트 로드
+  loadUskrChart();
 }
 
 async function loadMacroData() {
@@ -1066,4 +1069,184 @@ function setIndTrendPeriod(period) {
 
 function toggleIndTrend(ind) {
   window._toggleIndLegend(ind);
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// 🌐 US vs KR 산업 비교 차트
+// ══════════════════════════════════════════════════════════════
+
+// KR 산업 → US ETF 대응
+const USKR_MAP = {
+  '반도체': { col:'etf_xlk',  name:'XLK 테크',    color:'#38bdf8' },
+  '바이오': { col:'etf_xlv',  name:'XLV 헬스케어', color:'#4ade80' },
+  '소비재': { col:'etf_xly',  name:'XLY 소비재',   color:'#fbbf24' },
+  '로봇':   { col:'etf_xli',  name:'XLI 산업재',   color:'#f472b6' },
+  '2차전지':{ col:'etf_xlb',  name:'XLB 소재',     color:'#f87171' },
+  '엔터':   { col:'etf_xlc',  name:'XLC 통신',     color:'#60a5fa' },
+  '조선':   { col:'etf_xli',  name:'XLI 산업재',   color:'#c084fc' },
+  '테크':   { col:'etf_xlk',  name:'XLK 테크',     color:'#67e8f9' },
+  '뷰티':   { col:'etf_xlp',  name:'XLP 필수소비', color:'#34d399' },
+  '신재생': { col:'etf_xle',  name:'XLE 에너지',   color:'#fb923c' },
+  '우주':   { col:'etf_xli',  name:'XLI 산업재',   color:'#a78bfa' },
+};
+
+const KR_IND_COLORS = {
+  '반도체':'#2AABEE','바이오':'#2dce89','로봇':'#ff6b35','우주':'#a259ff',
+  '2차전지':'#ffd600','소비재':'#f5365c','엔터':'#fb6340','조선':'#00d4aa',
+  '테크':'#6366f1','뷰티':'#ec4899','신재생':'#84cc16',
+};
+
+let _uskrChart = null;
+let _uskrPeriod = 7;
+
+async function loadUskrChart() {
+  const canvas = document.getElementById('uskr-chart');
+  if (!canvas) return;
+
+  // 선택된 KR 산업
+  const selectedKR = Object.keys(USKR_MAP).filter(ind => {
+    const chk = document.getElementById('uskr-kr-' + ind);
+    return chk ? chk.checked : false;
+  });
+  const showUS = document.getElementById('uskr-show-us')?.checked !== false;
+
+  // 날짜 범위
+  const today = new Date();
+  const from  = new Date(today);
+  from.setDate(today.getDate() - _uskrPeriod - 10);
+  const fromStr = from.toISOString().split('T')[0];
+
+  // ── KR: market_data에서 산업별 일별 평균 등락률 ──
+  const krIndDates = {};  // { 반도체: { '2026-05-01': [chg,...], ... } }
+  const monitoredCodes = Object.keys(window._industryMapCache || {});
+
+  if (monitoredCodes.length) {
+    const { data: krRows } = await sb.from('market_data')
+      .select('stock_code, base_date, day_change_pct')
+      .in('stock_code', monitoredCodes)
+      .gte('base_date', fromStr)
+      .not('day_change_pct', 'is', null);
+
+    (krRows || []).forEach(r => {
+      const ind = window._industryMapCache?.[r.stock_code];
+      if (!ind || !selectedKR.includes(ind)) return;
+      if (!krIndDates[ind]) krIndDates[ind] = {};
+      if (!krIndDates[ind][r.base_date]) krIndDates[ind][r.base_date] = [];
+      krIndDates[ind][r.base_date].push(r.day_change_pct);
+    });
+  }
+
+  // ── US: macro_data에서 ETF 가격 ──
+  const usEtfCols = [...new Set(selectedKR.map(ind => USKR_MAP[ind]?.col).filter(Boolean))];
+  let macroRows = [];
+  if (showUS && usEtfCols.length) {
+    const { data } = await sb.from('macro_data')
+      .select(['base_date', ...usEtfCols].join(','))
+      .gte('base_date', fromStr)
+      .order('base_date', { ascending: true });
+    macroRows = data || [];
+  }
+
+  // ── 공통 날짜 목록 ──
+  const dateSet = new Set();
+  Object.values(krIndDates).forEach(dm => Object.keys(dm).forEach(d => dateSet.add(d)));
+  macroRows.forEach(r => dateSet.add(r.base_date));
+  const dateList = [...dateSet].sort().slice(-_uskrPeriod);
+
+  // ── datasets 생성 ──
+  const datasets = [];
+
+  // KR 산업 (누적 지수)
+  selectedKR.forEach(ind => {
+    const color = KR_IND_COLORS[ind] || '#ffffff';
+    let cum = 100, started = false;
+    const data = dateList.map(date => {
+      const chgs = krIndDates[ind]?.[date];
+      if (chgs?.length) {
+        started = true;
+        cum = cum * (1 + chgs.reduce((s,v)=>s+v,0)/chgs.length/100);
+      }
+      return started ? parseFloat(cum.toFixed(2)) : null;
+    });
+    datasets.push({
+      label: `🇰🇷 ${ind}`, data,
+      borderColor: color, backgroundColor: color + '18',
+      borderWidth: 2, pointRadius: 2, tension: 0.3,
+      fill: false, spanGaps: true,
+    });
+  });
+
+  // US ETF (누적 지수) — 중복 ETF 제거
+  if (showUS) {
+    const addedEtf = new Set();
+    selectedKR.forEach(ind => {
+      const etf = USKR_MAP[ind];
+      if (!etf || addedEtf.has(etf.col)) return;
+      addedEtf.add(etf.col);
+      let base = null;
+      const data = dateList.map(date => {
+        const row = macroRows.find(r => r.base_date === date);
+        const val = row?.[etf.col];
+        if (val != null) {
+          if (base === null) base = val;
+          return parseFloat((val / base * 100).toFixed(2));
+        }
+        return null;
+      });
+      datasets.push({
+        label: `🇺🇸 ${etf.name}`, data,
+        borderColor: etf.color, backgroundColor: etf.color + '18',
+        borderWidth: 1.5, pointRadius: 2, tension: 0.3,
+        borderDash: [5, 3],   // 점선으로 US 구분
+        fill: false, spanGaps: true,
+      });
+    });
+  }
+
+  // ── 차트 그리기 ──
+  if (_uskrChart) { _uskrChart.destroy(); _uskrChart = null; }
+  if (!window.Chart) return;
+
+  _uskrChart = new window.Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { labels: dateList, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          labels: { color: '#a8adc4', font: { size: 11 }, boxWidth: 24, padding: 10 }
+        },
+        tooltip: {
+          backgroundColor: '#1a1d27', titleColor: '#f0f2f8', bodyColor: '#a8adc4',
+          callbacks: {
+            label: ctx => {
+              const v = ctx.parsed.y;
+              if (v == null) return '';
+              const ret = (v - 100).toFixed(1);
+              const sign = ret >= 0 ? '+' : '';
+              return ` ${ctx.dataset.label}  ${v.toFixed(1)}  (${sign}${ret}%)`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color:'#6e7491', font:{size:10} }, grid:{color:'rgba(255,255,255,.05)'} },
+        y: { ticks: { color:'#6e7491', font:{size:11}, callback: v => v.toFixed(0) },
+             grid: { color:'rgba(255,255,255,.05)' } }
+      }
+    }
+  });
+}
+
+function reloadUskrChart() { loadUskrChart(); }
+
+function setUskrPeriod(period) {
+  _uskrPeriod = period;
+  document.querySelectorAll('[data-uskr-period]').forEach(b =>
+    b.classList.toggle('active', b.dataset.uskrPeriod === String(period)));
+  loadUskrChart();
 }
