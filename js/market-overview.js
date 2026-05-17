@@ -866,33 +866,6 @@ async function loadIndTrendChart() {
   if (_indTrendChart2) { _indTrendChart2.destroy(); _indTrendChart2 = null; }
   if (!window.Chart) return;
 
-  // ── 하이라이트 헬퍼 (hover + click 공용) ──
-  function _applyIndHighlight(label) {
-    const chart = _indTrendChart2;
-    if (!chart) return;
-    chart.data.datasets.forEach((ds, i) => {
-      const active = !label || ds.label === label;
-      ds.borderWidth = active ? 4   : 1.2;
-      ds.pointRadius = active ? 4   : 1;
-      ds.borderColor = active
-        ? (IND_COLORS[ds.label] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length])
-        : (IND_COLORS[ds.label] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length]) + '55';
-    });
-    chart.update('none');
-    // 범례 opacity 연동
-    document.querySelectorAll('.ind-legend-item').forEach(lbl => {
-      const ind = lbl.id.replace('ind-lbl-', '');
-      lbl.style.opacity      = !label || ind === label ? '1' : '0.35';
-      lbl.style.borderWidth  = label && ind === label  ? '2px' : '';
-    });
-  }
-  function _applyIndHover(label) {
-    if (window._indPinned) return;   // 클릭 고정 중엔 호버 무시
-    if (label === window._indHovered) return;
-    window._indHovered = label;
-    _applyIndHighlight(label);
-  }
-
   _indTrendChart2 = new window.Chart(canvas.getContext('2d'), {
     type: 'line',
     data: { labels: dateList, datasets },
@@ -930,6 +903,32 @@ async function loadIndTrendChart() {
   const freshCanvas = document.getElementById('ind-trend-chart');
   if (freshCanvas) freshCanvas._hoverBound = false;
   _bindIndTrendHover();
+}
+
+// ── 산업별 흐름 하이라이트 헬퍼 (전역) ──
+function _applyIndHighlight(label) {
+  const chart = _indTrendChart2;
+  if (!chart) return;
+  chart.data.datasets.forEach((ds, i) => {
+    const active = !label || ds.label === label;
+    ds.borderWidth = active ? 4   : 1.2;
+    ds.pointRadius = active ? 4   : 1;
+    ds.borderColor = active
+      ? (IND_COLORS[ds.label] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length])
+      : (IND_COLORS[ds.label] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length]) + '55';
+  });
+  chart.update('none');
+  document.querySelectorAll('.ind-legend-item').forEach(lbl => {
+    const ind = lbl.id.replace('ind-lbl-', '');
+    lbl.style.opacity     = !label || ind === label ? '1' : '0.35';
+    lbl.style.borderWidth = label && ind === label  ? '2px' : '';
+  });
+}
+function _applyIndHover(label) {
+  if (window._indPinned) return;
+  if (label === window._indHovered) return;
+  window._indHovered = label;
+  _applyIndHighlight(label);
 }
 
 // ── canvas 마우스 이벤트로 호버 하이라이트 ──
