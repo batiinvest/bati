@@ -31,6 +31,28 @@ function drawKeepFocus() {
   }
 }
 
+// 한글 조합(IME) 완료 후에만 재렌더링 — 조합 중 재렌더링 방지
+let _roomComposing = false;
+function _roomSearchInput(el) {
+  A.q = el.value;
+  if (!_roomComposing) drawKeepFocus();
+}
+// compositionend/start 이벤트는 inline으로 못 쓰므로 draw 후 바인딩
+const _origDraw = draw;
+function draw() {
+  _origDraw();
+  const inp = document.getElementById('room-search-input');
+  if (inp && !inp._imebound) {
+    inp._imebound = true;
+    inp.addEventListener('compositionstart', () => { _roomComposing = true; });
+    inp.addEventListener('compositionend',   () => {
+      _roomComposing = false;
+      A.q = inp.value;
+      drawKeepFocus();
+    });
+  }
+}
+
 function draw() {
   const el   = document.getElementById('content');
   const meta = PAGE_META[A.page] || PAGE_META['overview'];
