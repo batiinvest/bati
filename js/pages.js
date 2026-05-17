@@ -103,43 +103,87 @@ function pOverview() {
   </div>`;
 }
 
-function pRooms() {
-  const cats = [...new Set(A.rooms.map(r=>r.cat))].sort();
+// ── 채팅방 목록 행 렌더링 (순수 함수 — 부분 업데이트에도 재사용) ──
+function _renderRoomRow(r) {
+  const fill = Math.min(100, Math.round((r.members||0) / (r.max_members||1000) * 100));
+  const barColor = (r.members||0) / (r.max_members||1000) > 0.9 ? 'var(--red)' : 'var(--tg)';
+  return `<tr>
+    <td><div style="display:flex;align-items:center;gap:6px">
+      <span class="cat-dot" style="background:${CATS[r.cat]||'#888'}"></span>
+      <span style="font-weight:500">${r.name}</span>
+      ${r.code ? `<span style="font-size:10px;color:var(--text3)">${r.code}</span>` : ''}
+    </div></td>
+    <td>
+      <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+        <span class="badge badge-cat">${r.cat}</span>
+        ${r.room_type==='industry' ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:rgba(74,158,255,.15);color:#4a9eff">산업방</span>` : ''}
+      </div>
+      ${r.sub_cat && r.sub_cat !== '산업전체' ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${r.sub_cat}</div>` : ''}
+    </td>
+    <td>
+      <div>${(r.members||0).toLocaleString()}<span style="color:var(--text3)">/${r.max_members||1000}</span></div>
+      <div class="progress" style="margin-top:4px">
+        <div class="progress-fill" style="background:${barColor};width:${fill}%"></div>
+      </div>
+    </td>
+    <td><span class="badge ${r.status==='full'?'badge-full':'badge-open'}">${r.status==='full'?'정원 마감':'입장 가능'}</span></td>
+    <td><span style="font-size:11px;color:var(--text3);font-family:monospace">${String(r.chat_id).slice(0,22)}</span></td>
+    <td><div style="display:flex;gap:5px">
+      <button class="btn btn-sm" onclick="openDetail(${r.id})">상세</button>
+      ${canEdit() ? `<button class="btn btn-sm" onclick="syncOne(${r.id})" title="동기화">↻</button>
+        <button class="btn btn-sm ${r.status==='full'?'btn-success':'btn-danger'}" onclick="toggleStatus(${r.id})">${r.status==='full'?'개방':'마감'}</button>` : ''}
+    </div></td>
+  </tr>`;
+}
+
+// ── 필터 적용 후 목록만 업데이트 (draw() 전체 재렌더링 없음 → IME 버그 해결) ──
+function _filterAndRenderRooms() {
+  const q = A.q.trim().toLowerCase();
   const filtered = A.rooms.filter(r => {
-    const cOk = A.cat==='all'||r.cat===A.cat, sOk = A.status==='all'||r.status===A.status;
-    const q = A.q.toLowerCase();
-    return cOk && sOk && (!q || r.name.toLowerCase().includes(q) || (r.keywords||'').toLowerCase().includes(q));
+    const cOk = A.cat === 'all' || r.cat === A.cat;
+    const sOk = A.status === 'all' || r.status === A.status;
+    const qOk = !q || r.name.toLowerCase().includes(q) || (r.keywords||'').toLowerCase().includes(q);
+    return cOk && sOk && qOk;
+  });
+
+  const tbody = document.getElementById('room-tbody');
+  const count = document.getElementById('room-count');
+  if (tbody) tbody.innerHTML = filtered.map(_renderRoomRow).join('');
+  if (count) count.textContent = `${filtered.length}개`;
+
+  // 칩 active 상태 업데이트
+  document.querySelectorAll('[data-status]').forEach(b =>
+    b.classList.toggle('active', b.dataset.status === A.status));
+  document.querySelectorAll('[data-cat]').forEach(b =>
+    b.classList.toggle('active', b.dataset.cat === A.cat));
+}
+
+function pRooms() {
+  const cats = [...new Set(A.rooms.map(r => r.cat))].sort();
+  const filtered = A.rooms.filter(r => {
+    const q = A.q.trim().toLowerCase();
+    return (A.cat==='all'||r.cat===A.cat) && (A.status==='all'||r.status===A.status) &&
+           (!q || r.name.toLowerCase().includes(q) || (r.keywords||'').toLowerCase().includes(q));
   });
   return `
   <div class="filter-bar">
     <input class="search-box" id="room-search-input" placeholder="이름·키워드 검색..." value="${A.q}">
-    <button class="chip ${A.status==='all'?'active':''}" onclick="A.status='all';draw()">전체</button>
-    <button class="chip ${A.status==='open'?'active':''}" onclick="A.status='open';draw()">입장 가능</button>
-    <button class="chip ${A.status==='full'?'active':''}" onclick="A.status='full';draw()">정원 마감</button>
+    <button class="chip ${A.status==='all'?'active':''}" data-status="all"
+      onclick="A.status='all';_filterAndRenderRooms()">전체</button>
+    <button class="chip ${A.status==='open'?'active':''}" data-status="open"
+      onclick="A.status='open';_filterAndRenderRooms()">입장 가능</button>
+    <button class="chip ${A.status==='full'?'active':''}" data-status="full"
+      onclick="A.status='full';_filterAndRenderRooms()">정원 마감</button>
     <span style="width:1px;height:14px;background:var(--border2);margin:0 2px"></span>
-    <button class="chip ${A.cat==='all'?'active':''}" onclick="A.cat='all';draw()">전체 산업</button>
-    ${cats.map(c=>`<button class="chip ${A.cat===c?'active':''}" onclick="A.cat='${c}';draw()">${c}</button>`).join('')}
+    <button class="chip ${A.cat==='all'?'active':''}" data-cat="all"
+      onclick="A.cat='all';_filterAndRenderRooms()">전체 산업</button>
+    ${cats.map(c => `<button class="chip ${A.cat===c?'active':''}" data-cat="${c}"
+      onclick="A.cat='${c}';_filterAndRenderRooms()">${c}</button>`).join('')}
   </div>
-  <div style="font-size:12px;color:var(--text3);margin-bottom:.75rem">${filtered.length}개</div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:.75rem" id="room-count">${filtered.length}개</div>
   <div class="card"><div class="table-wrap"><table>
     <thead><tr><th>채팅방</th><th>산업</th><th>멤버 수</th><th>상태</th><th>Chat ID</th><th>관리</th></tr></thead>
-    <tbody>${filtered.map(r=>`<tr>
-      <td><div style="display:flex;align-items:center;gap:6px"><span class="cat-dot" style="background:${CATS[r.cat]||'#888'}"></span><span style="font-weight:500">${r.name}</span>${r.code?`<span style="font-size:10px;color:var(--text3)">${r.code}</span>`:''}</div></td>
-      <td>
-        <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
-          <span class="badge badge-cat">${r.cat}</span>
-          ${r.room_type==='industry'?`<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:rgba(74,158,255,.15);color:#4a9eff">산업방</span>`:''}
-        </div>
-        ${r.sub_cat&&r.sub_cat!=='산업전체'?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${r.sub_cat}</div>`:''}
-      </td>
-      <td><div>${(r.members||0).toLocaleString()}<span style="color:var(--text3)">/${r.max_members||1000}</span></div><div class="progress" style="margin-top:4px"><div class="progress-fill" style="background:${(r.members||0)/(r.max_members||1000)>.9?'var(--red)':'var(--tg)'};width:${Math.min(100,Math.round((r.members||0)/(r.max_members||1000)*100))}%"></div></div></td>
-      <td><span class="badge ${r.status==='full'?'badge-full':'badge-open'}">${r.status==='full'?'정원 마감':'입장 가능'}</span></td>
-      <td><span style="font-size:11px;color:var(--text3);font-family:monospace">${String(r.chat_id).slice(0,22)}</span></td>
-      <td><div style="display:flex;gap:5px">
-        <button class="btn btn-sm" onclick="openDetail(${r.id})">상세</button>
-        ${canEdit()?`<button class="btn btn-sm" onclick="syncOne(${r.id})" title="동기화">↻</button><button class="btn btn-sm ${r.status==='full'?'btn-success':'btn-danger'}" onclick="toggleStatus(${r.id})">${r.status==='full'?'개방':'마감'}</button>`:''}
-      </div></td>
-    </tr>`).join('')}</tbody>
+    <tbody id="room-tbody">${filtered.map(_renderRoomRow).join('')}</tbody>
   </table></div></div>`;
 }
 

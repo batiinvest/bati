@@ -32,7 +32,7 @@ function draw() {
     window[meta.onLoad]();
   }
 
-  // 채팅방 검색 input IME 바인딩 (한글 조합 완료 후에만 재렌더링)
+  // 채팅방 검색 input — draw() 재렌더링 없이 목록만 부분 업데이트 (IME 근본 해결)
   const inp = document.getElementById('room-search-input');
   if (inp) {
     let composing = false;
@@ -40,15 +40,12 @@ function draw() {
     inp.addEventListener('compositionend',   () => {
       composing = false;
       A.q = inp.value;
-      draw();
+      if (typeof _filterAndRenderRooms === 'function') _filterAndRenderRooms();
     });
     inp.addEventListener('input', () => {
-      if (composing) return;          // 한글 조합 중이면 skip
+      if (composing) return;
       A.q = inp.value;
-      const pos = inp.selectionStart;
-      draw();
-      const next = document.getElementById('room-search-input');
-      if (next) { next.focus(); next.setSelectionRange(pos, pos); }
+      if (typeof _filterAndRenderRooms === 'function') _filterAndRenderRooms();
     });
     inp.focus();
     inp.setSelectionRange(inp.value.length, inp.value.length);

@@ -14,29 +14,10 @@ function _monMarkDirty() {
 
 let _companyTab = 'monitoring';  // 'monitoring' | 'etf'
 
-function pCompany() {
+// ── 모니터링 탭 컨텐츠 ──
+function _renderMonitoringTab() {
   return `
-  <div style="min-height:calc(100vh - 56px)">
-  <!-- 탭 헤더 -->
-  <div style="display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 1.25rem;background:var(--bg);position:sticky;top:0;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,.3)">
-    <button class="company-tab ${_companyTab==='monitoring'?'active':''}"
-      data-tab="monitoring" onclick="switchCompanyTab('monitoring')"
-      style="padding:12px 20px;font-size:13px;font-weight:600;background:none;border:none;
-        cursor:pointer;border-bottom:2px solid ${_companyTab==='monitoring'?'var(--tg)':'transparent'};
-        color:${_companyTab==='monitoring'?'var(--text)':'var(--text3)'};margin-bottom:-1px">
-      ⭐ 모니터링 종목
-    </button>
-    <button class="company-tab ${_companyTab==='etf'?'active':''}"
-      data-tab="etf" onclick="switchCompanyTab('etf');setTimeout(loadEtfMapUI,50)"
-      style="padding:12px 20px;font-size:13px;font-weight:600;background:none;border:none;
-        cursor:pointer;border-bottom:2px solid ${_companyTab==='etf'?'var(--tg)':'transparent'};
-        color:${_companyTab==='etf'?'var(--text)':'var(--text3)'};margin-bottom:-1px">
-      🌐 US 종목 관리
-    </button>
-  </div>
-
-  <!-- 모니터링 탭 -->
-  <div id="company-tab-monitoring" style="display:${_companyTab==='monitoring'?'grid':'none'};
+  <div id="company-tab-monitoring" style="display:grid;
     grid-template-columns:320px 1fr;gap:0;min-height:calc(100vh - 96px);align-items:start">
     <div style="border-right:1px solid var(--border);padding:1.25rem;position:sticky;top:45px;
       height:calc(100vh - 45px);overflow-y:auto;background:var(--bg2)">
@@ -93,9 +74,12 @@ function pCompany() {
         <div style="color:var(--text3);font-size:13px;padding:40px;text-align:center"><span class="loading"></span> 로딩 중...</div>
       </div>
     </div>
-  </div>
+  </div>`;
+}
 
-  <!-- US 종목 관리 탭 -->
+// ── US 종목 관리 탭 컨텐츠 ──
+function _renderEtfTab() {
+  return `
   <div id="company-tab-etf" style="display:none;padding:1.25rem">
     <div class="card">
       <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -112,16 +96,33 @@ function pCompany() {
               border:none;cursor:pointer;background:var(--tg);color:#fff;
               opacity:0.4;transition:opacity .2s" disabled>
             ✅ 데이터 수집 적용
-          </button>
-        </div>
-      </div>
-      <div class="card-body" style="padding:0">
-        <div id="etf-map-wrap">
-          <div style="padding:1rem;color:var(--text3);font-size:13px">로딩 중...</div>
-        </div>
-      </div>
-    </div>
+          </button>`;
+}
+
+// ── pCompany: 탭 껍데기만 반환 ──
+function pCompany() {
+  return `
+  <div style="min-height:calc(100vh - 56px)">
+  <!-- 탭 헤더 -->
+  <div style="display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 1.25rem;background:var(--bg);position:sticky;top:0;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,.3)">
+    <button class="company-tab ${_companyTab==='monitoring'?'active':''}"
+      data-tab="monitoring" onclick="switchCompanyTab('monitoring')"
+      style="padding:12px 20px;font-size:13px;font-weight:600;background:none;border:none;
+        cursor:pointer;border-bottom:2px solid ${_companyTab==='monitoring'?'var(--tg)':'transparent'};
+        color:${_companyTab==='monitoring'?'var(--text)':'var(--text3)'};margin-bottom:-1px">
+      ⭐ 모니터링 종목
+    </button>
+    <button class="company-tab ${_companyTab==='etf'?'active':''}"
+      data-tab="etf" onclick="switchCompanyTab('etf');setTimeout(loadEtfMapUI,50)"
+      style="padding:12px 20px;font-size:13px;font-weight:600;background:none;border:none;
+        cursor:pointer;border-bottom:2px solid ${_companyTab==='etf'?'var(--tg)':'transparent'};
+        color:${_companyTab==='etf'?'var(--text)':'var(--text3)'};margin-bottom:-1px">
+      🌐 US 종목 관리
+    </button>
   </div>
+
+  ${_renderMonitoringTab()}
+  ${_renderEtfTab()}
   </div>`;
 }
 

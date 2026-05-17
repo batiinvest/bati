@@ -33,6 +33,110 @@ function pFinancials() {
 
 let _finData = [];
 
+// ══════════════════════════════════════════
+//  공통 헬퍼
+// ══════════════════════════════════════════
+
+/**
+ * 공통 필터 적용 (검색어 + 산업)
+ * @param {Array} rows
+ * @returns {Array} 필터된 rows
+ */
+function _applyFinFilter(rows) {
+  if (F.q) rows = rows.filter(r => r.corp_name.includes(F.q));
+  if (F.industry !== '전체') {
+    const indStocks = new Set(
+      Object.entries(window._finIndMap || {})
+        .filter(([, ind]) => ind === F.industry)
+        .map(([code]) => code)
+    );
+    rows = rows.filter(r => indStocks.has(r.stock_code));
+  }
+  return rows;
+}
+
+/**
+ * 공통 정렬 버튼 생성
+ * @param {string} col   정렬 키
+ * @param {string} label 표시 레이블
+ * @returns {string} HTML 문자열
+ */
+function _sortBtn(col, label) {
+  const active = F.sortBy === col;
+  const icon   = active ? (F.sortDir === 'desc' ? ' ↓' : ' ↑') : '';
+  const clr    = active ? 'color:var(--tg);' : '';
+  return `<span style="cursor:pointer;white-space:nowrap;${clr}user-select:none"
+    onclick="F.sortBy='${col}';F.sortDir=(F.sortBy==='${col}'&&F.sortDir==='desc')?'asc':'desc';loadFinancials()"
+  >${label}${icon}</span>`;
+}
+
+/**
+ * 공통 정렬 적용
+ * @param {Array}  rows
+ * @param {string} defaultCol 기본 정렬 컬럼
+ * @returns {Array} 정렬된 rows
+ */
+function _sortRows(rows, defaultCol = 'market_cap') {
+  const col = F.sortBy || defaultCol;
+  return rows.sort((a, b) => {
+    const av = a[col] ?? -Infinity;
+    const bv = b[col] ?? -Infinity;
+    return F.sortDir === 'desc' ? bv - av : av - bv;
+  });
+}
+
+/**
+ * 공통 모니터링 종목 코드 조회
+ * @returns {Set|null} 모니터링 종목 코드 Set (전체 범위면 null)
+ */
+async function _getMonitoredCodes() {
+  if (F.scope !== 'monitored') return null;
+  const data = await fetchAllPages(
+    sb.from('companies').select('code').eq('is_monitored', true)
+  );
+  return new Set(data.map(c => c.code));
+}
+
+/**
+ * 공통 테이블 HTML 렌더링
+ * @param {string[]} headers   th 배열 (HTML 문자열)
+ * @param {string[]} bodyRows  tr 배열 (HTML 문자열)
+ * @returns {string}
+ */
+function _renderTable(headers, bodyRows) {
+  if (!bodyRows.length) return emptyHTML();
+  return `<div class="table-wrap"><table>
+    <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${bodyRows.join('')}</tbody>
+  </table></div>`;
+}
+
+/**
+ * 3탭 공통 로직 추출 — 데이터 조회 후 카운트 업데이트 + 테이블 렌더
+ * @param {HTMLElement} el      대상 컨테이너
+ * @param {Object}      config
+ *   .fetchRows()       → Promise<Array>   탭별 데이터 조회 함수
+ *   .defaultSort       → string           기본 정렬 컬럼
+ *   .headers           → (rows)=>Array    헤더 배열 반환 함수
+ *   .rowTemplate       → (row)=>string    행 HTML 반환 함수
+ */
+async function _loadTabData(el, config) {
+  const { fetchRows, defaultSort = 'market_cap', headers, rowTemplate } = config;
+
+  let rows = await fetchRows();
+  rows = _applyFinFilter(rows);
+  rows = _sortRows(rows, defaultSort);
+
+  _finData = rows;
+  const cnt = document.getElementById('fin-count');
+  if (cnt) cnt.textContent = `${rows.length}개`;
+
+  el.innerHTML = _renderTable(
+    typeof headers === 'function' ? headers(rows) : headers,
+    rows.map(rowTemplate)
+  );
+}
+
 async function loadFinancials() {
   const el = document.getElementById('fin-table');
   if (!el) return;
@@ -64,92 +168,35 @@ async function loadFinancials() {
 }
 
 async function loadMarketData(el) {
-  // 모니터링 종목 코드 목록 로드
-  let monitoredCodes = null;
-  let allCodesSet = null;
-
-  if (F.scope === 'monitored') {
-    // 모니터링 종목만
-    const compData = await fetchAllPages(
-      sb.from('companies').select('code').eq('is_monitored', true)
-    );
-    monitoredCodes = new Set(compData.map(c => c.code));
-  }
-
-  // 가장 최신 base_date — config.js 전역 캐시 사용
-  const maxDate = await getLatestMarketDate();
-
-  // 최신 날짜 데이터 전체 로드
-  let allMkt = [];
-  if (maxDate) {
-    allMkt = await fetchAllPages(
-      sb.from('market_data').select('*').eq('base_date', maxDate)
-    );
-  }
-
-  // scope 필터
-  const data = monitoredCodes
-    ? allMkt.filter(r => monitoredCodes.has(r.stock_code))
-    : allMkt;
-
-  // 종목당 최신 1개 (혹시 중복 있을 경우 대비)
-  const latest = {};
-  (data || []).forEach(r => {
-    if (!latest[r.stock_code]) latest[r.stock_code] = r;
-  });
-  let rows = Object.values(latest);
-
-  // 필터
-  if (F.q) rows = rows.filter(r => r.corp_name.includes(F.q));
-
-  // 산업 필터 — companies 테이블과 조인 불가하니 종목 목록으로 필터
-  if (F.industry !== '전체') {
-    const indStocks = new Set(
-      Object.entries(window._finIndMap || {}).filter(([,ind]) => ind === F.industry).map(([code]) => code)
-    );
-    rows = rows.filter(r => indStocks.has(r.stock_code));
-  }
-
-  // 정렬
-  rows.sort((a, b) => {
-    const av = a[F.sortBy] ?? -Infinity;
-    const bv = b[F.sortBy] ?? -Infinity;
-    return F.sortDir === 'desc' ? bv - av : av - bv;
-  });
-
-  _finData = rows;
-  const cnt = document.getElementById('fin-count');
-  if (cnt) cnt.textContent = `${rows.length}개`;
-
-  if (!rows.length) {
-    el.innerHTML = emptyHTML();
-    return;
-  }
-
-  const sortBtn = (col, label) => {
-    const active = F.sortBy === col;
-    const dir = active && F.sortDir === 'desc' ? '↑' : '↓';
-    return `<span style="cursor:pointer;${active?'color:var(--tg)':''}" onclick="F.sortBy='${col}';F.sortDir=F.sortBy==='${col}'&&F.sortDir==='desc'?'asc':'desc';loadFinancials()">${label}${active?dir:''}</span>`;
-  };
-
-  el.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr>
-      <th>종목명</th>
-      <th>${sortBtn('market_cap','시가총액')}</th>
-      <th>${sortBtn('price','현재가')}</th>
-      <th>${sortBtn('price_change_rate','등락률')}</th>
-      <th>${sortBtn('per','PER')}</th>
-      <th>${sortBtn('pbr','PBR')}</th>
-      <th>${sortBtn('eps','EPS')}</th>
-      <th>${sortBtn('volume','거래량')}</th>
-      <th>기준일</th>
-    </tr></thead>
-    <tbody>${rows.map(r => {
+  await _loadTabData(el, {
+    defaultSort: 'market_cap',
+    fetchRows: async () => {
+      const [monitoredCodes, maxDate] = await Promise.all([
+        _getMonitoredCodes(), getLatestMarketDate(),
+      ]);
+      const all = maxDate ? await fetchAllPages(
+        sb.from('market_data').select('*').eq('base_date', maxDate)
+      ) : [];
+      const data = monitoredCodes ? all.filter(r => monitoredCodes.has(r.stock_code)) : all;
+      // 종목당 최신 1개
+      const latest = {};
+      data.forEach(r => { if (!latest[r.stock_code]) latest[r.stock_code] = r; });
+      return Object.values(latest);
+    },
+    headers: () => [
+      '종목명',
+      _sortBtn('market_cap','시가총액'), _sortBtn('price','현재가'),
+      _sortBtn('price_change_rate','등락률'),
+      _sortBtn('per','PER'), _sortBtn('pbr','PBR'),
+      _sortBtn('eps','EPS'), _sortBtn('volume','거래량'),
+      '기준일',
+    ],
+    rowTemplate: r => {
       const chg = r.price_change_rate;
-      const cap = fmtCap(r.market_cap);
       return `<tr>
-        <td style="font-weight:500;cursor:pointer;color:var(--tg)" onclick="openStockDetail('${r.stock_code}','${r.corp_name}','market')">${r.corp_name}</td>
-        <td>${cap}</td>
+        <td style="font-weight:500;cursor:pointer;color:var(--tg)"
+          onclick="openStockDetail('${r.stock_code}','${r.corp_name}','market')">${r.corp_name}</td>
+        <td>${fmtCap(r.market_cap)}</td>
         <td>${r.price ? r.price.toLocaleString() + '원' : '—'}</td>
         <td style="color:${chgColor(chg)};font-weight:500">${chgStr(chg)}</td>
         <td>${r.per != null && r.per !== 0 ? r.per.toFixed(1) : '—'}</td>
@@ -158,195 +205,129 @@ async function loadMarketData(el) {
         <td>${r.volume ? r.volume.toLocaleString() : '—'}</td>
         <td style="font-size:11px;color:var(--text3)">${r.base_date || '—'}</td>
       </tr>`;
-    }).join('')}
-    </tbody></table></div>`;
+    },
+  });
 }
 
 async function loadFinancialData(el) {
-  // 종목당 최신 분기 데이터 — 전체 조회 후 stock_code 기준 최신 1개 추출
-  // 모니터링 종목 코드 목록 (scope='monitored' 시)
-  let monitoredCodesFin = null;
-  if (F.scope === 'monitored') {
-    const compData = await fetchAllPages(
-      sb.from('companies').select('code').eq('is_monitored', true)
-    );
-    monitoredCodesFin = new Set(compData.map(c => c.code));
-  }
-
-  const allFin = await fetchAllPages(
-    sb.from('financials').select('*')
-      .order('bsns_year', { ascending: false })
-      .order('quarter', { ascending: false })
-  );
-  const data = monitoredCodesFin
-    ? allFin.filter(r => monitoredCodesFin.has(r.stock_code))
-    : allFin;
-
-  // 종목당 최신 1개 (bsns_year+quarter 기준)
-  const latest = {};
-  (data || []).forEach(r => {
-    const key = r.stock_code;
-    if (!latest[key]) {
-      latest[key] = r;
-    } else {
-      // 더 최신 데이터로 교체
-      const cur = latest[key];
-      if (r.bsns_year > cur.bsns_year ||
-         (r.bsns_year === cur.bsns_year && r.quarter > cur.quarter)) {
-        latest[key] = r;
-      }
-    }
-  });
-  let rows = Object.values(latest);
-
-  if (F.q) rows = rows.filter(r => r.corp_name.includes(F.q));
-  if (F.industry !== '전체') {
-    const indStocks = new Set(
-      Object.entries(window._finIndMap || {}).filter(([,ind]) => ind === F.industry).map(([code]) => code)
-    );
-    rows = rows.filter(r => indStocks.has(r.stock_code));
-  }
-
-  // ── 정렬 ──
-  const _finSortCol = F.sortBy || 'revenue';
-  rows.sort((a, b) => {
-    const av = a[_finSortCol] ?? -Infinity;
-    const bv = b[_finSortCol] ?? -Infinity;
-    return F.sortDir === 'desc' ? bv - av : av - bv;
-  });
-
-  _finData = rows;
-  const cnt = document.getElementById('fin-count');
-  if (cnt) cnt.textContent = `${rows.length}개`;
-
-  const fmt = v => fmtCap(v);  // fmtCap: 조/억 단위 자동 변환
   const pct = v => v != null ? v.toFixed(1) + '%' : '—';
-
-  // 정렬 버튼 헬퍼
-  const sBtn = (col, label) => {
-    const active = F.sortBy === col;
-    const icon = active ? (F.sortDir === 'desc' ? ' ↓' : ' ↑') : '';
-    const clr  = active ? 'color:var(--tg);' : '';
-    return `<span style="cursor:pointer;white-space:nowrap;${clr}user-select:none"
-      onclick="F.sortBy='${col}';F.sortDir=(F.sortBy==='${col}'&&F.sortDir==='desc')?'asc':'desc';loadFinancials()"
-    >${label}${icon}</span>`;
-  };
-
-  el.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr>
-      <th>종목명</th><th>기간</th>
-      <th>${sBtn('revenue','매출액')}</th>
-      <th>${sBtn('gross_profit','매출총이익')}</th>
-      <th>${sBtn('gross_margin','GPM')}</th>
-      <th>${sBtn('operating_profit','영업이익')}</th>
-      <th>${sBtn('operating_margin','영업이익률')}</th>
-      <th>${sBtn('net_income','순이익')}</th>
-      <th>${sBtn('net_margin','순이익률')}</th>
-      <th>${sBtn('roe','ROE')}</th>
-      <th>${sBtn('debt_ratio','부채비율')}</th>
-      <th>${sBtn('total_assets','자산총계')}</th>
-      <th>${sBtn('operating_cashflow','영업현금흐름')}</th>
-    </tr></thead>
-    <tbody>${rows.map(r => {
-      const opColor = r.operating_profit > 0 ? 'var(--green)' : r.operating_profit < 0 ? 'var(--red)' : 'var(--text2)';
-      const niColor = (r.net_income||0) >= 0 ? '' : 'var(--red)';
-      const gpColor = (r.gross_profit||0) >= 0 ? '' : 'var(--red)';
-      const ocfColor = (r.operating_cashflow||0) >= 0 ? 'var(--green)' : 'var(--red)';
+  await _loadTabData(el, {
+    defaultSort: 'revenue',
+    fetchRows: async () => {
+      const monitoredCodes = await _getMonitoredCodes();
+      const all = await fetchAllPages(
+        sb.from('financials').select('*')
+          .order('bsns_year', { ascending: false })
+          .order('quarter',   { ascending: false })
+      );
+      const data = monitoredCodes ? all.filter(r => monitoredCodes.has(r.stock_code)) : all;
+      // 종목당 최신 분기 1개
+      const latest = {};
+      data.forEach(r => {
+        const cur = latest[r.stock_code];
+        if (!cur || r.bsns_year > cur.bsns_year ||
+           (r.bsns_year === cur.bsns_year && r.quarter > cur.quarter))
+          latest[r.stock_code] = r;
+      });
+      return Object.values(latest);
+    },
+    headers: () => [
+      '종목명', '기간',
+      _sortBtn('revenue','매출액'), _sortBtn('gross_profit','매출총이익'),
+      _sortBtn('gross_margin','GPM'), _sortBtn('operating_profit','영업이익'),
+      _sortBtn('operating_margin','영업이익률'), _sortBtn('net_income','순이익'),
+      _sortBtn('net_margin','순이익률'), _sortBtn('roe','ROE'),
+      _sortBtn('debt_ratio','부채비율'), _sortBtn('total_assets','자산총계'),
+      _sortBtn('operating_cashflow','영업현금흐름'),
+    ],
+    rowTemplate: r => {
+      const opC  = r.operating_profit > 0 ? 'var(--green)' : r.operating_profit < 0 ? 'var(--red)' : 'var(--text2)';
+      const niC  = (r.net_income||0)  >= 0 ? '' : 'var(--red)';
+      const gpC  = (r.gross_profit||0) >= 0 ? '' : 'var(--red)';
+      const ocfC = (r.operating_cashflow||0) >= 0 ? 'var(--green)' : 'var(--red)';
       return `<tr>
-        <td style="font-weight:500;cursor:pointer;color:var(--tg)" onclick="openStockDetail('${r.stock_code}','${r.corp_name}','financial')">${r.corp_name}</td>
+        <td style="font-weight:500;cursor:pointer;color:var(--tg)"
+          onclick="openStockDetail('${r.stock_code}','${r.corp_name}','financial')">${r.corp_name}</td>
         <td style="font-size:11px;color:var(--text2);white-space:nowrap">${r.bsns_year} ${r.quarter}</td>
-        <td>${fmt(r.revenue)}</td>
-        <td style="color:${gpColor}">${r.gross_profit ? fmt(r.gross_profit) : '—'}</td>
+        <td>${fmtCap(r.revenue)}</td>
+        <td style="color:${gpC}">${r.gross_profit ? fmtCap(r.gross_profit) : '—'}</td>
         <td>${pct(r.gross_margin)}</td>
-        <td style="color:${opColor}">${fmt(r.operating_profit)}</td>
+        <td style="color:${opC}">${fmtCap(r.operating_profit)}</td>
         <td>${pct(r.operating_margin)}</td>
-        <td style="color:${niColor}">${fmt(r.net_income)}</td>
+        <td style="color:${niC}">${fmtCap(r.net_income)}</td>
         <td>${pct(r.net_margin)}</td>
         <td>${pct(r.roe)}</td>
         <td>${pct(r.debt_ratio)}</td>
-        <td>${fmt(r.total_assets)}</td>
-        <td style="color:${ocfColor}">${r.operating_cashflow ? fmt(r.operating_cashflow) : '—'}</td>
+        <td>${fmtCap(r.total_assets)}</td>
+        <td style="color:${ocfC}">${r.operating_cashflow ? fmtCap(r.operating_cashflow) : '—'}</td>
       </tr>`;
-    }).join('')}
-    </tbody></table></div>`;
+    },
+  });
 }
 
 async function loadCombinedData(el) {
-  // 시장 + 재무 병합 (병렬 조회)
-  const [allM, allF] = await Promise.all([
-    fetchAllPages(
-      sb.from('market_data')
-        .select('stock_code,corp_name,market_cap,price,price_change_rate,per,pbr')
-        .order('base_date', { ascending: false })
-    ),
-    fetchAllPages(
-      sb.from('financials')
-        .select('stock_code,revenue,operating_profit,net_income,operating_margin,roe,debt_ratio,bsns_year,quarter')
-        .order('bsns_year', { ascending: false })
-        .order('quarter', { ascending: false })
-    ),
-  ]);
-  const mktRes = { data: allM };
-  const finRes = { data: allF };
-
-  const mktMap = {};
-  (mktRes.data || []).forEach(r => { if (!mktMap[r.stock_code]) mktMap[r.stock_code] = r; });
-  const finMap = {};
-  (finRes.data || []).forEach(r => {
-    const cur = finMap[r.stock_code];
-    if (!cur || r.bsns_year > cur.bsns_year ||
-       (r.bsns_year === cur.bsns_year && r.quarter > cur.quarter)) {
-      finMap[r.stock_code] = r;
-    }
-  });
-
-  const allCodes = new Set([...Object.keys(mktMap), ...Object.keys(finMap)]);
-  let rows = [...allCodes].map(code => ({
-    stock_code: code,
-    corp_name: (mktMap[code] || finMap[code])?.corp_name || code,
-    ...mktMap[code],
-    ...finMap[code],
-  }));
-
-  if (F.q) rows = rows.filter(r => r.corp_name.includes(F.q));
-  if (F.industry !== '전체') {
-    const indStocks = new Set(
-      Object.entries(window._finIndMap || {}).filter(([,ind]) => ind === F.industry).map(([code]) => code)
-    );
-    rows = rows.filter(r => indStocks.has(r.stock_code));
-  }
-
-  rows.sort((a,b) => ((b.market_cap||0) - (a.market_cap||0)));
-  _finData = rows;
-  const cnt = document.getElementById('fin-count');
-  if (cnt) cnt.textContent = `${rows.length}개`;
-
-  const fmt = v => fmtCap(v);  // fmtCap: 조/억 단위 자동 변환
-  const pct = v => v != null ? v.toFixed(1)+'%' : '—';
-
-  el.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr>
-      <th>종목명</th><th>시가총액</th><th>현재가</th><th>등락률</th>
-      <th>PER</th><th>PBR</th><th>매출액</th><th>영업이익</th>
-      <th>영업이익률</th><th>ROE</th><th>기간</th>
-    </tr></thead>
-    <tbody>${rows.map(r => {
+  const pct = v => v != null ? v.toFixed(1) + '%' : '—';
+  await _loadTabData(el, {
+    defaultSort: 'market_cap',
+    fetchRows: async () => {
+      const [allM, allF] = await Promise.all([
+        fetchAllPages(
+          sb.from('market_data')
+            .select('stock_code,corp_name,market_cap,price,price_change_rate,per,pbr')
+            .order('base_date', { ascending: false })
+        ),
+        fetchAllPages(
+          sb.from('financials')
+            .select('stock_code,revenue,operating_profit,net_income,operating_margin,roe,debt_ratio,bsns_year,quarter')
+            .order('bsns_year', { ascending: false })
+            .order('quarter',   { ascending: false })
+        ),
+      ]);
+      // 종목당 최신 1개
+      const mktMap = {};
+      allM.forEach(r => { if (!mktMap[r.stock_code]) mktMap[r.stock_code] = r; });
+      const finMap = {};
+      allF.forEach(r => {
+        const cur = finMap[r.stock_code];
+        if (!cur || r.bsns_year > cur.bsns_year ||
+           (r.bsns_year === cur.bsns_year && r.quarter > cur.quarter))
+          finMap[r.stock_code] = r;
+      });
+      // 병합
+      const allCodes = new Set([...Object.keys(mktMap), ...Object.keys(finMap)]);
+      return [...allCodes].map(code => ({
+        stock_code: code,
+        corp_name: (mktMap[code] || finMap[code])?.corp_name || code,
+        ...mktMap[code], ...finMap[code],
+      }));
+    },
+    headers: () => [
+      '종목명',
+      _sortBtn('market_cap','시가총액'), _sortBtn('price','현재가'),
+      _sortBtn('price_change_rate','등락률'),
+      _sortBtn('per','PER'), _sortBtn('pbr','PBR'),
+      _sortBtn('revenue','매출액'), _sortBtn('operating_profit','영업이익'),
+      _sortBtn('operating_margin','영업이익률'), _sortBtn('roe','ROE'),
+      '기간',
+    ],
+    rowTemplate: r => {
       const chg = r.price_change_rate;
       return `<tr>
-        <td style="font-weight:500">${r.corp_name}</td>
+        <td style="font-weight:500;cursor:pointer;color:var(--tg)"
+          onclick="openStockDetail('${r.stock_code}','${r.corp_name}')">${r.corp_name}</td>
         <td>${fmtCap(r.market_cap)}</td>
-        <td>${r.price?r.price.toLocaleString()+'원':'—'}</td>
+        <td>${r.price ? r.price.toLocaleString() + '원' : '—'}</td>
         <td style="color:${chgColor(chg)};font-weight:500">${chgStr(chg)}</td>
-        <td>${r.per!=null?r.per.toFixed(1):'—'}</td>
-        <td>${r.pbr!=null?r.pbr.toFixed(2):'—'}</td>
-        <td>${fmt(r.revenue)}</td>
-        <td>${fmt(r.operating_profit)}</td>
+        <td>${r.per != null ? r.per.toFixed(1) : '—'}</td>
+        <td>${r.pbr != null ? r.pbr.toFixed(2) : '—'}</td>
+        <td>${fmtCap(r.revenue)}</td>
+        <td>${fmtCap(r.operating_profit)}</td>
         <td>${pct(r.operating_margin)}</td>
         <td>${pct(r.roe)}</td>
-        <td style="font-size:11px;color:var(--text3)">${r.bsns_year?r.bsns_year+' '+r.quarter:'—'}</td>
+        <td style="font-size:11px;color:var(--text3)">${r.bsns_year ? r.bsns_year + ' ' + r.quarter : '—'}</td>
       </tr>`;
-    }).join('')}
-    </tbody></table></div>`;
+    },
+  });
 }
 
 // ══════════════════════════════════════════
