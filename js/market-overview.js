@@ -832,13 +832,7 @@ function initInvCheckboxStyles() {
 //  📈 산업별 흐름 비교 차트
 // ══════════════════════════════════════════
 
-// 산업별 색상
-const IND_COLORS = {
-  '반도체':  '#2AABEE', '바이오':  '#2dce89', '2차전지': '#ffd600',
-  '엔터':    '#ff6b35', '소비재':  '#f5365c', '뷰티':    '#a259ff',
-  '조선':    '#00d4aa', '로봇':    '#fb6340', '우주':    '#4fc3f7',
-  '신재생':  '#aed581', '반도체':  '#2AABEE', '테크':    '#e040fb',
-};
+// IND_COLORS — config.js에서 전역 정의
 const IND_DEFAULT_COLORS = [
   '#2AABEE','#2dce89','#ffd600','#ff6b35','#f5365c',
   '#a259ff','#00d4aa','#fb6340','#4fc3f7','#aed581','#e040fb','#80cbc4',
@@ -1154,11 +1148,8 @@ async function loadUskrMap() {
   window.USKR_MAP = map;
 }
 
-const KR_IND_COLORS = {
-  '반도체':'#f97316','바이오':'#22c55e','로봇':'#ef4444','우주':'#8b5cf6',
-  '2차전지':'#eab308','소비재':'#e879f9','엔터':'#f43f5e','조선':'#06b6d4',
-  '테크':'#a855f7','뷰티':'#fb7185','신재생':'#84cc16',
-};
+// KR_IND_COLORS → IND_COLORS 통합 (config.js 참조)
+const KR_IND_COLORS = IND_COLORS;
 
 let _uskrChart = null;
 let _uskrPeriod   = 7;

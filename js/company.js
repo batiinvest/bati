@@ -570,7 +570,7 @@ async function monApply() {
 //  🌐 US 종목 관리
 // ══════════════════════════════════════════
 
-const KR_INDUSTRIES = ['반도체','바이오','로봇','우주','2차전지','소비재','엔터','조선','테크','뷰티','신재생'];
+// KR_INDUSTRIES — config.js에서 전역 정의
 
 async function loadEtfMapUI() {
   const wrap = document.getElementById('etf-map-wrap');

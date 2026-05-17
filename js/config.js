@@ -188,3 +188,15 @@ async function requestBotReload(btnId = 'reload-btn') {
     if (btn) { btn.disabled = false; btn.innerHTML = origHTML; }
   }
 }
+
+// ── KR 산업 목록 (단일 정의 — 전 파일에서 이 상수를 참조할 것) ──
+const KR_INDUSTRIES = ['반도체','바이오','로봇','우주','2차전지','소비재','엔터','조선','테크','뷰티','신재생'];
+
+// ── KR 산업별 색상 (단일 정의) ──
+// 주의: IND_COLORS(산업 흐름 차트용)와 KR_IND_COLORS(US vs KR 비교용)를 통합
+const IND_COLORS = {
+  '반도체': '#2AABEE', '바이오': '#2dce89', '2차전지': '#ffd600',
+  '엔터':   '#ff6b35', '소비재': '#f5365c', '뷰티':    '#a259ff',
+  '조선':   '#00d4aa', '로봇':   '#fb6340', '우주':    '#4fc3f7',
+  '신재생': '#aed581', '테크':   '#e040fb',
+};

@@ -177,15 +177,14 @@ async function runScreener() {
     (finRows || []).forEach(r => { if (!finMap[r.stock_code]) finMap[r.stock_code] = r; });
   }
 
+  // getIndustryMap은 캐시된 경우 즉시 반환 — 1회 호출로 통합
+  const globalMap = await getIndustryMap();
   if (hasIndFilter) {
-    // 산업 필터: 전역 캐시에서 해당 산업만 추출
-    const globalMap = await getIndustryMap();
     Object.entries(globalMap).forEach(([code, ind]) => {
       if (ind === industry) indMap[code] = ind;
     });
   } else {
-    // 산업 필터 없으면 전역 캐시 전체 사용
-    indMap = await getIndustryMap();
+    indMap = globalMap;
   }
 
   // ── Step 3: JS에서 남은 조인 처리 (재무 필터 종목 교집합) ──
