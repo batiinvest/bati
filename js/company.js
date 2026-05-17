@@ -572,8 +572,10 @@ async function loadEtfMapUI() {
       .order('industry').order('ticker');
     rows = res.data || [];
     error = res.error;
+    console.log('[ETF] 조회 결과:', rows.length, '행, error:', error);
   } catch(e) {
     error = { message: e.message };
+    console.error('[ETF] 예외:', e);
   }
 
   if (error) {
@@ -581,6 +583,7 @@ async function loadEtfMapUI() {
     console.error('[ETF] 조회 오류:', error);
     return;
   }
+  console.log('[ETF] wrap.innerHTML 세팅 시작, rows:', rows.length);
 
   // 산업별 티커 그룹핑
   const map = {};
