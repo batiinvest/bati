@@ -1165,6 +1165,8 @@ let _uskrMode     = 'avg';   // 'avg' = KR평균 vs US평균, 'all' = KR평균 +
 
 function selectUskrInd(ind) {
   _uskrSelected = ind;
+  window._uskrPinned  = null;  // 산업 전환 시 고정 해제
+  window._uskrHovered = null;
   document.querySelectorAll('[id^="uskr-btn-"]').forEach(b =>
     b.classList.toggle('active', b.id === 'uskr-btn-' + ind));
   loadUskrChart();
@@ -1309,6 +1311,8 @@ async function loadUskrChart() {
 
   // ── 차트 그리기 ──
   if (_uskrChart) { _uskrChart.destroy(); _uskrChart = null; }
+  window._uskrPinned  = window._uskrPinned  || null;
+  window._uskrHovered = null;
   if (!window.Chart) return;
 
   _uskrChart = new window.Chart(canvas.getContext('2d'), {
@@ -1399,6 +1403,70 @@ async function loadUskrChart() {
       }
     }
   });
+}
+
+  // canvas 이벤트 재바인딩
+  const uskrCanvas = document.getElementById('uskr-chart');
+  if (uskrCanvas) { uskrCanvas._uskrHoverBound = false; }
+  _bindUskrHover();
+}
+
+// ── US vs KR 하이라이트 헬퍼 ──
+function _applyUskrHighlight(label) {
+  const chart = _uskrChart;
+  if (!chart) return;
+  chart.data.datasets.forEach((ds, i) => {
+    const origColor = ds._origColor || ds.borderColor.replace(/55$|44$/, '');
+    if (!ds._origColor) ds._origColor = origColor;
+    if (!label) {
+      // 해제 — 기본값 복원
+      ds.borderWidth = ds.label.startsWith('🇰🇷') ? 3 : 2;
+      ds.pointRadius = 3;
+      ds.borderColor = origColor;
+    } else {
+      const active = ds.label === label;
+      ds.borderWidth = active ? 4   : 1.2;
+      ds.pointRadius = active ? 4   : 1;
+      ds.borderColor = active ? origColor : origColor + '44';
+    }
+  });
+  chart.update('none');
+}
+
+function _bindUskrHover() {
+  const canvas = document.getElementById('uskr-chart');
+  if (!canvas || canvas._uskrHoverBound) return;
+  canvas._uskrHoverBound = true;
+
+  canvas.addEventListener('mousemove', (e) => {
+    if (window._uskrPinned) return;
+    const chart = _uskrChart;
+    if (!chart) return;
+    const pts = chart.getElementsAtEventForMode(e, 'nearest', { intersect: false }, true);
+    const label = pts.length ? chart.data.datasets[pts[0].datasetIndex]?.label : null;
+    if (label === window._uskrHovered) return;
+    window._uskrHovered = label;
+    _applyUskrHighlight(label);
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    if (window._uskrPinned) return;
+    window._uskrHovered = null;
+    _applyUskrHighlight(null);
+  });
+
+  // 클릭 — 고정/해제
+  if (canvas._uskrClickHandler) canvas.removeEventListener('click', canvas._uskrClickHandler);
+  canvas._uskrClickHandler = (e) => {
+    const chart = _uskrChart;
+    if (!chart) return;
+    const pts = chart.getElementsAtEventForMode(e, 'nearest', { intersect: false }, true);
+    const clicked = pts.length ? chart.data.datasets[pts[0].datasetIndex]?.label : null;
+    window._uskrPinned = (clicked && clicked !== window._uskrPinned) ? clicked : null;
+    window._uskrHovered = window._uskrPinned;
+    _applyUskrHighlight(window._uskrPinned);
+  };
+  canvas.addEventListener('click', canvas._uskrClickHandler);
 }
 
 function reloadUskrChart() { loadUskrChart(); }
