@@ -636,17 +636,7 @@ async function loadEtfMapUI() {
       </div>
     </div>`;
   }).join('');
-  const _bg2    = getComputedStyle(document.documentElement).getPropertyValue('--bg2').trim()    || '#1a1d27';
-  const _bg3    = getComputedStyle(document.documentElement).getPropertyValue('--bg3').trim()    || '#232636';
-
-  // rows_html의 CSS 변수도 치환
-  const finalHtml = rows_html
-    .replaceAll('var(--border)', _border)
-    .replaceAll('var(--text3)', _text3)
-    .replaceAll('var(--text)', _text)
-    .replaceAll('var(--bg3)', _bg3)
-    .replaceAll('var(--bg)', _bg2)
-    .replaceAll('var(--tg)', '#2AABEE');
+  const finalHtml = rows_html;  // 실제값 직접 사용하므로 치환 불필요
 
   wrap.innerHTML = `
     <div style="display:grid;grid-template-columns:100px 1fr;
