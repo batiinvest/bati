@@ -1104,12 +1104,11 @@ async function loadUskrChart() {
   const canvas = document.getElementById('uskr-chart');
   if (!canvas) return;
 
-  // 선택된 KR 산업
-  const selectedKR = Object.keys(USKR_MAP).filter(ind => {
-    const chk = document.getElementById('uskr-kr-' + ind);
+  // 선택된 산업
+  const selected = Object.keys(USKR_MAP).filter(ind => {
+    const chk = document.getElementById('uskr-ind-' + ind);
     return chk ? chk.checked : false;
   });
-  const showUS = document.getElementById('uskr-show-us')?.checked !== false;
 
   // 날짜 범위
   const today = new Date();
@@ -1117,30 +1116,28 @@ async function loadUskrChart() {
   from.setDate(today.getDate() - _uskrPeriod - 10);
   const fromStr = from.toISOString().split('T')[0];
 
-  // ── KR: market_data에서 산업별 일별 평균 등락률 ──
-  const krIndDates = {};  // { 반도체: { '2026-05-01': [chg,...], ... } }
+  // ── KR: market_data 산업별 일별 평균 등락률 ──
+  const krIndDates = {};
   const monitoredCodes = Object.keys(window._industryMapCache || {});
-
   if (monitoredCodes.length) {
     const { data: krRows } = await sb.from('market_data')
       .select('stock_code, base_date, day_change_pct')
       .in('stock_code', monitoredCodes)
       .gte('base_date', fromStr)
       .not('day_change_pct', 'is', null);
-
     (krRows || []).forEach(r => {
       const ind = window._industryMapCache?.[r.stock_code];
-      if (!ind || !selectedKR.includes(ind)) return;
+      if (!ind || !selected.includes(ind)) return;
       if (!krIndDates[ind]) krIndDates[ind] = {};
       if (!krIndDates[ind][r.base_date]) krIndDates[ind][r.base_date] = [];
       krIndDates[ind][r.base_date].push(r.day_change_pct);
     });
   }
 
-  // ── US: macro_data에서 ETF 가격 ──
-  const usEtfCols = [...new Set(selectedKR.map(ind => USKR_MAP[ind]?.col).filter(Boolean))];
+  // ── US: macro_data ETF 가격 ──
+  const usEtfCols = [...new Set(selected.map(ind => USKR_MAP[ind]?.col).filter(Boolean))];
   let macroRows = [];
-  if (showUS && usEtfCols.length) {
+  if (usEtfCols.length) {
     const { data } = await sb.from('macro_data')
       .select(['base_date', ...usEtfCols].join(','))
       .gte('base_date', fromStr)
@@ -1157,8 +1154,8 @@ async function loadUskrChart() {
   // ── datasets 생성 ──
   const datasets = [];
 
-  // KR 산업 (누적 지수)
-  selectedKR.forEach(ind => {
+  // KR 산업 (실선)
+  selected.forEach(ind => {
     const color = KR_IND_COLORS[ind] || '#ffffff';
     let cum = 100, started = false;
     const data = dateList.map(date => {
@@ -1177,32 +1174,30 @@ async function loadUskrChart() {
     });
   });
 
-  // US ETF (누적 지수) — 중복 ETF 제거
-  if (showUS) {
-    const addedEtf = new Set();
-    selectedKR.forEach(ind => {
-      const etf = USKR_MAP[ind];
-      if (!etf || addedEtf.has(etf.col)) return;
-      addedEtf.add(etf.col);
-      let base = null;
-      const data = dateList.map(date => {
-        const row = macroRows.find(r => r.base_date === date);
-        const val = row?.[etf.col];
-        if (val != null) {
-          if (base === null) base = val;
-          return parseFloat((val / base * 100).toFixed(2));
-        }
-        return null;
-      });
-      datasets.push({
-        label: `🇺🇸 ${etf.name}`, data,
-        borderColor: etf.color, backgroundColor: etf.color + '18',
-        borderWidth: 1.5, pointRadius: 2, tension: 0.3,
-        borderDash: [5, 3],   // 점선으로 US 구분
-        fill: false, spanGaps: true,
-      });
+  // US ETF (점선) — 중복 ETF 제거
+  const addedEtf = new Set();
+  selected.forEach(ind => {
+    const etf = USKR_MAP[ind];
+    if (!etf || addedEtf.has(etf.col)) return;
+    addedEtf.add(etf.col);
+    let base = null;
+    const data = dateList.map(date => {
+      const row = macroRows.find(r => r.base_date === date);
+      const val = row?.[etf.col];
+      if (val != null) {
+        if (base === null) base = val;
+        return parseFloat((val / base * 100).toFixed(2));
+      }
+      return null;
     });
-  }
+    datasets.push({
+      label: `🇺🇸 ${etf.name}`, data,
+      borderColor: etf.color, backgroundColor: etf.color + '18',
+      borderWidth: 1.5, pointRadius: 2, tension: 0.3,
+      borderDash: [5, 3],
+      fill: false, spanGaps: true,
+    });
+  });
 
   // ── 차트 그리기 ──
   if (_uskrChart) { _uskrChart.destroy(); _uskrChart = null; }

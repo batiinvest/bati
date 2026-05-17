@@ -170,22 +170,17 @@ function pInvestment() {
           `).join('')}
         </div>
       </div>
-      <!-- KR 산업 선택 -->
+      <!-- 산업 선택 (KR+US 함께 표시) -->
       <div style="padding:.5rem 1rem;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-        <span style="font-size:11px;color:var(--text3);flex-shrink:0">KR 산업</span>
         ${['반도체','바이오','로봇','우주','2차전지','소비재','엔터','조선','테크','뷰티','신재생'].map(ind=>`
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:2px 8px;border-radius:100px;border:1px solid var(--border);font-size:12px;user-select:none"
-            id="uskr-kr-lbl-${ind}">
-            <input type="checkbox" style="display:none" id="uskr-kr-${ind}"
+            id="uskr-lbl-${ind}">
+            <input type="checkbox" style="display:none" id="uskr-ind-${ind}"
               onchange="reloadUskrChart()" checked>
-            <span style="width:7px;height:7px;border-radius:50%;background:var(--tg);flex-shrink:0"></span>
+            <span style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--tg)"></span>
             <span>${ind}</span>
           </label>
         `).join('')}
-        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:2px 8px;border-radius:100px;border:1px solid var(--border);font-size:12px;user-select:none">
-          <input type="checkbox" style="display:none" id="uskr-show-us" onchange="reloadUskrChart()" checked>
-          <span style="font-size:10px">🇺🇸 ETF 표시</span>
-        </label>
       </div>
       <div style="padding:1rem;position:relative;height:320px">
         <canvas id="uskr-chart"></canvas>
