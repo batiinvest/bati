@@ -1476,3 +1476,127 @@ function setUskrPeriod(period) {
     b.classList.toggle('active', b.dataset.uskrPeriod === String(period)));
   loadUskrChart();
 }
+
+// ══════════════════════════════════════════
+//  🌐 US ETF 매핑 관리 (설정 페이지)
+// ══════════════════════════════════════════
+
+const KR_INDUSTRIES = ['반도체','바이오','로봇','우주','2차전지','소비재','엔터','조선','테크','뷰티','신재생'];
+
+async function loadEtfMapUI() {
+  const wrap = document.getElementById('etf-map-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:13px">로딩 중...</div>';
+
+  // us_market에서 현재 등록된 티커 목록 조회
+  const { data: rows, error } = await sb.from('us_market')
+    .select('industry,ticker')
+    .order('industry').order('ticker');
+
+  if (error) {
+    wrap.innerHTML = `<div style="padding:1rem;color:var(--red);font-size:13px">오류: ${error.message}</div>`;
+    return;
+  }
+
+  // 산업별 티커 그룹핑
+  const map = {};
+  KR_INDUSTRIES.forEach(ind => { map[ind] = []; });
+  (rows || []).forEach(r => {
+    if (!map[r.industry]) map[r.industry] = [];
+    if (!map[r.industry].includes(r.ticker)) map[r.industry].push(r.ticker);
+  });
+
+  const rows_html = KR_INDUSTRIES.map(ind => {
+    const tickers = map[ind] || [];
+    return `
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:10px 16px;font-weight:600;font-size:13px;width:90px;color:var(--text);white-space:nowrap">${ind}</td>
+      <td style="padding:6px 12px">
+        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center" id="etf-tags-${ind}">
+          ${tickers.map(t => `
+            <span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:100px;padding:2px 10px;font-size:12px">
+              ${t}
+              <button onclick="removeEtfTicker('${ind}','${t}')"
+                style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;line-height:1;padding:0 0 0 2px">&times;</button>
+            </span>
+          `).join('')}
+          <button onclick="showAddEtfInput('${ind}')"
+            style="background:none;border:1px dashed var(--border);border-radius:100px;padding:2px 10px;font-size:12px;cursor:pointer;color:var(--text3)">+ 추가</button>
+          <span id="etf-input-${ind}" style="display:none;align-items:center;gap:4px">
+            <input id="etf-new-${ind}" placeholder="SOXX" maxlength="10"
+              style="width:80px;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-size:12px"
+              onkeydown="if(event.key==='Enter')addEtfTicker('${ind}')">
+            <button onclick="addEtfTicker('${ind}')"
+              style="padding:2px 8px;font-size:12px;background:var(--tg);color:#fff;border:none;border-radius:4px;cursor:pointer">추가</button>
+            <button onclick="document.getElementById('etf-input-${ind}').style.display='none'"
+              style="padding:2px 6px;font-size:12px;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text3)">취소</button>
+          </span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <div style="padding:.5rem 1rem;border-bottom:1px solid var(--border);font-size:12px;color:var(--text3)">
+      티커를 추가하면 수집 스크립트(<code>collect_us_etf.py</code>) 재실행 시 자동으로 데이터가 채워집니다.
+    </div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="background:var(--bg2);border-bottom:1px solid var(--border)">
+          <th style="padding:8px 16px;font-size:11px;color:var(--text3);font-weight:500;text-align:left">KR 산업</th>
+          <th style="padding:8px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:left">매핑 ETF / 종목</th>
+        </tr>
+      </thead>
+      <tbody>${rows_html}</tbody>
+    </table>`;
+}
+
+function showAddEtfInput(ind) {
+  const el = document.getElementById('etf-input-' + ind);
+  if (el) { el.style.display = 'flex'; document.getElementById('etf-new-' + ind)?.focus(); }
+}
+
+async function addEtfTicker(ind) {
+  const input = document.getElementById('etf-new-' + ind);
+  const ticker = input?.value.trim().toUpperCase();
+  if (!ticker) return;
+
+  // us_market에 더미 행 삽입 (데이터는 collect_us_etf.py가 채움)
+  const { error } = await sb.from('us_market').upsert(
+    { base_date: '2000-01-01', ticker, industry: ind, close: null, chg_pct: null },
+    { onConflict: 'base_date,ticker,industry' }
+  );
+
+  if (error) {
+    alert(`추가 실패: ${error.message}`);
+    return;
+  }
+
+  // USKR_MAP 동적 업데이트
+  if (window.USKR_MAP && window.USKR_MAP[ind]) {
+    if (!window.USKR_MAP[ind].includes(ticker)) window.USKR_MAP[ind].push(ticker);
+  }
+  toast(`${ind} ← ${ticker} 추가됨`, 'success');
+  loadEtfMapUI();
+}
+
+async function removeEtfTicker(ind, ticker) {
+  if (!confirm(`${ind}에서 ${ticker}를 제거할까요?\n(수집된 과거 데이터도 삭제됩니다)`)) return;
+
+  const { error } = await sb.from('us_market')
+    .delete()
+    .eq('industry', ind)
+    .eq('ticker', ticker);
+
+  if (error) {
+    alert(`삭제 실패: ${error.message}`);
+    return;
+  }
+
+  // USKR_MAP 동적 업데이트
+  if (window.USKR_MAP?.[ind]) {
+    window.USKR_MAP[ind] = window.USKR_MAP[ind].filter(t => t !== ticker);
+  }
+  toast(`${ind} ← ${ticker} 제거됨`, 'info');
+  loadEtfMapUI();
+}

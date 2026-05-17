@@ -22,7 +22,7 @@ const PAGE_META = {
   comparison: { title: '기업 비교 분석',fn: 'pComparison',  onLoad: 'renderCmpSelected' },
   stocks:     { title: '종목 관리',     fn: 'pStocks',      onLoad: 'loadStocks' },
   team:       { title: '팀원 관리',     fn: 'pTeam',        onLoad: 'loadTeam' },
-  settings:   { title: '설정',          fn: 'pSettings',    onLoad: null },
+  settings:   { title: '설정',          fn: 'pSettings',    onLoad: 'loadEtfMapUI' },
 };
 
 // watchlist 초기화 래퍼 (onLoad 단일 함수 제약 우회)
