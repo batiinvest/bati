@@ -176,7 +176,7 @@ async function loadMarketOverview(maxDate) {
   const bHeight = Math.max(sorted.length * 36 + 60, 300);
 
   indGrid.innerHTML =
-    '<div style="display:grid;grid-template-columns:420px 1fr;min-height:400px">' +
+    '<div style="display:grid;grid-template-columns:45% 55%;min-height:400px">' +
       '<div style="border-right:1px solid var(--border);padding:12px 14px;overflow-y:auto;max-height:520px" id="ind-left">' +
         '<canvas id="ind-bar-chart" style="width:100%;height:' + bHeight + 'px"></canvas>' +
       '</div>' +
