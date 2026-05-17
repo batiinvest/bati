@@ -608,18 +608,34 @@ async function loadEtfMapUI() {
     </tr>`;
   }).join('');
 
+  // CSS 변수를 실제값으로 치환해서 삽입 (탭 컨텍스트에서 변수 미적용 대비)
+  const _border = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || 'rgba(255,255,255,.1)';
+  const _text   = getComputedStyle(document.documentElement).getPropertyValue('--text').trim()   || '#f0f2f8';
+  const _text3  = getComputedStyle(document.documentElement).getPropertyValue('--text3').trim()  || '#6e7491';
+  const _bg2    = getComputedStyle(document.documentElement).getPropertyValue('--bg2').trim()    || '#1a1d27';
+  const _bg3    = getComputedStyle(document.documentElement).getPropertyValue('--bg3').trim()    || '#232636';
+
+  // rows_html의 CSS 변수도 치환
+  const finalHtml = rows_html
+    .replaceAll('var(--border)', _border)
+    .replaceAll('var(--text3)', _text3)
+    .replaceAll('var(--text)', _text)
+    .replaceAll('var(--bg3)', _bg3)
+    .replaceAll('var(--bg)', _bg2)
+    .replaceAll('var(--tg)', '#2AABEE');
+
   wrap.innerHTML = `
-    <div style="padding:.6rem 1rem;border-bottom:1px solid var(--border);font-size:12px;color:var(--text3)">
+    <div style="padding:.6rem 1rem;border-bottom:1px solid ${_border};font-size:12px;color:${_text3}">
       티커 추가 후 <code>python3 collect_us_etf.py --backfill 90</code> 실행 시 데이터 자동 수집
     </div>
     <table style="width:100%;border-collapse:collapse">
       <thead>
-        <tr style="background:var(--bg2);border-bottom:1px solid var(--border)">
-          <th style="padding:8px 16px;font-size:11px;color:var(--text3);font-weight:500;text-align:left;width:90px">KR 산업</th>
-          <th style="padding:8px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:left">매핑 ETF</th>
+        <tr style="background:${_bg2};border-bottom:1px solid ${_border}">
+          <th style="padding:8px 16px;font-size:11px;color:${_text3};font-weight:500;text-align:left;width:90px">KR 산업</th>
+          <th style="padding:8px 12px;font-size:11px;color:${_text3};font-weight:500;text-align:left">매핑 ETF</th>
         </tr>
       </thead>
-      <tbody>${rows_html}</tbody>
+      <tbody>${finalHtml}</tbody>
     </table>`;
 }
 
