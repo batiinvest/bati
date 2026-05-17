@@ -93,6 +93,7 @@ function pCompany() {
         <div style="color:var(--text3);font-size:13px;padding:40px;text-align:center"><span class="loading"></span> 로딩 중...</div>
       </div>
     </div>
+  </div>
 
   <!-- US ETF 매핑 탭 -->
   <div id="company-tab-etf" style="display:none;padding:1.25rem">
