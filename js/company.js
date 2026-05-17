@@ -96,7 +96,16 @@ function _renderEtfTab() {
               border:none;cursor:pointer;background:var(--tg);color:#fff;
               opacity:0.4;transition:opacity .2s" disabled>
             ✅ 데이터 수집 적용
-          </button>`;
+          </button>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div id="etf-map-wrap">
+          <div style="padding:1rem;color:var(--text3);font-size:13px">로딩 중...</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
 }
 
 // ── pCompany: 탭 껍데기만 반환 ──
