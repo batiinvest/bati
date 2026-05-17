@@ -849,12 +849,14 @@ async function loadIndTrendChart() {
       return started ? parseFloat(cumulative.toFixed(2)) : null;
     });
 
+    const _pin = window._indPinned;
+    const active = !_pin || ind === _pin;
     return {
       label: ind, data,
-      borderColor: color,
+      borderColor: active ? color : color + '55',
       backgroundColor: color + '18',
-      borderWidth: 1.5,
-      pointRadius: 2,
+      borderWidth: active ? (_pin ? 4 : 1.5) : 1.2,
+      pointRadius: active ? (_pin ? 4 : 2)   : 1,
       pointHoverRadius: 6,
       tension: 0.3, fill: false, spanGaps: true,
     };
@@ -864,21 +866,31 @@ async function loadIndTrendChart() {
   if (_indTrendChart2) { _indTrendChart2.destroy(); _indTrendChart2 = null; }
   if (!window.Chart) return;
 
-  // ── 호버 하이라이트 헬퍼 ──
-  function _applyIndHover(label) {
+  // ── 하이라이트 헬퍼 (hover + click 공용) ──
+  function _applyIndHighlight(label) {
     const chart = _indTrendChart2;
     if (!chart) return;
-    if (label === window._indHovered) return;
-    window._indHovered = label;
     chart.data.datasets.forEach((ds, i) => {
       const active = !label || ds.label === label;
-      ds.borderWidth = active ? 3.5 : 1;
+      ds.borderWidth = active ? 4   : 1.2;
       ds.pointRadius = active ? 4   : 1;
       ds.borderColor = active
         ? (IND_COLORS[ds.label] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length])
-        : (IND_COLORS[ds.label] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length]) + '44';
+        : (IND_COLORS[ds.label] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length]) + '55';
     });
     chart.update('none');
+    // 범례 opacity 연동
+    document.querySelectorAll('.ind-legend-item').forEach(lbl => {
+      const ind = lbl.id.replace('ind-lbl-', '');
+      lbl.style.opacity      = !label || ind === label ? '1' : '0.35';
+      lbl.style.borderWidth  = label && ind === label  ? '2px' : '';
+    });
+  }
+  function _applyIndHover(label) {
+    if (window._indPinned) return;   // 클릭 고정 중엔 호버 무시
+    if (label === window._indHovered) return;
+    window._indHovered = label;
+    _applyIndHighlight(label);
   }
 
   _indTrendChart2 = new window.Chart(canvas.getContext('2d'), {
@@ -936,13 +948,29 @@ function _bindIndTrendHover() {
   });
 
   canvas.addEventListener('mouseleave', () => {
-    _applyIndHover(null);
-    window._indHovered = null;
+    if (!window._indPinned) {
+      window._indHovered = null;
+      _applyIndHighlight(null);
+    }
   });
+
+  // 클릭으로 고정/해제
+  if (canvas._indClickHandler) canvas.removeEventListener('click', canvas._indClickHandler);
+  canvas._indClickHandler = (e) => {
+    const chart = _indTrendChart2;
+    if (!chart) return;
+    const pts = chart.getElementsAtEventForMode(e, 'nearest', { intersect: false }, true);
+    const clicked = pts.length ? chart.data.datasets[pts[0].datasetIndex]?.label : null;
+    window._indPinned = (clicked && clicked !== window._indPinned) ? clicked : null;
+    window._indHovered = window._indPinned;
+    _applyIndHighlight(window._indPinned);
+  };
+  canvas.addEventListener('click', canvas._indClickHandler);
 }
 
-// ① 범례 호버 하이라이트 (마우스오버)
-window._indHovered    = null;
+// 호버/클릭 하이라이트 상태
+window._indHovered = null;
+window._indPinned  = null;   // 클릭으로 고정된 산업
 window._indChecked    = {};   // { 반도체: true, ... }
 window._indFilterMode = 'all';
 
