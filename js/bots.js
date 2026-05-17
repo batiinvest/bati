@@ -652,16 +652,7 @@ function pSettings() {
     <p style="margin-top:.5rem">연결된 유저: <strong style="color:var(--text)">${A.user?.email}</strong> (${A.profile?.role})</p>
     <p style="margin-top:.5rem;font-size:12px;color:var(--text3)">URL/Key 변경이 필요하면 index.html 상단의 SB_URL, SB_KEY를 직접 수정하세요.</p>
   </div></div>
-
-  <div class="card" style="margin-bottom:1rem">
-    <div class="card-header" style="display:flex;align-items:center;gap:8px">
-      <span class="card-title">🌐 US ETF 매핑 관리</span>
-      <span style="font-size:12px;color:var(--text3)">KR 산업별 매칭 ETF/종목</span>
-    </div>
-    <div class="card-body" style="padding:0">
-      <div id="etf-map-wrap"></div>
-    </div>
-  </div>`;
+`;
 }
 
 // ══════════════════════════════════════════

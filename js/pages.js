@@ -15,14 +15,14 @@ const PAGE_META = {
   bot:        { title: '봇 모니터링',   fn: 'pBot',         onLoad: 'loadBotStatus' },
   botconfig:  { title: '봇 설정',       fn: 'pBotConfig',   onLoad: 'loadBotConfig' },
   investment: { title: '오늘의 시황',   fn: 'pInvestment',  onLoad: 'loadInvestment' },
-  company:    { title: '종목관리',       fn: 'pCompany',     onLoad: 'loadCompanyPage' },
+  company:    { title: '리서치 설정',    fn: 'pCompany',     onLoad: 'loadCompanyPage' },
   watchlist:  { title: '투자노트',      fn: 'pWatchlist',   onLoad: '_initWatchlist' },
   screener:   { title: '종목 스크리너', fn: 'pScreener',    onLoad: null },
   financials: { title: '재무 조회',     fn: 'pFinancials',  onLoad: 'loadFinancials' },
   comparison: { title: '기업 비교 분석',fn: 'pComparison',  onLoad: 'renderCmpSelected' },
   stocks:     { title: '종목 관리',     fn: 'pStocks',      onLoad: 'loadStocks' },
   team:       { title: '팀원 관리',     fn: 'pTeam',        onLoad: 'loadTeam' },
-  settings:   { title: '설정',          fn: 'pSettings',    onLoad: 'loadEtfMapUI' },
+  settings:   { title: '설정',          fn: 'pSettings',    onLoad: null },
 };
 
 // watchlist 초기화 래퍼 (onLoad 단일 함수 제약 우회)

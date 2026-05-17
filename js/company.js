@@ -12,11 +12,33 @@ function _monMarkDirty() {
   if (badge) badge.style.display='inline-flex';
 }
 
+let _companyTab = 'monitoring';  // 'monitoring' | 'etf'
+
 function pCompany() {
   return `
-  <div style="display:grid;grid-template-columns:320px 1fr;gap:0;min-height:calc(100vh - 56px);align-items:start">
-    <div style="border-right:1px solid var(--border);padding:1.25rem;position:sticky;top:56px;
-      height:calc(100vh - 56px);overflow-y:auto;background:var(--bg2)">
+  <!-- 탭 헤더 -->
+  <div style="display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 1.25rem;background:var(--bg2)">
+    <button class="company-tab ${_companyTab==='monitoring'?'active':''}"
+      data-tab="monitoring" onclick="switchCompanyTab('monitoring')"
+      style="padding:12px 20px;font-size:13px;font-weight:600;background:none;border:none;
+        cursor:pointer;border-bottom:2px solid ${_companyTab==='monitoring'?'var(--tg)':'transparent'};
+        color:${_companyTab==='monitoring'?'var(--text)':'var(--text3)'};margin-bottom:-1px">
+      ⭐ 모니터링 종목
+    </button>
+    <button class="company-tab ${_companyTab==='etf'?'active':''}"
+      data-tab="etf" onclick="switchCompanyTab('etf')"
+      style="padding:12px 20px;font-size:13px;font-weight:600;background:none;border:none;
+        cursor:pointer;border-bottom:2px solid ${_companyTab==='etf'?'var(--tg)':'transparent'};
+        color:${_companyTab==='etf'?'var(--text)':'var(--text3)'};margin-bottom:-1px">
+      🌐 US ETF 매핑
+    </button>
+  </div>
+
+  <!-- 모니터링 탭 -->
+  <div id="company-tab-monitoring" style="display:${_companyTab==='monitoring'?'grid':'none'};
+    grid-template-columns:320px 1fr;gap:0;min-height:calc(100vh - 96px);align-items:start">
+    <div style="border-right:1px solid var(--border);padding:1.25rem;position:sticky;top:96px;
+      height:calc(100vh - 96px);overflow-y:auto;background:var(--bg2)">
       <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:12px">🔍 기업 검색</div>
       <div style="position:relative;margin-bottom:8px">
         <input type="text" id="mon-search" class="form-input"
@@ -70,7 +92,36 @@ function pCompany() {
         <div style="color:var(--text3);font-size:13px;padding:40px;text-align:center"><span class="loading"></span> 로딩 중...</div>
       </div>
     </div>
+
+  <!-- US ETF 매핑 탭 -->
+  <div id="company-tab-etf" style="display:none;padding:1.25rem">
+    <div class="card">
+      <div class="card-header" style="display:flex;align-items:center;gap:8px">
+        <span class="card-title">🌐 US ETF 매핑 관리</span>
+        <span style="font-size:12px;color:var(--text3)">KR 산업별 매칭 ETF/종목 추가·삭제</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div id="etf-map-wrap">
+          <div style="padding:1rem;color:var(--text3);font-size:13px">로딩 중...</div>
+        </div>
+      </div>
+    </div>
   </div>`;
+}
+
+function switchCompanyTab(tab) {
+  _companyTab = tab;
+  const monEl = document.getElementById('company-tab-monitoring');
+  const etfEl = document.getElementById('company-tab-etf');
+  if (monEl) monEl.style.display = tab === 'monitoring' ? 'grid' : 'none';
+  if (etfEl) etfEl.style.display = tab === 'etf'        ? 'block' : 'none';
+  // 탭 버튼 스타일
+  document.querySelectorAll('.company-tab').forEach(btn => {
+    const isActive = btn.dataset.tab === tab;
+    btn.style.borderBottomColor = isActive ? 'var(--tg)' : 'transparent';
+    btn.style.color = isActive ? 'var(--text)' : 'var(--text3)';
+  });
+  if (tab === 'etf') loadEtfMapUI();
 }
 
 // ── 상태 ──────────────────────────────────────
