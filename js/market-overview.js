@@ -1403,7 +1403,6 @@ async function loadUskrChart() {
       }
     }
   });
-}
 
   // canvas 이벤트 재바인딩
   const uskrCanvas = document.getElementById('uskr-chart');
