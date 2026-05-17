@@ -16,6 +16,7 @@ let _companyTab = 'monitoring';  // 'monitoring' | 'etf'
 
 function pCompany() {
   return `
+  <div style="min-height:calc(100vh - 56px)">
   <!-- 탭 헤더 -->
   <div style="display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 1.25rem;background:var(--bg);position:sticky;top:0;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,.3)">
     <button class="company-tab ${_companyTab==='monitoring'?'active':''}"
@@ -106,6 +107,7 @@ function pCompany() {
         </div>
       </div>
     </div>
+  </div>
   </div>`;
 }
 
