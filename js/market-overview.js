@@ -649,18 +649,20 @@ async function loadTrendChart() {
     }
   });
 
-  // ── 클릭으로 라인 하이라이트 ──
-  canvas._invClickBound = false;
-  canvas.addEventListener('click', (e) => {
+  // ── 클릭으로 라인 하이라이트 (이전 핸들러 제거 후 재바인딩) ──
+  if (canvas._invClickHandler) {
+    canvas.removeEventListener('click', canvas._invClickHandler);
+  }
+  canvas._invClickHandler = (e) => {
     const chart = _invTrendChart;
     if (!chart) return;
     const pts = chart.getElementsAtEventForMode(e, 'nearest', { intersect: false }, true);
     const clicked = pts.length ? chart.data.datasets[pts[0].datasetIndex]?.label : null;
-
     // 같은 선 재클릭 → 하이라이트 해제
     window._invHighlighted = (clicked && clicked !== window._invHighlighted) ? clicked : null;
     _applyInvHighlight();
-  });
+  };
+  canvas.addEventListener('click', canvas._invClickHandler);
 }
 
 // 하이라이트 적용 (borderWidth + 투명도)
