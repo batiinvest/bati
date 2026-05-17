@@ -910,12 +910,18 @@ function _applyIndHighlight(label) {
   const chart = _indTrendChart2;
   if (!chart) return;
   chart.data.datasets.forEach((ds, i) => {
-    const active = !label || ds.label === label;
-    ds.borderWidth = active ? 4   : 1.2;
-    ds.pointRadius = active ? 4   : 1;
-    ds.borderColor = active
-      ? (IND_COLORS[ds.label] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length])
-      : (IND_COLORS[ds.label] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length]) + '55';
+    const color = IND_COLORS[ds.label] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length];
+    if (!label) {
+      // 완전 해제 — 기본값 복원
+      ds.borderWidth = 1.5;
+      ds.pointRadius = 2;
+      ds.borderColor = color;
+    } else {
+      const active = ds.label === label;
+      ds.borderWidth = active ? 4   : 1.2;
+      ds.pointRadius = active ? 4   : 1;
+      ds.borderColor = active ? color : color + '55';
+    }
   });
   chart.update('none');
   document.querySelectorAll('.ind-legend-item').forEach(lbl => {
