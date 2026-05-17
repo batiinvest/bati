@@ -17,7 +17,7 @@ let _companyTab = 'monitoring';  // 'monitoring' | 'etf'
 function pCompany() {
   return `
   <!-- 탭 헤더 -->
-  <div style="display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 1.25rem;background:var(--bg2);position:sticky;top:56px;z-index:10">
+  <div style="display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 1.25rem;background:var(--bg);position:sticky;top:0;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,.3)">
     <button class="company-tab ${_companyTab==='monitoring'?'active':''}"
       data-tab="monitoring" onclick="switchCompanyTab('monitoring')"
       style="padding:12px 20px;font-size:13px;font-weight:600;background:none;border:none;
@@ -37,8 +37,8 @@ function pCompany() {
   <!-- 모니터링 탭 -->
   <div id="company-tab-monitoring" style="display:${_companyTab==='monitoring'?'grid':'none'};
     grid-template-columns:320px 1fr;gap:0;min-height:calc(100vh - 96px);align-items:start">
-    <div style="border-right:1px solid var(--border);padding:1.25rem;position:sticky;top:96px;
-      height:calc(100vh - 96px);overflow-y:auto;background:var(--bg2)">
+    <div style="border-right:1px solid var(--border);padding:1.25rem;position:sticky;top:45px;
+      height:calc(100vh - 45px);overflow-y:auto;background:var(--bg2)">
       <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:12px">🔍 기업 검색</div>
       <div style="position:relative;margin-bottom:8px">
         <input type="text" id="mon-search" class="form-input"
