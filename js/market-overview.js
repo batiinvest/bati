@@ -726,31 +726,72 @@ async function loadIndTrendChart() {
   // 산업 목록 (데이터 있는 것만)
   const industries = Object.keys(indDates).sort();
 
-  // 체크박스 렌더
-  const checksEl = document.getElementById('ind-trend-checks');
-  if (checksEl && checksEl.children.length === 0) {
-    checksEl.innerHTML = industries.map((ind, i) => {
-      const color = IND_COLORS[ind] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length];
-      return `<label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:3px 8px;
-        border-radius:100px;border:1px solid var(--border);font-size:12px;user-select:none"
-        id="ind-lbl-${ind}">
-        <input type="checkbox" style="display:none" id="ind-chk-${ind}"
-          onchange="toggleIndTrend('${ind}')" checked>
-        <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></span>
-        <span>${ind}</span>
-      </label>`;
-    }).join('');
-  }
-
-  // 선택된 산업만 필터
-  const selectedInds = industries.filter(ind => {
-    const chk = document.getElementById('ind-chk-' + ind);
-    return chk ? chk.checked : true;
+  // ── 산업별 최종 누적 수익률 계산 (범례 정렬 + 상/하위 필터용) ──
+  const indFinalReturn = {}; // { '반도체': 3.42, ... }
+  industries.forEach(ind => {
+    let cum = 100;
+    dateList.forEach(date => {
+      const chgs = indDates[ind]?.[date];
+      if (chgs?.length) {
+        const avg = chgs.reduce((s,v) => s+v, 0) / chgs.length;
+        cum = cum * (1 + avg / 100);
+      }
+    });
+    indFinalReturn[ind] = parseFloat((cum - 100).toFixed(2));
   });
 
-  // 날짜별 누적 지수 계산 (공통 시작점 100)
-  const datasets = selectedInds.map((ind, i) => {
-    const color = IND_COLORS[ind] || IND_DEFAULT_COLORS[i % IND_DEFAULT_COLORS.length];
+  // 수익률 순으로 정렬된 산업 목록
+  const industriesSorted = [...industries].sort(
+    (a, b) => indFinalReturn[b] - indFinalReturn[a]
+  );
+
+  // ── ② 범례: 수익률 순위 + 수치 표시 (매번 갱신) ──
+  const checksEl = document.getElementById('ind-trend-checks');
+  if (checksEl) {
+    // 기존 범례 태그만 제거 (버튼은 유지)
+    checksEl.querySelectorAll('.ind-legend-item').forEach(el => el.remove());
+
+    // 정렬된 순서로 범례 삽입 (버튼 앞에)
+    const btnGroup = checksEl.querySelector('#btn-top3')?.parentElement;
+    industriesSorted.forEach((ind, i) => {
+      const color = IND_COLORS[ind] || IND_DEFAULT_COLORS[industries.indexOf(ind) % IND_DEFAULT_COLORS.length];
+      const ret   = indFinalReturn[ind];
+      const retColor = ret >= 0 ? 'var(--red)' : 'var(--blue)';
+      const retStr  = (ret >= 0 ? '+' : '') + ret.toFixed(1) + '%';
+      const isChecked = window._indChecked?.[ind] !== false;
+
+      const lbl = document.createElement('label');
+      lbl.className = 'ind-legend-item';
+      lbl.id = 'ind-lbl-' + ind;
+      lbl.style.cssText = `display:flex;align-items:center;gap:5px;cursor:pointer;padding:3px 8px;
+        border-radius:100px;border:1px solid var(--border);font-size:12px;user-select:none;
+        opacity:${isChecked ? '1' : '0.35'};transition:opacity .15s`;
+      lbl.innerHTML = `
+        <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></span>
+        <span>${ind}</span>
+        <span style="font-weight:700;color:${retColor};font-size:11px">${retStr}</span>`;
+      lbl.onclick = () => { window._toggleIndLegend(ind); };
+
+      if (btnGroup) checksEl.insertBefore(lbl, btnGroup);
+      else checksEl.appendChild(lbl);
+    });
+  }
+
+  // ── 필터 모드 적용 ──
+  let selectedInds;
+  const mode = window._indFilterMode || 'all';
+  if (mode === 'top') {
+    selectedInds = industriesSorted.slice(0, 3);
+  } else if (mode === 'bottom') {
+    selectedInds = industriesSorted.slice(-3);
+  } else {
+    selectedInds = industriesSorted.filter(ind => window._indChecked?.[ind] !== false);
+    if (selectedInds.length === 0) selectedInds = [...industriesSorted];
+  }
+
+  // ── 날짜별 누적 지수 계산 (공통 시작점 100) ──
+  const datasets = selectedInds.map((ind) => {
+    const color = IND_COLORS[ind] || IND_DEFAULT_COLORS[industries.indexOf(ind) % IND_DEFAULT_COLORS.length];
     let cumulative = 100;
     let started = false;
     const data = dateList.map(date => {
@@ -762,15 +803,21 @@ async function loadIndTrendChart() {
       }
       return started ? parseFloat(cumulative.toFixed(2)) : null;
     });
+
+    const isHighlighted = window._indHovered === ind;
     return {
       label: ind, data,
-      borderColor: color, backgroundColor: color + '18',
-      borderWidth: 2, pointRadius: 2, tension: 0.3, fill: false,
-      spanGaps: true,
+      borderColor: color,
+      backgroundColor: color + '18',
+      borderWidth: isHighlighted ? 3.5 : 1.5,           // ① 호버 하이라이트
+      pointRadius: isHighlighted ? 4 : 2,
+      pointHoverRadius: 6,
+      tension: 0.3, fill: false, spanGaps: true,
+      borderOpacity: 1,
     };
   });
 
-  // 차트 그리기
+  // ── 차트 그리기 ──
   if (_indTrendChart2) { _indTrendChart2.destroy(); _indTrendChart2 = null; }
   if (!window.Chart) return;
 
@@ -785,8 +832,27 @@ async function loadIndTrendChart() {
         tooltip: {
           backgroundColor: '#1a1d27', titleColor: '#f0f2f8', bodyColor: '#a8adc4',
           callbacks: {
-            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2)}`
+            // 툴팁도 수익률 순 정렬
+            beforeBody: (items) => { items.sort((a,b) => b.parsed.y - a.parsed.y); return []; },
+            label: ctx => {
+              const cur  = ctx.parsed.y;
+              const ret  = cur !== null ? (cur - 100).toFixed(1) : '—';
+              const sign = ret >= 0 ? '+' : '';
+              return ` ${ctx.dataset.label}  ${cur?.toFixed(1)}  (${sign}${ret}%)`;
+            }
           }
+        }
+      },
+      // ① 호버 시 해당 라인 하이라이트
+      onHover: (e, elements) => {
+        if (!elements.length) {
+          if (window._indHovered) { window._indHovered = null; loadIndTrendChart(); }
+          return;
+        }
+        const hovered = datasets[elements[0].datasetIndex]?.label;
+        if (hovered !== window._indHovered) {
+          window._indHovered = hovered;
+          loadIndTrendChart();
         }
       },
       scales: {
@@ -800,6 +866,29 @@ async function loadIndTrendChart() {
   });
 }
 
+// ① 범례 호버 하이라이트 (마우스오버)
+window._indHovered    = null;
+window._indChecked    = {};   // { 반도체: true, ... }
+window._indFilterMode = 'all';
+
+window._toggleIndLegend = function(ind) {
+  if (!window._indChecked) window._indChecked = {};
+  window._indChecked[ind] = window._indChecked[ind] === false ? true : false;
+  const lbl = document.getElementById('ind-lbl-' + ind);
+  if (lbl) lbl.style.opacity = window._indChecked[ind] === false ? '0.35' : '1';
+  loadIndTrendChart();
+};
+
+// ③ 상/하위 필터 버튼
+function filterIndTrend(mode) {
+  window._indFilterMode = mode;
+  ['top','bottom','all'].forEach(m => {
+    const btn = document.getElementById('btn-' + (m === 'all' ? 'all' : m === 'top' ? 'top3' : 'bot3'));
+    if (btn) btn.classList.toggle('active', m === mode);
+  });
+  loadIndTrendChart();
+}
+
 function setIndTrendPeriod(period) {
   _indTrendPeriod = period;
   document.querySelectorAll('[data-ind-period]').forEach(b =>
@@ -808,7 +897,5 @@ function setIndTrendPeriod(period) {
 }
 
 function toggleIndTrend(ind) {
-  const lbl = document.getElementById('ind-lbl-' + ind);
-  if (lbl) lbl.style.opacity = document.getElementById('ind-chk-' + ind)?.checked ? '1' : '0.4';
-  loadIndTrendChart();
+  window._toggleIndLegend(ind);
 }

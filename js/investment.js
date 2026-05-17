@@ -112,7 +112,18 @@ function pInvestment() {
           `).join('')}
         </div>
       </div>
-      <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:6px" id="ind-trend-checks"></div>
+      <!-- ② 수익률 순위 범례 -->
+      <div style="padding:.5rem 1rem .25rem;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:6px;align-items:center" id="ind-trend-checks">
+        <!-- 상/하위 버튼 -->
+        <div style="display:flex;gap:4px;margin-left:auto;flex-shrink:0">
+          <button class="chip" id="btn-top3" onclick="filterIndTrend('top')"
+            style="font-size:11px;padding:2px 8px">▲ 상위3</button>
+          <button class="chip" id="btn-bot3" onclick="filterIndTrend('bottom')"
+            style="font-size:11px;padding:2px 8px">▼ 하위3</button>
+          <button class="chip active" id="btn-all" onclick="filterIndTrend('all')"
+            style="font-size:11px;padding:2px 8px">전체</button>
+        </div>
+      </div>
       <div style="padding:1rem;position:relative;height:300px">
         <canvas id="ind-trend-chart"></canvas>
       </div>
