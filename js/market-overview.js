@@ -558,6 +558,22 @@ function toggleInvMetric(col) {
   loadTrendChart();
 }
 
+// 그룹 일괄 선택
+function selectInvGroup(group) {
+  INV_ALL_METRICS.forEach(m => {
+    const chk = document.getElementById('inv-chk-' + m.col);
+    if (!chk) return;
+    const on = group === '' ? false : m.group === group;
+    if (chk.checked !== on) {
+      chk.checked = on;
+      if (on) INV.selected.add(m.col);
+      else    INV.selected.delete(m.col);
+    }
+  });
+  initInvCheckboxStyles();
+  loadTrendChart();
+}
+
 function setInvPeriod(period) {
   INV.period = period;
   document.querySelectorAll('[data-inv-period]').forEach(b =>
