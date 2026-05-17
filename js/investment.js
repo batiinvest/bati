@@ -183,6 +183,14 @@ function pInvestment() {
             style="font-size:12px;padding:3px 10px">${ind}</button>
         `).join('')}
       </div>
+      <!-- 모드 전환 버튼 -->
+      <div style="padding:.4rem 1rem;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center">
+        <span style="font-size:11px;color:var(--text3)">표시 방식</span>
+        <button class="chip active" id="uskr-mode-avg" onclick="setUskrMode('avg')"
+          style="font-size:11px;padding:2px 8px">KR vs US 평균</button>
+        <button class="chip" id="uskr-mode-all" onclick="setUskrMode('all')"
+          style="font-size:11px;padding:2px 8px">KR + 개별 ETF 전체</button>
+      </div>
       <div style="padding:1rem;position:relative;height:320px">
         <canvas id="uskr-chart"></canvas>
       </div>

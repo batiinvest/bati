@@ -448,6 +448,7 @@ async function loadMarketOverview(maxDate) {
 
   // 산업별 흐름 비교 차트 로드 → 완료 후 US vs KR 차트 로드 (_krIndDates 의존)
   await loadIndTrendChart();
+  loadUsEtfBanner();
   loadUskrChart();
 }
 
@@ -540,33 +541,53 @@ async function loadMacroData() {
       ].filter(s => s && s !== sep).join(sep) +
       '</div>';
 
-  // ── US ETF 배너 ──
-  const etfBanner = document.getElementById('inv-etf-banner');
-  if (etfBanner) {
-    const ETF_LABELS = [
-      { col:'etf_xlk',  name:'XLK 테크' },
-      { col:'etf_xlv',  name:'XLV 헬스' },
-      { col:'etf_xlf',  name:'XLF 금융' },
-      { col:'etf_xle',  name:'XLE 에너지' },
-      { col:'etf_xli',  name:'XLI 산업재' },
-      { col:'etf_xly',  name:'XLY 소비재' },
-      { col:'etf_xlp',  name:'XLP 필수소비' },
-      { col:'etf_xlc',  name:'XLC 통신' },
-      { col:'etf_xlb',  name:'XLB 소재' },
-      { col:'etf_xlre', name:'XLRE 부동산' },
-      { col:'etf_xlu',  name:'XLU 유틸' },
-    ];
-    etfBanner.innerHTML =
-      '<span style="font-size:10px;color:var(--text3);flex-shrink:0">🇺🇸 ETF</span>' +
-      sep +
-      ETF_LABELS.map(e => mkB(e.name, m[e.col], m[e.col + '_chg']))
-        .filter(s => s && s !== sep).join(sep) +
-      '</div>';
-    // 래핑 div가 mkB 내부에 없으므로 전체를 flex 컨테이너로
-    etfBanner.style.overflowX = 'auto';
-  }
   }  // end if (m)
 }  // end loadMacroData
+
+// ── US ETF 배너: us_market 테이블에서 최신 산업별 평균 등락률 조회 ──
+async function loadUsEtfBanner() {
+  const etfBanner = document.getElementById('inv-etf-banner');
+  if (!etfBanner) return;
+
+  // 최근 거래일 2일치 조회 (최신 날짜 특정용)
+  const { data: rows } = await sb.from('us_market')
+    .select('base_date,industry,ticker,chg_pct')
+    .order('base_date', { ascending: false })
+    .limit(500);
+  if (!rows?.length) return;
+
+  // 최신 날짜 확인
+  const latestDate = rows[0].base_date;
+  const latest = rows.filter(r => r.base_date === latestDate);
+
+  // 산업별 ETF 평균 등락률 계산
+  const indAvg = {};
+  const inds = Object.keys(USKR_MAP);
+  inds.forEach(ind => {
+    const tickers = USKR_MAP[ind];
+    const vals = latest
+      .filter(r => r.industry === ind && tickers.includes(r.ticker) && r.chg_pct != null)
+      .map(r => r.chg_pct);
+    if (vals.length) indAvg[ind] = vals.reduce((s,v)=>s+v,0)/vals.length;
+  });
+
+  // 상승률 내림차순 정렬
+  const sorted = Object.entries(indAvg).sort((a,b) => b[1]-a[1]);
+
+  const sep = '<span style="color:rgba(255,255,255,.2)">|</span>';
+  const fmt = v => {
+    const s = v >= 0 ? '+' : '';
+    const c = v >= 0 ? 'var(--red)' : 'var(--blue)';
+    return `<span style="font-weight:600;color:${c}">${s}${v.toFixed(2)}%</span>`;
+  };
+
+  etfBanner.innerHTML = sorted.map(([ind, avg]) =>
+    `<span style="display:flex;align-items:center;gap:4px;white-space:nowrap">
+      <span style="font-size:11px;color:var(--text3)">${ind}</span>
+      ${fmt(avg)}
+    </span>`
+  ).join(sep);
+}
 
 function toggleInvMetric(col) {
   if (INV.selected.has(col)) {
@@ -1102,18 +1123,19 @@ function toggleIndTrend(ind) {
 // ══════════════════════════════════════════════════════════════
 
 // KR 산업 → US ETF 대응
+// 산업별 ETF 목록 (us_market 테이블 ticker 기준)
 const USKR_MAP = {
-  '반도체': { col:'etf_xlk',  name:'XLK 테크',    color:'#2AABEE' },
-  '바이오': { col:'etf_xlv',  name:'XLV 헬스케어', color:'#2AABEE' },
-  '소비재': { col:'etf_xly',  name:'XLY 소비재',   color:'#2AABEE' },
-  '로봇':   { col:'etf_xli',  name:'XLI 산업재',   color:'#2AABEE' },
-  '2차전지':{ col:'etf_xlb',  name:'XLB 소재',     color:'#2AABEE' },
-  '엔터':   { col:'etf_xlc',  name:'XLC 통신',     color:'#2AABEE' },
-  '조선':   { col:'etf_xli',  name:'XLI 산업재',   color:'#2AABEE' },
-  '테크':   { col:'etf_xlk',  name:'XLK 테크',     color:'#2AABEE' },
-  '뷰티':   { col:'etf_xlp',  name:'XLP 필수소비', color:'#2AABEE' },
-  '신재생': { col:'etf_xle',  name:'XLE 에너지',   color:'#2AABEE' },
-  '우주':   { col:'etf_xli',  name:'XLI 산업재',   color:'#2AABEE' },
+  '반도체': ['SOXX','SMH','XSD'],
+  '바이오': ['IBB','XBI','ARKG'],
+  '로봇':   ['BOTZ','ROBO'],
+  '우주':   ['ARKX','UFO','ROKT'],
+  '2차전지':['LIT','BATT','DRIV'],
+  '소비재': ['XLY','ONLN','RTH'],
+  '엔터':   ['XLC','PEJ','HERO','BNGE'],
+  '조선':   ['BOAT','SEA','BDRY'],
+  '테크':   ['VGT','XLK','IYW'],
+  '뷰티':   ['RTH','ONLN'],
+  '신재생': ['ICLN','QCLN','PBW','RNRG','FAN','TAN'],
 };
 
 const KR_IND_COLORS = {
@@ -1123,9 +1145,9 @@ const KR_IND_COLORS = {
 };
 
 let _uskrChart = null;
-let _uskrPeriod = 7;
-
-let _uskrSelected = '반도체';  // 현재 선택 산업
+let _uskrPeriod   = 7;
+let _uskrSelected = '반도체';
+let _uskrMode     = 'avg';   // 'avg' = KR평균 vs US평균, 'all' = KR평균 + 전체 ETF
 
 function selectUskrInd(ind) {
   _uskrSelected = ind;
@@ -1134,78 +1156,117 @@ function selectUskrInd(ind) {
   loadUskrChart();
 }
 
+function setUskrMode(mode) {
+  _uskrMode = mode;
+  document.getElementById('uskr-mode-avg')?.classList.toggle('active', mode === 'avg');
+  document.getElementById('uskr-mode-all')?.classList.toggle('active', mode === 'all');
+  loadUskrChart();
+}
+
 async function loadUskrChart() {
   const canvas = document.getElementById('uskr-chart');
   if (!canvas) return;
 
-  const ind = _uskrSelected;
-  const etf  = USKR_MAP[ind];
-  if (!etf) return;
+  const ind     = _uskrSelected;
+  const tickers = USKR_MAP[ind];
+  if (!tickers) return;
+  const krColor = KR_IND_COLORS[ind] || '#2dce89';
 
   // 날짜 범위
-  const today = new Date();
-  const from  = new Date(today);
-  from.setDate(today.getDate() - _uskrPeriod - 10);
+  const from = new Date();
+  from.setDate(from.getDate() - _uskrPeriod - 10);
   const fromStr = from.toISOString().split('T')[0];
 
-  // ── KR: loadIndTrendChart()에서 이미 집계된 데이터 재활용 ──
-  const krIndDates = window._krIndDates || {};
-  const krDates = krIndDates[ind] || {};  // { 'YYYY-MM-DD': [chg, ...] }
+  // ── KR: _krIndDates 재활용 ──
+  const krDates = (window._krIndDates || {})[ind] || {};
 
-  // ── US: macro_data 해당 ETF 가격 ──
-  const { data: macroRows } = await sb.from('macro_data')
-    .select(`base_date,${etf.col}`)
+  // ── US: us_market 테이블에서 해당 산업 ETF 조회 ──
+  const { data: usRows } = await sb.from('us_market')
+    .select('base_date,ticker,close,chg_pct')
+    .eq('industry', ind)
+    .in('ticker', tickers)
     .gte('base_date', fromStr)
     .order('base_date', { ascending: true });
 
-  // ── 공통 날짜 목록 ──
+  // 날짜 목록 구성
   const dateSet = new Set();
   Object.keys(krDates).forEach(d => dateSet.add(d));
-  (macroRows || []).forEach(r => { if (r[etf.col] != null) dateSet.add(r.base_date); });
+  (usRows || []).forEach(r => dateSet.add(r.base_date));
   const dateList = [...dateSet].sort().slice(-_uskrPeriod);
 
-  // ── datasets: KR 실선 + US 점선 ──
-  const krColor  = KR_IND_COLORS[ind] || '#2dce89';
-  const usColor  = etf.color;
+  // ── KR 누적 지수 ──
+  const makeKrData = () => {
+    let cum = 100, started = false;
+    return dateList.map(date => {
+      const chgs = krDates[date];
+      if (chgs?.length) { started = true; cum *= (1 + chgs.reduce((s,v)=>s+v,0)/chgs.length/100); }
+      return started ? parseFloat(cum.toFixed(2)) : null;
+    });
+  };
 
-  // KR 누적 지수
-  let cum = 100, started = false;
-  const krData = dateList.map(date => {
-    const chgs = krDates[date];
-    if (chgs?.length) {
-      started = true;
-      cum = cum * (1 + chgs.reduce((s,v)=>s+v,0)/chgs.length/100);
-    }
-    return started ? parseFloat(cum.toFixed(2)) : null;
+  // ── US 누적 지수 빌더 ──
+  const makeUsData = (tickerRows) => {
+    let base = null;
+    return dateList.map(date => {
+      const r = tickerRows.find(x => x.base_date === date);
+      if (r?.close != null) {
+        if (base === null) base = r.close;
+        return parseFloat((r.close / base * 100).toFixed(2));
+      }
+      return null;
+    });
+  };
+
+  // ── ETF 색상 팔레트 ──
+  const ETF_COLORS = ['#2AABEE','#4ade80','#fb923c','#a78bfa','#f472b6',
+                      '#34d399','#60a5fa','#fbbf24','#f87171','#67e8f9','#c084fc','#86efac'];
+
+  const datasets = [];
+
+  // KR 평균 (항상 표시)
+  datasets.push({
+    label: `🇰🇷 KR ${ind}`,
+    data: makeKrData(),
+    borderColor: krColor, backgroundColor: krColor + '22',
+    borderWidth: 3, pointRadius: 3, tension: 0.3,
+    fill: false, spanGaps: true,
   });
 
-  // US 누적 지수
-  let base = null;
-  const usData = dateList.map(date => {
-    const row = (macroRows || []).find(r => r.base_date === date);
-    const val = row?.[etf.col];
-    if (val != null) {
-      if (base === null) base = val;
-      return parseFloat((val / base * 100).toFixed(2));
-    }
-    return null;
-  });
-
-  const datasets = [
-    {
-      label: `🇰🇷 KR ${ind}`, data: krData,
-      borderColor: krColor, backgroundColor: krColor + '22',
-      borderWidth: 3, pointRadius: 3, tension: 0.3,
-      fill: false, spanGaps: true,
-    },
-    {
-      label: `🇺🇸 US ${etf.name}`, data: usData,
-      borderColor: usColor, backgroundColor: usColor + '22',
+  if (_uskrMode === 'avg') {
+    // US ETF 평균 (단일 선)
+    const avgData = dateList.map(date => {
+      const vals = (usRows || [])
+        .filter(r => r.base_date === date && r.close != null)
+        .map(r => r.close);
+      return vals.length ? vals.reduce((s,v)=>s+v,0)/vals.length : null;
+    });
+    // 정규화 (첫 유효값 = 100)
+    let base = null;
+    const normAvg = avgData.map(v => {
+      if (v != null) { if (base===null) base=v; return parseFloat((v/base*100).toFixed(2)); }
+      return null;
+    });
+    datasets.push({
+      label: `🇺🇸 US ${ind} 평균(${tickers.length}개)`,
+      data: normAvg,
+      borderColor: '#2AABEE', backgroundColor: '#2AABEE22',
       borderWidth: 2, pointRadius: 3, tension: 0.3,
-      borderDash: [8, 4],
-      fill: false, spanGaps: true,
-    },
-  ];
+      borderDash: [8, 4], fill: false, spanGaps: true,
+    });
+  } else {
+    // 개별 ETF 전체 표시
+    tickers.forEach((ticker, i) => {
+      const tickerRows = (usRows || []).filter(r => r.ticker === ticker);
+      const color = ETF_COLORS[i % ETF_COLORS.length];
+      datasets.push({
+        label: `🇺🇸 ${ticker}`,
+        data: makeUsData(tickerRows),
+        borderColor: color, backgroundColor: color + '22',
+        borderWidth: 1.5, pointRadius: 2, tension: 0.3,
+        borderDash: [5, 3], fill: false, spanGaps: true,
+      });
+    });
+  }
 
   // ── 차트 그리기 ──
   if (_uskrChart) { _uskrChart.destroy(); _uskrChart = null; }
@@ -1218,11 +1279,8 @@ async function loadUskrChart() {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: {
-          display: true,
-          position: 'top',
-          labels: { color: '#a8adc4', font: { size: 11 }, boxWidth: 24, padding: 10 }
-        },
+        legend: { display: true, position: 'top',
+          labels: { color: '#a8adc4', font: { size: 11 }, boxWidth: 24, padding: 8 } },
         tooltip: {
           backgroundColor: '#1a1d27', titleColor: '#f0f2f8', bodyColor: '#a8adc4',
           callbacks: {
@@ -1230,8 +1288,7 @@ async function loadUskrChart() {
               const v = ctx.parsed.y;
               if (v == null) return '';
               const ret = (v - 100).toFixed(1);
-              const sign = ret >= 0 ? '+' : '';
-              return ` ${ctx.dataset.label}  ${v.toFixed(1)}  (${sign}${ret}%)`;
+              return ` ${ctx.dataset.label}  (${ret >= 0 ? '+' : ''}${ret}%)`;
             }
           }
         }
