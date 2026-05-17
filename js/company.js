@@ -98,9 +98,22 @@ function pCompany() {
   <!-- US ETF 매핑 탭 -->
   <div id="company-tab-etf" style="display:none;padding:1.25rem">
     <div class="card">
-      <div class="card-header" style="display:flex;align-items:center;gap:8px">
+      <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span class="card-title">🌐 US ETF 매핑 관리</span>
         <span style="font-size:12px;color:var(--text3)">KR 산업별 매칭 ETF/종목 추가·삭제</span>
+        <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+          <span id="etf-dirty-badge" style="display:none;align-items:center;gap:4px;
+            font-size:11px;padding:3px 8px;border-radius:100px;
+            background:rgba(255,193,7,0.15);color:#ffc107;border:1px solid rgba(255,193,7,0.3)">
+            ● 미적용 변경사항
+          </span>
+          <button id="etf-apply-btn" onclick="etfApply()"
+            style="font-size:12px;font-weight:700;padding:6px 16px;border-radius:6px;
+              border:none;cursor:pointer;background:var(--tg);color:#fff;
+              opacity:0.4;transition:opacity .2s" disabled>
+            ✅ 데이터 수집 적용
+          </button>
+        </div>
       </div>
       <div class="card-body" style="padding:0">
         <div id="etf-map-wrap">
@@ -659,6 +672,7 @@ async function addEtfTicker(ind) {
 
   if (window.USKR_MAP?.[ind] && !window.USKR_MAP[ind].includes(ticker))
     window.USKR_MAP[ind].push(ticker);
+  _etfMarkDirty();
   toast(ind + ' ← ' + ticker + ' 추가됨', 'success');
   loadEtfMapUI();
 }
@@ -673,6 +687,52 @@ async function removeEtfTicker(ind, ticker) {
 
   if (window.USKR_MAP?.[ind])
     window.USKR_MAP[ind] = window.USKR_MAP[ind].filter(t => t !== ticker);
+  _etfMarkDirty();
   toast(ind + ' ← ' + ticker + ' 제거됨', 'info');
   loadEtfMapUI();
+}
+
+
+function _etfMarkDirty() {
+  const badge = document.getElementById('etf-dirty-badge');
+  const btn   = document.getElementById('etf-apply-btn');
+  if (badge) { badge.style.display = 'flex'; badge.innerHTML = '● 미적용 변경사항'; }
+  if (btn)   { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = '✅ 데이터 수집 적용'; }
+}
+
+async function etfApply() {
+  const btn   = document.getElementById('etf-apply-btn');
+  const badge = document.getElementById('etf-dirty-badge');
+
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 적용 중...'; btn.style.opacity = '1'; }
+  if (badge) badge.innerHTML = '⏳ 수집 트리거 중...';
+
+  try {
+    // collect_us_etf 수집 트리거
+    await sb.from('app_config').upsert({
+      key: 'etf_collect_flag',
+      value: String(Date.now()),
+      description: 'US ETF 데이터 수집 트리거 - 대시보드'
+    }, { onConflict: 'key' });
+
+    toast('📡 US ETF 수집 트리거 완료 — 약 1분 후 데이터가 갱신됩니다', 'success');
+
+    // 카운트다운
+    let sec = 60;
+    const timer = setInterval(() => {
+      sec--;
+      if (btn) btn.textContent = `⏳ 수집 중 (${sec}초)`;
+      if (sec <= 0) {
+        clearInterval(timer);
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = '✅ 데이터 수집 적용'; }
+        if (badge) { badge.style.display = 'none'; }
+        toast('✅ US ETF 데이터 수집 완료', 'success');
+      }
+    }, 1000);
+
+  } catch(e) {
+    toast('❌ 트리거 실패: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = '✅ 데이터 수집 적용'; }
+    if (badge) badge.innerHTML = '● 미적용 변경사항';
+  }
 }
