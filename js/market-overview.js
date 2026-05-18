@@ -520,7 +520,8 @@ async function loadNewHighStocks() {
 
 function _groupHgpr(rows) {
   return {
-    w52:  rows.filter(r => r.new_hgpr_code === '1'),
+    // '1'=52주 신고가 갱신, '0'=신고가 근접 — 모두 52주 탭에 표시
+    w52:  rows.filter(r => r.new_hgpr_code === '1' || r.new_hgpr_code === '0'),
     yr:   rows.filter(r => r.new_hgpr_code === '2'),
     hist: rows.filter(r => r.new_hgpr_code === '3'),
   };
@@ -546,8 +547,8 @@ function renderHgprTab(tab) {
   const all   = _hgprData[tab] || [];
   const shown = _hgprExpanded ? all : all.slice(0, HGPR_PAGE);
 
-  const clsColor = { '1':'var(--tg)', '2':'#fb923c', '3':'#f5a623' };
-  const clsLabel = { '1':'52주', '2':'연간', '3':'역사적' };
+  const clsColor = { '0':'var(--text3)', '1':'var(--tg)', '2':'#fb923c', '3':'#f5a623' };
+  const clsLabel = { '0':'근접', '1':'52주', '2':'연간', '3':'역사적' };
 
   if (!shown.length) {
     body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">해당 신고가 종목 없음</div>';
