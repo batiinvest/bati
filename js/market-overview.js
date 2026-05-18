@@ -479,8 +479,9 @@ async function loadNewHighStocks() {
   const body = document.getElementById('hgpr-body');
   if (!body) return;
 
-  // 오늘 날짜
-  const today = new Date().toISOString().split('T')[0];
+  // 오늘 날짜 (KST 기준 — UTC+9)
+  const _kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const today = _kst.toISOString().split('T')[0];
 
   const { data: rows, error } = await sb.from('market_data')
     .select('stock_code,corp_name,price,price_change_rate,market_cap,new_hgpr_cls,new_hgpr_code')
@@ -557,15 +558,15 @@ function renderHgprTab(tab) {
 
   const rows_html = shown.map(r => {
     const chg    = r.price_change_rate;
-    const chgStr = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
-    const chgClr = chg >= 0 ? 'var(--red)' : 'var(--blue)';
+    const chgTxt = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
+    const chgClr = chg != null && chg >= 0 ? 'var(--red)' : 'var(--blue)';
     const cap    = r.market_cap ? fmtCap(r.market_cap) : '—';
     const badge  = clsLabel[r.new_hgpr_code] || '';
     const bClr   = clsColor[r.new_hgpr_code] || 'var(--tg)';
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:6px 12px;font-weight:500;font-size:13px">${r.corp_name || r.stock_code}</td>
       <td style="padding:6px 12px;text-align:right;font-weight:500">${r.price ? r.price.toLocaleString() + '원' : '—'}</td>
-      <td style="padding:6px 12px;text-align:right;color:${chgClr};font-weight:500">${chgStr}</td>
+      <td style="padding:6px 12px;text-align:right;color:${chgClr};font-weight:500">${chgTxt}</td>
       <td style="padding:6px 12px;text-align:right;color:var(--text3);font-size:12px">${cap}</td>
       <td style="padding:6px 12px;text-align:center">
         <span style="font-size:10px;padding:1px 6px;border-radius:3px;
