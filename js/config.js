@@ -72,8 +72,12 @@ const A = {
 
 const isAdmin  = () => A.profile?.role === 'admin';
 const isEditor = () => ['admin','editor'].includes(A.profile?.role);
+const isViewer = () => !isEditor();  // viewer 또는 미설정
 const canEdit  = () => isEditor();
 const canDel   = () => isAdmin();
+// viewer가 접근 가능한 페이지
+const VIEWER_PAGES = ['investment'];
+const canAccess = (page) => isEditor() || VIEWER_PAGES.includes(page);
 
 // ══════════════════════════════════════════
 //  AUTH

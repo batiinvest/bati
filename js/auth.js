@@ -56,6 +56,15 @@ async function doSignup() {
     console.log('[signup] data:', data, 'error:', error);
     if (error) throw error;
 
+    // app_users에 viewer role로 등록
+    if (data?.user?.id) {
+      await sb.from('app_users').upsert({
+        id:   data.user.id,
+        name: name,
+        role: 'viewer',
+      }, { onConflict: 'id' });
+    }
+
     err.style.color = 'var(--green)';
     err.textContent = '가입 완료! 바로 로그인해주세요.';
     err.classList.remove('hidden');
@@ -148,8 +157,21 @@ function showDashboard() {
     document.getElementById('nav-settings').classList.add('disabled');
     document.getElementById('nav-team').classList.add('disabled');
   }
-  // viewer는 공지/추가 버튼 숨김
-  if (!canEdit()) {
+  // viewer는 오늘의 시황 외 모든 메뉴 잠금
+  if (isViewer()) {
+    document.querySelectorAll('.nav-item[data-page]').forEach(el => {
+      const page = el.dataset.page;
+      if (!VIEWER_PAGES.includes(page)) {
+        el.classList.add('disabled');
+        el.title = '관리자 승인 후 이용 가능합니다';
+      }
+    });
+    // 상단 버튼 전체 숨김
+    ['btn-notice','btn-add','sync-btn'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    });
+  } else if (!canEdit()) {
     document.getElementById('btn-notice').classList.add('hidden');
     document.getElementById('btn-add').classList.add('hidden');
     document.getElementById('sync-btn').classList.add('hidden');

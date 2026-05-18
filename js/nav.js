@@ -2,6 +2,11 @@
 // 페이지 타이틀·함수명은 pages.js의 PAGE_META를 단일 소스로 참조
 
 function go(page) {
+  // viewer 접근 제한
+  if (typeof canAccess === 'function' && !canAccess(page)) {
+    toast('접근 권한이 없습니다. 관리자에게 문의하세요.', 'error');
+    return;
+  }
   A.page = page;
   closeSidebar();
   document.querySelectorAll('.nav-item').forEach(el =>
