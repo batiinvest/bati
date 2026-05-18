@@ -137,6 +137,17 @@ async function _loadTabData(el, config) {
   );
 }
 
+function initFinancials() {
+  // 페이지 진입 시 검색어·필터 초기화
+  F.q        = '';
+  F.mode     = 'market';
+  F.scope    = 'monitored';
+  F.industry = '전체';
+  F.sortBy   = 'market_cap';
+  F.sortDir  = 'desc';
+  loadFinancials();
+}
+
 async function loadFinancials() {
   const el = document.getElementById('fin-table');
   if (!el) return;
