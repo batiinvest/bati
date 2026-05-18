@@ -355,7 +355,7 @@ async function runComparison() {
     // 재무 데이터 조회
     const finRows = await fetchAllPages(
       sb.from('financials')
-        .select('stock_code,corp_name,bsns_year,quarter,fs_div,' + CMP_METRICS.map(m=>m.key).join(','))
+        .select('stock_code,corp_name,bsns_year,quarter,fs_div,' + CMP_METRICS.filter(m=>m.key!=='fcf').map(m=>m.key).join(','))
         .in('stock_code', codes)
         .eq('fs_div', 'CFS')
         .order('bsns_year', { ascending: false })
@@ -780,8 +780,10 @@ async function fetchCmpMetricAndRender(metricKey, canvas, labels, metaDef) {
   const codes = CMP.selectedCodes.map(s => s.code);
 
   // fetchAllPages 대신 직접 쿼리 (정렬+range 충돌 방지)
+  // fcf는 DB 컬럼 없음 — operating_cashflow로 대체 조회 후 JS에서 계산
+  const dbKey = metricKey === 'fcf' ? 'operating_cashflow' : metricKey;
   const { data: rows } = await sb.from('financials')
-    .select(`stock_code,bsns_year,quarter,${metricKey}`)
+    .select(`stock_code,bsns_year,quarter,${dbKey}`)
     .in('stock_code', codes)
     .eq('fs_div', 'CFS')
     .order('bsns_year', { ascending: true })
@@ -792,7 +794,9 @@ async function fetchCmpMetricAndRender(metricKey, canvas, labels, metaDef) {
   codes.forEach(c => { stockMap[c] = {}; });
   (rows || []).forEach(r => {
     if (stockMap[r.stock_code]) {
-      stockMap[r.stock_code][`${r.bsns_year} ${r.quarter}`] = r[metricKey];
+      // fcf는 operating_cashflow 값 사용 (capex 데이터 없음)
+      const val = metricKey === 'fcf' ? r['operating_cashflow'] : r[metricKey];
+      stockMap[r.stock_code][`${r.bsns_year} ${r.quarter}`] = val;
     }
   });
 
