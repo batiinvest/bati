@@ -690,8 +690,8 @@ function renderCmpDetailTable(metricKey) {
           ${labels.map(lbl => `
             <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text3);
               border-bottom:1px solid var(--border);white-space:nowrap">${lbl}</th>
-          <th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);white-space:nowrap">추이(Sparkline)</th>
           `).join('')}
+          <th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);white-space:nowrap;min-width:90px">추이</th>
         </tr>
       </thead>
       <tbody>
@@ -737,29 +737,46 @@ function renderCmpDetailTable(metricKey) {
 // ── Sparkline 렌더링 (renderCmpDetailTable 호출 후) ──
 function _drawSparklines(metricKey) {
   requestAnimationFrame(() => {
-    CMP.selectedCodes.forEach(s => {
+    const map = window._cmpStockDataMap || {};
+    const sparkKey = metricKey === 'fcf' ? 'operating_cashflow' : metricKey;
+
+    CMP.selectedCodes.forEach((s, si) => {
       const canvas = document.getElementById(`spark-${s.code}-${metricKey}`);
       if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      const rows = (window._cmpStockDataMap?.[s.code] || []).slice(0, parseInt(CMP.period)).reverse();
-      const vals = rows.map(r => r[metricKey]).filter(v => v != null);
+
+      // stockDataMap 키: financials.stock_code 형태 (s.code와 동일해야 함)
+      // 최신→과거 순으로 저장되어 있으므로 reverse()로 오름차순 변환
+      const allRows = map[s.code] || [];
+      const rows = allRows.slice(0, parseInt(CMP.period)).reverse();
+      const vals = rows.map(r => r[sparkKey]).filter(v => v != null && !isNaN(v));
       if (vals.length < 2) return;
+
       const min = Math.min(...vals), max = Math.max(...vals);
       const w = canvas.width, h = canvas.height;
-      ctx.clearRect(0,0,w,h);
-      ctx.strokeStyle = CMP_COLORS[CMP.selectedCodes.indexOf(s) % CMP_COLORS.length];
+      const color = CMP_COLORS[si % CMP_COLORS.length];
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, w, h);
+
+      // 선 그리기
+      ctx.strokeStyle = color;
       ctx.lineWidth = 1.5;
+      ctx.lineJoin = 'round';
       ctx.beginPath();
       vals.forEach((v, i) => {
-        const x = (i / (vals.length-1)) * w;
-        const y = max === min ? h/2 : h - ((v-min)/(max-min)) * (h-4) - 2;
-        i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+        const x = vals.length === 1 ? w/2 : (i / (vals.length - 1)) * (w - 4) + 2;
+        const y = max === min ? h / 2 : h - ((v - min) / (max - min)) * (h - 6) - 3;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
       });
       ctx.stroke();
+
       // 마지막 점
-      const lastX = w, lastY = max===min ? h/2 : h-((vals[vals.length-1]-min)/(max-min))*(h-4)-2;
-      ctx.fillStyle = CMP_COLORS[CMP.selectedCodes.indexOf(s) % CMP_COLORS.length];
-      ctx.beginPath(); ctx.arc(lastX, lastY, 2.5, 0, Math.PI*2); ctx.fill();
+      const lx = vals.length === 1 ? w/2 : (w - 4) + 2;
+      const lv = vals[vals.length - 1];
+      const ly = max === min ? h/2 : h - ((lv - min) / (max - min)) * (h - 6) - 3;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(lx, ly, 2.5, 0, Math.PI * 2);
+      ctx.fill();
     });
   });
 }
