@@ -7,6 +7,7 @@ const CMP = {
   industry: '',        // 산업 필터 ('' = 전체)
   metric: 'revenue',  // 선택된 지표
   period: '8',         // 표시 분기 수
+  normalize: false,    // 정규화 차트 (100 기준)
 };
 
 const CMP_METRICS = [
@@ -19,6 +20,8 @@ const CMP_METRICS = [
   { key: 'debt_ratio',         label: '부채비율',    unit: '%',  scale: 1,   chartType: 'line' },
   { key: 'total_assets',       label: '자산총계',    unit: '억', scale: 1e8, chartType: 'bar'  },
   { key: 'operating_cashflow', label: '영업현금흐름', unit: '억', scale: 1e8, chartType: 'bar'  },
+  { key: 'fcf',                label: 'FCF',          unit: '억', scale: 1e8, chartType: 'bar'  },
+  { key: 'gross_profit',       label: '매출총이익',   unit: '억', scale: 1e8, chartType: 'bar'  },
 ];
 
 // Chart.js 색상 팔레트
@@ -376,6 +379,8 @@ async function runComparison() {
     const stockDataMap = {};
     codes.forEach(code => { stockDataMap[code] = []; });
     finRows.forEach(r => {
+      // FCF 근사: 영업현금흐름 (capex 데이터 없으므로 보수적 근사)
+      r.fcf = r.operating_cashflow ?? null;
       if (stockDataMap[r.stock_code]) {
         stockDataMap[r.stock_code].push(r);
       }
@@ -417,14 +422,15 @@ async function runComparison() {
       };
     });
 
-    // 주가 동향 (이동평균) 계산
+    // 주가 동향 (이동평균 + 52주 고/저) 계산
     const maData = {};
+    const weekData = {};   // 52주 고/저
     for (const s of CMP.selectedCodes) {
       const { data: priceRows } = await sb.from('market_data')
         .select('base_date,price,price_change_rate')
         .eq('stock_code', s.code)
         .order('base_date', { ascending: false })
-        .limit(60);
+        .limit(252);   // 52주(약 252 거래일)
       if (priceRows?.length) {
         const prices = priceRows.map(r => r.price).filter(Boolean);
         const latest = priceRows[0];
@@ -438,7 +444,17 @@ async function runComparison() {
           ma20: Math.round(ma20),
           ma60: Math.round(ma60),
         };
+        // 52주 고/저
+        const high52 = Math.max(...prices);
+        const low52  = Math.min(...prices);
+        weekData[s.code] = { high: high52, low: low52 };
       }
+    }
+    // 모니터링 set 준비
+    if (!A.monitoredSet) {
+      const { data: monRows } = await sb.from('companies')
+        .select('code').eq('is_monitored', true);
+      A.monitoredSet = new Set((monRows||[]).map(r => r.code.replace(/\.(KS|KQ)$/, '')));
     }
 
     // 결과 렌더링
@@ -462,19 +478,36 @@ async function runComparison() {
                 <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">시총</th>
                 <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">PER</th>
                 <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">PBR</th>
+                <th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">52주 위치</th>
+                <th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">액션</th>
               </tr>
             </thead>
             <tbody>
               ${CMP.selectedCodes.map((s, i) => {
                 const ma = maData[s.code];
                 const mkt = mktMap[s.code];
+                const w52 = weekData[s.code];
                 const color = CMP_COLORS[i % CMP_COLORS.length];
-                if (!ma && !mkt) return `<tr><td colspan="9" style="padding:8px 12px;color:var(--text3);font-size:12px">${s.name} — 시장 데이터 없음</td></tr>`;
+                if (!ma && !mkt) return `<tr><td colspan="11" style="padding:8px 12px;color:var(--text3);font-size:12px">${s.name} — 시장 데이터 없음</td></tr>`;
                 const price = ma?.price || mkt?.price;
                 const chg = ma?.chg ?? mkt?.price_change_rate;
                 const ma5pos  = ma && price > ma.ma5  ? 'var(--red)' : 'var(--blue)';
                 const ma20pos = ma && price > ma.ma20 ? 'var(--red)' : 'var(--blue)';
                 const ma60pos = ma && price > ma.ma60 ? 'var(--red)' : 'var(--blue)';
+                // 52주 위치 계산
+                let w52bar = '';
+                if (w52 && price) {
+                  const pct = Math.round((price - w52.low) / (w52.high - w52.low) * 100);
+                  const barColor = pct >= 80 ? 'var(--red)' : pct <= 20 ? 'var(--blue)' : 'var(--tg)';
+                  w52bar = `<div style="font-size:10px;color:var(--text3);margin-bottom:3px;display:flex;justify-content:space-between">
+                    <span>${w52.low.toLocaleString()}</span><span>${pct}%</span><span>${w52.high.toLocaleString()}</span>
+                  </div>
+                  <div style="background:var(--bg3);border-radius:3px;height:6px;position:relative;width:120px">
+                    <div style="position:absolute;left:0;top:0;height:100%;width:${Math.max(4,Math.min(100,pct))}%;background:${barColor};border-radius:3px"></div>
+                  </div>`;
+                }
+                // 모니터링 여부
+                const isMonitored = A.monitoredSet?.has(s.code);
                 return `<tr style="border-bottom:1px solid var(--border)">
                   <td style="padding:8px 12px">
                     <div style="display:flex;align-items:center;gap:6px">
@@ -490,6 +523,14 @@ async function runComparison() {
                   <td style="padding:8px 12px;text-align:right">${mkt?.market_cap ? fmtCap(mkt.market_cap) : '—'}</td>
                   <td style="padding:8px 12px;text-align:right">${mkt?.per ? mkt.per.toFixed(1) : '—'}</td>
                   <td style="padding:8px 12px;text-align:right">${mkt?.pbr ? mkt.pbr.toFixed(2) : '—'}</td>
+                  <td style="padding:8px 12px;text-align:center">${w52bar || '—'}</td>
+                  <td style="padding:8px 12px;text-align:center">
+                    <button onclick="cmpAddToMonitor('${s.code}','${s.name}')"
+                      style="font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid ${isMonitored?'var(--green)':'var(--border)'};
+                        background:${isMonitored?'rgba(45,206,137,.1)':'none'};color:${isMonitored?'var(--green)':'var(--text3)'};cursor:pointer">
+                      ${isMonitored ? '✓ 모니터링 중' : '+ 모니터링'}
+                    </button>
+                  </td>
                 </tr>`;
               }).join('')}
             </tbody>
@@ -497,11 +538,11 @@ async function runComparison() {
         </div>
       </div>
 
-      <!-- 지표 선택 탭 -->
+      <!-- 지표 선택 탭 + 정규화 토글 -->
       <div class="card" style="margin-bottom:1rem">
-        <div class="card-header">
+        <div class="card-header" style="flex-wrap:wrap;gap:8px">
           <span class="card-title">분기별 재무 비교</span>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;flex:1">
             ${CMP_METRICS.map(m => `
               <button class="chip ${CMP.metric===m.key?'active':''}"
                 data-metric="${m.key}"
@@ -509,12 +550,41 @@ async function runComparison() {
                 style="font-size:11px;padding:3px 8px">${m.label}</button>
             `).join('')}
           </div>
+          <div style="display:flex;gap:6px;align-items:center;margin-left:auto">
+            <button id="cmp-normalize-btn"
+              onclick="CMP.normalize=!CMP.normalize;this.classList.toggle('active');renderCmpChart(CMP.metric)"
+              class="chip ${CMP.normalize?'active':''}"
+              style="font-size:11px;padding:3px 8px" title="100 기준 정규화 — 성장률 비교">
+              📐 정규화
+            </button>
+            <button id="cmp-median-btn"
+              onclick="CMP.showMedian=!CMP.showMedian;this.classList.toggle('active');renderCmpChart(CMP.metric)"
+              class="chip ${CMP.showMedian?'active':''}"
+              style="font-size:11px;padding:3px 8px" title="산업 중위값 기준선 표시">
+              ⊘ 중위값
+            </button>
+          </div>
         </div>
+
+        <!-- 지표별 순위 뱃지 -->
+        <div id="cmp-rank-badges" style="padding:.5rem 1rem;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap"></div>
+
         <div style="padding:1rem">
           <canvas id="cmp-chart" style="max-height:400px;min-height:280px"></canvas>
         </div>
       </div>
 
+
+      <!-- 레이더 차트 (6개 지표 종합) -->
+      <div class="card" style="margin-bottom:1rem">
+        <div class="card-header">
+          <span class="card-title">종합 지표 레이더</span>
+          <span style="font-size:11px;color:var(--text3)">최신 분기 기준 — 수익성·성장성·안정성 종합</span>
+        </div>
+        <div style="padding:1rem;display:flex;justify-content:center">
+          <canvas id="cmp-radar" style="max-width:420px;max-height:420px"></canvas>
+        </div>
+      </div>
 
       <!-- 지표별 분기별 상세 테이블 -->
       <div class="card" id="cmp-detail-card">
@@ -534,6 +604,8 @@ async function runComparison() {
     window._cmpChartLabels   = sortedLabels;
     renderCmpChart(metric);
     renderCmpDetailTable(metric);
+    _drawSparklines(metric);
+    drawCmpRadar(stockDataMap);
 
   } catch(e) {
     el.innerHTML = `<div style="padding:1rem;color:var(--red)">${e.message}</div>`;
@@ -568,6 +640,16 @@ function renderCmpDetailTable(metricKey) {
     if (cur == null || prev == null || prev === 0) return null;
     return ((cur - prev) / Math.abs(prev) * 100).toFixed(1);
   };
+  // YoY: 4분기 전과 비교
+  const calcYoY = (rowMap, lbl, lblList) => {
+    const curIdx = lblList.indexOf(lbl);
+    if (curIdx < 4) return null;
+    const prevLbl = lblList[curIdx - 4];
+    const cur  = rowMap[lbl];
+    const prev = rowMap[prevLbl];
+    if (cur == null || prev == null || prev === 0) return null;
+    return ((cur - prev) / Math.abs(prev) * 100).toFixed(1);
+  };
 
   const stockRowMap = {};
   CMP.selectedCodes.forEach(s => {
@@ -586,6 +668,7 @@ function renderCmpDetailTable(metricKey) {
           ${labels.map(lbl => `
             <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text3);
               border-bottom:1px solid var(--border);white-space:nowrap">${lbl}</th>
+          <th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);white-space:nowrap">추이(Sparkline)</th>
           `).join('')}
         </tr>
       </thead>
@@ -607,17 +690,56 @@ function renderCmpDetailTable(metricKey) {
               const qoqColor = qoq != null
                 ? (parseFloat(qoq) > 0 ? 'var(--red)' : parseFloat(qoq) < 0 ? 'var(--blue)' : 'var(--text3)')
                 : '';
+              const yoy = calcYoY(rowMap, lbl, labels);
+              const yoyColor = yoy != null ? (parseFloat(yoy)>0?'var(--red)':'var(--blue)') : '';
+              const yoyStr = yoy != null
+                ? `<div style="font-size:10px;color:${yoyColor};font-weight:600;margin-top:1px">YoY ${parseFloat(yoy)>0?'▲':'▼'}${Math.abs(yoy)}%</div>` : '';
               const qoqStr = qoq != null && li > 0
-                ? `<div style="font-size:10px;color:${qoqColor};margin-top:2px">${parseFloat(qoq) > 0 ? '▲' : '▼'}${Math.abs(qoq)}%</div>`
+                ? `<div style="font-size:10px;color:${qoqColor};margin-top:1px">QoQ ${parseFloat(qoq) > 0 ? '▲' : '▼'}${Math.abs(qoq)}%</div>`
                 : '';
               return `<td style="padding:6px 12px;text-align:right;vertical-align:top">
-                <div>${fmtVal(cur)}</div>${qoqStr}
+                <div>${fmtVal(cur)}</div>${yoyStr}${qoqStr}
               </td>`;
             }).join('')}
+          <td style="padding:8px 12px;text-align:center;vertical-align:middle">
+              <canvas id="spark-${s.code}-${metricKey}"
+                width="80" height="30"
+                style="display:block;margin:auto"></canvas>
+            </td>
           </tr>`;
         }).join('')}
       </tbody>
     </table>`;
+}
+
+// ── Sparkline 렌더링 (renderCmpDetailTable 호출 후) ──
+function _drawSparklines(metricKey) {
+  requestAnimationFrame(() => {
+    CMP.selectedCodes.forEach(s => {
+      const canvas = document.getElementById(`spark-${s.code}-${metricKey}`);
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const rows = (window._cmpStockDataMap?.[s.code] || []).slice(0, parseInt(CMP.period)).reverse();
+      const vals = rows.map(r => r[metricKey]).filter(v => v != null);
+      if (vals.length < 2) return;
+      const min = Math.min(...vals), max = Math.max(...vals);
+      const w = canvas.width, h = canvas.height;
+      ctx.clearRect(0,0,w,h);
+      ctx.strokeStyle = CMP_COLORS[CMP.selectedCodes.indexOf(s) % CMP_COLORS.length];
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      vals.forEach((v, i) => {
+        const x = (i / (vals.length-1)) * w;
+        const y = max === min ? h/2 : h - ((v-min)/(max-min)) * (h-4) - 2;
+        i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+      });
+      ctx.stroke();
+      // 마지막 점
+      const lastX = w, lastY = max===min ? h/2 : h-((vals[vals.length-1]-min)/(max-min))*(h-4)-2;
+      ctx.fillStyle = CMP_COLORS[CMP.selectedCodes.indexOf(s) % CMP_COLORS.length];
+      ctx.beginPath(); ctx.arc(lastX, lastY, 2.5, 0, Math.PI*2); ctx.fill();
+    });
+  });
 }
 
 // ── Chart.js 차트 렌더링 ──
@@ -641,6 +763,7 @@ function renderCmpChart(metricKey) {
   if (window._cmpMetricCache?.[metricKey]) {
     drawCmpChart(canvas, window._cmpMetricCache[metricKey], labels, metaDef);
     renderCmpDetailTable(metricKey);
+    _drawSparklines(metricKey);
   } else {
     fetchCmpMetricAndRender(metricKey, canvas, labels, metaDef);
   }
@@ -711,6 +834,7 @@ async function fetchCmpMetricAndRender(metricKey, canvas, labels, metaDef) {
 
   drawCmpChart(canvas, datasets, labels, metaDef);
   renderCmpDetailTable(metricKey);
+  _drawSparklines(metricKey);
 }
 
 function drawCmpChart(canvas, datasets, labels, metaDef) {
@@ -718,8 +842,72 @@ function drawCmpChart(canvas, datasets, labels, metaDef) {
 
   const isBar = metaDef.chartType === 'bar';
 
+  // ── 정규화 처리 (100 기준) ──
+  let finalDatasets = datasets;
+  if (CMP.normalize && !isBar) {
+    finalDatasets = datasets.map(ds => {
+      const firstValid = ds.data.find(v => v != null);
+      if (!firstValid) return ds;
+      return { ...ds, data: ds.data.map(v => v != null ? parseFloat((v / firstValid * 100).toFixed(2)) : null) };
+    });
+  }
+
+  // ── 산업 중위값 기준선 ──
+  if (CMP.showMedian) {
+    const medianData = labels.map((_, li) => {
+      const vals = finalDatasets.map(ds => ds.data[li]).filter(v => v != null);
+      if (!vals.length) return null;
+      const sorted = [...vals].sort((a,b)=>a-b);
+      const mid = Math.floor(sorted.length/2);
+      return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid-1]+sorted[mid])/2;
+    });
+    finalDatasets = [...finalDatasets, {
+      label: '중위값',
+      data: medianData,
+      borderColor: 'rgba(255,255,255,.3)',
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      borderDash: [6, 3],
+      pointRadius: 0,
+      tension: 0,
+      fill: false,
+      type: 'line',
+      order: -1,
+    }];
+  }
+
+  // ── 순위 뱃지 렌더링 (최신 분기 기준) ──
+  const rankBadges = document.getElementById('cmp-rank-badges');
+  if (rankBadges) {
+    const lastIdx = labels.length - 1;
+    const vals = datasets.map((ds, i) => ({
+      name: CMP.selectedCodes[i]?.name || ds.label,
+      color: CMP_COLORS[i % CMP_COLORS.length],
+      val: ds.data[lastIdx],
+    })).filter(x => x.val != null);
+
+    const isAscBetter = ['debt_ratio'].includes(metaDef.key);
+    const sorted = [...vals].sort((a,b) => isAscBetter ? a.val-b.val : b.val-a.val);
+    const rankMap = {};
+    sorted.forEach((x,i) => { rankMap[x.name] = i+1; });
+
+    const medals = ['🥇','🥈','🥉'];
+    rankBadges.innerHTML = vals.length < 2 ? '' : sorted.map((x, i) => {
+      const unit = CMP.normalize ? '%' : metaDef.unit;
+      const dispVal = metaDef.scale === 1 ? x.val.toFixed(1)+unit
+        : (Math.round(x.val)).toLocaleString()+unit;
+      return `<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;
+        border-radius:100px;background:rgba(255,255,255,.06);font-size:12px">
+        ${medals[i]||`${i+1}위`}
+        <span style="width:6px;height:6px;border-radius:50%;background:${x.color}"></span>
+        <strong>${x.name}</strong>
+        <span style="color:var(--text3)">${dispVal}</span>
+      </span>`;
+    }).join('');
+  }
+
   // bar 차트용 데이터셋: fill, borderRadius 등 추가
-  const styledDatasets = datasets.map((ds, i) => {
+  const styledDatasets = finalDatasets.map((ds, i) => {
     const color = CMP_COLORS[i % CMP_COLORS.length];
     if (isBar) {
       return {
@@ -783,6 +971,7 @@ function drawCmpChart(canvas, datasets, labels, metaDef) {
           ticks: {
             color: '#555a70', font: { size: 11 },
             callback: v => {
+              if (CMP.normalize && !isBar) return v.toFixed(0) + '%';
               if (Math.abs(v) >= 10000) return (v/10000).toFixed(0) + '만' + metaDef.unit;
               return v.toLocaleString() + metaDef.unit;
             },
@@ -810,3 +999,103 @@ document.addEventListener('click', e => {
     dd.style.display = 'none';
   }
 });
+
+// ── 비교 화면에서 모니터링 추가 ──
+async function cmpAddToMonitor(code, name) {
+  try {
+    const fullCode = code + (code.endsWith('.KS') || code.endsWith('.KQ') ? '' : '.KS');
+    await sb.from('companies').update({ is_monitored: true }).eq('code', fullCode);
+    A.monitoredSet = A.monitoredSet || new Set();
+    A.monitoredSet.add(code);
+    toast(`${name} 모니터링 추가됨`, 'success');
+    // 버튼 즉시 업데이트
+    document.querySelectorAll(`button[onclick*="${code}"]`).forEach(btn => {
+      if (btn.textContent.includes('모니터링')) {
+        btn.textContent = '✓ 모니터링 중';
+        btn.style.color = 'var(--green)';
+        btn.style.borderColor = 'var(--green)';
+        btn.style.background = 'rgba(45,206,137,.1)';
+      }
+    });
+  } catch(e) {
+    toast('모니터링 추가 실패: ' + e.message, 'error');
+  }
+}
+
+// ── 레이더 차트 (6개 지표 종합) ──
+let _cmpRadarInstance = null;
+function drawCmpRadar(stockDataMap) {
+  const canvas = document.getElementById('cmp-radar');
+  if (!canvas || !window.Chart) return;
+  if (_cmpRadarInstance) { _cmpRadarInstance.destroy(); _cmpRadarInstance = null; }
+
+  // 레이더 6개 축: 수익성/성장성/안정성/효율성/현금흐름/밸류에이션
+  const RADAR_AXES = [
+    { key: 'operating_margin', label: '영업이익률', higher: true,  ref: 15 },
+    { key: 'roe',              label: 'ROE',        higher: true,  ref: 10 },
+    { key: 'revenue',          label: '매출 규모',  higher: true,  ref: null, isScale: true },
+    { key: 'operating_cashflow', label: '현금흐름', higher: true,  ref: null, isScale: true },
+    { key: 'debt_ratio',       label: '재무안정',   higher: false, ref: 100 },  // 낮을수록 좋음
+    { key: 'gross_profit',     label: '매출총이익', higher: true,  ref: null, isScale: true },
+  ];
+
+  // 종목별 최신 1분기 데이터
+  const latest = {};
+  CMP.selectedCodes.forEach(s => {
+    const rows = (stockDataMap[s.code] || []);
+    latest[s.code] = rows[0] || {};
+  });
+
+  // 정규화: 각 축별로 비교 종목 중 max/min 기준 0~100 점수화
+  const scores = {};
+  RADAR_AXES.forEach(ax => {
+    const vals = CMP.selectedCodes.map(s => latest[s.code]?.[ax.key]).filter(v => v != null);
+    if (!vals.length) { CMP.selectedCodes.forEach(s => { (scores[s.code] = scores[s.code]||{})[ax.label] = 50; }); return; }
+    const min = Math.min(...vals), max = Math.max(...vals);
+    CMP.selectedCodes.forEach(s => {
+      const v = latest[s.code]?.[ax.key];
+      if (v == null) { (scores[s.code] = scores[s.code]||{})[ax.label] = 0; return; }
+      let pct = max === min ? 50 : (v - min) / (max - min) * 100;
+      if (!ax.higher) pct = 100 - pct;  // 낮을수록 좋은 지표는 반전
+      (scores[s.code] = scores[s.code]||{})[ax.label] = Math.round(pct);
+    });
+  });
+
+  const datasets = CMP.selectedCodes.map((s, i) => {
+    const color = CMP_COLORS[i % CMP_COLORS.length];
+    return {
+      label: s.name,
+      data: RADAR_AXES.map(ax => scores[s.code]?.[ax.label] ?? 0),
+      borderColor: color,
+      backgroundColor: color + '33',
+      borderWidth: 2,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+    };
+  });
+
+  _cmpRadarInstance = new Chart(canvas, {
+    type: 'radar',
+    data: { labels: RADAR_AXES.map(a => a.label), datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { position: 'top', labels: { color: '#8b90a7', font: { size: 12 }, padding: 12, usePointStyle: true } },
+        tooltip: {
+          backgroundColor: '#1a1d27', titleColor: '#e8eaf0', bodyColor: '#8b90a7',
+          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}점 (100점 만점)` }
+        },
+      },
+      scales: {
+        r: {
+          min: 0, max: 100,
+          ticks: { color: '#555a70', font: { size: 10 }, stepSize: 25, backdropColor: 'transparent' },
+          grid: { color: 'rgba(255,255,255,.08)' },
+          angleLines: { color: 'rgba(255,255,255,.08)' },
+          pointLabels: { color: '#8b90a7', font: { size: 12 } },
+        },
+      },
+    },
+  });
+}
