@@ -388,7 +388,7 @@ async function runComparison() {
     if (maxDate) {
       const mktRows = await fetchAllPages(
         sb.from('market_data')
-          .select('stock_code,corp_name,price,price_change_rate,market_cap,per,pbr')
+          .select('stock_code,corp_name,price,price_change_rate,market_cap,per,pbr,new_hgpr_cls,new_hgpr_code')
           .in('stock_code', codes)
           .eq('base_date', maxDate)
       );
@@ -447,7 +447,7 @@ async function runComparison() {
     const weekData = {};   // 52주 고/저
     for (const s of CMP.selectedCodes) {
       const { data: priceRows } = await sb.from('market_data')
-        .select('base_date,price,price_change_rate')
+        .select('base_date,price,price_change_rate,new_hgpr_cls,new_hgpr_code')
         .eq('stock_code', s.code)
         .order('base_date', { ascending: false })
         .limit(252);   // 52주(약 252 거래일)
@@ -459,10 +459,12 @@ async function runComparison() {
         const ma60 = prices.slice(0, 60).reduce((a,b)=>a+b,0) / Math.min(60, prices.length);
         maData[s.code] = {
           price: latest.price,
-          chg: latest.price_change_rate,
-          ma5: Math.round(ma5),
-          ma20: Math.round(ma20),
-          ma60: Math.round(ma60),
+          chg:   latest.price_change_rate,
+          ma5:   Math.round(ma5),
+          ma20:  Math.round(ma20),
+          ma60:  Math.round(ma60),
+          newHigh:     latest.new_hgpr_cls  || null,
+          newHighCode: latest.new_hgpr_code || null,
         };
         // 52주 고/저
         const high52 = Math.max(...prices);
@@ -530,9 +532,13 @@ async function runComparison() {
                 const isMonitored = A.monitoredSet?.has(s.code);
                 return `<tr style="border-bottom:1px solid var(--border)">
                   <td style="padding:8px 12px">
-                    <div style="display:flex;align-items:center;gap:6px">
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
                       <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></span>
                       <span style="font-weight:500">${s.name}</span>
+                      ${ma?.newHigh ? `<span style="font-size:10px;padding:1px 5px;border-radius:3px;
+                        background:${ma.newHighCode==='3'?'rgba(255,193,7,.2)':ma.newHighCode==='2'?'rgba(255,107,54,.2)':'rgba(42,171,238,.15)'};
+                        color:${ma.newHighCode==='3'?'#ffc107':ma.newHighCode==='2'?'#ff6b35':'var(--tg)'};
+                        font-weight:600;white-space:nowrap">${ma.newHigh}</span>` : ''}
                     </div>
                   </td>
                   <td style="padding:8px 12px;text-align:right;font-weight:500">${price ? price.toLocaleString()+'원' : '—'}</td>
