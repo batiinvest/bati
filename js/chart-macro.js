@@ -5,6 +5,7 @@ async function loadMacroData() {
   const { data } = await sb.from('macro_data')
     .select('*').order('base_date', { ascending: false }).limit(1);
   const m = data?.[0] || {};
+  window._macroData = m;  // market-insight.js에서 재활용
 
   const globalEl = document.getElementById('inv-global');
   if (globalEl) globalEl.innerHTML = [

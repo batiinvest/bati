@@ -456,5 +456,8 @@ async function loadMarketOverview(maxDate) {
   await loadIndTrendChart();
   loadUsEtfBanner();
   loadUskrChart();
+
+  // 투자포인트 요약 (다른 데이터 로드 완료 후)
+  setTimeout(loadMarketInsight, 1500);
 }
 

@@ -77,6 +77,7 @@ async function loadIndTrendChart() {
     });
     indFinalReturn[ind] = parseFloat((cum - 100).toFixed(2));
   });
+  window._krIndFinalReturn = indFinalReturn;  // market-insight.js에서 재활용
 
   // 수익률 순으로 정렬된 산업 목록
   const industriesSorted = [...industries].sort(

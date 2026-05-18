@@ -120,6 +120,18 @@ function pInvestment() {
       </div>
     </div>
 
+    <!-- 💡 투자포인트 요약 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="justify-content:space-between">
+        <span class="card-title">💡 투자포인트 요약</span>
+        <button class="chip" style="font-size:11px;padding:2px 8px"
+          onclick="loadMarketInsight()">🔄 재분석</button>
+      </div>
+      <div class="card-body" style="padding:.75rem 1rem" id="market-insight-card">
+        <div style="color:var(--text3);font-size:12px"><span class="loading"></span> 분석 중...</div>
+      </div>
+    </div>
+
     <!-- 🇰🇷 산업 동향 — 별도 카드 -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="flex-wrap:wrap;gap:4px;padding-bottom:6px">
