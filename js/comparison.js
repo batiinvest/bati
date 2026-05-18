@@ -581,8 +581,10 @@ async function runComparison() {
           <span class="card-title">종합 지표 레이더</span>
           <span style="font-size:11px;color:var(--text3)">최신 분기 기준 — 수익성·성장성·안정성 종합</span>
         </div>
-        <div style="padding:1rem;display:flex;justify-content:center">
-          <canvas id="cmp-radar" style="max-width:420px;max-height:420px"></canvas>
+        <div style="padding:1rem;display:flex;justify-content:center;align-items:center">
+          <div style="width:420px;height:420px;position:relative">
+            <canvas id="cmp-radar"></canvas>
+          </div>
         </div>
       </div>
 
@@ -895,14 +897,15 @@ function drawCmpChart(canvas, datasets, labels, metaDef) {
     const rankMap = {};
     sorted.forEach((x,i) => { rankMap[x.name] = i+1; });
 
-    const medals = ['🥇','🥈','🥉'];
+    const rankColors = ['#f5a623','#a8a8a8','#cd7f32'];
     rankBadges.innerHTML = vals.length < 2 ? '' : sorted.map((x, i) => {
       const unit = CMP.normalize ? '%' : metaDef.unit;
       const dispVal = metaDef.scale === 1 ? x.val.toFixed(1)+unit
         : (Math.round(x.val)).toLocaleString()+unit;
+      const rankColor = rankColors[i] || 'var(--text3)';
       return `<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;
         border-radius:100px;background:rgba(255,255,255,.06);font-size:12px">
-        ${medals[i]||`${i+1}위`}
+        <span style="font-size:11px;font-weight:700;color:${rankColor};min-width:22px;text-align:center">${i+1}위</span>
         <span style="width:6px;height:6px;border-radius:50%;background:${x.color}"></span>
         <strong>${x.name}</strong>
         <span style="color:var(--text3)">${dispVal}</span>
@@ -1083,7 +1086,7 @@ function drawCmpRadar(stockDataMap) {
     data: { labels: RADAR_AXES.map(a => a.label), datasets },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: { position: 'top', labels: { color: '#8b90a7', font: { size: 12 }, padding: 12, usePointStyle: true } },
         tooltip: {
