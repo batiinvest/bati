@@ -301,17 +301,25 @@ function clearCmpStocks() {
 
 // ── 페이지 진입 시 상태 초기화 ──
 function initCmpPage() {
-  // 선택 종목, 필터, 차트 모두 초기화
+  // 선택 종목, 필터, 상태 초기화
   CMP.selectedCodes = [];
   CMP.industry      = '';
   CMP.subcat        = '';
   CMP.metric        = 'revenue';
   CMP.period        = '8';
+  CMP.normalize     = false;
+  CMP.showMedian    = false;
 
   // 차트 인스턴스 제거
   if (_cmpChartInstance) { _cmpChartInstance.destroy(); _cmpChartInstance = null; }
+  if (_cmpRadarInstance) { _cmpRadarInstance.destroy(); _cmpRadarInstance = null; }
+
+  // 캐시 전체 초기화 — 이전 실행 데이터 제거
   window._cmpChartDatasets = null;
   window._cmpChartLabels   = null;
+  window._cmpMetricCache   = {};   // ← 지표별 캐시 초기화
+  window._cmpStockDataMap  = null;
+  window._cmpSortedLabels  = null;
 
   // UI 초기화 후 선택 목록 렌더
   renderCmpSelected();
@@ -342,6 +350,11 @@ function renderCmpSelected() {
 // ── 비교 분석 실행 ──
 async function runComparison() {
   if (CMP.selectedCodes.length < 1) { toast('종목을 1개 이상 선택해주세요.', 'error'); return; }
+
+  // 실행 시마다 지표 캐시 초기화 — 종목 조합 변경 반영
+  window._cmpMetricCache  = {};
+  window._cmpStockDataMap = null;
+  window._cmpSortedLabels = null;
 
   const el = document.getElementById('cmp-result');
   el.innerHTML = loadingHTML('데이터 로드 중...');
