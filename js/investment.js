@@ -100,6 +100,23 @@ function pInvestment() {
       </div>
     </div>
 
+    <!-- 📈 신고가 종목 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span class="card-title">📈 신고가 종목</span>
+        <div style="display:flex;gap:4px;margin-left:auto">
+          <button class="chip active" data-hgpr-tab="w52"  onclick="switchHgprTab('w52')"  style="font-size:11px;padding:2px 8px">52주</button>
+          <button class="chip"        data-hgpr-tab="yr"   onclick="switchHgprTab('yr')"   style="font-size:11px;padding:2px 8px">연간</button>
+          <button class="chip"        data-hgpr-tab="hist" onclick="switchHgprTab('hist')" style="font-size:11px;padding:2px 8px">역사적</button>
+        </div>
+      </div>
+      <div id="hgpr-body" style="padding:.5rem 0">
+        <div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">
+          <span class="loading"></span> 신고가 데이터 로딩 중...
+        </div>
+      </div>
+    </div>
+
     <!-- 🔴🔵 급등/급락 -->
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px">
       <div class="card">

@@ -458,6 +458,145 @@ async function loadMarketOverview(maxDate) {
   loadUskrChart();
 
   // 투자포인트 요약 (다른 데이터 로드 완료 후)
+  // 신고가 종목
+  loadNewHighStocks();
+
   setTimeout(loadMarketInsight, 1500);
 }
 
+
+
+// ══════════════════════════════════════════
+// 📈 신고가 종목 (오늘의 시황)
+// ══════════════════════════════════════════
+
+let _hgprData   = null;   // { w52: [...], yr: [...], hist: [...] }
+let _hgprTab    = 'w52';
+let _hgprExpanded = false;
+const HGPR_PAGE = 10;
+
+async function loadNewHighStocks() {
+  const body = document.getElementById('hgpr-body');
+  if (!body) return;
+
+  // 오늘 날짜
+  const today = new Date().toISOString().split('T')[0];
+
+  const { data: rows, error } = await sb.from('market_data')
+    .select('stock_code,corp_name,price,price_change_rate,market_cap,new_hgpr_cls,new_hgpr_code')
+    .eq('base_date', today)
+    .not('new_hgpr_code', 'is', null)
+    .neq('new_hgpr_code', '')
+    .order('market_cap', { ascending: false });
+
+  if (error || !rows?.length) {
+    // 오늘 데이터 없으면 최신 수집일로 재시도
+    const { data: latest } = await sb.from('market_data')
+      .select('base_date')
+      .not('new_hgpr_code', 'is', null)
+      .order('base_date', { ascending: false })
+      .limit(1);
+
+    if (!latest?.length) {
+      body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">신고가 데이터 없음 — 장 마감 후 수집됩니다</div>';
+      return;
+    }
+
+    const { data: rows2 } = await sb.from('market_data')
+      .select('stock_code,corp_name,price,price_change_rate,market_cap,new_hgpr_cls,new_hgpr_code')
+      .eq('base_date', latest[0].base_date)
+      .not('new_hgpr_code', 'is', null)
+      .neq('new_hgpr_code', '')
+      .order('market_cap', { ascending: false });
+
+    _hgprData = _groupHgpr(rows2 || []);
+  } else {
+    _hgprData = _groupHgpr(rows);
+  }
+
+  _hgprExpanded = false;
+  renderHgprTab(_hgprTab);
+}
+
+function _groupHgpr(rows) {
+  return {
+    w52:  rows.filter(r => r.new_hgpr_code === '1'),
+    yr:   rows.filter(r => r.new_hgpr_code === '2'),
+    hist: rows.filter(r => r.new_hgpr_code === '3'),
+  };
+}
+
+function switchHgprTab(tab) {
+  _hgprTab = tab;
+  _hgprExpanded = false;
+  document.querySelectorAll('[data-hgpr-tab]').forEach(b =>
+    b.classList.toggle('active', b.dataset.hgprTab === tab));
+  renderHgprTab(tab);
+}
+
+function toggleHgprExpand() {
+  _hgprExpanded = !_hgprExpanded;
+  renderHgprTab(_hgprTab);
+}
+
+function renderHgprTab(tab) {
+  const body = document.getElementById('hgpr-body');
+  if (!body || !_hgprData) return;
+
+  const all   = _hgprData[tab] || [];
+  const shown = _hgprExpanded ? all : all.slice(0, HGPR_PAGE);
+
+  const clsColor = { '1':'var(--tg)', '2':'#fb923c', '3':'#f5a623' };
+  const clsLabel = { '1':'52주', '2':'연간', '3':'역사적' };
+
+  if (!shown.length) {
+    body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">해당 신고가 종목 없음</div>';
+    return;
+  }
+
+  const rows_html = shown.map(r => {
+    const chg    = r.price_change_rate;
+    const chgStr = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
+    const chgClr = chg >= 0 ? 'var(--red)' : 'var(--blue)';
+    const cap    = r.market_cap ? fmtCap(r.market_cap) : '—';
+    const badge  = clsLabel[r.new_hgpr_code] || '';
+    const bClr   = clsColor[r.new_hgpr_code] || 'var(--tg)';
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:6px 12px;font-weight:500;font-size:13px">${r.corp_name || r.stock_code}</td>
+      <td style="padding:6px 12px;text-align:right;font-weight:500">${r.price ? r.price.toLocaleString() + '원' : '—'}</td>
+      <td style="padding:6px 12px;text-align:right;color:${chgClr};font-weight:500">${chgStr}</td>
+      <td style="padding:6px 12px;text-align:right;color:var(--text3);font-size:12px">${cap}</td>
+      <td style="padding:6px 12px;text-align:center">
+        <span style="font-size:10px;padding:1px 6px;border-radius:3px;
+          background:${bClr}22;color:${bClr};font-weight:600">${badge}</span>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const toggleBtn = all.length > HGPR_PAGE ? `
+    <tr>
+      <td colspan="5" style="padding:8px 12px;text-align:center">
+        <button onclick="toggleHgprExpand()"
+          style="font-size:12px;background:none;border:1px solid var(--border);
+            border-radius:4px;cursor:pointer;color:var(--text3);padding:4px 16px">
+          ${_hgprExpanded ? '▲ 접기' : `▼ 전체 보기 (${all.length}개)`}
+        </button>
+      </td>
+    </tr>` : '';
+
+  body.innerHTML = `
+    <div style="padding:0 .5rem">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--bg3)">
+            <th style="padding:5px 12px;text-align:left;font-size:11px;color:var(--text3);font-weight:500">종목명</th>
+            <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">현재가</th>
+            <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">등락률</th>
+            <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">시총</th>
+            <th style="padding:5px 12px;text-align:center;font-size:11px;color:var(--text3);font-weight:500">구분</th>
+          </tr>
+        </thead>
+        <tbody>${rows_html}${toggleBtn}</tbody>
+      </table>
+    </div>`;
+}
