@@ -235,8 +235,8 @@ function generateInsightText(a) {
 
   // 2) 미국 업종 흐름
   const usFlowItems = [];
-  if (a.usStrong.length) usFlowItems.push({ icon:'📈', label:'강세', text: a.usStrong.join(' · '), sub: a.usStrong.map(i=>`${i} ${_fmt(a.usIndAvg[i]?.d1)}`).join(', ') });
-  if (a.usWeak.length)   usFlowItems.push({ icon:'📉', label:'약세', text: a.usWeak.join(' · '), sub: a.usWeak.map(i=>`${i} ${_fmt(a.usIndAvg[i]?.d1)}`).join(', ') });
+  if (a.usStrong.length) usFlowItems.push({ icon:'📈', label:'강세', text: a.usStrong.map(i=>`${i}(${_fmt(a.usIndAvg[i]?.d1)})`).join(' · ') });
+  if (a.usWeak.length)   usFlowItems.push({ icon:'📉', label:'약세', text: a.usWeak.map(i=>`${i}(${_fmt(a.usIndAvg[i]?.d1)})`).join(' · ') });
   if (a.usNeutral.length)usFlowItems.push({ icon:'➖', label:'중립', text: a.usNeutral.join(' · ') });
 
   sections.push({ id: 'us-flow', title: '🇺🇸 미국 업종 흐름', items: usFlowItems });
@@ -265,7 +265,9 @@ function generateInsightText(a) {
   // 20일 대비 KR 상대강도 변화 상위/하위
   const kr20sorted = KR_INDUSTRIES.filter(i=>a.krPeriod[i]?.d20!=null)
     .sort((a2,b2)=>(a.krPeriod[b2]?.d1??0)-(a.krPeriod[b2]?.d20??0)*0 - ((a.krPeriod[a2]?.d1??0)-(a.krPeriod[a2]?.d20??0)*0));
-  changeItems.push({ icon:'📊', label:'기간별 수익률', text: '상위: ' + a.krSorted.slice(0,3).map(i=>`${i}(${_fmt(a.krPeriod[i]?.d1)})`).join(' · ') + ' / 하위: ' + [...a.krSorted].reverse().slice(0,2).map(i=>`${i}(${_fmt(a.krPeriod[i]?.d1)})`).join(' · ') });
+  const krTop = a.krSorted.slice(0,3).map(i=>`${i} ${_fmt(a.krPeriod[i]?.d1)}`).join(' · ');
+  const krBot = [...a.krSorted].reverse().slice(0,2).map(i=>`${i} ${_fmt(a.krPeriod[i]?.d1)}`).join(' · ');
+  changeItems.push({ icon:'📊', label:'업종 등락', text: `▲ ${krTop}  ▼ ${krBot}` });
 
   sections.push({ id: 'change', title: '📡 변화 감지', items: changeItems });
 
@@ -314,52 +316,68 @@ function renderMarketInsight(insightData) {
   const el = document.getElementById('market-insight-card');
   if (!el) return;
 
-  const { sections } = insightData;
+  // 섹션 순서: 행동포인트 → 총평 → 미국 → 연계 → 변화
+  const ordered = ['action', 'summary', 'us-flow', 'cross', 'change'];
+  const sections = ordered
+    .map(id => insightData.sections.find(s => s.id === id))
+    .filter(Boolean);
 
   const sectionColors = {
+    'action':   '#fbbf24',
     'summary':  '#2AABEE',
     'us-flow':  '#60a5fa',
     'cross':    '#a78bfa',
     'change':   '#34d399',
-    'action':   '#fbbf24',
   };
 
-  el.innerHTML = sections.map(sec => {
+  el.innerHTML = sections.map((sec, si) => {
     const color = sectionColors[sec.id] || '#6e7491';
+    const isAction = sec.id === 'action';
+
     return `
-    <div style="margin-bottom:1rem">
-      <div style="font-size:12px;font-weight:700;color:${color};
-        letter-spacing:.06em;text-transform:uppercase;
-        margin-bottom:8px;display:flex;align-items:center;gap:6px">
-        <span style="width:3px;height:14px;background:${color};border-radius:2px;flex-shrink:0"></span>
+    <div style="margin-bottom:${si < sections.length-1 ? '14px' : '4px'}">
+      <div style="font-size:11px;font-weight:700;color:${color};
+        letter-spacing:.08em;margin-bottom:6px;
+        display:flex;align-items:center;gap:5px">
+        <span style="width:2px;height:12px;background:${color};border-radius:2px;flex-shrink:0;opacity:.8"></span>
         ${sec.title}
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        ${sec.items.map(item => `
-          <div style="display:flex;align-items:flex-start;gap:8px;
-            padding:6px 10px;border-radius:6px;background:rgba(255,255,255,.03)">
-            <span style="font-size:14px;flex-shrink:0;width:20px;text-align:center">${item.icon}</span>
-            <div style="flex:1;min-width:0">
-              <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">
-                <span style="font-size:11px;color:var(--text3);flex-shrink:0;white-space:nowrap">${item.label}</span>
-                <span style="font-size:13px;color:var(--text);line-height:1.4">${item.text}</span>
-              </div>
-              ${item.sub ? `<div style="font-size:11px;color:var(--text3);margin-top:3px;padding-left:0">${item.sub}</div>` : ''}
-            </div>
-          </div>
-        `).join('')}
+      <div style="display:flex;flex-direction:column;gap:${isAction?'4px':'3px'}">
+        ${sec.items.map(item => {
+          // 행동포인트는 더 크게, 나머지는 컴팩트
+          const textSize   = isAction ? '13px' : '12px';
+          const textColor  = item.label === '먼저 볼 업종' ? 'var(--tg)'
+                           : item.label === '조심할 업종'  ? 'var(--red)'
+                           : item.label === '전략'         ? '#fbbf24'
+                           : item.label === '장세'         ? '#fff'
+                           : 'var(--text)';
+          const fontWeight = (isAction || item.label === '장세') ? '600' : '400';
+          const bg         = item.label === '먼저 볼 업종' ? 'rgba(42,171,238,.08)'
+                           : item.label === '조심할 업종'  ? 'rgba(245,54,92,.06)'
+                           : item.label === '장세'         ? 'rgba(255,255,255,.05)'
+                           : 'transparent';
+          return `<div style="display:flex;align-items:baseline;gap:8px;
+              padding:${isAction?'5px 8px':'3px 6px'};border-radius:5px;
+              background:${bg}">
+            <span style="font-size:13px;flex-shrink:0;width:18px;text-align:center;line-height:1">${item.icon}</span>
+            <span style="font-size:10px;color:var(--text3);flex-shrink:0;
+              white-space:nowrap;min-width:52px">${item.label}</span>
+            <span style="font-size:${textSize};color:${textColor};
+              font-weight:${fontWeight};line-height:1.4">${item.text}</span>
+          </div>`;
+        }).join('')}
       </div>
+      ${si < sections.length-1 ? '<div style="margin-top:10px;border-bottom:1px solid rgba(255,255,255,.05)"></div>' : ''}
     </div>`;
   }).join('');
 
-  // 업데이트 시각 표시
+  // 업데이트 시각
   const now = new Date();
   const ts = now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' });
   el.insertAdjacentHTML('beforeend',
-    `<div style="text-align:right;font-size:10px;color:var(--text3);margin-top:4px">
-      규칙 기반 요약 · ${ts} 기준
-    </div>`
-  );
+    `<div style="text-align:right;font-size:10px;color:var(--text3);margin-top:6px">
+      규칙 기반 분석 · ${ts} 기준
+    </div>`);
 }
 
 // ════════════════════════════════════════════════════════════
