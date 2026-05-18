@@ -137,11 +137,11 @@ async function onCmpIndustryChange() {
     return;
   }
 
-  // 해당 산업의 sub_industry 목록 조회
+  // 해당 산업의 sub_industry 목록 조회 (모니터링 종목 기준)
   const { data: rows } = await sb.from('companies')
     .select('sub_industry')
     .eq('industry', ind)
-    .eq('active', true)
+    .eq('is_monitored', true)
     .not('sub_industry', 'is', null);
 
   const themes = [...new Set(
