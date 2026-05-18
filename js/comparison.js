@@ -174,6 +174,7 @@ async function addThemeOnly() {
     .select('code,name,industry,sub_industry')
     .eq('industry', ind)
     .eq('sub_industry', theme)
+    .eq('is_monitored', true)
     .eq('active', true)
     .order('name');
 
@@ -205,27 +206,32 @@ async function addIndustryAll() {
   const { data: rows, error } = await sb.from('companies')
     .select('code,name,industry')
     .eq('industry', ind)
-    .eq('active', true)
+    .eq('is_monitored', true)
     .order('name');
 
   if (error || !rows?.length) { toast('해당 산업 종목 없음', 'error'); return; }
 
-  let added = 0;
-  for (const r of rows) {
+  const avail = rows.filter(r => {
     const code = (r.code || '').split('.')[0];
-    if (!code) continue;
-    if (CMP.selectedCodes.length >= 10) {
-      toast(`최대 10개까지 선택 가능합니다. (${added}개 추가됨)`, 'error');
-      break;
-    }
-    if (!CMP.selectedCodes.find(s => s.code === code)) {
-      CMP.selectedCodes.push({ code, name: r.name, industry: ind });
-      added++;
-    }
-  }
+    return code && !CMP.selectedCodes.find(s => s.code === code);
+  });
+
+  const remain = 10 - CMP.selectedCodes.length;
+  if (remain <= 0) { toast('이미 10개 선택됨. 일부 종목을 해제 후 추가하세요.', 'error'); return; }
+
+  const toAdd = avail.slice(0, remain);
+  toAdd.forEach(r => {
+    const code = (r.code || '').split('.')[0];
+    CMP.selectedCodes.push({ code, name: r.name, industry: ind });
+  });
+
   renderCmpSelected();
-  if (added > 0) toast(`${ind} ${added}개 종목 추가됨`, 'success');
-  else toast('이미 모두 추가된 종목입니다.', 'info');
+  if (toAdd.length > 0) {
+    const msg = avail.length > remain
+      ? `${ind} ${toAdd.length}개 추가됨 (전체 ${rows.length}개 중 최대 10개 제한)`
+      : `${ind} ${toAdd.length}개 종목 추가됨`;
+    toast(msg, 'success');
+  } else toast('이미 모두 추가된 종목입니다.', 'info');
 }
 
 // ── 종목 검색 자동완성 ──
@@ -241,8 +247,9 @@ async function onCmpSearch(q) {
       const { data: rows, error } = await sb
         .from('companies')
         .select('code,name,industry')
-        .like('name', `%${q}%`)
-        .eq('active', true)
+        .or(`name.ilike.%${q}%,code.ilike.%${q}%`)
+        .eq('is_monitored', true)
+        .order('name')
         .limit(20);
 
       console.log('[종목검색] 결과:', rows?.length, '개, 에러:', error);
