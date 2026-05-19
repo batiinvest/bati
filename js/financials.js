@@ -223,12 +223,6 @@ async function loadMarketData(el) {
       _sortBtn('w52_high','52주고가'), _sortBtn('w52_low','52주저가'),
       '52주고가일', '52주저가일',
       _sortBtn('w52_high_rate','52주고가대비%'), _sortBtn('w52_low_rate','52주저가대비%'),
-      _sortBtn('d250_high','250일고가'), _sortBtn('d250_low','250일저가'),
-      '250일고가일', '250일저가일',
-      _sortBtn('d250_high_rate','250일고가대비%'), _sortBtn('d250_low_rate','250일저가대비%'),
-      _sortBtn('year_high','연중고가'), _sortBtn('year_low','연중저가'),
-      '연중고가일', '연중저가일',
-      _sortBtn('year_high_rate','연중고가대비%'), _sortBtn('year_low_rate','연중저가대비%'),
       _sortBtn('approach_rate','접근도'),
       '전일부호', '시장경고', '투자유의', '관리종목', '단기과열', '정리매매', '신고가구분', '신고가코드', '기준일',
     ],
@@ -294,18 +288,6 @@ async function loadMarketData(el) {
         <td style="font-size:10px;color:var(--text3)">${r.w52_low_date||'—'}</td>
         <td style="font-size:11px">${p(r.w52_high_rate)}</td>
         <td style="font-size:11px">${p(r.w52_low_rate)}</td>
-        <td style="color:var(--red);font-size:12px">${n(r.d250_high)}</td>
-        <td style="color:var(--blue);font-size:12px">${n(r.d250_low)}</td>
-        <td style="font-size:10px;color:var(--text3)">${r.d250_high_date||'—'}</td>
-        <td style="font-size:10px;color:var(--text3)">${r.d250_low_date||'—'}</td>
-        <td style="font-size:11px">${p(r.d250_high_rate)}</td>
-        <td style="font-size:11px">${p(r.d250_low_rate)}</td>
-        <td style="color:var(--red);font-size:12px">${n(r.year_high)}</td>
-        <td style="color:var(--blue);font-size:12px">${n(r.year_low)}</td>
-        <td style="font-size:10px;color:var(--text3)">${r.year_high_date||'—'}</td>
-        <td style="font-size:10px;color:var(--text3)">${r.year_low_date||'—'}</td>
-        <td style="font-size:11px">${p(r.year_high_rate)}</td>
-        <td style="font-size:11px">${p(r.year_low_rate)}</td>
         <td style="font-size:11px">${r.approach_rate != null ? r.approach_rate.toFixed(1)+'%' : '—'}</td>
         <td style="font-size:11px;color:var(--text3);font-family:monospace">${r.price_change_sign||'—'}</td>
         <td>${warn(r.market_warn_code)}</td>
