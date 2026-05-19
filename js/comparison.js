@@ -388,7 +388,7 @@ async function runComparison() {
     if (maxDate) {
       const mktRows = await fetchAllPages(
         sb.from('market_data')
-          .select('stock_code,corp_name,price,price_change_rate,market_cap,per,pbr,new_hgpr_cls,new_hgpr_code')
+          .select('stock_code,corp_name,price,price_change_rate,market_cap,per,pbr,hgpr_cls,hgpr_cls_code')
           .in('stock_code', codes)
           .eq('base_date', maxDate)
       );
@@ -447,7 +447,7 @@ async function runComparison() {
     const weekData = {};   // 52주 고/저
     for (const s of CMP.selectedCodes) {
       const { data: priceRows } = await sb.from('market_data')
-        .select('base_date,price,price_change_rate,new_hgpr_cls,new_hgpr_code')
+        .select('base_date,price,price_change_rate,hgpr_cls,hgpr_cls_code')
         .eq('stock_code', s.code)
         .order('base_date', { ascending: false })
         .limit(252);   // 52주(약 252 거래일)
@@ -463,8 +463,8 @@ async function runComparison() {
           ma5:   Math.round(ma5),
           ma20:  Math.round(ma20),
           ma60:  Math.round(ma60),
-          newHigh:     latest.new_hgpr_cls  || null,
-          newHighCode: latest.new_hgpr_code || null,
+          newHigh:     latest.hgpr_cls      || null,
+          newHighCode: latest.hgpr_cls_code || null,
         };
         // 52주 고/저
         const high52 = Math.max(...prices);

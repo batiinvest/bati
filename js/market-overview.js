@@ -487,17 +487,17 @@ async function loadNewHighStocks() {
   const today = _kst.toISOString().split('T')[0];
 
   const { data: rows, error } = await sb.from('market_data')
-    .select('stock_code,corp_name,price,price_change_rate,market_cap,new_hgpr_cls,new_hgpr_code')
+    .select('stock_code,corp_name,price,price_change_rate,market_cap,hgpr_cls,hgpr_cls_code')
     .eq('base_date', today)
-    .not('new_hgpr_code', 'is', null)
-    .neq('new_hgpr_code', '')
+    .not('hgpr_cls_code', 'is', null)
+    .neq('hgpr_cls_code', '')
     .order('market_cap', { ascending: false });
 
   if (error || !rows?.length) {
     // 오늘 데이터 없으면 최신 수집일로 재시도
     const { data: latest } = await sb.from('market_data')
       .select('base_date')
-      .not('new_hgpr_code', 'is', null)
+      .not('hgpr_cls_code', 'is', null)
       .order('base_date', { ascending: false })
       .limit(1);
 
@@ -507,10 +507,10 @@ async function loadNewHighStocks() {
     }
 
     const { data: rows2 } = await sb.from('market_data')
-      .select('stock_code,corp_name,price,price_change_rate,market_cap,new_hgpr_cls,new_hgpr_code')
+      .select('stock_code,corp_name,price,price_change_rate,market_cap,hgpr_cls,hgpr_cls_code')
       .eq('base_date', latest[0].base_date)
-      .not('new_hgpr_code', 'is', null)
-      .neq('new_hgpr_code', '')
+      .not('hgpr_cls_code', 'is', null)
+      .neq('hgpr_cls_code', '')
       .order('market_cap', { ascending: false });
 
     _hgprData = _groupHgpr(rows2 || []);
@@ -525,9 +525,9 @@ async function loadNewHighStocks() {
 function _groupHgpr(rows) {
   return {
     // '1'=52주 신고가 갱신, '0'=신고가 근접 — 모두 52주 탭에 표시
-    w52:  rows.filter(r => r.new_hgpr_code === '1' || r.new_hgpr_code === '0'),
-    yr:   rows.filter(r => r.new_hgpr_code === '2'),
-    hist: rows.filter(r => r.new_hgpr_code === '3'),
+    w52:  rows.filter(r => r.hgpr_cls_code === '1' || r.hgpr_cls_code === '0'),
+    yr:   rows.filter(r => r.hgpr_cls_code === '2'),
+    hist: rows.filter(r => r.hgpr_cls_code === '3'),
   };
 }
 
@@ -564,8 +564,8 @@ function renderHgprTab(tab) {
     const chgTxt = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
     const chgClr = chg != null && chg >= 0 ? 'var(--red)' : 'var(--blue)';
     const cap    = r.market_cap ? fmtCap(r.market_cap) : '—';
-    const badge  = clsLabel[r.new_hgpr_code] || '';
-    const bClr   = clsColor[r.new_hgpr_code] || 'var(--tg)';
+    const badge  = clsLabel[r.hgpr_cls_code] || '';
+    const bClr   = clsColor[r.hgpr_cls_code] || 'var(--tg)';
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:6px 12px;font-weight:500;font-size:13px">${r.corp_name || r.stock_code}</td>
       <td style="padding:6px 12px;text-align:right;font-weight:500">${r.price ? r.price.toLocaleString() + '원' : '—'}</td>
@@ -623,7 +623,7 @@ async function loadFlowData() {
 
   // market_data에서 외국인/기관 순매수 데이터 조회
   const { data: rows } = await sb.from('market_data')
-    .select('stock_code,corp_name,price,price_change_rate,market_cap,foreign_net_buy,institution_net_buy')
+    .select('stock_code,corp_name,price,price_change_rate,market_cap,foreign_net_buy')
     .eq('base_date', today)
     .not('foreign_net_buy', 'is', null)
     .order('market_cap', { ascending: false })
@@ -634,13 +634,10 @@ async function loadFlowData() {
     return;
   }
 
-  const frgn_buy = rows.filter(r => (r.foreign_net_buy     || 0) > 0)
+  const frgn_buy = rows.filter(r => (r.foreign_net_buy || 0) > 0)
     .sort((a,b) => b.foreign_net_buy - a.foreign_net_buy).slice(0, 20);
-  const orgn_buy = rows.filter(r => (r.institution_net_buy || 0) > 0)
-    .sort((a,b) => b.institution_net_buy - a.institution_net_buy).slice(0, 20);
-  const both_buy = rows.filter(r => (r.foreign_net_buy||0) > 0 && (r.institution_net_buy||0) > 0)
-    .sort((a,b) => (b.foreign_net_buy + b.institution_net_buy) - (a.foreign_net_buy + a.institution_net_buy))
-    .slice(0, 10);
+  const orgn_buy = [];   // 기관순매수: FHKST01010100 미제공 — 별도 API 필요
+  const both_buy = frgn_buy.slice(0, 10);  // 외국인 순매수 상위로 대체
 
   _flowData = { frgn_buy, orgn_buy, both_buy };
   renderFlowTab(_flowTab);
@@ -668,8 +665,7 @@ function renderFlowTab(tab) {
     const chg    = r.price_change_rate;
     const chgTxt = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
     const chgClr = chg != null && chg >= 0 ? 'var(--red)' : 'var(--blue)';
-    const fNet   = r.foreign_net_buy     || 0;
-    const oNet   = r.institution_net_buy || 0;
+    const fNet   = r.foreign_net_buy || 0;
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:6px 12px;font-weight:500;font-size:13px">${r.corp_name || r.stock_code}</td>
       <td style="padding:6px 12px;text-align:right;font-weight:500">${r.price ? r.price.toLocaleString()+'원' : '—'}</td>
@@ -688,7 +684,7 @@ function renderFlowTab(tab) {
             <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">현재가</th>
             <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">등락률</th>
             <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--tg);font-weight:500">외국인↑</th>
-            <th style="padding:5px 12px;text-align:right;font-size:11px;color:#fb923c;font-weight:500">기관↑</th>
+
           </tr>
         </thead>
         <tbody>${rows_html}</tbody>

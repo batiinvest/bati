@@ -223,12 +223,12 @@ async function loadMarketData(el) {
       // 수급
       _sortBtn('foreign_hold_rate','외국인소진율'),
       _sortBtn('foreign_net_buy','외국인순매수'),
-      _sortBtn('institution_net_buy','기관순매수'),
+      
       _sortBtn('program_net_buy','프로그램순매수'),
       _sortBtn('loan_balance_rate','융자잔고율'),
       // 52주/연중
-      _sortBtn('week52_high','52주고가'),
-      _sortBtn('week52_low','52주저가'),
+      _sortBtn('w52_high','52주고가'),
+      _sortBtn('w52_low','52주저가'),
       '52주고가일',
       '52주저가일',
       _sortBtn('year_high','연중고가'),
@@ -246,7 +246,7 @@ async function loadMarketData(el) {
       const chgV = r.price_change;
       const chgC = chgColor(chg);
       // 52주 위치 프로그레스 바
-      const w52h = r.week52_high, w52l = r.week52_low, pr = r.price;
+      const w52h = r.w52_high, w52l = r.w52_low, pr = r.price;
       const w52pct = (w52h && w52l && pr && w52h > w52l)
         ? Math.round((pr - w52l) / (w52h - w52l) * 100) : null;
       const w52bar = w52pct != null
@@ -275,20 +275,19 @@ async function loadMarketData(el) {
         <td>${_num(r.dps)}</td>
         <td>${r.foreign_hold_rate != null ? r.foreign_hold_rate.toFixed(1)+'%' : '—'}</td>
         <td style="color:${(r.foreign_net_buy||0)>0?'var(--red)':(r.foreign_net_buy||0)<0?'var(--blue)':'var(--text3)'}">${r.foreign_net_buy != null ? (r.foreign_net_buy>0?'+':'')+_num(r.foreign_net_buy) : '—'}</td>
-        <td style="color:${(r.institution_net_buy||0)>0?'var(--red)':(r.institution_net_buy||0)<0?'var(--blue)':'var(--text3)'}">${r.institution_net_buy != null ? (r.institution_net_buy>0?'+':'')+_num(r.institution_net_buy) : '—'}</td>
         <td style="color:${(r.program_net_buy||0)>0?'var(--red)':(r.program_net_buy||0)<0?'var(--blue)':'var(--text3)'}">${r.program_net_buy != null ? (r.program_net_buy>0?'+':'')+_num(r.program_net_buy) : '—'}</td>
         <td>${r.loan_balance_rate != null ? r.loan_balance_rate.toFixed(2)+'%' : '—'}</td>
-        <td style="color:var(--red)">${_num(r.week52_high)}</td>
-        <td style="color:var(--blue)">${_num(r.week52_low)}</td>
-        <td style="font-size:11px;color:var(--text3)">${r.week52_high_date || '—'}</td>
-        <td style="font-size:11px;color:var(--text3)">${r.week52_low_date  || '—'}</td>
+        <td style="color:var(--red)">${_num(r.w52_high)}</td>
+        <td style="color:var(--blue)">${_num(r.w52_low)}</td>
+        <td style="font-size:11px;color:var(--text3)">${r.w52_high_date || '—'}</td>
+        <td style="font-size:11px;color:var(--text3)">${r.w52_low_date  || '—'}</td>
         <td style="color:var(--red)">${_num(r.year_high)}</td>
         <td style="color:var(--blue)">${_num(r.year_low)}</td>
         <td style="font-size:11px;color:var(--text3)">${_num(r.listing_shares)}</td>
         <td>${r.vol_turnover != null ? r.vol_turnover.toFixed(2)+'%' : '—'}</td>
         <td>${_warn(r.market_warn_code)}</td>
         <td>${_yn(r.is_caution)}</td>
-        <td style="font-size:11px">${r.new_hgpr_cls || '—'}</td>
+        <td style="font-size:11px">${r.hgpr_cls || '—'}</td>
         <td style="font-size:11px;color:var(--text3)">${r.base_date || '—'}</td>
       </tr>`;
     },
@@ -553,7 +552,7 @@ async function _renderMarketTab(body, code, name) {
     const r = latest;
     const chg = r.price_change_rate;
     const hist = (history || []).reverse();
-    const hi52 = r.week52_high || 0, lo52 = r.week52_low || 0, cur = r.price || 0;
+    const hi52 = r.w52_high || 0, lo52 = r.w52_low || 0, cur = r.price || 0;
     const rangePct = hi52 > lo52 ? Math.round((cur - lo52) / (hi52 - lo52) * 100) : 50;
 
     const retStr = (days) => {
@@ -596,8 +595,8 @@ async function _renderMarketTab(body, code, name) {
           ${r.market_warn_code && r.market_warn_code !== '00' ? row2('투자경고', r.market_warn_code, 'var(--red)') : ''}
         `)}
         ${section('가격 범위 · 수익률', `
-          ${row2('52주 최고', r.week52_high ? r.week52_high.toLocaleString()+'원' : '—', 'var(--red)')}
-          ${row2('52주 최저', r.week52_low ? r.week52_low.toLocaleString()+'원' : '—', 'var(--blue)')}
+          ${row2('52주 최고', r.w52_high ? r.w52_high.toLocaleString()+'원' : '—', 'var(--red)')}
+          ${row2('52주 최저', r.w52_low ? r.w52_low.toLocaleString()+'원' : '—', 'var(--blue)')}
           <div style="margin:8px 0 12px">
             <div style="height:5px;background:var(--border);border-radius:3px;position:relative">
               <div style="position:absolute;left:0;width:${rangePct}%;height:100%;background:var(--tg);border-radius:3px;opacity:.4"></div>
