@@ -108,6 +108,84 @@ function _renderEtfTab() {
   </div>`;
 }
 
+// ── 수집 스케줄 탭 ──────────────────────────────────────
+function _renderScheduleTab() {
+  const schedules = [
+    // 장중
+    { time:'08:50', job:'naver_report',               label:'네이버 리포트 수집',          group:'장전', color:'var(--text3)' },
+    { time:'09:00', job:'collect_macro',              label:'글로벌 매크로 수집',           group:'장전', color:'var(--tg)' },
+    { time:'09:05', job:'collect_us_etf',             label:'US ETF 수집 (장 시작)',        group:'장전', color:'var(--tg)' },
+    { time:'09:30', job:'collect_market',             label:'모니터링 종목 시장 데이터',     group:'장중', color:'#2dce89' },
+    { time:'09:35', job:'collect_foreign_institution',label:'기관/외국인 가집계 (1차)',      group:'장중', color:'#fb923c' },
+    { time:'11:25', job:'collect_foreign_institution',label:'기관/외국인 가집계 (2차)',      group:'장중', color:'#fb923c' },
+    { time:'11:30', job:'lunch_briefing',             label:'점심 브리핑',                 group:'장중', color:'var(--text3)' },
+    { time:'12:00', job:'collect_market',             label:'모니터링 종목 시장 데이터',     group:'장중', color:'#2dce89' },
+    { time:'13:25', job:'collect_foreign_institution',label:'기관/외국인 가집계 (3차)',      group:'장중', color:'#fb923c' },
+    { time:'14:35', job:'collect_foreign_institution',label:'기관/외국인 가집계 (4차)',      group:'장중', color:'#fb923c' },
+    // 장후
+    { time:'16:10', job:'collect_macro',              label:'매크로 수집 (장 마감 후)',      group:'장후', color:'var(--tg)' },
+    { time:'16:20', job:'collect_us_etf',             label:'US ETF 수집 (미장 전일 종가)', group:'장후', color:'var(--tg)' },
+    { time:'16:30', job:'collect_new_high',           label:'52주 신고가 종목 수집',         group:'장후', color:'#f5a623' },
+    { time:'16:35', job:'collect_market_closing',     label:'전체 상장사 확정 시세 (57개 필드)', group:'장후', color:'#f5365c', badge:'핵심' },
+    { time:'18:00', job:'naver_report',               label:'네이버 리포트 수집',            group:'장후', color:'var(--text3)' },
+    { time:'18:30', job:'daily_closing',              label:'일일 마감 브리핑',             group:'장후', color:'var(--text3)' },
+    { time:'18:30', job:'collect_financials',         label:'재무제표 수집 (공시 기반)',      group:'장후', color:'#2dce89' },
+    // 주말
+    { time:'토 00:30', job:'cleanup_market_data',    label:'market_data 정리 (90일/28일 보존)', group:'주간', color:'var(--text3)' },
+    { time:'토 01:00', job:'sync_listed_companies',  label:'상장사 동기화',                group:'주간', color:'var(--text3)' },
+    { time:'토 10:00', job:'saturday_main_ranking',  label:'주간 랭킹 리포트',             group:'주간', color:'var(--text3)' },
+    { time:'토 10:30', job:'saturday_industry',      label:'주간 산업별 리포트',           group:'주간', color:'var(--text3)' },
+    { time:'일 10:00', job:'sunday_industry_recap',  label:'주간 업종 리뷰',              group:'주간', color:'var(--text3)' },
+    { time:'일 10:30', job:'sunday_company',         label:'주간 기업 진단',              group:'주간', color:'var(--text3)' },
+  ];
+
+  const groups = ['장전','장중','장후','주간'];
+  const groupColor = { '장전':'rgba(42,171,238,.1)', '장중':'rgba(45,206,137,.1)', '장후':'rgba(245,54,92,.08)', '주간':'rgba(255,255,255,.03)' };
+  const groupLabel = { '장전':'🌅 장 시작 전', '장중':'📈 장중 (09:00~15:30)', '장후':'📊 장 마감 후', '주간':'📅 주간 정기' };
+
+  const rows = groups.map(g => {
+    const items = schedules.filter(s => s.group === g);
+    return `
+    <div style="margin-bottom:1rem">
+      <div style="padding:6px 1rem;font-size:11px;font-weight:700;color:var(--text3);
+        letter-spacing:.08em;background:${groupColor[g]};border-radius:6px 6px 0 0;
+        border:1px solid rgba(255,255,255,.06);border-bottom:none">
+        ${groupLabel[g]}
+      </div>
+      <div style="border:1px solid rgba(255,255,255,.06);border-radius:0 0 6px 6px;overflow:hidden">
+        ${items.map((s, i) => `
+          <div style="display:grid;grid-template-columns:80px 1fr auto;
+            align-items:center;gap:12px;padding:9px 1rem;
+            background:${i%2===0?'transparent':'rgba(255,255,255,.02)'};
+            border-bottom:${i<items.length-1?'1px solid rgba(255,255,255,.04)':'none'}">
+            <span style="font-family:monospace;font-size:13px;font-weight:600;color:${s.color}">${s.time}</span>
+            <span style="font-size:13px;color:var(--text)">${s.label}</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              ${s.badge ? `<span style="font-size:10px;padding:1px 6px;border-radius:3px;
+                background:rgba(245,54,92,.2);color:#f5365c;font-weight:700">${s.badge}</span>` : ''}
+              <span style="font-size:10px;color:var(--text3);font-family:monospace">${s.job}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div id="company-tab-schedule" style="display:none;padding:1.25rem">
+    <div class="card">
+      <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span class="card-title">📅 수집 스케줄</span>
+        <span style="font-size:12px;color:var(--text3)">평일 자동 실행 기준 · 주말/공휴일 자동 스킵</span>
+        <div style="margin-left:auto;font-size:11px;color:var(--text3)">
+          market_data 보존: 모니터링 <b style="color:var(--tg)">90일</b> / 전체 <b style="color:var(--text2)">28일</b>
+        </div>
+      </div>
+      <div class="card-body">${rows}</div>
+    </div>
+  </div>`;
+}
+
 // ── pCompany: 탭 껍데기만 반환 ──
 function pCompany() {
   return `
@@ -128,10 +206,18 @@ function pCompany() {
         color:${_companyTab==='etf'?'var(--text)':'var(--text3)'};margin-bottom:-1px">
       🌐 US 종목 관리
     </button>
+    <button class="company-tab ${_companyTab==='schedule'?'active':''}"
+      data-tab="schedule" onclick="switchCompanyTab('schedule')"
+      style="padding:12px 20px;font-size:13px;font-weight:600;background:none;border:none;
+        cursor:pointer;border-bottom:2px solid ${_companyTab==='schedule'?'var(--tg)':'transparent'};
+        color:${_companyTab==='schedule'?'var(--text)':'var(--text3)'};margin-bottom:-1px">
+      📅 수집 스케줄
+    </button>
   </div>
 
   ${_renderMonitoringTab()}
   ${_renderEtfTab()}
+  ${_renderScheduleTab()}
   </div>`;
 }
 
@@ -139,8 +225,10 @@ function switchCompanyTab(tab) {
   _companyTab = tab;
   const monEl = document.getElementById('company-tab-monitoring');
   const etfEl = document.getElementById('company-tab-etf');
+  const schEl = document.getElementById('company-tab-schedule');
   if (monEl) monEl.style.display = tab === 'monitoring' ? 'grid' : 'none';
-  if (etfEl) { etfEl.style.display = tab === 'etf' ? 'block' : 'none'; console.log('[TAB] etfEl display set to:', etfEl.style.display); }
+  if (etfEl) etfEl.style.display = tab === 'etf' ? 'block' : 'none';
+  if (schEl) schEl.style.display = tab === 'schedule' ? 'block' : 'none';
   // 탭 버튼 스타일
   document.querySelectorAll('.company-tab').forEach(btn => {
     const isActive = btn.dataset.tab === tab;
