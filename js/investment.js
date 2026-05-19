@@ -117,6 +117,24 @@ function pInvestment() {
       </div>
     </div>
 
+    <!-- 💰 기관/외국인 수급 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span class="card-title">💰 기관/외국인 수급</span>
+        <span style="font-size:11px;color:var(--text3)">장중 집계 기준 (09:30·11:20·13:20·14:30)</span>
+        <div style="display:flex;gap:4px;margin-left:auto">
+          <button class="chip active" data-flow-tab="both" onclick="switchFlowTab('both')" style="font-size:11px;padding:2px 8px">동시매수</button>
+          <button class="chip" data-flow-tab="frgn"  onclick="switchFlowTab('frgn')"  style="font-size:11px;padding:2px 8px">외국인</button>
+          <button class="chip" data-flow-tab="orgn"  onclick="switchFlowTab('orgn')"  style="font-size:11px;padding:2px 8px">기관</button>
+        </div>
+      </div>
+      <div id="flow-body" style="padding:.5rem 0">
+        <div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">
+          <span class="loading"></span> 수급 데이터 로딩 중...
+        </div>
+      </div>
+    </div>
+
     <!-- 🔴🔵 급등/급락 -->
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px">
       <div class="card">

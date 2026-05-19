@@ -461,6 +461,9 @@ async function loadMarketOverview(maxDate) {
   // 신고가 종목
   loadNewHighStocks();
 
+  loadFlowData();
+  // 기관/외국인 수급
+
   setTimeout(loadMarketInsight, 1500);
 }
 
@@ -599,6 +602,96 @@ function renderHgprTab(tab) {
           </tr>
         </thead>
         <tbody>${rows_html}${toggleBtn}</tbody>
+      </table>
+    </div>`;
+}
+
+
+// ══════════════════════════════════════════
+// 💰 기관/외국인 수급 (오늘의 시황)
+// ══════════════════════════════════════════
+
+let _flowData = null;   // { frgn_buy, orgn_buy, both_buy }
+let _flowTab  = 'both';
+
+async function loadFlowData() {
+  const body = document.getElementById('flow-body');
+  if (!body) return;
+
+  const _kst  = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const today = _kst.toISOString().split('T')[0];
+
+  // market_data에서 외국인/기관 순매수 데이터 조회
+  const { data: rows } = await sb.from('market_data')
+    .select('stock_code,corp_name,price,price_change_rate,market_cap,foreign_net_buy,institution_net_buy')
+    .eq('base_date', today)
+    .not('foreign_net_buy', 'is', null)
+    .order('market_cap', { ascending: false })
+    .limit(100);
+
+  if (!rows?.length) {
+    body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">수급 데이터 없음 — 장중/장마감 후 수집됩니다</div>';
+    return;
+  }
+
+  const frgn_buy = rows.filter(r => (r.foreign_net_buy     || 0) > 0)
+    .sort((a,b) => b.foreign_net_buy - a.foreign_net_buy).slice(0, 20);
+  const orgn_buy = rows.filter(r => (r.institution_net_buy || 0) > 0)
+    .sort((a,b) => b.institution_net_buy - a.institution_net_buy).slice(0, 20);
+  const both_buy = rows.filter(r => (r.foreign_net_buy||0) > 0 && (r.institution_net_buy||0) > 0)
+    .sort((a,b) => (b.foreign_net_buy + b.institution_net_buy) - (a.foreign_net_buy + a.institution_net_buy))
+    .slice(0, 10);
+
+  _flowData = { frgn_buy, orgn_buy, both_buy };
+  renderFlowTab(_flowTab);
+}
+
+function switchFlowTab(tab) {
+  _flowTab = tab;
+  document.querySelectorAll('[data-flow-tab]').forEach(b =>
+    b.classList.toggle('active', b.dataset.flowTab === tab));
+  renderFlowTab(tab);
+}
+
+function renderFlowTab(tab) {
+  const body = document.getElementById('flow-body');
+  if (!body || !_flowData) return;
+
+  const data = _flowData[tab === 'frgn' ? 'frgn_buy' : tab === 'orgn' ? 'orgn_buy' : 'both_buy'] || [];
+
+  if (!data.length) {
+    body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">해당 수급 데이터 없음</div>';
+    return;
+  }
+
+  const rows_html = data.map(r => {
+    const chg    = r.price_change_rate;
+    const chgTxt = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
+    const chgClr = chg != null && chg >= 0 ? 'var(--red)' : 'var(--blue)';
+    const fNet   = r.foreign_net_buy     || 0;
+    const oNet   = r.institution_net_buy || 0;
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:6px 12px;font-weight:500;font-size:13px">${r.corp_name || r.stock_code}</td>
+      <td style="padding:6px 12px;text-align:right;font-weight:500">${r.price ? r.price.toLocaleString()+'원' : '—'}</td>
+      <td style="padding:6px 12px;text-align:right;color:${chgClr};font-weight:500">${chgTxt}</td>
+      <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--tg)">${fNet > 0 ? '+'+fNet.toLocaleString() : fNet.toLocaleString()}</td>
+      <td style="padding:6px 12px;text-align:right;font-size:12px;color:#fb923c">${oNet > 0 ? '+'+oNet.toLocaleString() : oNet !== 0 ? oNet.toLocaleString() : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div style="padding:0 .5rem">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--bg3)">
+            <th style="padding:5px 12px;text-align:left;font-size:11px;color:var(--text3);font-weight:500">종목명</th>
+            <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">현재가</th>
+            <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">등락률</th>
+            <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--tg);font-weight:500">외국인↑</th>
+            <th style="padding:5px 12px;text-align:right;font-size:11px;color:#fb923c;font-weight:500">기관↑</th>
+          </tr>
+        </thead>
+        <tbody>${rows_html}</tbody>
       </table>
     </div>`;
 }
