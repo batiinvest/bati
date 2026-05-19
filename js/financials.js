@@ -179,6 +179,15 @@ async function loadFinancials() {
 }
 
 async function loadMarketData(el) {
+  const _pct  = v => v != null ? v.toFixed(1) + '%' : '—';
+  const _num  = v => v != null ? v.toLocaleString() : '—';
+  const _yn   = v => v == null ? '—' : v ? '예' : '—';
+  const _warn = c => {
+    if (!c || c === '00') return '—';
+    const m = {'01':'주의','02':'경고','03':'위험예고'};
+    return `<span style="color:var(--yellow)">${m[c]||c}</span>`;
+  };
+
   await _loadTabData(el, {
     defaultSort: 'market_cap',
     fetchRows: async () => {
@@ -189,31 +198,97 @@ async function loadMarketData(el) {
         sb.from('market_data').select('*').eq('base_date', maxDate)
       ) : [];
       const data = monitoredCodes ? all.filter(r => monitoredCodes.has(r.stock_code)) : all;
-      // 종목당 최신 1개
       const latest = {};
       data.forEach(r => { if (!latest[r.stock_code]) latest[r.stock_code] = r; });
       return Object.values(latest);
     },
     headers: () => [
-      '종목명',
-      _sortBtn('market_cap','시가총액'), _sortBtn('price','현재가'),
+      // 기본 시세
+      '종목명', '코드',
+      _sortBtn('market_cap','시가총액'),
+      _sortBtn('price','현재가'),
+      _sortBtn('price_change','전일대비'),
       _sortBtn('price_change_rate','등락률'),
-      _sortBtn('per','PER'), _sortBtn('pbr','PBR'),
-      _sortBtn('eps','EPS'), _sortBtn('volume','거래량'),
+      _sortBtn('open_price','시가'),
+      _sortBtn('high_price','고가'),
+      _sortBtn('low_price','저가'),
+      _sortBtn('volume','거래량'),
+      _sortBtn('trading_value','거래대금'),
+      // 밸류에이션
+      _sortBtn('per','PER'),
+      _sortBtn('pbr','PBR'),
+      _sortBtn('eps','EPS'),
+      _sortBtn('bps','BPS'),
+      _sortBtn('dps','DPS'),
+      // 수급
+      _sortBtn('foreign_hold_rate','외국인소진율'),
+      _sortBtn('foreign_net_buy','외국인순매수'),
+      _sortBtn('institution_net_buy','기관순매수'),
+      _sortBtn('program_net_buy','프로그램순매수'),
+      _sortBtn('loan_balance_rate','융자잔고율'),
+      // 52주/연중
+      _sortBtn('week52_high','52주고가'),
+      _sortBtn('week52_low','52주저가'),
+      '52주고가일',
+      '52주저가일',
+      _sortBtn('year_high','연중고가'),
+      _sortBtn('year_low','연중저가'),
+      // 기타
+      _sortBtn('listing_shares','상장주수'),
+      _sortBtn('vol_turnover','거래량회전율'),
+      '시장경고',
+      '투자유의',
+      '신고가',
       '기준일',
     ],
     rowTemplate: r => {
-      const chg = r.price_change_rate;
+      const chg  = r.price_change_rate;
+      const chgV = r.price_change;
+      const chgC = chgColor(chg);
+      // 52주 위치 프로그레스 바
+      const w52h = r.week52_high, w52l = r.week52_low, pr = r.price;
+      const w52pct = (w52h && w52l && pr && w52h > w52l)
+        ? Math.round((pr - w52l) / (w52h - w52l) * 100) : null;
+      const w52bar = w52pct != null
+        ? `<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3)">
+            <span style="width:50px;height:4px;background:var(--bg3);border-radius:2px;display:inline-block;position:relative">
+              <span style="position:absolute;left:0;top:0;height:100%;width:${Math.max(2,w52pct)}%;
+                background:${w52pct>=80?'var(--red)':w52pct<=20?'var(--blue)':'var(--tg)'};border-radius:2px"></span>
+            </span>${w52pct}%</div>` : '—';
       return `<tr>
-        <td style="font-weight:500;cursor:pointer;color:var(--tg)"
+        <td style="font-weight:500;cursor:pointer;color:var(--tg);white-space:nowrap"
           onclick="openStockDetail('${r.stock_code}','${r.corp_name}','market')">${r.corp_name}</td>
+        <td style="font-size:11px;color:var(--text3);font-family:monospace">${r.stock_code}</td>
         <td>${fmtCap(r.market_cap)}</td>
-        <td>${r.price ? r.price.toLocaleString() + '원' : '—'}</td>
-        <td style="color:${chgColor(chg)};font-weight:500">${chgStr(chg)}</td>
+        <td style="font-weight:500">${r.price ? r.price.toLocaleString()+'원' : '—'}</td>
+        <td style="color:${chgC}">${chgV != null ? (chgV>0?'+':'')+chgV.toLocaleString()+'원' : '—'}</td>
+        <td style="color:${chgC};font-weight:500">${chgStr(chg)}</td>
+        <td>${r.open_price  ? r.open_price.toLocaleString()+'원' : '—'}</td>
+        <td style="color:var(--red)">${r.high_price ? r.high_price.toLocaleString()+'원' : '—'}</td>
+        <td style="color:var(--blue)">${r.low_price  ? r.low_price.toLocaleString()+'원'  : '—'}</td>
+        <td>${_num(r.volume)}</td>
+        <td>${r.trading_value ? fmtCap(r.trading_value) : '—'}</td>
         <td>${r.per != null && r.per !== 0 ? r.per.toFixed(1) : '—'}</td>
         <td>${r.pbr != null && r.pbr !== 0 ? r.pbr.toFixed(2) : '—'}</td>
-        <td>${r.eps ? r.eps.toLocaleString() : '—'}</td>
-        <td>${r.volume ? r.volume.toLocaleString() : '—'}</td>
+        <td>${_num(r.eps)}</td>
+        <td>${_num(r.bps)}</td>
+        <td>${_num(r.dps)}</td>
+        <td>${r.foreign_hold_rate != null ? r.foreign_hold_rate.toFixed(1)+'%' : '—'}</td>
+        <td style="color:${(r.foreign_net_buy||0)>0?'var(--red)':(r.foreign_net_buy||0)<0?'var(--blue)':'var(--text3)'}">${r.foreign_net_buy != null ? (r.foreign_net_buy>0?'+':'')+_num(r.foreign_net_buy) : '—'}</td>
+        <td style="color:${(r.institution_net_buy||0)>0?'var(--red)':(r.institution_net_buy||0)<0?'var(--blue)':'var(--text3)'}">${r.institution_net_buy != null ? (r.institution_net_buy>0?'+':'')+_num(r.institution_net_buy) : '—'}</td>
+        <td style="color:${(r.program_net_buy||0)>0?'var(--red)':(r.program_net_buy||0)<0?'var(--blue)':'var(--text3)'}">${r.program_net_buy != null ? (r.program_net_buy>0?'+':'')+_num(r.program_net_buy) : '—'}</td>
+        <td>${r.loan_balance_rate != null ? r.loan_balance_rate.toFixed(2)+'%' : '—'}</td>
+        <td style="color:var(--red)">${_num(r.week52_high)}</td>
+        <td style="color:var(--blue)">${_num(r.week52_low)}</td>
+        <td style="font-size:11px;color:var(--text3)">${r.week52_high_date || '—'}</td>
+        <td style="font-size:11px;color:var(--text3)">${r.week52_low_date  || '—'}</td>
+        <td style="color:var(--red)">${_num(r.year_high)}</td>
+        <td style="color:var(--blue)">${_num(r.year_low)}</td>
+        <td style="font-size:11px;color:var(--text3)">${_num(r.listing_shares)}</td>
+        <td>${r.vol_turnover != null ? r.vol_turnover.toFixed(2)+'%' : '—'}</td>
+        <td>${_warn(r.market_warn_code)}</td>
+        <td>${_yn(r.is_caution)}</td>
+        <td style="font-size:11px">${r.new_hgpr_cls || '—'}</td>
         <td style="font-size:11px;color:var(--text3)">${r.base_date || '—'}</td>
       </tr>`;
     },
