@@ -230,7 +230,7 @@ async function loadMarketData(el) {
       '연중고가일', '연중저가일',
       _sortBtn('year_high_rate','연중고가대비%'), _sortBtn('year_low_rate','연중저가대비%'),
       _sortBtn('approach_rate','접근도'),
-      '시장경고', '투자유의', '관리종목', '단기과열', '정리매매', '신고가구분', '기준일',
+      '전일부호', '시장경고', '투자유의', '관리종목', '단기과열', '정리매매', '신고가구분', '신고가코드', '기준일',
     ],
     rowTemplate: r => {
       const chg  = r.price_change_rate;
@@ -307,12 +307,14 @@ async function loadMarketData(el) {
         <td style="font-size:11px">${p(r.year_high_rate)}</td>
         <td style="font-size:11px">${p(r.year_low_rate)}</td>
         <td style="font-size:11px">${r.approach_rate != null ? r.approach_rate.toFixed(1)+'%' : '—'}</td>
+        <td style="font-size:11px;color:var(--text3);font-family:monospace">${r.price_change_sign||'—'}</td>
         <td>${warn(r.market_warn_code)}</td>
         <td>${yn(r.is_caution)}</td>
         <td style="font-size:11px">${r.manage_issue_code||'—'}</td>
         <td>${yn(r.is_short_over)}</td>
         <td>${yn(r.is_liquidation)}</td>
         <td style="font-size:11px;color:var(--tg)">${r.hgpr_cls||'—'}</td>
+        <td style="font-size:11px;color:var(--text3);font-family:monospace">${r.hgpr_cls_code||'—'}</td>
         <td style="font-size:11px;color:var(--text3)">${r.base_date||'—'}</td>
       </tr>`;
     },
