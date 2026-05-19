@@ -671,7 +671,6 @@ function renderFlowTab(tab) {
       <td style="padding:6px 12px;text-align:right;font-weight:500">${r.price ? r.price.toLocaleString()+'원' : '—'}</td>
       <td style="padding:6px 12px;text-align:right;color:${chgClr};font-weight:500">${chgTxt}</td>
       <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--tg)">${fNet > 0 ? '+'+fNet.toLocaleString() : fNet.toLocaleString()}</td>
-      <td style="padding:6px 12px;text-align:right;font-size:12px;color:#fb923c">${oNet > 0 ? '+'+oNet.toLocaleString() : oNet !== 0 ? oNet.toLocaleString() : '—'}</td>
     </tr>`;
   }).join('');
 
