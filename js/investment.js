@@ -100,23 +100,6 @@ function pInvestment() {
       </div>
     </div>
 
-    <!-- 📊 KRX 업종지수 -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span class="card-title">📊 KRX 업종지수</span>
-        <span style="font-size:11px;color:var(--text3)">KRX 공식 업종 등락률 + 확산도</span>
-        <div style="display:flex;gap:4px;margin-left:auto">
-          <button class="chip active" data-krx-tab="kospi"  onclick="switchKrxTab('kospi')"  style="font-size:11px;padding:2px 8px">KOSPI</button>
-          <button class="chip"        data-krx-tab="kosdaq" onclick="switchKrxTab('kosdaq')" style="font-size:11px;padding:2px 8px">KOSDAQ</button>
-        </div>
-      </div>
-      <div id="krx-body" style="padding:.5rem 0">
-        <div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">
-          <span class="loading"></span> 업종지수 로딩 중...
-        </div>
-      </div>
-    </div>
-
     <!-- 📈 신고가 종목 -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
