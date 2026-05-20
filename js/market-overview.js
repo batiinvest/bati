@@ -459,6 +459,9 @@ async function loadMarketOverview(maxDate) {
 
   // 투자포인트 요약 (다른 데이터 로드 완료 후)
   // 신고가 종목
+  // KRX 업종지수
+  loadKrxIndustry();
+
   loadNewHighStocks();
 
   loadFlowData();
@@ -687,6 +690,127 @@ function renderFlowTab(tab) {
           </tr>
         </thead>
         <tbody>${rows_html}</tbody>
+      </table>
+    </div>`;
+}
+
+
+// ══════════════════════════════════════════
+// 📊 KRX 업종지수 카드
+// ══════════════════════════════════════════
+
+let _krxData = null;   // { kospi: [...], kosdaq: [...] }
+let _krxTab  = 'kospi';
+
+async function loadKrxIndustry() {
+  const body = document.getElementById('krx-body');
+  if (!body) return;
+
+  const _kst  = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const today = _kst.toISOString().split('T')[0];
+
+  // krx_industry 테이블에서 조회
+  const { data: rows } = await sb.from('krx_industry')
+    .select('*')
+    .eq('base_date', today)
+    .order('change_rate', { ascending: false });
+
+  if (!rows?.length) {
+    // 최신 날짜 fallback
+    const { data: latest } = await sb.from('krx_industry')
+      .select('base_date')
+      .order('base_date', { ascending: false })
+      .limit(1);
+
+    if (!latest?.length) {
+      body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">업종지수 데이터 없음 — 12:05 또는 16:40 수집됩니다</div>';
+      return;
+    }
+
+    const { data: rows2 } = await sb.from('krx_industry')
+      .select('*')
+      .eq('base_date', latest[0].base_date)
+      .order('change_rate', { ascending: false });
+
+    _krxData = _groupKrx(rows2 || []);
+  } else {
+    _krxData = _groupKrx(rows);
+  }
+
+  renderKrxTab(_krxTab);
+}
+
+function _groupKrx(rows) {
+  // 업종코드 앞자리로 코스피/코스닥 구분
+  return {
+    kospi:  rows.filter(r => r.industry_code?.startsWith('0')),
+    kosdaq: rows.filter(r => r.industry_code?.startsWith('1')),
+  };
+}
+
+function switchKrxTab(tab) {
+  _krxTab = tab;
+  document.querySelectorAll('[data-krx-tab]').forEach(b =>
+    b.classList.toggle('active', b.dataset.krxTab === tab));
+  renderKrxTab(tab);
+}
+
+function renderKrxTab(tab) {
+  const body = document.getElementById('krx-body');
+  if (!body || !_krxData) return;
+
+  const rows = _krxData[tab] || [];
+  if (!rows.length) {
+    body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">데이터 없음</div>';
+    return;
+  }
+
+  const rowsHtml = rows.map(r => {
+    const chg  = r.change_rate || 0;
+    const chgC = chg > 0 ? 'var(--red)' : chg < 0 ? 'var(--blue)' : 'var(--text3)';
+    const chgStr = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+
+    // 확산도 프로그레스 바
+    const adv  = r.advance_ratio;
+    const total = (r.up_cnt||0) + (r.down_cnt||0) + (r.flat_cnt||0);
+    const upPct  = total ? Math.round((r.up_cnt||0)   / total * 100) : 0;
+    const flatPct= total ? Math.round((r.flat_cnt||0) / total * 100) : 0;
+    const downPct= 100 - upPct - flatPct;
+
+    const diffBar = total ? `
+      <div style="display:flex;height:4px;border-radius:2px;overflow:hidden;width:80px;gap:1px">
+        <div style="width:${upPct}%;background:var(--red)"></div>
+        <div style="width:${flatPct}%;background:var(--text3)"></div>
+        <div style="width:${downPct}%;background:var(--blue)"></div>
+      </div>
+      <span style="font-size:10px;color:var(--text3)">▲${r.up_cnt||0} ─${r.flat_cnt||0} ▼${r.down_cnt||0}</span>` : '—';
+
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:6px 12px;font-weight:500;font-size:13px;white-space:nowrap">${r.industry_name}</td>
+      <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--text3)">${r.index_val ? r.index_val.toFixed(2) : '—'}</td>
+      <td style="padding:6px 12px;text-align:right;color:${chgC};font-weight:600">${chgStr}</td>
+      <td style="padding:6px 12px">
+        <div style="display:flex;flex-direction:column;gap:3px">${diffBar}</div>
+      </td>
+      <td style="padding:6px 12px;text-align:right;font-size:11px;color:${(adv||0)>=60?'var(--red)':(adv||0)<=40?'var(--blue)':'var(--text3)'};font-weight:600">
+        ${adv != null ? adv.toFixed(0)+'%' : '—'}
+      </td>
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div style="padding:0 .5rem">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--bg3)">
+            <th style="padding:5px 12px;text-align:left;font-size:11px;color:var(--text3);font-weight:500">업종명</th>
+            <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">지수</th>
+            <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">등락률</th>
+            <th style="padding:5px 12px;text-align:left;font-size:11px;color:var(--text3);font-weight:500">확산도 (상승/보합/하락)</th>
+            <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">상승비율</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
       </table>
     </div>`;
 }
