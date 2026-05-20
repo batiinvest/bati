@@ -741,10 +741,9 @@ async function loadKrxIndustry() {
 }
 
 function _groupKrx(rows) {
-  // 업종코드 앞자리로 코스피/코스닥 구분
   return {
-    kospi:  rows.filter(r => r.industry_code?.startsWith('0')),
-    kosdaq: rows.filter(r => r.industry_code?.startsWith('1')),
+    kospi:  rows.filter(r => r.market === 'KOSPI'  || r.industry_code?.startsWith('0')),
+    kosdaq: rows.filter(r => r.market === 'KOSDAQ' || r.industry_code?.startsWith('1')),
   };
 }
 
