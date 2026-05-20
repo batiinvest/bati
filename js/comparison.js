@@ -375,7 +375,7 @@ async function runComparison() {
     // 재무 데이터 조회
     const finRows = await fetchAllPages(
       sb.from('financials')
-        .select('stock_code,corp_name,bsns_year,quarter,fs_div,' + CMP_METRICS.filter(m=>m.key!=='fcf').map(m=>m.key).join(','))
+        .select('stock_code,corp_name,bsns_year,quarter,fs_div,' + CMP_METRICS.map(m=>m.key).filter((k,i,a)=>a.indexOf(k)===i).join(','))
         .in('stock_code', codes)
         .eq('fs_div', 'CFS')
         .order('bsns_year', { ascending: false })
@@ -400,7 +400,7 @@ async function runComparison() {
     codes.forEach(code => { stockDataMap[code] = []; });
     finRows.forEach(r => {
       // FCF 근사: 영업현금흐름 (capex 데이터 없으므로 보수적 근사)
-      r.fcf = r.operating_cashflow ?? null;
+      // fcf: DB 컬럼에서 직접 가져옴 (collect_financials.py에서 계산)
       if (stockDataMap[r.stock_code]) {
         stockDataMap[r.stock_code].push(r);
       }
@@ -744,7 +744,7 @@ function renderCmpDetailTable(metricKey) {
 function _drawSparklines(metricKey) {
   requestAnimationFrame(() => {
     const map = window._cmpStockDataMap || {};
-    const sparkKey = metricKey === 'fcf' ? 'operating_cashflow' : metricKey;
+    const sparkKey = metricKey;
 
     CMP.selectedCodes.forEach((s, si) => {
       const canvas = document.getElementById(`spark-${s.code}-${metricKey}`);
@@ -825,10 +825,8 @@ async function fetchCmpMetricAndRender(metricKey, canvas, labels, metaDef) {
   const codes = CMP.selectedCodes.map(s => s.code);
 
   // fetchAllPages 대신 직접 쿼리 (정렬+range 충돌 방지)
-  // fcf는 DB 컬럼 없음 — operating_cashflow로 대체 조회 후 JS에서 계산
-  const dbKey = metricKey === 'fcf' ? 'operating_cashflow' : metricKey;
   const { data: rows } = await sb.from('financials')
-    .select(`stock_code,bsns_year,quarter,${dbKey}`)
+    .select(`stock_code,bsns_year,quarter,${metricKey}`)
     .in('stock_code', codes)
     .eq('fs_div', 'CFS')
     .order('bsns_year', { ascending: true })
@@ -839,9 +837,7 @@ async function fetchCmpMetricAndRender(metricKey, canvas, labels, metaDef) {
   codes.forEach(c => { stockMap[c] = {}; });
   (rows || []).forEach(r => {
     if (stockMap[r.stock_code]) {
-      // fcf는 operating_cashflow 값 사용 (capex 데이터 없음)
-      const val = metricKey === 'fcf' ? r['operating_cashflow'] : r[metricKey];
-      stockMap[r.stock_code][`${r.bsns_year} ${r.quarter}`] = val;
+      stockMap[r.stock_code][`${r.bsns_year} ${r.quarter}`] = r[metricKey];
     }
   });
 
