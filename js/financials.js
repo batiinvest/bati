@@ -117,42 +117,10 @@ async function _getMonitoredCodes() {
  */
 function _renderTable(headers, bodyRows) {
   if (!bodyRows.length) return emptyHTML();
-  return `
-    <div style="
-      position:relative;
-      overflow:auto;
-      max-height:65vh;
-      border:1px solid var(--border);
-      border-radius:6px;
-      scrollbar-width:thin;
-      scrollbar-color:var(--border) transparent;
-    ">
-      <table style="border-collapse:collapse;width:max-content;min-width:100%">
-        <thead>
-          <tr>
-            ${headers.map(h => `
-              <th style="
-                position:sticky;top:0;z-index:2;
-                background:var(--bg2);
-                border-bottom:2px solid var(--border);
-                border-right:1px solid var(--border);
-                padding:7px 12px;
-                white-space:nowrap;
-                font-size:11px;font-weight:600;color:var(--text3);
-                text-align:center;
-                backdrop-filter:blur(4px);
-              ">${h}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>${bodyRows.join('')}</tbody>
-      </table>
-      <div style="
-        position:sticky;bottom:0;left:0;right:0;
-        height:3px;
-        background:linear-gradient(90deg,var(--tg),var(--blue));
-        opacity:.3;pointer-events:none;
-      "></div>
-    </div>`;
+  return `<div class="table-wrap"><table>
+    <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${bodyRows.join('')}</tbody>
+  </table></div>`;
 }
 
 /**
@@ -177,14 +145,7 @@ async function _loadTabData(el, config) {
 
   el.innerHTML = _renderTable(
     typeof headers === 'function' ? headers(rows) : headers,
-    rows.map((r, i) => {
-      const raw = config.rowTemplate(r);
-      const bg  = i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.025)';
-      return raw
-        .replace(/^<tr>/, `<tr style="background:${bg}">`)
-        .replace(/<td(?!\s+style="[^"]*border-right)/g,
-          '<td style="border-right:1px solid var(--border);');
-    })
+    rows.map(config.rowTemplate)
   );
 }
 

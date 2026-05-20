@@ -77,7 +77,19 @@ body { background:var(--bg); color:var(--text); font-family:'Pretendard','Apple 
 .card-body { padding:1.125rem; }
 
 /* ── Table ── */
-.table-wrap { overflow-x:auto; }
+.table-wrap {
+  overflow-x: auto;
+  /* 스크롤바가 표 바로 아래에 붙도록 */
+  display: block;
+  width: 100%;
+  /* 슬림 스크롤바 */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.18) transparent;
+}
+.table-wrap::-webkit-scrollbar { height: 5px; }
+.table-wrap::-webkit-scrollbar-track { background: var(--bg3); border-radius: 3px; }
+.table-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,.22); border-radius: 3px; }
+.table-wrap::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.38); }
 table { width:100%; border-collapse:collapse; font-size:13px; }
 th { text-align:left; padding:9px 12px; font-size:11px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:.06em; border-bottom:1px solid var(--border); white-space:nowrap; }
 td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; white-space:nowrap; }
