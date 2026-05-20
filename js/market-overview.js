@@ -758,46 +758,55 @@ function renderKrxTab(tab) {
   const body = document.getElementById('krx-body');
   if (!body || !_krxData) return;
 
-  const rows = _krxData[tab] || [];
+  const all  = _krxData[tab] || [];
+  const summary = all.find(r => r.industry_code === '__SUMMARY__');
+  const rows    = all.filter(r => r.industry_code !== '__SUMMARY__');
+
   if (!rows.length) {
     body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">데이터 없음</div>';
     return;
+  }
+
+  // 시장 전체 확산도 배너 (output1 기반)
+  let summaryHtml = '';
+  if (summary) {
+    const u = summary.up_cnt || 0;
+    const d = summary.down_cnt || 0;
+    const f = summary.flat_cnt || 0;
+    const t = u + d + f;
+    const uPct = t ? Math.round(u/t*100) : 0;
+    const fPct = t ? Math.round(f/t*100) : 0;
+    const dPct = 100 - uPct - fPct;
+    const adv  = summary.advance_ratio;
+    const advC = (adv||0) >= 60 ? 'var(--red)' : (adv||0) <= 40 ? 'var(--blue)' : 'var(--text3)';
+    summaryHtml = `
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 12px;
+        background:var(--bg3);border-radius:6px;margin:4px 8px 8px">
+        <span style="font-size:11px;color:var(--text3);font-weight:600">시장 확산도</span>
+        <div style="flex:1;height:8px;border-radius:4px;overflow:hidden;display:flex;gap:1px">
+          <div style="width:${uPct}%;background:var(--red);transition:width .3s"></div>
+          <div style="width:${fPct}%;background:rgba(128,128,128,.4)"></div>
+          <div style="width:${dPct}%;background:var(--blue);transition:width .3s"></div>
+        </div>
+        <span style="font-size:13px;font-weight:700;color:${advC};min-width:36px;text-align:right">${adv != null ? adv.toFixed(0)+'%' : '—'}</span>
+        <span style="font-size:11px;color:var(--text3)">▲${u} ─${f} ▼${d}</span>
+      </div>`;
   }
 
   const rowsHtml = rows.map(r => {
     const chg  = r.change_rate || 0;
     const chgC = chg > 0 ? 'var(--red)' : chg < 0 ? 'var(--blue)' : 'var(--text3)';
     const chgStr = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
-
-    // 확산도 프로그레스 바
-    const adv  = r.advance_ratio;
-    const total = (r.up_cnt||0) + (r.down_cnt||0) + (r.flat_cnt||0);
-    const upPct  = total ? Math.round((r.up_cnt||0)   / total * 100) : 0;
-    const flatPct= total ? Math.round((r.flat_cnt||0) / total * 100) : 0;
-    const downPct= 100 - upPct - flatPct;
-
-    const diffBar = total ? `
-      <div style="display:flex;height:4px;border-radius:2px;overflow:hidden;width:80px;gap:1px">
-        <div style="width:${upPct}%;background:var(--red)"></div>
-        <div style="width:${flatPct}%;background:var(--text3)"></div>
-        <div style="width:${downPct}%;background:var(--blue)"></div>
-      </div>
-      <span style="font-size:10px;color:var(--text3)">▲${r.up_cnt||0} ─${r.flat_cnt||0} ▼${r.down_cnt||0}</span>` : '—';
-
+    const volR = r.vol_ratio != null ? r.vol_ratio.toFixed(1)+'%' : '—';
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:6px 12px;font-weight:500;font-size:13px;white-space:nowrap">${r.industry_name}</td>
       <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--text3)">${r.index_val ? r.index_val.toFixed(2) : '—'}</td>
       <td style="padding:6px 12px;text-align:right;color:${chgC};font-weight:600">${chgStr}</td>
-      <td style="padding:6px 12px">
-        <div style="display:flex;flex-direction:column;gap:3px">${diffBar}</div>
-      </td>
-      <td style="padding:6px 12px;text-align:right;font-size:11px;color:${(adv||0)>=60?'var(--red)':(adv||0)<=40?'var(--blue)':'var(--text3)'};font-weight:600">
-        ${adv != null ? adv.toFixed(0)+'%' : '—'}
-      </td>
+      <td style="padding:6px 12px;text-align:right;font-size:11px;color:var(--text3)">${volR}</td>
     </tr>`;
   }).join('');
 
-  body.innerHTML = `
+  body.innerHTML = summaryHtml + `
     <div style="padding:0 .5rem">
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead>
@@ -805,8 +814,7 @@ function renderKrxTab(tab) {
             <th style="padding:5px 12px;text-align:left;font-size:11px;color:var(--text3);font-weight:500">업종명</th>
             <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">지수</th>
             <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">등락률</th>
-            <th style="padding:5px 12px;text-align:left;font-size:11px;color:var(--text3);font-weight:500">확산도 (상승/보합/하락)</th>
-            <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">상승비율</th>
+            <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">거래량비중</th>
           </tr>
         </thead>
         <tbody>${rowsHtml}</tbody>
