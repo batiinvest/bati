@@ -8,6 +8,11 @@ function pFinancials() {
     <button class="tab fin-tab ${F.mode==='market'?'active':''}" data-mode="market" onclick="F.mode='market';loadFinancials()">시장 데이터</button>
     <button class="tab fin-tab ${F.mode==='financial'?'active':''}" data-mode="financial" onclick="F.mode='financial';loadFinancials()">재무제표</button>
     <button class="tab fin-tab ${F.mode==='combined'?'active':''}" data-mode="combined" onclick="F.mode='combined';loadFinancials()">종합</button>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11px;padding:0 4px">
+      <span style="padding:1px 6px;border-radius:3px;background:rgba(45,206,137,.15);color:var(--green);font-weight:600">DART</span><span style="color:var(--text3)">금융감독원 공시</span>
+      <span style="padding:1px 6px;border-radius:3px;background:rgba(251,99,64,.15);color:var(--yellow);font-weight:600">계산</span><span style="color:var(--text3)">DB 자동계산</span>
+      <span style="padding:1px 6px;border-radius:3px;background:rgba(42,171,238,.15);color:var(--tg);font-weight:600">KIS</span><span style="color:var(--text3)">한투 API</span>
+    </div>
   </div>
 
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1rem">
@@ -61,13 +66,20 @@ function _applyFinFilter(rows) {
  * @param {string} label 표시 레이블
  * @returns {string} HTML 문자열
  */
-function _sortBtn(col, label) {
+// src 배지: 'D'=DART, 'C'=계산(DB), 'K'=KIS API
+const _SRC = {
+  D: '<sup style="font-size:8px;color:var(--green);font-weight:700;margin-left:1px">D</sup>',
+  C: '<sup style="font-size:8px;color:var(--yellow);font-weight:700;margin-left:1px">C</sup>',
+  K: '<sup style="font-size:8px;color:var(--tg);font-weight:700;margin-left:1px">K</sup>',
+};
+function _sortBtn(col, label, src) {
   const active = F.sortBy === col;
   const icon   = active ? (F.sortDir === 'desc' ? ' ↓' : ' ↑') : '';
   const clr    = active ? 'color:var(--tg);' : '';
+  const badge  = src ? (_SRC[src] || '') : '';
   return `<span style="cursor:pointer;white-space:nowrap;${clr}user-select:none"
     onclick="F.sortBy='${col}';F.sortDir=(F.sortBy==='${col}'&&F.sortDir==='desc')?'asc':'desc';loadFinancials()"
-  >${label}${icon}</span>`;
+  >${label}${badge}${icon}</span>`;
 }
 
 /**
@@ -304,7 +316,13 @@ async function loadMarketData(el) {
 }
 
 async function loadFinancialData(el) {
-  const pct = v => v != null ? v.toFixed(1) + '%' : '—';
+  const pct  = v => v != null ? v.toFixed(1) + '%' : '—';
+  const cap  = v => v != null ? fmtCap(v) : '—';
+  const num  = v => v != null ? v.toLocaleString() : '—';
+  const src  = (s) => `<span style="font-size:9px;padding:1px 4px;border-radius:3px;
+    background:${s==='DART'?'rgba(45,206,137,.15)':s==='계산'?'rgba(251,99,64,.15)':'rgba(42,171,238,.15)'};
+    color:${s==='DART'?'var(--green)':s==='계산'?'var(--yellow)':'var(--tg)'};font-weight:600">${s}</span>`;
+
   await _loadTabData(el, {
     defaultSort: 'revenue',
     fetchRows: async () => {
@@ -315,7 +333,6 @@ async function loadFinancialData(el) {
           .order('quarter',   { ascending: false })
       );
       const data = monitoredCodes ? all.filter(r => monitoredCodes.has(r.stock_code)) : all;
-      // 종목당 최신 분기 1개
       const latest = {};
       data.forEach(r => {
         const cur = latest[r.stock_code];
@@ -326,38 +343,94 @@ async function loadFinancialData(el) {
       return Object.values(latest);
     },
     headers: () => [
-      '종목명', '기간',
-      _sortBtn('revenue','매출액'), _sortBtn('gross_profit','매출총이익'),
-      _sortBtn('gross_margin','GPM'), _sortBtn('operating_profit','영업이익'),
-      _sortBtn('operating_margin','영업이익률'), _sortBtn('net_income','순이익'),
-      _sortBtn('net_margin','순이익률'), _sortBtn('roe','ROE'),
-      _sortBtn('debt_ratio','부채비율'), _sortBtn('total_assets','자산총계'),
-      _sortBtn('operating_cashflow','영업현금흐름'),
+      // 식별
+      '종목명', '코드', '연도', '분기', '구분',
+      // 손익계산서 (DART)
+      _sortBtn('revenue','매출액','D'),
+      _sortBtn('gross_profit','매출총이익','D'),
+      _sortBtn('cogs','매출원가','D'),
+      _sortBtn('sga','판관비','D'),
+      _sortBtn('rd_expense','R&D','D'),
+      _sortBtn('operating_profit','영업이익','D'),
+      _sortBtn('other_operating_income','기타영업수익','D'),
+      _sortBtn('other_operating_expense','기타영업비용','D'),
+      _sortBtn('pretax_income','세전이익','D'),
+      _sortBtn('net_income','당기순이익','D'),
+      // 재무상태표 (DART)
+      _sortBtn('total_assets','자산총계','D'),
+      _sortBtn('total_liabilities','부채총계','D'),
+      _sortBtn('total_equity','자본총계','D'),
+      _sortBtn('current_assets','유동자산','D'),
+      _sortBtn('current_liabilities','유동부채','D'),
+      _sortBtn('non_current_assets','비유동자산','D'),
+      _sortBtn('capital_stock','자본금','D'),
+      _sortBtn('retained_earnings','이익잉여금','D'),
+      // 현금흐름 (DART)
+      _sortBtn('operating_cashflow','영업현금흐름','D'),
+      _sortBtn('investing_cashflow','투자현금흐름','D'),
+      _sortBtn('financing_cashflow','재무현금흐름','D'),
+      _sortBtn('capex','CapEx','D'),
+      // 파생비율 (계산)
+      _sortBtn('gross_margin','GPM','C'),
+      _sortBtn('operating_margin','OPM','C'),
+      _sortBtn('net_margin','NPM','C'),
+      _sortBtn('cogs_ratio','매출원가율','C'),
+      _sortBtn('sga_ratio','판관비율','C'),
+      _sortBtn('debt_ratio','부채비율','C'),
+      _sortBtn('current_ratio','유동비율','C'),
+      _sortBtn('roe','ROE','C'),
+      _sortBtn('roa','ROA','C'),
+      _sortBtn('fcf','FCF','C'),
     ],
     rowTemplate: r => {
-      const opC  = r.operating_profit > 0 ? 'var(--green)' : r.operating_profit < 0 ? 'var(--red)' : 'var(--text2)';
-      const niC  = (r.net_income||0)  >= 0 ? '' : 'var(--red)';
-      const gpC  = (r.gross_profit||0) >= 0 ? '' : 'var(--red)';
-      const ocfC = (r.operating_cashflow||0) >= 0 ? 'var(--green)' : 'var(--red)';
+      const opC  = (r.operating_profit||0) > 0 ? 'var(--red)' : (r.operating_profit||0) < 0 ? 'var(--blue)' : '';
+      const niC  = (r.net_income||0)       > 0 ? 'var(--red)' : (r.net_income||0)       < 0 ? 'var(--blue)' : '';
+      const fcfC = (r.fcf||0)              > 0 ? 'var(--red)' : (r.fcf||0)              < 0 ? 'var(--blue)' : '';
+      const ocfC = (r.operating_cashflow||0)>0 ? 'var(--red)' : 'var(--blue)';
       return `<tr>
-        <td style="font-weight:500;cursor:pointer;color:var(--tg)"
+        <td style="font-weight:500;cursor:pointer;color:var(--tg);white-space:nowrap"
           onclick="openStockDetail('${r.stock_code}','${r.corp_name}','financial')">${r.corp_name}</td>
-        <td style="font-size:11px;color:var(--text2);white-space:nowrap">${r.bsns_year} ${r.quarter}</td>
-        <td>${fmtCap(r.revenue)}</td>
-        <td style="color:${gpC}">${r.gross_profit ? fmtCap(r.gross_profit) : '—'}</td>
-        <td>${pct(r.gross_margin)}</td>
-        <td style="color:${opC}">${fmtCap(r.operating_profit)}</td>
-        <td>${pct(r.operating_margin)}</td>
-        <td style="color:${niC}">${fmtCap(r.net_income)}</td>
-        <td>${pct(r.net_margin)}</td>
-        <td>${pct(r.roe)}</td>
-        <td>${pct(r.debt_ratio)}</td>
-        <td>${fmtCap(r.total_assets)}</td>
-        <td style="color:${ocfC}">${r.operating_cashflow ? fmtCap(r.operating_cashflow) : '—'}</td>
+        <td style="font-size:11px;color:var(--text3);font-family:monospace">${r.stock_code}</td>
+        <td style="font-size:11px;color:var(--text3)">${r.bsns_year||'—'}</td>
+        <td style="font-size:11px;color:var(--text3)">${r.quarter||'—'}</td>
+        <td style="font-size:10px">${r.fs_div==='CFS'?'연결':'별도'}</td>
+        <td>${cap(r.revenue)}</td>
+        <td>${cap(r.gross_profit)}</td>
+        <td>${cap(r.cogs)}</td>
+        <td>${cap(r.sga)}</td>
+        <td>${cap(r.rd_expense)}</td>
+        <td style="color:${opC};font-weight:500">${cap(r.operating_profit)}</td>
+        <td>${cap(r.other_operating_income)}</td>
+        <td>${cap(r.other_operating_expense)}</td>
+        <td>${cap(r.pretax_income)}</td>
+        <td style="color:${niC};font-weight:500">${cap(r.net_income)}</td>
+        <td>${cap(r.total_assets)}</td>
+        <td>${cap(r.total_liabilities)}</td>
+        <td>${cap(r.total_equity)}</td>
+        <td>${cap(r.current_assets)}</td>
+        <td>${cap(r.current_liabilities)}</td>
+        <td>${cap(r.non_current_assets)}</td>
+        <td>${cap(r.capital_stock)}</td>
+        <td>${cap(r.retained_earnings)}</td>
+        <td style="color:${ocfC}">${cap(r.operating_cashflow)}</td>
+        <td>${cap(r.investing_cashflow)}</td>
+        <td>${cap(r.financing_cashflow)}</td>
+        <td>${cap(r.capex)}</td>
+        <td style="font-size:11px">${pct(r.gross_margin)}</td>
+        <td style="font-size:11px">${pct(r.operating_margin)}</td>
+        <td style="font-size:11px">${pct(r.net_margin)}</td>
+        <td style="font-size:11px">${pct(r.cogs_ratio)}</td>
+        <td style="font-size:11px">${pct(r.sga_ratio)}</td>
+        <td style="font-size:11px">${pct(r.debt_ratio)}</td>
+        <td style="font-size:11px">${pct(r.current_ratio)}</td>
+        <td style="font-size:11px">${pct(r.roe)}</td>
+        <td style="font-size:11px">${pct(r.roa)}</td>
+        <td style="color:${fcfC};font-weight:500">${cap(r.fcf)}</td>
       </tr>`;
     },
   });
 }
+
 
 async function loadCombinedData(el) {
   const pct = v => v != null ? v.toFixed(1) + '%' : '—';
@@ -400,8 +473,8 @@ async function loadCombinedData(el) {
       _sortBtn('market_cap','시가총액'), _sortBtn('price','현재가'),
       _sortBtn('price_change_rate','등락률'),
       _sortBtn('per','PER'), _sortBtn('pbr','PBR'),
-      _sortBtn('revenue','매출액'), _sortBtn('operating_profit','영업이익'),
-      _sortBtn('operating_margin','영업이익률'), _sortBtn('roe','ROE'),
+      _sortBtn('revenue','매출액','D'), _sortBtn('operating_profit','영업이익','D'),
+      _sortBtn('operating_margin','영업이익률','C'), _sortBtn('roe','ROE','C'),
       '기간',
     ],
     rowTemplate: r => {
