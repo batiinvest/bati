@@ -636,39 +636,69 @@ function renderHgprTab(tab) {
     <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:right">시총</th>`;
 
   if (tab === 'monitored') {
-    // 산업별 그룹핑
+    // 산업별 그룹핑 (시총 내림차순)
     const byInd = {};
     rows.forEach(r => {
       const ind = r.industry || '기타';
       if (!byInd[ind]) byInd[ind] = [];
       byInd[ind].push(r);
     });
-    const indOrder = Object.keys(byInd).sort((a,b) =>
-      (byInd[b].reduce((s,r)=>s+(r.market_cap||0),0)) - (byInd[a].reduce((s,r)=>s+(r.market_cap||0),0))
-    );
+    // 산업 순서: 종목 수 많은 순
+    const indOrder = Object.keys(byInd).sort((a,b) => byInd[b].length - byInd[a].length);
 
     const sections = indOrder.map(ind => {
       const indRows = byInd[ind];
-      const rowsHtml = indRows.map(r => rowHtml(r, false)).join('');
-      return `
-        <div style="margin-bottom:8px">
-          <div style="padding:5px 12px;font-size:11px;font-weight:700;color:var(--tg);
-            background:rgba(42,171,238,.06);border-radius:4px 4px 0 0;border:1px solid var(--border);border-bottom:none">
-            ${ind} <span style="font-weight:400;color:var(--text3)">(${indRows.length}개)</span>
+      const cards = indRows.map(r => {
+        const clsCode = r.hgpr_cls_code;
+        const bClr = { '0':'var(--text3)','1':'var(--tg)','2':'#fb923c','3':'#f5a623',
+                       '신고가':'var(--tg)','52주 신고가':'var(--tg)','신고가 근접':'var(--text3)',
+                       '연간 신고가':'#fb923c','역사적 신고가':'#f5a623' }[clsCode] || 'var(--tg)';
+        const clsLb = { '0':'근접','1':'52주','2':'연간','3':'역사적',
+                        '신고가':'52주','52주 신고가':'52주','신고가 근접':'근접',
+                        '연간 신고가':'연간','역사적 신고가':'역사적' }[clsCode] || '';
+
+        // 이력 뱃지
+        const badges = [];
+        if (r.isFirst)    badges.push(`<span style="font-size:9px;padding:0 4px;border-radius:3px;background:rgba(245,54,92,.15);color:var(--red);font-weight:600">🎯첫</span>`);
+        if (r.streak>=2)  badges.push(`<span style="font-size:9px;padding:0 4px;border-radius:3px;background:rgba(251,99,64,.15);color:var(--yellow);font-weight:600">🔥${r.streak}일</span>`);
+        else if(r.count7>=3) badges.push(`<span style="font-size:9px;padding:0 4px;border-radius:3px;background:rgba(42,171,238,.15);color:var(--tg);font-weight:600">📈${r.count7}회</span>`);
+
+        const safeName = (r.corp_name||r.stock_code).replace(/'/g, "\'");
+        return `<div onclick="openStockDetail('${r.stock_code}','${safeName}')"
+          style="display:inline-flex;flex-direction:column;gap:4px;
+            padding:8px 10px;border-radius:6px;cursor:pointer;flex-shrink:0;
+            background:var(--bg3);border:1px solid var(--border);
+            border-top:2px solid ${bClr};min-width:80px;max-width:120px;
+            transition:background .15s"
+          onmouseover="this.style.background='rgba(255,255,255,.05)'"
+          onmouseout="this.style.background='var(--bg3)'">
+          <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            ${r.corp_name||r.stock_code}
           </div>
-          <table style="width:100%;border-collapse:collapse;font-size:12px;
-            border:1px solid var(--border);border-radius:0 0 4px 4px;overflow:hidden">
-            <thead>${theadBase}
-              <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500">구분/이력</th>
-            </tr></thead>
-            <tbody>${rowsHtml}</tbody>
-          </table>
+          <div style="display:flex;align-items:center;gap:3px;flex-wrap:wrap">
+            <span style="font-size:9px;padding:0 4px;border-radius:3px;
+              background:${bClr}20;color:${bClr};font-weight:600">${clsLb}</span>
+            ${badges.join('')}
+          </div>
+        </div>`;
+      }).join('');
+
+      return `
+        <div style="margin-bottom:10px">
+          <div style="font-size:11px;font-weight:700;color:var(--tg);margin-bottom:6px;
+            display:flex;align-items:center;gap:6px">
+            ${ind}
+            <span style="font-weight:400;color:var(--text3);font-size:10px">${indRows.length}개</span>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${cards}
+          </div>
         </div>`;
     }).join('');
 
-    body.innerHTML = `<div style="padding:.5rem .5rem 0">${sections}</div>`;
+    body.innerHTML = `<div style="padding:.5rem .75rem 0">${sections || '<div style="color:var(--text3);font-size:12px;text-align:center;padding:1rem">모니터링 종목 중 신고가 없음</div>'}</div>`;
 
-  } else {
+    } else {
     // 전체 종목 — 단순 테이블
     const shown = _hgprExpanded ? rows : rows.slice(0, HGPR_PAGE);
     const rowsHtml = shown.map(r => rowHtml(r, true)).join('');
