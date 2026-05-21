@@ -474,7 +474,7 @@ async function loadMarketOverview(maxDate) {
 // ══════════════════════════════════════════
 
 let _hgprData   = null;   // { w52: [...], yr: [...], hist: [...] }
-let _hgprTab    = 'w52';
+let _hgprTab    = 'monitored';
 let _hgprExpanded = false;
 const HGPR_PAGE = 10;
 
@@ -482,102 +482,92 @@ async function loadNewHighStocks() {
   const body = document.getElementById('hgpr-body');
   if (!body) return;
 
-  // 오늘 날짜 (KST 기준 — UTC+9)
-  const _kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const _kst  = new Date(Date.now() + 9 * 60 * 60 * 1000);
   const today = _kst.toISOString().split('T')[0];
 
-  const { data: rows, error } = await sb.from('market_data')
+  // 오늘 신고가 전체 조회
+  let targetDate = today;
+  let { data: rows } = await sb.from('market_data')
     .select('stock_code,corp_name,price,price_change_rate,market_cap,hgpr_cls,hgpr_cls_code')
     .eq('base_date', today)
     .not('hgpr_cls_code', 'is', null)
     .neq('hgpr_cls_code', '')
     .order('market_cap', { ascending: false });
 
-  if (error || !rows?.length) {
-    // 오늘 데이터 없으면 최신 수집일로 재시도
+  if (!rows?.length) {
     const { data: latest } = await sb.from('market_data')
-      .select('base_date')
-      .not('hgpr_cls_code', 'is', null)
-      .order('base_date', { ascending: false })
-      .limit(1);
-
+      .select('base_date').not('hgpr_cls_code', 'is', null)
+      .order('base_date', { ascending: false }).limit(1);
     if (!latest?.length) {
       body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">신고가 데이터 없음 — 장 마감 후 수집됩니다</div>';
       return;
     }
-
+    targetDate = latest[0].base_date;
     const { data: rows2 } = await sb.from('market_data')
       .select('stock_code,corp_name,price,price_change_rate,market_cap,hgpr_cls,hgpr_cls_code')
-      .eq('base_date', latest[0].base_date)
+      .eq('base_date', targetDate)
       .not('hgpr_cls_code', 'is', null)
       .neq('hgpr_cls_code', '')
       .order('market_cap', { ascending: false });
-
-    _hgprData = _groupHgpr(rows2 || []);
-  } else {
-    _hgprData = _groupHgpr(rows);
+    rows = rows2 || [];
   }
 
-  // 과거 7일치 신고가 이력 추가 조회 → 연속일/빈도 계산
-  const allRows = _hgprData.w52.concat(_hgprData.yr, _hgprData.hist);
-  if (allRows.length) {
-    const codes = [...new Set(allRows.map(r => r.stock_code))];
-    const kst7  = new Date(Date.now() + 9*60*60*1000 - 7*24*60*60*1000);
-    const date7 = kst7.toISOString().split('T')[0];
-    const { data: hist7 } = await sb.from('market_data')
-      .select('stock_code,base_date,hgpr_cls_code')
-      .in('stock_code', codes)
-      .gte('base_date', date7)
-      .not('hgpr_cls_code', 'is', null)
-      .neq('hgpr_cls_code', '')
-      .order('base_date', { ascending: false });
+  // 모니터링 종목 + 산업 정보 조회
+  const { data: companies } = await sb.from('companies')
+    .select('code,industry,sub_industry')
+    .eq('is_monitored', true);
+  const monMap = {};  // code → { industry, sub_industry }
+  (companies || []).forEach(c => {
+    monMap[c.code.split('.')[0]] = { industry: c.industry, sub_industry: c.sub_industry };
+  });
 
-    // 종목별 신고가 날짜 목록 구성
-    const histMap = {};
-    (hist7 || []).forEach(r => {
-      if (!histMap[r.stock_code]) histMap[r.stock_code] = [];
-      histMap[r.stock_code].push(r.base_date);
-    });
+  // 과거 7일 이력
+  const codes = rows.map(r => r.stock_code);
+  const kst7  = new Date(Date.now() + 9*60*60*1000 - 7*24*60*60*1000);
+  const date7 = kst7.toISOString().split('T')[0];
+  const { data: hist7 } = await sb.from('market_data')
+    .select('stock_code,base_date,hgpr_cls_code')
+    .in('stock_code', codes)
+    .gte('base_date', date7)
+    .not('hgpr_cls_code', 'is', null)
+    .neq('hgpr_cls_code', '')
+    .order('base_date', { ascending: false });
 
-    // 각 종목에 streak(연속일), count7(7일내 횟수), isFirst(첫 신고가) 추가
-    const enrichRow = r => {
-      const dates = (histMap[r.stock_code] || []).sort().reverse(); // 최신순
-      const count7 = dates.length;
-      // 연속일 계산 (날짜 차이 1일 이하인 연속 구간)
-      let streak = 0;
-      let prev = null;
-      for (const d of dates) {
-        if (prev === null) { streak = 1; prev = d; continue; }
-        const diff = (new Date(prev) - new Date(d)) / (1000*60*60*24);
-        if (diff <= 1) { streak++; prev = d; }
-        else break;
-      }
-      const isFirst = count7 === 1; // 7일 내 오늘이 처음
-      return { ...r, streak, count7, isFirst };
+  const histMap = {};
+  (hist7 || []).forEach(r => {
+    if (!histMap[r.stock_code]) histMap[r.stock_code] = [];
+    histMap[r.stock_code].push(r.base_date);
+  });
+
+  // 각 행에 메타 추가
+  const enriched = rows.map(r => {
+    const dates  = (histMap[r.stock_code] || []).sort().reverse();
+    const count7 = dates.length;
+    let streak = 0, prev = null;
+    for (const d of dates) {
+      if (!prev) { streak = 1; prev = d; continue; }
+      const diff = (new Date(prev) - new Date(d)) / 86400000;
+      if (diff <= 1) { streak++; prev = d; } else break;
+    }
+    const mon = monMap[r.stock_code];
+    return { ...r,
+      streak, count7, isFirst: count7 === 1,
+      isMonitored: !!mon,
+      industry:    mon?.industry    || '기타',
+      sub_industry:mon?.sub_industry || '',
     };
+  });
 
-    _hgprData = {
-      w52:  _hgprData.w52.map(enrichRow),
-      yr:   _hgprData.yr.map(enrichRow),
-      hist: _hgprData.hist.map(enrichRow),
-    };
-  }
+  // 탭 데이터 구성
+  _hgprData = {
+    monitored: enriched.filter(r => r.isMonitored),
+    all:       enriched,
+  };
 
   _hgprExpanded = false;
   renderHgprTab(_hgprTab);
 }
 
-function _groupHgpr(rows) {
-  // 숫자코드(1/2/3) 또는 텍스트(신고가/역사적 신고가 등) 모두 처리
-  const isW52  = r => ['0','1','신고가','52주 신고가','신고가 근접'].includes(r.hgpr_cls_code);
-  const isYr   = r => ['2','연간 신고가'].includes(r.hgpr_cls_code);
-  const isHist = r => ['3','역사적 신고가'].includes(r.hgpr_cls_code);
-  return {
-    w52:  rows.filter(isW52),
-    yr:   rows.filter(isYr),
-    hist: rows.filter(isHist),
-  };
-}
 
 function switchHgprTab(tab) {
   _hgprTab = tab;
@@ -596,8 +586,12 @@ function renderHgprTab(tab) {
   const body = document.getElementById('hgpr-body');
   if (!body || !_hgprData) return;
 
-  const all   = _hgprData[tab] || [];
-  const shown = _hgprExpanded ? all : all.slice(0, HGPR_PAGE);
+  const rows = _hgprData[tab] || [];
+
+  if (!rows.length) {
+    body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">해당 신고가 종목 없음</div>';
+    return;
+  }
 
   const clsColor = { '0':'var(--text3)', '1':'var(--tg)', '2':'#fb923c', '3':'#f5a623',
                      '신고가':'var(--tg)', '52주 신고가':'var(--tg)', '신고가 근접':'var(--text3)',
@@ -606,78 +600,96 @@ function renderHgprTab(tab) {
                      '신고가':'52주', '52주 신고가':'52주', '신고가 근접':'근접',
                      '연간 신고가':'연간', '역사적 신고가':'역사적' };
 
-  if (!shown.length) {
-    body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">해당 신고가 종목 없음</div>';
-    return;
-  }
-
-  const rows_html = shown.map(r => {
+  const rowHtml = (r, showIndustry) => {
     const chg    = r.price_change_rate;
     const chgTxt = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
     const chgClr = chg != null && chg >= 0 ? 'var(--red)' : 'var(--blue)';
     const cap    = r.market_cap ? fmtCap(r.market_cap) : '—';
     const badge  = clsLabel[r.hgpr_cls_code] || '';
     const bClr   = clsColor[r.hgpr_cls_code] || 'var(--tg)';
-
-    // 신고가 이력 뱃지
-    const streak = r.streak || 0;
-    const count7 = r.count7 || 0;
-    const isFirst = r.isFirst;
     const histBadges = [];
-    if (isFirst) {
-      histBadges.push(`<span style="font-size:10px;padding:1px 6px;border-radius:3px;
-        background:rgba(245,54,92,.15);color:var(--red);font-weight:600">🎯 첫 신고가</span>`);
-    }
-    if (streak >= 2) {
-      histBadges.push(`<span style="font-size:10px;padding:1px 6px;border-radius:3px;
-        background:rgba(251,99,64,.15);color:var(--yellow);font-weight:600">🔥 ${streak}일 연속</span>`);
-    }
-    if (count7 >= 3 && streak < 2) {
-      histBadges.push(`<span style="font-size:10px;padding:1px 6px;border-radius:3px;
-        background:rgba(42,171,238,.15);color:var(--tg);font-weight:600">📈 7일내 ${count7}회</span>`);
-    }
-
+    if (r.isFirst)   histBadges.push(`<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(245,54,92,.15);color:var(--red);font-weight:600">🎯첫</span>`);
+    if (r.streak>=2) histBadges.push(`<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(251,99,64,.15);color:var(--yellow);font-weight:600">🔥${r.streak}일</span>`);
+    else if (r.count7>=3) histBadges.push(`<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(42,171,238,.15);color:var(--tg);font-weight:600">📈${r.count7}회</span>`);
+    const indCell = showIndustry
+      ? `<td style="padding:5px 10px;font-size:11px;color:var(--text3)">${r.industry}</td>`
+      : '';
     return `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:6px 12px;font-weight:500;font-size:13px">${r.corp_name || r.stock_code}</td>
-      <td style="padding:6px 12px;text-align:right;font-weight:500">${r.price ? r.price.toLocaleString() + '원' : '—'}</td>
-      <td style="padding:6px 12px;text-align:right;color:${chgClr};font-weight:500">${chgTxt}</td>
-      <td style="padding:6px 12px;text-align:right;color:var(--text3);font-size:12px">${cap}</td>
-      <td style="padding:6px 12px">
-        <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
-          <span style="font-size:10px;padding:1px 6px;border-radius:3px;
-            background:${bClr}22;color:${bClr};font-weight:600">${badge}</span>
+      <td style="padding:5px 12px;font-weight:500;font-size:13px;white-space:nowrap">${r.corp_name||r.stock_code}</td>
+      <td style="padding:5px 12px;text-align:right;font-weight:500;white-space:nowrap">${r.price?r.price.toLocaleString()+'원':'—'}</td>
+      <td style="padding:5px 12px;text-align:right;color:${chgClr};font-weight:600">${chgTxt}</td>
+      <td style="padding:5px 12px;text-align:right;color:var(--text3);font-size:12px">${cap}</td>
+      ${indCell}
+      <td style="padding:5px 12px">
+        <div style="display:flex;align-items:center;gap:3px;flex-wrap:wrap">
+          <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:${bClr}22;color:${bClr};font-weight:600">${badge}</span>
           ${histBadges.join('')}
         </div>
       </td>
     </tr>`;
-  }).join('');
+  };
 
-  const toggleBtn = all.length > HGPR_PAGE ? `
-    <tr>
-      <td colspan="5" style="padding:8px 12px;text-align:center">
-        <button onclick="toggleHgprExpand()"
-          style="font-size:12px;background:none;border:1px solid var(--border);
-            border-radius:4px;cursor:pointer;color:var(--text3);padding:4px 16px">
-          ${_hgprExpanded ? '▲ 접기' : `▼ 전체 보기 (${all.length}개)`}
+  const theadBase = `<tr style="background:var(--bg3)">
+    <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:left">종목명</th>
+    <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:right">현재가</th>
+    <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:right">등락률</th>
+    <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:right">시총</th>`;
+
+  if (tab === 'monitored') {
+    // 산업별 그룹핑
+    const byInd = {};
+    rows.forEach(r => {
+      const ind = r.industry || '기타';
+      if (!byInd[ind]) byInd[ind] = [];
+      byInd[ind].push(r);
+    });
+    const indOrder = Object.keys(byInd).sort((a,b) =>
+      (byInd[b].reduce((s,r)=>s+(r.market_cap||0),0)) - (byInd[a].reduce((s,r)=>s+(r.market_cap||0),0))
+    );
+
+    const sections = indOrder.map(ind => {
+      const indRows = byInd[ind];
+      const rowsHtml = indRows.map(r => rowHtml(r, false)).join('');
+      return `
+        <div style="margin-bottom:8px">
+          <div style="padding:5px 12px;font-size:11px;font-weight:700;color:var(--tg);
+            background:rgba(42,171,238,.06);border-radius:4px 4px 0 0;border:1px solid var(--border);border-bottom:none">
+            ${ind} <span style="font-weight:400;color:var(--text3)">(${indRows.length}개)</span>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;
+            border:1px solid var(--border);border-radius:0 0 4px 4px;overflow:hidden">
+            <thead>${theadBase}
+              <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500">구분/이력</th>
+            </tr></thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </div>`;
+    }).join('');
+
+    body.innerHTML = `<div style="padding:.5rem .5rem 0">${sections}</div>`;
+
+  } else {
+    // 전체 종목 — 단순 테이블
+    const shown = _hgprExpanded ? rows : rows.slice(0, HGPR_PAGE);
+    const rowsHtml = shown.map(r => rowHtml(r, true)).join('');
+    const toggleBtn = rows.length > HGPR_PAGE ? `<tr>
+      <td colspan="6" style="padding:8px;text-align:center">
+        <button onclick="toggleHgprExpand()" style="font-size:12px;background:none;
+          border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text3);padding:4px 16px">
+          ${_hgprExpanded ? '▲ 접기' : `▼ 전체 보기 (${rows.length}개)`}
         </button>
-      </td>
-    </tr>` : '';
+      </td></tr>` : '';
 
-  body.innerHTML = `
-    <div style="padding:0 .5rem">
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead>
-          <tr style="background:var(--bg3)">
-            <th style="padding:5px 12px;text-align:left;font-size:11px;color:var(--text3);font-weight:500">종목명</th>
-            <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">현재가</th>
-            <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">등락률</th>
-            <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">시총</th>
-            <th style="padding:5px 12px;text-align:left;font-size:11px;color:var(--text3);font-weight:500">구분 / 이력</th>
-          </tr>
-        </thead>
-        <tbody>${rows_html}${toggleBtn}</tbody>
+    body.innerHTML = `<div style="padding:0 .5rem">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>${theadBase}
+          <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:left">업종</th>
+          <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500">구분/이력</th>
+        </tr></thead>
+        <tbody>${rowsHtml}${toggleBtn}</tbody>
       </table>
     </div>`;
+  }
 }
 
 

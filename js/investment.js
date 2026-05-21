@@ -105,9 +105,8 @@ function pInvestment() {
       <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span class="card-title">📈 신고가 종목</span>
         <div style="display:flex;gap:4px;margin-left:auto">
-          <button class="chip active" data-hgpr-tab="w52"  onclick="switchHgprTab('w52')"  style="font-size:11px;padding:2px 8px">52주</button>
-          <button class="chip"        data-hgpr-tab="yr"   onclick="switchHgprTab('yr')"   style="font-size:11px;padding:2px 8px">연간</button>
-          <button class="chip"        data-hgpr-tab="hist" onclick="switchHgprTab('hist')" style="font-size:11px;padding:2px 8px">역사적</button>
+          <button class="chip active" data-hgpr-tab="monitored" onclick="switchHgprTab('monitored')" style="font-size:11px;padding:2px 8px">⭐ 모니터링</button>
+          <button class="chip"        data-hgpr-tab="all"       onclick="switchHgprTab('all')"       style="font-size:11px;padding:2px 8px">전체 종목</button>
         </div>
       </div>
       <div id="hgpr-body" style="padding:.5rem 0">
