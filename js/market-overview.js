@@ -643,62 +643,77 @@ function renderHgprTab(tab) {
       if (!byInd[ind]) byInd[ind] = [];
       byInd[ind].push(r);
     });
-    // 산업 순서: 종목 수 많은 순
-    const indOrder = Object.keys(byInd).sort((a,b) => byInd[b].length - byInd[a].length);
 
-    const sections = indOrder.map(ind => {
-      const indRows = byInd[ind];
-      const cards = indRows.map(r => {
-        const clsCode = r.hgpr_cls_code;
-        const bClr = { '0':'var(--text3)','1':'var(--tg)','2':'#fb923c','3':'#f5a623',
-                       '신고가':'var(--tg)','52주 신고가':'var(--tg)','신고가 근접':'var(--text3)',
-                       '연간 신고가':'#fb923c','역사적 신고가':'#f5a623' }[clsCode] || 'var(--tg)';
-        const clsLb = { '0':'근접','1':'52주','2':'연간','3':'역사적',
-                        '신고가':'52주','52주 신고가':'52주','신고가 근접':'근접',
-                        '연간 신고가':'연간','역사적 신고가':'역사적' }[clsCode] || '';
+    // 산업 순서: 시총 합계 내림차순
+    const indOrder = Object.keys(byInd).sort((a,b) =>
+      (byInd[b].reduce((s,r)=>s+(r.market_cap||0),0)) -
+      (byInd[a].reduce((s,r)=>s+(r.market_cap||0),0))
+    );
 
-        // 이력 뱃지
-        const badges = [];
-        if (r.isFirst)    badges.push(`<span style="font-size:9px;padding:0 4px;border-radius:3px;background:rgba(245,54,92,.15);color:var(--red);font-weight:600">🎯첫</span>`);
-        if (r.streak>=2)  badges.push(`<span style="font-size:9px;padding:0 4px;border-radius:3px;background:rgba(251,99,64,.15);color:var(--yellow);font-weight:600">🔥${r.streak}일</span>`);
-        else if(r.count7>=3) badges.push(`<span style="font-size:9px;padding:0 4px;border-radius:3px;background:rgba(42,171,238,.15);color:var(--tg);font-weight:600">📈${r.count7}회</span>`);
-
-        const safeName = (r.corp_name||r.stock_code).replace(/'/g, "\'");
-        return `<div onclick="openStockDetail('${r.stock_code}','${safeName}')"
-          style="display:flex;flex-direction:column;gap:4px;
-            padding:10px 12px;border-radius:6px;cursor:pointer;
-            background:var(--bg3);border:1px solid var(--border);
-            border-top:2px solid ${bClr};
-            transition:background .15s"
-          onmouseover="this.style.background='rgba(255,255,255,.05)'"
-          onmouseout="this.style.background='var(--bg3)'">
-          <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+    const makeCard = r => {
+      const clsCode = r.hgpr_cls_code;
+      const bClr = { '0':'var(--text3)','1':'var(--tg)','2':'#fb923c','3':'#f5a623',
+                     '신고가':'var(--tg)','52주 신고가':'var(--tg)','신고가 근접':'var(--text3)',
+                     '연간 신고가':'#fb923c','역사적 신고가':'#f5a623' }[clsCode] || 'var(--tg)';
+      const clsLb = { '0':'근접','1':'52주','2':'연간','3':'역사적',
+                      '신고가':'52주','52주 신고가':'52주','신고가 근접':'근접',
+                      '연간 신고가':'연간','역사적 신고가':'역사적' }[clsCode] || '';
+      const chg   = r.price_change_rate;
+      const chgTxt = chg!=null ? (chg>=0?'+':'')+chg.toFixed(2)+'%' : '';
+      const chgClr = chg>=0 ? 'var(--red)' : 'var(--blue)';
+      const badges = [];
+      if (r.isFirst)   badges.push(`<span style="font-size:9px;padding:0 3px;border-radius:3px;background:rgba(245,54,92,.15);color:var(--red);font-weight:600">🎯첫</span>`);
+      if (r.streak>=2) badges.push(`<span style="font-size:9px;padding:0 3px;border-radius:3px;background:rgba(251,99,64,.15);color:var(--yellow);font-weight:600">🔥${r.streak}일</span>`);
+      else if(r.count7>=3) badges.push(`<span style="font-size:9px;padding:0 3px;border-radius:3px;background:rgba(42,171,238,.15);color:var(--tg);font-weight:600">📈${r.count7}회</span>`);
+      const safeName = (r.corp_name||r.stock_code).replace(/'/g, "\'");
+      return `<div onclick="openStockDetail('${r.stock_code}','${safeName}')"
+        style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid ${bClr};
+          border-radius:6px;padding:8px 10px;cursor:pointer;transition:background .15s;
+          display:flex;justify-content:space-between;align-items:center;gap:6px"
+        onmouseover="this.style.background='rgba(255,255,255,.04)'"
+        onmouseout="this.style.background='var(--bg2)'">
+        <div style="min-width:0">
+          <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
             ${r.corp_name||r.stock_code}
           </div>
-          <div style="display:flex;align-items:center;gap:3px;flex-wrap:wrap">
-            <span style="font-size:9px;padding:0 4px;border-radius:3px;
-              background:${bClr}20;color:${bClr};font-weight:600">${clsLb}</span>
+          <div style="display:flex;align-items:center;gap:3px;margin-top:3px;flex-wrap:wrap">
+            <span style="font-size:9px;padding:0 4px;border-radius:3px;background:${bClr}20;color:${bClr};font-weight:600">${clsLb}</span>
             ${badges.join('')}
           </div>
-        </div>`;
-      }).join('');
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:11px;font-weight:700;color:${chgClr}">${chgTxt}</div>
+          <div style="font-size:10px;color:var(--text3)">${r.market_cap?fmtCap(r.market_cap):'—'}</div>
+        </div>
+      </div>`;
+    };
 
-      return `
-        <div style="margin-bottom:10px">
-          <div style="font-size:11px;font-weight:700;color:var(--tg);margin-bottom:6px;
-            display:flex;align-items:center;gap:6px">
-            ${ind}
-            <span style="font-weight:400;color:var(--text3);font-size:10px">${indRows.length}개</span>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px">
-            ${cards}
-          </div>
-        </div>`;
+    // 산업별 세로 컬럼 생성
+    const cols = indOrder.map(ind => {
+      const indRows = byInd[ind];
+      const cards   = indRows.map(makeCard).join('');
+      return `<div style="min-width:0">
+        <div style="font-size:11px;font-weight:700;color:var(--tg);
+          margin-bottom:6px;display:flex;align-items:center;gap:5px;
+          padding-bottom:5px;border-bottom:1px solid var(--border)">
+          ${ind}
+          <span style="font-weight:400;color:var(--text3);font-size:10px">${indRows.length}개</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          ${cards}
+        </div>
+      </div>`;
     }).join('');
 
-    body.innerHTML = `<div style="padding:.5rem .75rem 0">${sections || '<div style="color:var(--text3);font-size:12px;text-align:center;padding:1rem">모니터링 종목 중 신고가 없음</div>'}</div>`;
+    // 산업 수에 따라 컬럼 수 조절
+    const colCount = Math.min(indOrder.length, 6);
+    body.innerHTML = `<div style="padding:.5rem .75rem 0">
+      <div style="display:grid;grid-template-columns:repeat(${colCount},1fr);gap:10px;align-items:start">
+        ${cols}
+      </div>
+    </div>`;
 
-    } else {
+  } else {
     // 전체 종목 — 단순 테이블
     const shown = _hgprExpanded ? rows : rows.slice(0, HGPR_PAGE);
     const rowsHtml = shown.map(r => rowHtml(r, true)).join('');
@@ -721,91 +736,3 @@ function renderHgprTab(tab) {
     </div>`;
   }
 }
-
-
-// ══════════════════════════════════════════
-// 💰 기관/외국인 수급 (오늘의 시황)
-// ══════════════════════════════════════════
-
-let _flowData = null;   // { frgn_buy, orgn_buy, both_buy }
-let _flowTab  = 'both';
-
-async function loadFlowData() {
-  const body = document.getElementById('flow-body');
-  if (!body) return;
-
-  const _kst  = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  const today = _kst.toISOString().split('T')[0];
-
-  // market_data에서 외국인/기관 순매수 데이터 조회
-  const { data: rows } = await sb.from('market_data')
-    .select('stock_code,corp_name,price,price_change_rate,market_cap,foreign_net_buy')
-    .eq('base_date', today)
-    .not('foreign_net_buy', 'is', null)
-    .order('market_cap', { ascending: false })
-    .limit(100);
-
-  if (!rows?.length) {
-    body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">수급 데이터 없음 — 장중/장마감 후 수집됩니다</div>';
-    return;
-  }
-
-  const frgn_buy = rows.filter(r => (r.foreign_net_buy || 0) > 0)
-    .sort((a,b) => b.foreign_net_buy - a.foreign_net_buy).slice(0, 20);
-  const orgn_buy = [];   // 기관순매수: FHKST01010100 미제공 — 별도 API 필요
-  const both_buy = frgn_buy.slice(0, 10);  // 외국인 순매수 상위로 대체
-
-  _flowData = { frgn_buy, orgn_buy, both_buy };
-  renderFlowTab(_flowTab);
-}
-
-function switchFlowTab(tab) {
-  _flowTab = tab;
-  document.querySelectorAll('[data-flow-tab]').forEach(b =>
-    b.classList.toggle('active', b.dataset.flowTab === tab));
-  renderFlowTab(tab);
-}
-
-function renderFlowTab(tab) {
-  const body = document.getElementById('flow-body');
-  if (!body || !_flowData) return;
-
-  const data = _flowData[tab === 'frgn' ? 'frgn_buy' : tab === 'orgn' ? 'orgn_buy' : 'both_buy'] || [];
-
-  if (!data.length) {
-    body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">해당 수급 데이터 없음</div>';
-    return;
-  }
-
-  const rows_html = data.map(r => {
-    const chg    = r.price_change_rate;
-    const chgTxt = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
-    const chgClr = chg != null && chg >= 0 ? 'var(--red)' : 'var(--blue)';
-    const fNet   = r.foreign_net_buy || 0;
-    return `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:6px 12px;font-weight:500;font-size:13px">${r.corp_name || r.stock_code}</td>
-      <td style="padding:6px 12px;text-align:right;font-weight:500">${r.price ? r.price.toLocaleString()+'원' : '—'}</td>
-      <td style="padding:6px 12px;text-align:right;color:${chgClr};font-weight:500">${chgTxt}</td>
-      <td style="padding:6px 12px;text-align:right;font-size:12px;color:var(--tg)">${fNet > 0 ? '+'+fNet.toLocaleString() : fNet.toLocaleString()}</td>
-    </tr>`;
-  }).join('');
-
-  body.innerHTML = `
-    <div style="padding:0 .5rem">
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead>
-          <tr style="background:var(--bg3)">
-            <th style="padding:5px 12px;text-align:left;font-size:11px;color:var(--text3);font-weight:500">종목명</th>
-            <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">현재가</th>
-            <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">등락률</th>
-            <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--tg);font-weight:500">외국인↑</th>
-
-          </tr>
-        </thead>
-        <tbody>${rows_html}</tbody>
-      </table>
-    </div>`;
-}
-
-
-// ══════════════════════════════════════════
