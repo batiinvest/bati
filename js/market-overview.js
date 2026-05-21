@@ -631,9 +631,9 @@ function renderHgprTab(tab) {
 
   const theadBase = `<tr style="background:var(--bg3)">
     <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:left">종목명</th>
-    <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:right">현재가</th>
-    <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:right">등락률</th>
-    <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:right">시총</th>`;
+    <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:right;width:110px">현재가</th>
+    <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:right;width:80px">등락률</th>
+    <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:right;width:110px">시총</th>`;
 
   if (tab === 'monitored') {
     // 산업별 그룹핑 (시총 내림차순)
@@ -711,10 +711,10 @@ function renderHgprTab(tab) {
       </td></tr>` : '';
 
     body.innerHTML = `<div style="padding:0 .5rem">
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
         <thead>${theadBase}
-          <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:left">업종</th>
-          <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500">구분/이력</th>
+          <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500;text-align:left;width:80px">업종</th>
+          <th style="padding:5px 12px;font-size:11px;color:var(--text3);font-weight:500;width:140px">구분/이력</th>
         </tr></thead>
         <tbody>${rowsHtml}${toggleBtn}</tbody>
       </table>
