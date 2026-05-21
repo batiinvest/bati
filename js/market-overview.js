@@ -518,16 +518,64 @@ async function loadNewHighStocks() {
     _hgprData = _groupHgpr(rows);
   }
 
+  // 과거 7일치 신고가 이력 추가 조회 → 연속일/빈도 계산
+  const allRows = _hgprData.w52.concat(_hgprData.yr, _hgprData.hist);
+  if (allRows.length) {
+    const codes = [...new Set(allRows.map(r => r.stock_code))];
+    const kst7  = new Date(Date.now() + 9*60*60*1000 - 7*24*60*60*1000);
+    const date7 = kst7.toISOString().split('T')[0];
+    const { data: hist7 } = await sb.from('market_data')
+      .select('stock_code,base_date,hgpr_cls_code')
+      .in('stock_code', codes)
+      .gte('base_date', date7)
+      .not('hgpr_cls_code', 'is', null)
+      .neq('hgpr_cls_code', '')
+      .order('base_date', { ascending: false });
+
+    // 종목별 신고가 날짜 목록 구성
+    const histMap = {};
+    (hist7 || []).forEach(r => {
+      if (!histMap[r.stock_code]) histMap[r.stock_code] = [];
+      histMap[r.stock_code].push(r.base_date);
+    });
+
+    // 각 종목에 streak(연속일), count7(7일내 횟수), isFirst(첫 신고가) 추가
+    const enrichRow = r => {
+      const dates = (histMap[r.stock_code] || []).sort().reverse(); // 최신순
+      const count7 = dates.length;
+      // 연속일 계산 (날짜 차이 1일 이하인 연속 구간)
+      let streak = 0;
+      let prev = null;
+      for (const d of dates) {
+        if (prev === null) { streak = 1; prev = d; continue; }
+        const diff = (new Date(prev) - new Date(d)) / (1000*60*60*24);
+        if (diff <= 1) { streak++; prev = d; }
+        else break;
+      }
+      const isFirst = count7 === 1; // 7일 내 오늘이 처음
+      return { ...r, streak, count7, isFirst };
+    };
+
+    _hgprData = {
+      w52:  _hgprData.w52.map(enrichRow),
+      yr:   _hgprData.yr.map(enrichRow),
+      hist: _hgprData.hist.map(enrichRow),
+    };
+  }
+
   _hgprExpanded = false;
   renderHgprTab(_hgprTab);
 }
 
 function _groupHgpr(rows) {
+  // 숫자코드(1/2/3) 또는 텍스트(신고가/역사적 신고가 등) 모두 처리
+  const isW52  = r => ['0','1','신고가','52주 신고가','신고가 근접'].includes(r.hgpr_cls_code);
+  const isYr   = r => ['2','연간 신고가'].includes(r.hgpr_cls_code);
+  const isHist = r => ['3','역사적 신고가'].includes(r.hgpr_cls_code);
   return {
-    // '1'=52주 신고가 갱신, '0'=신고가 근접 — 모두 52주 탭에 표시
-    w52:  rows.filter(r => r.hgpr_cls_code === '1' || r.hgpr_cls_code === '0'),
-    yr:   rows.filter(r => r.hgpr_cls_code === '2'),
-    hist: rows.filter(r => r.hgpr_cls_code === '3'),
+    w52:  rows.filter(isW52),
+    yr:   rows.filter(isYr),
+    hist: rows.filter(isHist),
   };
 }
 
@@ -551,8 +599,12 @@ function renderHgprTab(tab) {
   const all   = _hgprData[tab] || [];
   const shown = _hgprExpanded ? all : all.slice(0, HGPR_PAGE);
 
-  const clsColor = { '0':'var(--text3)', '1':'var(--tg)', '2':'#fb923c', '3':'#f5a623' };
-  const clsLabel = { '0':'근접', '1':'52주', '2':'연간', '3':'역사적' };
+  const clsColor = { '0':'var(--text3)', '1':'var(--tg)', '2':'#fb923c', '3':'#f5a623',
+                     '신고가':'var(--tg)', '52주 신고가':'var(--tg)', '신고가 근접':'var(--text3)',
+                     '연간 신고가':'#fb923c', '역사적 신고가':'#f5a623' };
+  const clsLabel = { '0':'근접', '1':'52주', '2':'연간', '3':'역사적',
+                     '신고가':'52주', '52주 신고가':'52주', '신고가 근접':'근접',
+                     '연간 신고가':'연간', '역사적 신고가':'역사적' };
 
   if (!shown.length) {
     body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">해당 신고가 종목 없음</div>';
@@ -566,14 +618,36 @@ function renderHgprTab(tab) {
     const cap    = r.market_cap ? fmtCap(r.market_cap) : '—';
     const badge  = clsLabel[r.hgpr_cls_code] || '';
     const bClr   = clsColor[r.hgpr_cls_code] || 'var(--tg)';
+
+    // 신고가 이력 뱃지
+    const streak = r.streak || 0;
+    const count7 = r.count7 || 0;
+    const isFirst = r.isFirst;
+    const histBadges = [];
+    if (isFirst) {
+      histBadges.push(`<span style="font-size:10px;padding:1px 6px;border-radius:3px;
+        background:rgba(245,54,92,.15);color:var(--red);font-weight:600">🎯 첫 신고가</span>`);
+    }
+    if (streak >= 2) {
+      histBadges.push(`<span style="font-size:10px;padding:1px 6px;border-radius:3px;
+        background:rgba(251,99,64,.15);color:var(--yellow);font-weight:600">🔥 ${streak}일 연속</span>`);
+    }
+    if (count7 >= 3 && streak < 2) {
+      histBadges.push(`<span style="font-size:10px;padding:1px 6px;border-radius:3px;
+        background:rgba(42,171,238,.15);color:var(--tg);font-weight:600">📈 7일내 ${count7}회</span>`);
+    }
+
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:6px 12px;font-weight:500;font-size:13px">${r.corp_name || r.stock_code}</td>
       <td style="padding:6px 12px;text-align:right;font-weight:500">${r.price ? r.price.toLocaleString() + '원' : '—'}</td>
       <td style="padding:6px 12px;text-align:right;color:${chgClr};font-weight:500">${chgTxt}</td>
       <td style="padding:6px 12px;text-align:right;color:var(--text3);font-size:12px">${cap}</td>
-      <td style="padding:6px 12px;text-align:center">
-        <span style="font-size:10px;padding:1px 6px;border-radius:3px;
-          background:${bClr}22;color:${bClr};font-weight:600">${badge}</span>
+      <td style="padding:6px 12px">
+        <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+          <span style="font-size:10px;padding:1px 6px;border-radius:3px;
+            background:${bClr}22;color:${bClr};font-weight:600">${badge}</span>
+          ${histBadges.join('')}
+        </div>
       </td>
     </tr>`;
   }).join('');
@@ -598,7 +672,7 @@ function renderHgprTab(tab) {
             <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">현재가</th>
             <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">등락률</th>
             <th style="padding:5px 12px;text-align:right;font-size:11px;color:var(--text3);font-weight:500">시총</th>
-            <th style="padding:5px 12px;text-align:center;font-size:11px;color:var(--text3);font-weight:500">구분</th>
+            <th style="padding:5px 12px;text-align:left;font-size:11px;color:var(--text3);font-weight:500">구분 / 이력</th>
           </tr>
         </thead>
         <tbody>${rows_html}${toggleBtn}</tbody>
