@@ -31,7 +31,7 @@ function pFinancials() {
     </div>
   </div>
 
-  <div class="card" id="fin-table">
+  <div class="card" id="fin-table" style="overflow:hidden">
     ${loadingHTML()}
   </div>`;
 }
@@ -122,6 +122,7 @@ function _renderTable(headers, bodyRows) {
       overflow-x:auto;
       overflow-y:auto;
       max-height:calc(100vh - 200px);
+      width:100%;
       scrollbar-width:thin;
       scrollbar-color:rgba(255,255,255,.2) var(--bg3);
     ">
