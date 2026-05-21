@@ -519,56 +519,64 @@ async function loadCombinedData(el) {
 }
 
 // ══════════════════════════════════════════
-//  📊 종목 상세 통합 모달 (시장데이터 + 재무제표)
+//  📊 종목 상세 통합 모달 — 펀드매니저 뷰
 // ══════════════════════════════════════════
-async function openStockDetail(code, name, initTab = 'market') {
+async function openStockDetail(code, name, initTab = 'overview') {
   document.getElementById('m-stock-detail')?.remove();
-
   const modal = document.createElement('div');
   modal.id = 'm-stock-detail';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px;backdrop-filter:blur(3px)';
 
   modal.innerHTML = `
-    <div style="background:var(--bg2);border-radius:12px;width:100%;max-width:960px;
-      height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.5)">
+    <div style="background:var(--bg2);border-radius:14px;width:100%;max-width:1100px;
+      height:90vh;overflow:hidden;display:flex;flex-direction:column;
+      box-shadow:0 16px 64px rgba(0,0,0,.7);border:1px solid var(--border2)">
 
       <!-- 헤더 -->
-      <div style="padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="padding:14px 20px 10px;border-bottom:1px solid var(--border);flex-shrink:0;
+        background:linear-gradient(135deg,var(--bg2) 0%,var(--bg3) 100%)">
         <div style="display:flex;align-items:flex-start;justify-content:space-between">
           <div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-              <span style="font-size:18px;font-weight:700;color:var(--text1)">${name}</span>
-              <span style="font-size:12px;color:var(--text3);padding:2px 6px;background:var(--bg3);border-radius:4px;border:1px solid var(--border)">${code}</span>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+              <span style="font-size:20px;font-weight:700">${name}</span>
+              <span style="font-size:11px;color:var(--text3);padding:2px 7px;background:var(--bg3);
+                border-radius:4px;border:1px solid var(--border);font-family:monospace">${code}</span>
+              <span id="sd-industry-badge" style="font-size:11px;color:var(--tg)"></span>
             </div>
-            <div id="sd-industry" style="font-size:11px;color:var(--text3)"></div>
+            <div id="sd-sub-info" style="font-size:11px;color:var(--text3)"></div>
           </div>
-          <div style="display:flex;align-items:center;gap:12px">
+          <div style="display:flex;align-items:center;gap:16px">
             <div id="sd-price-badge" style="text-align:right"></div>
             <button onclick="document.getElementById('m-stock-detail').remove()"
-              style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;padding:0 4px;line-height:1">×</button>
+              style="background:var(--bg3);border:1px solid var(--border);cursor:pointer;
+                color:var(--text3);font-size:18px;padding:2px 8px;line-height:1;
+                border-radius:6px;transition:.15s" onmouseover="this.style.color='var(--text)'"
+              onmouseout="this.style.color='var(--text3)'">×</button>
           </div>
         </div>
       </div>
 
       <!-- 탭 -->
-      <div style="display:flex;gap:0;border-bottom:1px solid var(--border);flex-shrink:0;padding:0 20px">
-        <button id="sd-tab-market" onclick="sdSwitchTab('market')"
-          style="background:none;border:none;border-bottom:2px solid transparent;
-            padding:10px 16px;cursor:pointer;font-size:13px;font-weight:600;
-            color:var(--text3);transition:.15s">
-          📊 시장 데이터
-        </button>
-        <button id="sd-tab-financial" onclick="sdSwitchTab('financial')"
-          style="background:none;border:none;border-bottom:2px solid transparent;
-            padding:10px 16px;cursor:pointer;font-size:13px;font-weight:600;
-            color:var(--text3);transition:.15s">
-          💰 재무제표
-        </button>
+      <div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0;padding:0 20px;
+        background:var(--bg2);overflow-x:auto;scrollbar-width:none">
+        ${[
+          ['overview',  '📋', '종합'],
+          ['market',    '📊', '시장 데이터'],
+          ['financial', '💰', '재무제표'],
+          ['supply',    '🔄', '수급'],
+          ['opinion',   '🎯', '증권사 의견'],
+        ].map(([id, ic, lb]) => `
+          <button id="sd-tab-${id}" onclick="window.sdSwitchTab('${id}')"
+            style="background:none;border:none;border-bottom:2px solid transparent;
+              padding:10px 16px;cursor:pointer;font-size:13px;font-weight:600;
+              color:var(--text3);white-space:nowrap;transition:.15s;flex-shrink:0">
+            ${ic} ${lb}
+          </button>`).join('')}
       </div>
 
       <!-- 콘텐츠 -->
-      <div id="sd-body" style="overflow-y:auto;padding:20px;flex:1">
-        <div style="text-align:center;color:var(--text3);padding:40px">
+      <div id="sd-body" style="overflow-y:auto;padding:20px;flex:1;min-height:0">
+        <div style="text-align:center;color:var(--text3);padding:60px">
           <span class="loading"></span> 로딩 중...
         </div>
       </div>
@@ -577,172 +585,489 @@ async function openStockDetail(code, name, initTab = 'market') {
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
   document.body.appendChild(modal);
 
-  // 산업 정보 로드
+  // 기본 정보 로드
+  window._sdCode = code; window._sdName = name;
   try {
     const { data: ci } = await sb.from('companies')
-      .select('industry,sub_industry')
+      .select('industry,sub_industry,market')
       .or(`code.eq.${code},code.eq.${code}.KS,code.eq.${code}.KQ`)
       .limit(1).single();
     if (ci) {
-      const el = document.getElementById('sd-industry');
-      if (el) {
-        const parts = [ci.industry, ci.sub_industry].filter(Boolean);
-        el.innerHTML = parts.map((p,i) =>
-          `<span style="color:${i===0?'var(--tg)':'var(--text3)'}">${p}</span>`
-        ).join(' <span style="color:var(--text3)">›</span> ');
+      const ib = document.getElementById('sd-industry-badge');
+      const si = document.getElementById('sd-sub-info');
+      if (ib) ib.textContent = ci.industry || '';
+      if (si) si.textContent = [ci.sub_industry, ci.market].filter(Boolean).join(' · ');
+    }
+  } catch(e) {}
+
+  // 최신 시세로 헤더 가격 업데이트
+  try {
+    const { data: lp } = await sb.from('market_data')
+      .select('price,price_change_rate,price_change,base_date')
+      .eq('stock_code', code)
+      .order('base_date', { ascending: false }).limit(1).single();
+    if (lp) {
+      const pb = document.getElementById('sd-price-badge');
+      if (pb) {
+        const cc = chgColor(lp.price_change_rate);
+        pb.innerHTML =
+          `<div style="font-size:24px;font-weight:700">${lp.price?.toLocaleString()}원</div>` +
+          `<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:2px">` +
+            `<span style="color:${cc};font-weight:700;font-size:14px">${chgStr(lp.price_change_rate)}</span>` +
+            (lp.price_change != null ? `<span style="color:${cc};font-size:12px">${lp.price_change>0?'+':''}${lp.price_change?.toLocaleString()}원</span>` : '') +
+            `<span style="color:var(--text3);font-size:11px">${lp.base_date}</span>` +
+          `</div>`;
       }
     }
   } catch(e) {}
 
-  // 탭 전환
-  window._sdCode = code;
-  window._sdName = name;
   window.sdSwitchTab = async (tab) => {
-    ['market','financial'].forEach(t => {
+    ['overview','market','financial','supply','opinion'].forEach(t => {
       const btn = document.getElementById('sd-tab-'+t);
       if (btn) {
-        btn.style.color = t === tab ? 'var(--tg)' : 'var(--text3)';
-        btn.style.borderBottomColor = t === tab ? 'var(--tg)' : 'transparent';
+        btn.style.color = t===tab ? 'var(--tg)' : 'var(--text3)';
+        btn.style.borderBottomColor = t===tab ? 'var(--tg)' : 'transparent';
       }
     });
     const body = document.getElementById('sd-body');
     if (!body) return;
-    body.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px"><span class="loading"></span></div>';
-    if (tab === 'market') {
-      await _renderMarketTab(body, window._sdCode, window._sdName);
-    } else {
-      await _renderFinancialTab(body, window._sdCode, window._sdName);
-    }
+    body.innerHTML = '<div style="text-align:center;color:var(--text3);padding:60px"><span class="loading"></span></div>';
+    const fns = {
+      overview:  _sdOverview,
+      market:    _sdMarket,
+      financial: _sdFinancial,
+      supply:    _sdSupply,
+      opinion:   _sdOpinion,
+    };
+    if (fns[tab]) await fns[tab](body, code, name);
   };
 
-  await sdSwitchTab(initTab);
+  await window.sdSwitchTab(initTab);
 }
 
-async function openFinTrend(stockCode, corpName) {
-  openStockDetail(stockCode, corpName, 'financial');
+async function openFinTrend(code, name)     { openStockDetail(code, name, 'financial'); }
+async function openMarketDetail(code, name) { openStockDetail(code, name, 'market'); }
+
+// ─────────────────────────────────────────
+// 헬퍼
+// ─────────────────────────────────────────
+const _row2 = (label, val, color='') =>
+  `<div style="display:flex;justify-content:space-between;align-items:center;
+    padding:5px 0;border-bottom:1px solid var(--border)">
+    <span style="font-size:12px;color:var(--text2)">${label}</span>
+    <span style="font-size:13px;font-weight:600;color:${color||'var(--text1)'}">${val}</span>
+  </div>`;
+
+const _sec = (title, content, accent='var(--tg)') =>
+  `<div style="background:var(--bg3);border-radius:10px;padding:14px 16px;
+    border:1px solid var(--border);border-top:2px solid ${accent}">
+    <div style="font-size:10px;font-weight:700;color:var(--text3);
+      letter-spacing:.8px;margin-bottom:10px">${title}</div>
+    ${content}
+  </div>`;
+
+const _pct = v => v != null ? v.toFixed(1)+'%' : '—';
+const _num = v => v != null ? v.toLocaleString() : '—';
+const _cap = v => v != null ? fmtCap(v) : '—';
+const _won = v => v != null ? v.toLocaleString()+'원' : '—';
+const _fmtB = v => v==null ? null : Math.round(v/100000000);
+
+function _w52bar(r) {
+  const hi = r.w52_high||0, lo = r.w52_low||0, cur = r.price||0;
+  const pct = hi>lo ? Math.round((cur-lo)/(hi-lo)*100) : 50;
+  const c = pct>=80?'var(--red)':pct<=20?'var(--blue)':'var(--tg)';
+  return `
+    <div style="margin:8px 0 4px">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:4px">
+        <span>저 ${_won(lo)}</span>
+        <span style="color:${c};font-weight:700">현재 ${pct}%</span>
+        <span>고 ${_won(hi)}</span>
+      </div>
+      <div style="height:5px;background:var(--border);border-radius:3px;position:relative">
+        <div style="position:absolute;left:0;width:${pct}%;height:100%;
+          background:${c};border-radius:3px;opacity:.5"></div>
+        <div style="position:absolute;left:${pct}%;transform:translateX(-50%);
+          width:11px;height:11px;background:${c};border:2px solid var(--bg2);
+          border-radius:50%;top:-3px"></div>
+      </div>
+    </div>`;
 }
 
-async function openMarketDetail(code, name) {
-  openStockDetail(code, name, 'market');
+function _retStr(hist, days) {
+  if (!hist || hist.length <= days) return '—';
+  const sorted = [...hist].sort((a,b)=>a.base_date.localeCompare(b.base_date));
+  const cur  = sorted[sorted.length-1]?.price;
+  const past = sorted[Math.max(0, sorted.length-1-days)]?.price;
+  if (!cur || !past) return '—';
+  const ret = ((cur-past)/past*100).toFixed(2);
+  return `<span style="color:${ret>=0?'var(--red)':'var(--blue)'}">${ret>=0?'+':''}${ret}%</span>`;
 }
 
-async function _renderMarketTab(body, code, name) {
+// ─────────────────────────────────────────
+// 탭1: 종합 Overview
+// ─────────────────────────────────────────
+async function _sdOverview(body, code, name) {
   try {
-    const { data: latest } = await sb.from('market_data')
-      .select('*').eq('stock_code', code)
-      .order('base_date', { ascending: false }).limit(1).single();
-    const { data: history } = await sb.from('market_data')
-      .select('base_date,price,price_change_rate,market_cap,volume,per,pbr,foreign_net_buy')
-      .eq('stock_code', code)
-      .order('base_date', { ascending: false }).limit(90);
+    const [
+      { data: md },
+      { data: fins },
+      { data: opinions },
+      { data: hist90 },
+    ] = await Promise.all([
+      sb.from('market_data').select('*').eq('stock_code', code)
+        .order('base_date', { ascending:false }).limit(1).single(),
+      sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,operating_margin,net_margin,roe,roa,debt_ratio,total_assets,total_equity,operating_cashflow,fcf,capex')
+        .eq('stock_code', code).eq('fs_div','CFS')
+        .order('bsns_year',{ascending:false}).order('quarter',{ascending:false}).limit(8),
+      sb.from('analyst_opinions').select('firm_name,opinion,target_price,gap_rate,opinion_date')
+        .eq('stock_code', code).in('opinion_code',['1','2'])
+        .order('opinion_date',{ascending:false}).limit(10),
+      sb.from('market_data').select('base_date,price,price_change_rate,volume,foreign_net_buy')
+        .eq('stock_code', code).order('base_date',{ascending:false}).limit(90),
+    ]);
 
-    if (!latest) { body.innerHTML = '<div style="color:var(--text3);padding:40px;text-align:center">데이터 없음</div>'; return; }
+    const r = md || {};
+    const latestFin = fins?.[0] || {};
+    const prevFin   = fins?.[1] || {};
 
-    // 헤더 뱃지 업데이트 (탭 전환해도 유지)
-    const priceBadge = document.getElementById('sd-price-badge');
-    if (priceBadge && latest.price) {
-      const chgVal = latest.price_change_rate;
-      const chgAmt = latest.price_change;
-      priceBadge.innerHTML =
-        `<div style="font-size:22px;font-weight:700;color:var(--text1)">${latest.price.toLocaleString()}원</div>` +
-        `<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end;margin-top:2px">` +
-          `<span style="font-size:14px;font-weight:700;color:${chgColor(chgVal)}">${chgStr(chgVal)}</span>` +
-          (chgAmt != null ? `<span style="font-size:12px;color:${chgColor(chgVal)}">${chgAmt>0?'+':''}${chgAmt.toLocaleString()}원</span>` : '') +
-          `<span style="font-size:11px;color:var(--text3)">${latest.base_date}</span>` +
-        `</div>`;
-    }
+    // 컨센서스
+    const tgPrices = (opinions||[]).map(o=>o.target_price).filter(v=>v>0);
+    const avgTarget = tgPrices.length ? Math.round(tgPrices.reduce((a,b)=>a+b,0)/tgPrices.length) : null;
+    const upside = avgTarget && r.price ? ((avgTarget-r.price)/r.price*100).toFixed(1) : null;
+    const buyCount = (opinions||[]).length;
 
-    const r = latest;
-    const chg = r.price_change_rate;
-    const hist = (history || []).reverse();
-    const hi52 = r.w52_high || 0, lo52 = r.w52_low || 0, cur = r.price || 0;
-    const rangePct = hi52 > lo52 ? Math.round((cur - lo52) / (hi52 - lo52) * 100) : 50;
+    // QoQ 영업이익 성장
+    const qoqOp = latestFin.operating_profit && prevFin.operating_profit
+      ? ((latestFin.operating_profit-prevFin.operating_profit)/Math.abs(prevFin.operating_profit)*100).toFixed(1)
+      : null;
 
-    const retStr = (days) => {
-      if (hist.length <= days) return '—';
-      const past = hist[Math.max(0, hist.length - 1 - days)]?.price;
-      if (!past || !cur) return '—';
-      const ret = ((cur - past) / past * 100).toFixed(2);
-      return `<span style="color:${ret>=0?'var(--red)':'var(--blue)'}">${ret>=0?'+':''}${ret}%</span>`;
-    };
-
-    const row2 = (label, val, color='') =>
-      `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
-        <span style="font-size:12px;color:var(--text2)">${label}</span>
-        <span style="font-size:13px;font-weight:600;color:${color||'var(--text1)'};">${val}</span>
-      </div>`;
-    const section = (title, content) =>
-      `<div style="background:var(--bg3);border-radius:10px;padding:14px 16px;border:1px solid var(--border)">
-        <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.8px;margin-bottom:10px">${title}</div>
-        ${content}
-      </div>`;
+    const signalItems = [];
+    if (r.hgpr_cls) signalItems.push(`<span style="background:rgba(42,171,238,.15);color:var(--tg);padding:2px 8px;border-radius:4px;font-size:11px">📈 ${r.hgpr_cls}</span>`);
+    if (r.is_caution) signalItems.push(`<span style="background:rgba(245,54,92,.15);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px">⚠️ 투자유의</span>`);
+    if (r.manage_issue_code && r.manage_issue_code!=='0') signalItems.push(`<span style="background:rgba(245,54,92,.2);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px">🚨 관리종목</span>`);
+    if (r.is_short_over) signalItems.push(`<span style="background:rgba(251,99,64,.15);color:var(--yellow);padding:2px 8px;border-radius:4px;font-size:11px">🔥 단기과열</span>`);
+    if (upside > 0) signalItems.push(`<span style="background:rgba(45,206,137,.12);color:var(--green);padding:2px 8px;border-radius:4px;font-size:11px">🎯 목표가 +${upside}%</span>`);
 
     body.innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
-        ${section('VALUATION', `
-          ${row2('시가총액', r.market_cap ? fmtCap(r.market_cap) : '—')}
-          ${row2('PER', r.per!=null&&r.per!==0 ? r.per.toFixed(1)+'배' : '—')}
-          ${row2('PBR', r.pbr!=null&&r.pbr!==0 ? r.pbr.toFixed(2)+'배' : '—')}
-          ${row2('EPS', r.eps ? r.eps.toLocaleString()+'원' : '—')}
-          ${row2('BPS', r.bps ? r.bps.toLocaleString()+'원' : '—')}
-          ${row2('상장주식수', r.listing_shares ? r.listing_shares.toLocaleString()+'주' : '—')}
-        `)}
-        ${section('수급', `
-          ${row2('외국인 보유율', r.foreign_hold_rate!=null ? r.foreign_hold_rate.toFixed(2)+'%' : '—')}
-          ${row2('외국인 순매수', r.foreign_net_buy!=null ? r.foreign_net_buy.toLocaleString()+'주' : '—', r.foreign_net_buy<0?'var(--blue)':'var(--red)')}
-          ${row2('프로그램 순매수', r.program_net_buy!=null ? r.program_net_buy.toLocaleString()+'주' : '—', r.program_net_buy<0?'var(--blue)':'var(--red)')}
-          ${row2('거래량', r.volume ? r.volume.toLocaleString() : '—')}
-          ${row2('거래대금', r.trading_value ? fmtCap(r.trading_value) : '—')}
-          ${row2('거래회전율', r.vol_turnover!=null ? r.vol_turnover.toFixed(2)+'%' : '—')}
-          ${row2('대출잔고율', r.loan_balance_rate!=null ? r.loan_balance_rate.toFixed(2)+'%' : '—')}
-          ${r.market_warn_code && r.market_warn_code !== '00' ? row2('투자경고', r.market_warn_code, 'var(--red)') : ''}
-        `)}
-        ${section('가격 범위 · 수익률', `
-          ${row2('52주 최고', r.w52_high ? r.w52_high.toLocaleString()+'원' : '—', 'var(--red)')}
-          ${row2('52주 최저', r.w52_low ? r.w52_low.toLocaleString()+'원' : '—', 'var(--blue)')}
-          <div style="margin:8px 0 12px">
-            <div style="height:5px;background:var(--border);border-radius:3px;position:relative">
-              <div style="position:absolute;left:0;width:${rangePct}%;height:100%;background:var(--tg);border-radius:3px;opacity:.4"></div>
-              <div style="position:absolute;left:${rangePct}%;transform:translateX(-50%);width:12px;height:12px;
-                background:var(--tg);border:2px solid var(--bg2);border-radius:50%;top:-4px"></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text3)">
-              <span>${lo52.toLocaleString()}원</span>
-              <span style="color:var(--tg);font-weight:700">현재 ${rangePct}%</span>
-              <span>${hi52.toLocaleString()}원</span>
-            </div>
-          </div>
-          ${row2('1주 수익률', r.week_return!=null ? `<span style="color:${r.week_return>=0?'var(--red)':'var(--blue)'}">${r.week_return>=0?'+':''}${r.week_return.toFixed(2)}%</span>` : retStr(5))}
-          ${row2('1달 수익률', r.month_return!=null ? `<span style="color:${r.month_return>=0?'var(--red)':'var(--blue)'}">${r.month_return>=0?'+':''}${r.month_return.toFixed(2)}%</span>` : retStr(21))}
-          ${row2('3달 수익률', r.quarter_return!=null ? `<span style="color:${r.quarter_return>=0?'var(--red)':'var(--blue)'}">${r.quarter_return>=0?'+':''}${r.quarter_return.toFixed(2)}%</span>` : retStr(63))}
-          ${row2('1년 수익률', r.year_return!=null ? `<span style="color:${r.year_return>=0?'var(--red)':'var(--blue)'}">${r.year_return>=0?'+':''}${r.year_return.toFixed(2)}%</span>` : retStr(252))}
-        `)}
+      <!-- 시그널 배지 -->
+      ${signalItems.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">${signalItems.join('')}</div>` : ''}
+
+      <!-- 핵심 지표 5개 KPI -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px">
+        ${[
+          ['시가총액', _cap(r.market_cap), 'var(--tg)'],
+          ['PER / PBR', `${r.per!=null&&r.per!==0?r.per.toFixed(1):'—'}배 / ${r.pbr!=null&&r.pbr!==0?r.pbr.toFixed(2):'—'}배`, ''],
+          ['영업이익률', _pct(latestFin.operating_margin), latestFin.operating_margin>=15?'var(--green)':latestFin.operating_margin>=0?'var(--text1)':'var(--red)'],
+          ['ROE', _pct(latestFin.roe), latestFin.roe>=15?'var(--green)':latestFin.roe>=0?'var(--text1)':'var(--red)'],
+          ['외국인 소진율', r.foreign_hold_rate!=null?r.foreign_hold_rate.toFixed(1)+'%':'—', ''],
+        ].map(([lb,v,c])=>`
+          <div style="background:var(--bg3);border-radius:8px;padding:12px 14px;border:1px solid var(--border);text-align:center">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:6px">${lb}</div>
+            <div style="font-size:16px;font-weight:700;color:${c||'var(--text1)'}">${v}</div>
+          </div>`).join('')}
       </div>
-      <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;margin-bottom:8px">최근 시장 데이터 (${hist.length}일)</div>
-      <div class="table-wrap"><table>
-        <thead><tr>
-          <th>기준일</th><th>종가</th><th>등락률</th><th>시가총액</th>
-          <th>거래량</th><th>외국인순매수</th><th>PER</th><th>PBR</th>
-        </tr></thead>
-        <tbody>${hist.slice().reverse().map(h => {
-          const hc = h.price_change_rate;
-          return `<tr>
-            <td style="font-size:11px;color:var(--text3)">${h.base_date}</td>
-            <td style="font-weight:600">${h.price ? h.price.toLocaleString()+'원' : '—'}</td>
-            <td style="color:${chgColor(hc)};font-weight:600">${chgStr(hc)}</td>
-            <td style="color:var(--text2)">${h.market_cap ? fmtCap(h.market_cap) : '—'}</td>
-            <td style="color:var(--text2)">${h.volume ? h.volume.toLocaleString() : '—'}</td>
-            <td style="color:${h.foreign_net_buy<0?'var(--blue)':'var(--red)'}">
-              ${h.foreign_net_buy!=null ? h.foreign_net_buy.toLocaleString() : '—'}
-            </td>
-            <td style="color:var(--text2)">${h.per!=null&&h.per!==0 ? h.per.toFixed(1) : '—'}</td>
-            <td style="color:var(--text2)">${h.pbr!=null&&h.pbr!==0 ? h.pbr.toFixed(2) : '—'}</td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table></div>`;
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
+        <!-- 가격 범위 -->
+        ${_sec('가격 범위 · 수익률', `
+          ${_w52bar(r)}
+          ${_row2('52주 고가', _won(r.w52_high), 'var(--red)')}
+          ${_row2('52주 저가', _won(r.w52_low), 'var(--blue)')}
+          <div style="height:8px"></div>
+          ${_row2('1주 수익률',  _retStr(hist90, 5))}
+          ${_row2('1달 수익률',  _retStr(hist90, 21))}
+          ${_row2('3달 수익률',  _retStr(hist90, 63))}
+        `, 'var(--tg)')}
+
+        <!-- 최근 실적 -->
+        ${_sec(`최근 실적 (${latestFin.bsns_year||'—'} ${latestFin.quarter||'—'})`, `
+          ${_row2('매출액', _cap(latestFin.revenue))}
+          ${_row2('영업이익', _cap(latestFin.operating_profit), (latestFin.operating_profit||0)>0?'var(--red)':'var(--blue)')}
+          ${_row2('영업이익률', _pct(latestFin.operating_margin), (latestFin.operating_margin||0)>=10?'var(--green)':'var(--text1)')}
+          ${_row2('순이익', _cap(latestFin.net_income), (latestFin.net_income||0)>0?'var(--red)':'var(--blue)')}
+          ${_row2('FCF', _cap(latestFin.fcf), (latestFin.fcf||0)>0?'var(--green)':'var(--red)')}
+          ${qoqOp != null ? _row2('QoQ 영업이익', `<span style="color:${qoqOp>=0?'var(--red)':'var(--blue)'}">${qoqOp>=0?'+':''}${qoqOp}%</span>`) : ''}
+          ${_row2('ROE', _pct(latestFin.roe))}
+          ${_row2('부채비율', _pct(latestFin.debt_ratio))}
+        `, 'var(--green)')}
+
+        <!-- 증권사 컨센서스 -->
+        ${_sec('증권사 컨센서스', `
+          ${avgTarget ? `
+            <div style="text-align:center;margin-bottom:10px">
+              <div style="font-size:11px;color:var(--text3);margin-bottom:2px">평균 목표주가</div>
+              <div style="font-size:22px;font-weight:700;color:var(--text1)">${avgTarget.toLocaleString()}원</div>
+              ${upside != null ? `<div style="font-size:14px;color:${upside>=0?'var(--green)':'var(--red)'};font-weight:600">현재가 대비 ${upside>=0?'+':''}${upside}%</div>` : ''}
+            </div>` : '<div style="color:var(--text3);font-size:12px;padding:8px 0">컨센서스 없음</div>'}
+          ${_row2('커버리지', `${buyCount}개 증권사`)}
+          ${(opinions||[]).slice(0,4).map(o=>
+            `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px">
+              <span style="color:var(--text3)">${o.firm_name}</span>
+              <span style="color:${o.opinion?.includes('매수')||o.opinion==='BUY'?'var(--red)':'var(--text2)'}">
+                ${o.opinion} ${o.target_price?o.target_price.toLocaleString()+'원':''}
+              </span>
+            </div>`).join('')}
+        `, 'var(--yellow)')}
+      </div>`;
   } catch(e) {
     body.innerHTML = `<div style="color:var(--red);padding:20px">오류: ${e.message}</div>`;
   }
+}
+
+// ─────────────────────────────────────────
+// 탭2: 시장 데이터 (전체 필드)
+// ─────────────────────────────────────────
+async function _sdMarket(body, code, name) {
+  try {
+    const { data: r } = await sb.from('market_data')
+      .select('*').eq('stock_code', code)
+      .order('base_date', { ascending:false }).limit(1).single();
+    const { data: hist } = await sb.from('market_data')
+      .select('base_date,price,price_change_rate,market_cap,volume,trading_value,per,pbr,foreign_net_buy,foreign_hold_rate,program_net_buy,short_sell_qty')
+      .eq('stock_code', code)
+      .order('base_date', { ascending:false }).limit(90);
+
+    if (!r) { body.innerHTML='<div style="color:var(--text3);padding:40px;text-align:center">데이터 없음</div>'; return; }
+
+    const sorted = (hist||[]).slice().reverse();
+
+    body.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+        ${_sec('VALUATION', `
+          ${_row2('시가총액', _cap(r.market_cap))}
+          ${_row2('PER', r.per&&r.per!==0?r.per.toFixed(1)+'배':'—')}
+          ${_row2('PBR', r.pbr&&r.pbr!==0?r.pbr.toFixed(2)+'배':'—')}
+          ${_row2('EPS', _won(r.eps))}
+          ${_row2('BPS', _won(r.bps))}
+          ${_row2('DPS', _won(r.dps))}
+          ${_row2('결산월', r.fiscal_month?r.fiscal_month+'월':'—')}
+        `)}
+        ${_sec('가격 · 거래', `
+          ${_row2('현재가', _won(r.price))}
+          ${_row2('시가', _won(r.open_price))}
+          ${_row2('고가', _won(r.high_price), 'var(--red)')}
+          ${_row2('저가', _won(r.low_price), 'var(--blue)')}
+          ${_row2('기준가', _won(r.base_price))}
+          ${_row2('상한가', _won(r.limit_high), 'var(--red)')}
+          ${_row2('하한가', _won(r.limit_low), 'var(--blue)')}
+          ${_row2('VWAP', _won(r.vwap))}
+          ${_row2('거래량', _num(r.volume))}
+          ${_row2('거래대금', _cap(r.trading_value))}
+          ${_row2('거래회전율', _pct(r.vol_turnover))}
+        `)}
+        ${_sec('52주 · 수익률', `
+          ${_w52bar(r)}
+          ${_row2('52주 고가', _won(r.w52_high), 'var(--red)')}
+          ${_row2('52주 저가', _won(r.w52_low), 'var(--blue)')}
+          ${_row2('52주 고가일', r.w52_high_date||'—')}
+          ${_row2('52주 고가대비', _pct(r.w52_high_rate))}
+          ${_row2('52주 저가대비', _pct(r.w52_low_rate))}
+          ${_row2('접근도', _pct(r.approach_rate))}
+          ${_row2('1주 수익률', _retStr(hist,5))}
+          ${_row2('1달 수익률', _retStr(hist,21))}
+          ${_row2('3달 수익률', _retStr(hist,63))}
+        `)}
+        ${_sec('종목 상태', `
+          ${_row2('시장경고', r.market_warn_code&&r.market_warn_code!=='00'?`<span style="color:var(--yellow)">${r.market_warn_code}</span>`:'정상')}
+          ${_row2('투자유의', r.is_caution?'<span style="color:var(--red)">예</span>':'—')}
+          ${_row2('관리종목', r.manage_issue_code&&r.manage_issue_code!=='0'?'<span style="color:var(--red)">지정</span>':'—')}
+          ${_row2('단기과열', r.is_short_over?'<span style="color:var(--yellow)">예</span>':'—')}
+          ${_row2('정리매매', r.is_liquidation?'<span style="color:var(--red)">예</span>':'—')}
+          ${_row2('신고가구분', r.hgpr_cls||'—')}
+          ${_row2('상장주수', _num(r.listing_shares)+'주')}
+          ${_row2('시장', r.market||'—')}
+        `)}
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;margin-bottom:8px">
+        최근 시장 데이터 (${sorted.length}일)
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>기준일</th><th style="text-align:right">종가</th><th style="text-align:right">등락률</th>
+          <th style="text-align:right">시가총액</th><th style="text-align:right">거래량</th>
+          <th style="text-align:right">거래대금</th><th style="text-align:right">외국인순매수</th>
+          <th style="text-align:right">외국인소진율</th><th style="text-align:right">PER</th><th style="text-align:right">PBR</th>
+        </tr></thead>
+        <tbody>${sorted.slice().reverse().map(h=>{
+          const hc = h.price_change_rate;
+          return `<tr>
+            <td style="font-size:11px;color:var(--text3)">${h.base_date}</td>
+            <td style="text-align:right;font-weight:600">${h.price?h.price.toLocaleString()+'원':'—'}</td>
+            <td style="text-align:right;color:${chgColor(hc)};font-weight:600">${chgStr(hc)}</td>
+            <td style="text-align:right;color:var(--text2)">${h.market_cap?_cap(h.market_cap):'—'}</td>
+            <td style="text-align:right;color:var(--text2)">${h.volume?h.volume.toLocaleString():'—'}</td>
+            <td style="text-align:right;color:var(--text2)">${h.trading_value?_cap(h.trading_value):'—'}</td>
+            <td style="text-align:right;color:${(h.foreign_net_buy||0)<0?'var(--blue)':'var(--red)'}">
+              ${h.foreign_net_buy!=null?h.foreign_net_buy.toLocaleString():'—'}
+            </td>
+            <td style="text-align:right;color:var(--text2)">${h.foreign_hold_rate!=null?h.foreign_hold_rate.toFixed(1)+'%':'—'}</td>
+            <td style="text-align:right;color:var(--text2)">${h.per&&h.per!==0?h.per.toFixed(1):'—'}</td>
+            <td style="text-align:right;color:var(--text2)">${h.pbr&&h.pbr!==0?h.pbr.toFixed(2):'—'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+  } catch(e) { body.innerHTML=`<div style="color:var(--red);padding:20px">오류: ${e.message}</div>`; }
+}
+
+// ─────────────────────────────────────────
+// 탭3: 재무제표 (기존 차트 포함)
+// ─────────────────────────────────────────
+async function _sdFinancial(body, code, name) {
+  await _renderFinancialTab(body, code, name);
+}
+
+// ─────────────────────────────────────────
+// 탭4: 수급 상세
+// ─────────────────────────────────────────
+async function _sdSupply(body, code, name) {
+  try {
+    const { data: hist } = await sb.from('market_data')
+      .select('base_date,price,price_change_rate,foreign_net_buy,foreign_hold_rate,foreign_hold_qty,program_net_buy,short_sell_qty,loan_balance_rate,volume,trading_value')
+      .eq('stock_code', code)
+      .order('base_date', { ascending:false }).limit(30);
+
+    const { data: latest } = await sb.from('market_data')
+      .select('foreign_hold_rate,foreign_hold_qty,foreign_net_buy,program_net_buy,short_sell_qty,loan_balance_rate,volume,trading_value,listing_shares')
+      .eq('stock_code', code)
+      .order('base_date',{ascending:false}).limit(1).single();
+
+    const r = latest || {};
+    const rows = (hist||[]).slice().reverse();
+
+    // 외국인 누적 (최근 5일/10일/20일)
+    const fNet = (days) => {
+      const sl = rows.slice(-days);
+      const sum = sl.reduce((a,h)=>a+(h.foreign_net_buy||0),0);
+      return `<span style="color:${sum>=0?'var(--red)':'var(--blue)'}">${sum>=0?'+':''}${sum.toLocaleString()}</span>`;
+    };
+
+    body.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+        ${_sec('외국인 수급', `
+          ${_row2('소진율', r.foreign_hold_rate!=null?r.foreign_hold_rate.toFixed(2)+'%':'—')}
+          ${_row2('보유수량', r.foreign_hold_qty!=null?_num(r.foreign_hold_qty)+'주':'—')}
+          ${_row2('당일 순매수', r.foreign_net_buy!=null?`<span style="color:${(r.foreign_net_buy||0)>=0?'var(--red)':'var(--blue)'}">
+            ${r.foreign_net_buy.toLocaleString()}주</span>`:'—')}
+          ${_row2('5일 누적', fNet(5)+'주')}
+          ${_row2('10일 누적', fNet(10)+'주')}
+          ${_row2('20일 누적', fNet(20)+'주')}
+        `, 'var(--tg)')}
+        ${_sec('프로그램 · 공매도', `
+          ${_row2('프로그램 순매수', r.program_net_buy!=null?`<span style="color:${(r.program_net_buy||0)>=0?'var(--red)':'var(--blue)'}">
+            ${_num(r.program_net_buy)}주</span>`:'—')}
+          ${_row2('공매도 체결수량', r.short_sell_qty!=null?_num(r.short_sell_qty)+'주':'—')}
+          ${_row2('융자잔고율', r.loan_balance_rate!=null?r.loan_balance_rate.toFixed(2)+'%':'—')}
+        `, 'var(--yellow)')}
+        ${_sec('거래 강도', `
+          ${_row2('거래량', _num(r.volume))}
+          ${_row2('거래대금', _cap(r.trading_value))}
+          ${_row2('상장주수', r.listing_shares?_num(r.listing_shares)+'주':'—')}
+          ${r.listing_shares&&r.volume?_row2('일 회전율', (r.volume/r.listing_shares*100).toFixed(3)+'%'):''}
+        `, 'var(--green)')}
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;margin-bottom:8px">최근 30일 수급 추이</div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>기준일</th><th style="text-align:right">종가</th><th style="text-align:right">등락률</th>
+          <th style="text-align:right">외국인순매수</th><th style="text-align:right">외국인소진율</th>
+          <th style="text-align:right">프로그램순매수</th><th style="text-align:right">공매도</th>
+          <th style="text-align:right">융자잔고율</th>
+        </tr></thead>
+        <tbody>${rows.slice().reverse().map(h=>{
+          const hc = h.price_change_rate;
+          return `<tr>
+            <td style="font-size:11px;color:var(--text3)">${h.base_date}</td>
+            <td style="text-align:right;font-weight:600">${h.price?h.price.toLocaleString()+'원':'—'}</td>
+            <td style="text-align:right;color:${chgColor(hc)};font-weight:600">${chgStr(hc)}</td>
+            <td style="text-align:right;color:${(h.foreign_net_buy||0)<0?'var(--blue)':'var(--red)'}">
+              ${h.foreign_net_buy!=null?h.foreign_net_buy.toLocaleString():'—'}
+            </td>
+            <td style="text-align:right">${h.foreign_hold_rate!=null?h.foreign_hold_rate.toFixed(1)+'%':'—'}</td>
+            <td style="text-align:right;color:${(h.program_net_buy||0)<0?'var(--blue)':'var(--red)'}">
+              ${h.program_net_buy!=null?h.program_net_buy.toLocaleString():'—'}
+            </td>
+            <td style="text-align:right;color:var(--text2)">${h.short_sell_qty!=null?h.short_sell_qty.toLocaleString():'—'}</td>
+            <td style="text-align:right;color:var(--text2)">${h.loan_balance_rate!=null?h.loan_balance_rate.toFixed(2)+'%':'—'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+  } catch(e) { body.innerHTML=`<div style="color:var(--red);padding:20px">오류: ${e.message}</div>`; }
+}
+
+// ─────────────────────────────────────────
+// 탭5: 증권사 투자의견
+// ─────────────────────────────────────────
+async function _sdOpinion(body, code, name) {
+  try {
+    const { data: opinions } = await sb.from('analyst_opinions')
+      .select('*').eq('stock_code', code)
+      .order('opinion_date',{ascending:false}).limit(100);
+
+    if (!opinions?.length) {
+      body.innerHTML = '<div style="color:var(--text3);padding:60px;text-align:center">증권사 투자의견 없음<br><span style="font-size:11px">수집된 데이터가 없습니다</span></div>';
+      return;
+    }
+
+    // 컨센서스 요약
+    const recent = opinions.filter(o => {
+      const d = new Date(o.opinion_date);
+      return (Date.now()-d.getTime()) < 90*24*60*60*1000;
+    });
+    const tgPrices = recent.map(o=>o.target_price).filter(v=>v>0);
+    const avgTarget = tgPrices.length ? Math.round(tgPrices.reduce((a,b)=>a+b,0)/tgPrices.length) : null;
+    const maxTarget = tgPrices.length ? Math.max(...tgPrices) : null;
+    const minTarget = tgPrices.length ? Math.min(...tgPrices) : null;
+    const buyCnt    = recent.filter(o=>['1','2'].includes(o.opinion_code)).length;
+    const holdCnt   = recent.filter(o=>o.opinion_code==='3').length;
+
+    // 최신 현재가
+    const { data: lp } = await sb.from('market_data')
+      .select('price').eq('stock_code',code)
+      .order('base_date',{ascending:false}).limit(1).single();
+    const curPrice = lp?.price;
+    const upside = avgTarget&&curPrice ? ((avgTarget-curPrice)/curPrice*100).toFixed(1) : null;
+
+    body.innerHTML = `
+      <!-- 컨센서스 요약 -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+        ${[
+          ['평균 목표주가', avgTarget?avgTarget.toLocaleString()+'원':'—', upside!=null?`현재가 대비 ${upside>=0?'+':''}${upside}%`:''],
+          ['목표가 범위', maxTarget?`${minTarget?.toLocaleString()}~${maxTarget?.toLocaleString()}원`:'—', ''],
+          ['매수 의견', `${buyCnt}개`, `전체 ${recent.length}개 중`],
+          ['중립/기타', `${holdCnt}개`, ''],
+        ].map(([lb,v,sub])=>`
+          <div style="background:var(--bg3);border-radius:8px;padding:12px 14px;border:1px solid var(--border);text-align:center">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">${lb}</div>
+            <div style="font-size:18px;font-weight:700">${v}</div>
+            ${sub?`<div style="font-size:10px;color:${upside&&upside>=0?'var(--green)':'var(--text3)'};margin-top:2px">${sub}</div>`:''}
+          </div>`).join('')}
+      </div>
+      <!-- 의견 목록 -->
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>날짜</th><th>증권사</th><th style="text-align:center">투자의견</th>
+          <th>직전의견</th><th style="text-align:right">목표주가</th>
+          <th style="text-align:right">괴리율</th>
+        </tr></thead>
+        <tbody>${opinions.map(o=>{
+          const isBuy = ['1','2'].includes(o.opinion_code)||o.opinion?.includes('매수')||o.opinion==='BUY';
+          const opColor = isBuy ? 'var(--red)' : o.opinion?.includes('매도')||o.opinion==='SELL' ? 'var(--blue)' : 'var(--text2)';
+          const gapColor = (o.gap_rate||0) < -20 ? 'var(--yellow)' : 'var(--text2)';
+          // 의견 변화 감지
+          const changed = o.opinion !== o.prev_opinion ? '🔄' : '';
+          return `<tr>
+            <td style="font-size:11px;color:var(--text3)">${o.opinion_date}</td>
+            <td style="font-weight:500">${o.firm_name}</td>
+            <td style="text-align:center">
+              <span style="color:${opColor};font-weight:700">${changed}${o.opinion||'—'}</span>
+            </td>
+            <td style="color:var(--text3);font-size:12px">${o.prev_opinion||'—'}</td>
+            <td style="text-align:right;font-weight:600">${o.target_price?o.target_price.toLocaleString()+'원':'—'}</td>
+            <td style="text-align:right;color:${gapColor}">${o.gap_rate!=null?o.gap_rate.toFixed(1)+'%':'—'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+  } catch(e) { body.innerHTML=`<div style="color:var(--red);padding:20px">오류: ${e.message}</div>`; }
 }
 
 async function _renderFinancialTab(body, code, name) {
