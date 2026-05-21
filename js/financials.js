@@ -827,6 +827,25 @@ async function _sdMarket(body, code, name) {
     const sorted = (hist||[]).slice().reverse();
 
     body.innerHTML = `
+      <!-- 주가 차트 -->
+      <div style="background:var(--bg3);border-radius:10px;border:1px solid var(--border);
+        padding:14px 16px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px">주가 차트</span>
+          <div style="display:flex;gap:4px;margin-left:auto">
+            ${['price:주가','volume:거래량','foreign:외국인순매수'].map(s=>{
+              const [k,lb] = s.split(':');
+              return `<button data-sdchart="${k}" onclick="window._sdSwitchChart('${k}')"
+                style="font-size:11px;padding:2px 10px;border-radius:4px;cursor:pointer;
+                  background:var(--bg2);color:var(--text3);border:1px solid var(--border);
+                  font-family:inherit;transition:.15s">${lb}</button>`;
+            }).join('')}
+          </div>
+        </div>
+        <div style="position:relative;height:200px">
+          <canvas id="sd-price-canvas"></canvas>
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:16px">
         ${_sec('VALUATION', `
           ${_row2('시가총액', _cap(r.market_cap))}
