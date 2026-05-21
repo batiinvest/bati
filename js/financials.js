@@ -32,6 +32,7 @@ function pFinancials() {
   </div>
 
   <div class="card" id="fin-table" style="overflow:hidden">
+    <div id="fin-table-inner" style="overflow:hidden"></div>
     ${loadingHTML()}
   </div>`;
 }
@@ -183,7 +184,7 @@ function initFinancials() {
 }
 
 async function loadFinancials() {
-  const el = document.getElementById('fin-table');
+  const el = document.getElementById('fin-table-inner') || document.getElementById('fin-table');
   if (!el) return;
 
   // 산업 필터용 companies 매핑: config.js 전역 캐시 사용
