@@ -117,16 +117,23 @@ async function _getMonitoredCodes() {
  */
 function _renderTable(headers, bodyRows) {
   if (!bodyRows.length) return emptyHTML();
+  // topbar(56) + tabs(44) + filter(52) + card-header(48) + padding(24) = ~224px
+  const maxH = 'calc(100vh - 224px)';
   return `
-    <div style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 220px);
-      scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent">
+    <div style="
+      overflow-x:auto;
+      overflow-y:auto;
+      max-height:${maxH};
+      scrollbar-width:thin;
+      scrollbar-color:rgba(255,255,255,.2) var(--bg3);
+    ">
       <table style="border-collapse:collapse;width:max-content;min-width:100%;font-size:13px">
         <thead>
           <tr>
             ${headers.map(h => `<th style="
               position:sticky;top:0;z-index:2;
               background:var(--bg2);
-              border-bottom:1px solid var(--border);
+              border-bottom:2px solid var(--border2);
               text-align:left;padding:9px 12px;
               font-size:11px;font-weight:600;color:var(--text2);
               text-transform:uppercase;letter-spacing:.06em;
