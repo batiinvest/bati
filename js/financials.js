@@ -117,13 +117,11 @@ async function _getMonitoredCodes() {
  */
 function _renderTable(headers, bodyRows) {
   if (!bodyRows.length) return emptyHTML();
-  // topbar(56) + tabs(44) + filter(52) + card-header(48) + padding(24) = ~224px
-  const maxH = 'calc(100vh - 224px)';
   return `
     <div style="
       overflow-x:auto;
       overflow-y:auto;
-      max-height:${maxH};
+      max-height:calc(100vh - 200px);
       scrollbar-width:thin;
       scrollbar-color:rgba(255,255,255,.2) var(--bg3);
     ">
