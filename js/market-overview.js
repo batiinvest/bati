@@ -665,10 +665,10 @@ function renderHgprTab(tab) {
 
         const safeName = (r.corp_name||r.stock_code).replace(/'/g, "\'");
         return `<div onclick="openStockDetail('${r.stock_code}','${safeName}')"
-          style="display:inline-flex;flex-direction:column;gap:4px;
-            padding:8px 10px;border-radius:6px;cursor:pointer;flex-shrink:0;
+          style="display:flex;flex-direction:column;gap:4px;
+            padding:10px 12px;border-radius:6px;cursor:pointer;
             background:var(--bg3);border:1px solid var(--border);
-            border-top:2px solid ${bClr};min-width:80px;max-width:120px;
+            border-top:2px solid ${bClr};
             transition:background .15s"
           onmouseover="this.style.background='rgba(255,255,255,.05)'"
           onmouseout="this.style.background='var(--bg3)'">
@@ -690,7 +690,7 @@ function renderHgprTab(tab) {
             ${ind}
             <span style="font-weight:400;color:var(--text3);font-size:10px">${indRows.length}개</span>
           </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px">
             ${cards}
           </div>
         </div>`;
