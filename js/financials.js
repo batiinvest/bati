@@ -244,8 +244,6 @@ async function loadMarketData(el) {
       _sortBtn('price_change','전일대비'),
       _sortBtn('price_change_rate','등락률'),
       _sortBtn('volume_change_rate','거래량증감률'),
-      _sortBtn('open_price','시가'), _sortBtn('high_price','고가'), _sortBtn('low_price','저가'),
-      _sortBtn('base_price','기준가'), _sortBtn('limit_high','상한가'), _sortBtn('limit_low','하한가'),
       _sortBtn('vwap','VWAP'),
       _sortBtn('volume','거래량'), _sortBtn('trading_value','거래대금'),
       _sortBtn('listing_shares','상장주수'), _sortBtn('vol_turnover','거래량회전율'),
@@ -292,12 +290,8 @@ async function loadMarketData(el) {
         <td style="color:${chgC}">${chgV != null ? (chgV>0?'+':'')+chgV.toLocaleString()+'원' : '—'}</td>
         <td style="color:${chgC};font-weight:500">${chgStr(chg)}</td>
         <td style="font-size:11px;color:var(--text3)">${p(r.volume_change_rate)}</td>
-        <td>${r.open_price  ? r.open_price.toLocaleString()+'원' : '—'}</td>
         <td style="color:var(--red)">${r.high_price ? r.high_price.toLocaleString()+'원' : '—'}</td>
         <td style="color:var(--blue)">${r.low_price  ? r.low_price.toLocaleString()+'원'  : '—'}</td>
-        <td style="font-size:11px">${r.base_price ? r.base_price.toLocaleString()+'원' : '—'}</td>
-        <td style="font-size:11px;color:var(--red)">${r.limit_high ? r.limit_high.toLocaleString()+'원' : '—'}</td>
-        <td style="font-size:11px;color:var(--blue)">${r.limit_low  ? r.limit_low.toLocaleString()+'원'  : '—'}</td>
         <td style="font-size:11px">${r.vwap ? r.vwap.toLocaleString()+'원' : '—'}</td>
         <td>${n(r.volume)}</td>
         <td>${r.trading_value ? fmtCap(r.trading_value) : '—'}</td>
@@ -907,6 +901,59 @@ async function _sdMarket(body, code, name) {
           </tr>`;
         }).join('')}</tbody>
       </table></div>`;
+
+    // 주가 차트 초기화
+    let _sdChart = null;
+    window._sdChartData = sorted;
+    window._sdSwitchChart = (type) => {
+      document.querySelectorAll('[data-sdchart]').forEach(b => {
+        const active = b.dataset.sdchart === type;
+        b.style.background = active ? 'var(--tg)' : 'var(--bg2)';
+        b.style.color      = active ? '#fff' : 'var(--text3)';
+        b.style.borderColor= active ? 'var(--tg)' : 'var(--border)';
+      });
+      const canvas = document.getElementById('sd-price-canvas');
+      if (!canvas || !window.Chart) return;
+      if (_sdChart) { _sdChart.destroy(); _sdChart = null; }
+      const rows   = window._sdChartData;
+      const labels = rows.map(r => r.base_date.slice(5));
+      const cfgs = {
+        price:   { label:'주가',        data: rows.map(r=>r.price),
+                   color:'rgba(42,171,238,.9)', fill:'rgba(42,171,238,.08)', type:'line',
+                   fmt: v => v!=null ? v.toLocaleString()+'원' : '' },
+        volume:  { label:'거래량',      data: rows.map(r=>r.volume),
+                   color:'rgba(45,206,137,.7)', fill:'rgba(45,206,137,.12)', type:'bar',
+                   fmt: v => v!=null ? (v/1000000).toFixed(1)+'M' : '' },
+        foreign: { label:'외국인순매수',data: rows.map(r=>r.foreign_net_buy),
+                   color: rows.map(r=>(r.foreign_net_buy||0)>=0?'rgba(245,54,92,.7)':'rgba(42,171,238,.7)'),
+                   fill:false, type:'bar',
+                   fmt: v => v!=null ? v.toLocaleString() : '' },
+      };
+      const cfg = cfgs[type] || cfgs.price;
+      _sdChart = new window.Chart(canvas.getContext('2d'), {
+        type: cfg.type,
+        data: { labels, datasets: [{
+          label: cfg.label, data: cfg.data,
+          borderColor:     Array.isArray(cfg.color) ? undefined : cfg.color,
+          backgroundColor: cfg.type==='bar' ? cfg.color : cfg.fill,
+          borderWidth: cfg.type==='line' ? 2 : 0,
+          pointRadius: 0, tension: 0.3,
+          fill: cfg.fill !== false,
+        }]},
+        options: {
+          responsive:true, maintainAspectRatio:false, animation:false,
+          plugins: {
+            legend: { display:false },
+            tooltip: { callbacks: { label: ctx => cfg.fmt(ctx.raw) } },
+          },
+          scales: {
+            x: { grid:{color:'rgba(255,255,255,.04)'}, ticks:{color:'rgba(255,255,255,.3)',maxTicksLimit:10,font:{size:10}} },
+            y: { grid:{color:'rgba(255,255,255,.04)'}, ticks:{color:'rgba(255,255,255,.3)',font:{size:10}, callback: v => cfg.fmt(v)} },
+          },
+        },
+      });
+    };
+    setTimeout(() => window._sdSwitchChart('price'), 50);
   } catch(e) { body.innerHTML=`<div style="color:var(--red);padding:20px">오류: ${e.message}</div>`; }
 }
 
