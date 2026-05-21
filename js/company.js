@@ -112,9 +112,9 @@ function _renderEtfTab() {
 function _renderScheduleTab() {
   const schedules = [
     // 장중
-    { time:'08:50', job:'naver_report',               label:'네이버 리포트 수집',          group:'장전', color:'var(--text3)' },
-    { time:'09:00', job:'collect_macro',              label:'글로벌 매크로 수집',           group:'장전', color:'var(--tg)' },
-    { time:'09:05', job:'collect_us_etf',             label:'US ETF 수집 (장 시작)',        group:'장전', color:'var(--tg)' },
+    { time:'06:10', job:'collect_macro',              label:'글로벌 매크로 수집 (미국 장 마감 직후)', group:'장전', color:'var(--tg)' },
+    { time:'06:15', job:'collect_us_etf',             label:'US ETF 수집 (미국 장 마감 직후)',       group:'장전', color:'var(--tg)' },
+    { time:'08:50', job:'naver_report',               label:'네이버 리포트 수집',                    group:'장전', color:'var(--text3)' },
     { time:'09:30', job:'collect_market',             label:'모니터링 종목 시장 데이터',     group:'장중', color:'#2dce89' },
     { time:'09:35', job:'collect_foreign_institution',label:'기관/외국인 가집계 (1차)',      group:'장중', color:'#fb923c' },
     { time:'11:25', job:'collect_foreign_institution',label:'기관/외국인 가집계 (2차)',      group:'장중', color:'#fb923c' },
