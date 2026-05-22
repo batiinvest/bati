@@ -126,7 +126,7 @@ function _renderScheduleTab() {
     { time:'16:10', job:'collect_macro',              label:'매크로 수집 (장 마감 후)',      group:'장후', color:'var(--tg)' },
     { time:'16:20', job:'collect_us_etf',             label:'US ETF 수집 (미장 전일 종가)', group:'장후', color:'var(--tg)' },
     { time:'16:30', job:'collect_new_high',           label:'52주 신고가 종목 수집',         group:'장후', color:'#f5a623' },
-    { time:'16:35', job:'collect_market_closing',     label:'전체 상장사 확정 시세 (57개 필드)', group:'장후', color:'#f5365c', badge:'핵심' },
+    { time:'17:00', job:'collect_market_closing',     label:'전체 상장사 확정 시세 (외국인 집계 완료 후)', group:'장후', color:'#f5365c', badge:'핵심' },
     { time:'18:00', job:'naver_report',               label:'네이버 리포트 수집',            group:'장후', color:'var(--text3)' },
     { time:'18:30', job:'daily_closing',              label:'일일 마감 브리핑',             group:'장후', color:'var(--text3)' },
     { time:'18:30', job:'collect_financials',         label:'재무제표 수집 (공시 기반)',      group:'장후', color:'#2dce89' },
