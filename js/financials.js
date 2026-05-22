@@ -250,7 +250,7 @@ async function loadMarketData(el) {
       _sortBtn('listing_shares','상장주수'), _sortBtn('vol_turnover','거래량회전율'),
       _sortBtn('per','PER'), _sortBtn('pbr','PBR'),
       _sortBtn('eps','EPS'), _sortBtn('bps','BPS'), _sortBtn('dps','DPS'), '결산월',
-      _sortBtn('foreign_hold_rate','외국인소진율'), _sortBtn('foreign_hold_qty','외국인보유수'),
+      _sortBtn('foreign_hold_rate','외국인보유율'), _sortBtn('foreign_hold_qty','외국인보유수'),
       _sortBtn('foreign_net_buy','외국인순매수'), _sortBtn('program_net_buy','프로그램순매수'),
       _sortBtn('loan_balance_rate','융자잔고율'), _sortBtn('short_sell_qty','공매도수량'),
       _sortBtn('w52_high','52주고가'), _sortBtn('w52_low','52주저가'),
@@ -755,7 +755,7 @@ async function _sdOverview(body, code, name) {
           ['PER / PBR', `${r.per!=null&&r.per!==0?r.per.toFixed(1):'—'}배 / ${r.pbr!=null&&r.pbr!==0?r.pbr.toFixed(2):'—'}배`, ''],
           ['영업이익률', _pct(latestFin.operating_margin), latestFin.operating_margin>=15?'var(--green)':latestFin.operating_margin>=0?'var(--text1)':'var(--red)'],
           ['ROE', _pct(latestFin.roe), latestFin.roe>=15?'var(--green)':latestFin.roe>=0?'var(--text1)':'var(--red)'],
-          ['외국인 소진율', r.foreign_hold_rate!=null?r.foreign_hold_rate.toFixed(1)+'%':'—', ''],
+          ['외국인 보유율', r.foreign_hold_rate!=null?r.foreign_hold_rate.toFixed(1)+'%':'—', ''],
         ].map(([lb,v,c])=>`
           <div style="background:var(--bg3);border-radius:8px;padding:12px 14px;border:1px solid var(--border);text-align:center">
             <div style="font-size:10px;color:var(--text3);margin-bottom:6px">${lb}</div>
@@ -844,7 +844,7 @@ async function _sdMarket(body, code, name) {
             <div style="position:relative;height:80px"><canvas id="sd-chart-volume"></canvas></div>
           </div>
           <div>
-            <div style="font-size:10px;color:var(--yellow);margin-bottom:3px;font-weight:600">외국인 소진율 (%)</div>
+            <div style="font-size:10px;color:var(--yellow);margin-bottom:3px;font-weight:600">외국인 보유율 (%)</div>
             <div style="position:relative;height:80px"><canvas id="sd-chart-foreign"></canvas></div>
           </div>
         </div>
@@ -903,7 +903,7 @@ async function _sdMarket(body, code, name) {
           <th>기준일</th><th style="text-align:right">종가</th><th style="text-align:right">등락률</th>
           <th style="text-align:right">시가총액</th><th style="text-align:right">거래량</th>
           <th style="text-align:right">거래대금</th><th style="text-align:right">외국인순매수</th>
-          <th style="text-align:right">외국인소진율</th><th style="text-align:right">PER</th><th style="text-align:right">PBR</th>
+          <th style="text-align:right">외국인보유율</th><th style="text-align:right">PER</th><th style="text-align:right">PBR</th>
         </tr></thead>
         <tbody>${sorted.slice().reverse().map(h=>{
           const hc = h.price_change_rate;
@@ -1006,7 +1006,7 @@ async function _sdSupply(body, code, name) {
     body.innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
         ${_sec('외국인 수급', `
-          ${_row2('소진율', r.foreign_hold_rate!=null?r.foreign_hold_rate.toFixed(2)+'%':'—')}
+          ${_row2('보유율', r.foreign_hold_rate!=null?r.foreign_hold_rate.toFixed(2)+'%':'—')}
           ${_row2('보유수량', r.foreign_hold_qty!=null?_num(r.foreign_hold_qty)+'주':'—')}
           ${_row2('당일 순매수', r.foreign_net_buy!=null?`<span style="color:${(r.foreign_net_buy||0)>=0?'var(--red)':'var(--blue)'}">
             ${r.foreign_net_buy.toLocaleString()}주</span>`:'—')}
@@ -1031,7 +1031,7 @@ async function _sdSupply(body, code, name) {
       <div class="table-wrap"><table>
         <thead><tr>
           <th>기준일</th><th style="text-align:right">종가</th><th style="text-align:right">등락률</th>
-          <th style="text-align:right">외국인순매수</th><th style="text-align:right">외국인소진율</th>
+          <th style="text-align:right">외국인순매수</th><th style="text-align:right">외국인보유율</th>
           <th style="text-align:right">프로그램순매수</th><th style="text-align:right">공매도</th>
           <th style="text-align:right">융자잔고율</th>
         </tr></thead>
