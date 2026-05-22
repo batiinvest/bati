@@ -26,7 +26,7 @@ async function loadMarketOverview(maxDate) {
   let from = 0;
   while (true) {
     const { data } = await sb.from('market_data')
-      .select('stock_code,corp_name,price,price_change_rate,market,market_cap,week_return,month_return,quarter_return')
+      .select('stock_code,corp_name,price,price_change_rate,market,market_cap,foreign_net_buy,foreign_hold_rate,hgpr_cls_code')
       .eq('base_date', maxDate)
       .not('price_change_rate', 'is', null)
       .range(from, from + 999);
@@ -359,7 +359,7 @@ async function loadMarketOverview(maxDate) {
       const r = rise != null ? rise : all.filter(s => s.price_change_rate > 0).length;
       const f = fall != null ? fall : all.filter(s => s.price_change_rate < 0).length;
       const fl = flat != null ? flat : all.filter(s => s.price_change_rate === 0).length;
-      const COLS = '16px 1fr 80px 62px 68px 54px 58px 60px';
+      const COLS = '16px 1fr 80px 62px 68px 70px 70px';
       return '<div style="padding:10px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1;display:flex;justify-content:space-between;align-items:center">' +
           '<span style="font-size:13px;font-weight:700">' + title + '</span>' +
           '<div style="display:flex;align-items:center;gap:10px">' +
@@ -374,9 +374,8 @@ async function loadMarketOverview(maxDate) {
           th('price', '현재가') +
           th('price_change_rate', '등락률') +
           th('market_cap', '시총') +
-          th('week_return', '1주') +
-          th('month_return', '1개월') +
-          th('quarter_return', '3개월') +
+          th('foreign_net_buy', '외국인순매수') +
+          th('foreign_hold_rate', '외국인보유율') +
         '</div>' +
         all.map((st, i) =>
           '<div style="display:grid;grid-template-columns:' + COLS + ';align-items:center;gap:0;padding:6px 14px;border-bottom:1px solid var(--border);cursor:pointer" ' +
@@ -393,9 +392,8 @@ async function loadMarketOverview(maxDate) {
             '<span style="font-size:11px;color:var(--text2);text-align:right;padding-right:6px">' +
               (st.market_cap != null ? fmtCap(st.market_cap) : '—') +
             '</span>' +
-            '<span style="font-size:11px;text-align:right;padding-right:4px">' + retStr(st.week_return) + '</span>' +
-            '<span style="font-size:11px;text-align:right;padding-right:4px">' + retStr(st.month_return) + '</span>' +
-            '<span style="font-size:11px;text-align:right">' + retStr(st.quarter_return) + '</span>' +
+            '<span style="font-size:11px;text-align:right;padding-right:4px;color:' + ((st.foreign_net_buy||0)<0?'var(--blue)':'var(--red)') + '">' + (st.foreign_net_buy!=null?st.foreign_net_buy.toLocaleString():'—') + '</span>' +
+            '<span style="font-size:11px;text-align:right;color:var(--text2)">' + (st.foreign_hold_rate!=null?st.foreign_hold_rate.toFixed(1)+'%':'—') + '</span>' +
           '</div>'
         ).join('');
     };

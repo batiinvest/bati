@@ -249,14 +249,14 @@ async function loadMarketData(el) {
       _sortBtn('volume','거래량'), _sortBtn('trading_value','거래대금'),
       _sortBtn('listing_shares','상장주수'), _sortBtn('vol_turnover','거래량회전율'),
       _sortBtn('per','PER'), _sortBtn('pbr','PBR'),
-      _sortBtn('eps','EPS'), _sortBtn('bps','BPS'), _sortBtn('dps','DPS'), '결산월',
+      _sortBtn('eps','EPS'), _sortBtn('bps','BPS'), '결산월',
       _sortBtn('foreign_hold_rate','외국인보유율'), _sortBtn('foreign_hold_qty','외국인보유수'),
       _sortBtn('foreign_net_buy','외국인순매수'), _sortBtn('program_net_buy','프로그램순매수'),
       _sortBtn('loan_balance_rate','융자잔고율'), _sortBtn('short_sell_qty','공매도수량'),
       _sortBtn('w52_high','52주고가'), _sortBtn('w52_low','52주저가'),
       '52주고가일', '52주저가일',
       _sortBtn('w52_high_rate','52주고가대비%'), _sortBtn('w52_low_rate','52주저가대비%'),
-      _sortBtn('approach_rate','접근도'),
+
       '전일부호', '시장경고', '투자유의', '관리종목', '단기과열', '정리매매', '신고가구분', '신고가코드', '기준일',
     ],
     rowTemplate: r => {
@@ -300,7 +300,7 @@ async function loadMarketData(el) {
         <td style="font-size:11px">${r.vol_turnover != null ? r.vol_turnover.toFixed(2)+'%' : '—'}</td>
         <td>${r.per != null && r.per !== 0 ? r.per.toFixed(1) : '—'}</td>
         <td>${r.pbr != null && r.pbr !== 0 ? r.pbr.toFixed(2) : '—'}</td>
-        <td>${n(r.eps)}</td><td>${n(r.bps)}</td><td>${n(r.dps)}</td>
+        <td>${n(r.eps)}</td><td>${n(r.bps)}</td>
         <td style="font-size:11px;color:var(--text3)">${r.fiscal_month||'—'}월</td>
         <td>${r.foreign_hold_rate != null ? r.foreign_hold_rate.toFixed(1)+'%' : '—'}</td>
         <td style="font-size:11px">${n(r.foreign_hold_qty)}</td>
@@ -317,7 +317,6 @@ async function loadMarketData(el) {
         <td style="font-size:10px;color:var(--text3)">${r.w52_low_date||'—'}</td>
         <td style="font-size:11px">${p(r.w52_high_rate)}</td>
         <td style="font-size:11px">${p(r.w52_low_rate)}</td>
-        <td style="font-size:11px">${r.approach_rate != null ? r.approach_rate.toFixed(1)+'%' : '—'}</td>
         <td style="font-size:11px;color:var(--text3);font-family:monospace">${r.price_change_sign||'—'}</td>
         <td>${warn(r.market_warn_code)}</td>
         <td>${yn(r.is_caution)}</td>
@@ -856,21 +855,20 @@ async function _sdMarket(body, code, name) {
           ${_row2('PBR', r.pbr&&r.pbr!==0?r.pbr.toFixed(2)+'배':'—')}
           ${_row2('EPS', _won(r.eps))}
           ${_row2('BPS', _won(r.bps))}
-          ${_row2('DPS', _won(r.dps))}
           ${_row2('결산월', r.fiscal_month?r.fiscal_month+'월':'—')}
         `)}
         ${_sec('가격 · 거래', `
           ${_row2('현재가', _won(r.price))}
-          ${_row2('시가', _won(r.open_price))}
-          ${_row2('고가', _won(r.high_price), 'var(--red)')}
-          ${_row2('저가', _won(r.low_price), 'var(--blue)')}
-          ${_row2('기준가', _won(r.base_price))}
-          ${_row2('상한가', _won(r.limit_high), 'var(--red)')}
-          ${_row2('하한가', _won(r.limit_low), 'var(--blue)')}
-          ${_row2('VWAP', _won(r.vwap))}
+          ${r.open_price  ? _row2('시가',    _won(r.open_price)) : ''}
+          ${r.high_price  ? _row2('고가',    _won(r.high_price), 'var(--red)') : ''}
+          ${r.low_price   ? _row2('저가',    _won(r.low_price),  'var(--blue)') : ''}
+          ${r.base_price  ? _row2('기준가',  _won(r.base_price)) : ''}
+          ${r.limit_high  ? _row2('상한가',  _won(r.limit_high), 'var(--red)') : ''}
+          ${r.limit_low   ? _row2('하한가',  _won(r.limit_low),  'var(--blue)') : ''}
+          ${r.vwap        ? _row2('VWAP',    _won(r.vwap)) : ''}
           ${_row2('거래량', _num(r.volume))}
           ${_row2('거래대금', _cap(r.trading_value))}
-          ${_row2('거래회전율', _pct(r.vol_turnover))}
+          ${r.vol_turnover ? _row2('거래회전율', _pct(r.vol_turnover)) : ''}
         `)}
         ${_sec('52주 · 수익률', `
           ${_w52bar(r)}
@@ -879,18 +877,16 @@ async function _sdMarket(body, code, name) {
           ${_row2('52주 고가일', r.w52_high_date||'—')}
           ${_row2('52주 고가대비', _pct(r.w52_high_rate))}
           ${_row2('52주 저가대비', _pct(r.w52_low_rate))}
-          ${_row2('접근도', _pct(r.approach_rate))}
           ${_row2('1주 수익률', _retStr(hist,5))}
           ${_row2('1달 수익률', _retStr(hist,21))}
           ${_row2('3달 수익률', _retStr(hist,63))}
         `)}
         ${_sec('종목 상태', `
-          ${_row2('시장경고', r.market_warn_code&&r.market_warn_code!=='00'?`<span style="color:var(--yellow)">${r.market_warn_code}</span>`:'정상')}
-          ${_row2('투자유의', r.is_caution?'<span style="color:var(--red)">예</span>':'—')}
-          ${_row2('관리종목', r.manage_issue_code&&r.manage_issue_code!=='0'?'<span style="color:var(--red)">지정</span>':'—')}
-          ${_row2('단기과열', r.is_short_over?'<span style="color:var(--yellow)">예</span>':'—')}
-          ${_row2('정리매매', r.is_liquidation?'<span style="color:var(--red)">예</span>':'—')}
-          ${_row2('신고가구분', r.hgpr_cls||'—')}
+          ${_row2('시장경고', r.market_warn_code&&r.market_warn_code!=='00'?`<span style="color:var(--yellow)">${{'01':'주의','02':'경고','03':'위험예고','04':'위험'}[r.market_warn_code]||r.market_warn_code}</span>`:'정상')}
+          ${r.manage_issue_code&&r.manage_issue_code!=='0'?_row2('관리종목','<span style="color:var(--red)">지정</span>'):''}
+          ${r.is_short_over ?_row2('단기과열','<span style="color:var(--yellow)">예</span>'):''}
+          ${r.is_liquidation?_row2('정리매매','<span style="color:var(--red)">예</span>'):''}
+          ${r.hgpr_cls      ?_row2('신고가구분', r.hgpr_cls):''}
           ${_row2('상장주수', _num(r.listing_shares)+'주')}
           ${_row2('시장', r.market||'—')}
         `)}
