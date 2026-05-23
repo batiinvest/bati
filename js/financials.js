@@ -121,8 +121,6 @@ function _renderTable(headers, bodyRows) {
   return `
     <div style="
       overflow-x:auto;
-      overflow-y:auto;
-      max-height:calc(100vh - 200px);
       width:100%;
       scrollbar-width:thin;
       scrollbar-color:rgba(255,255,255,.2) var(--bg3);
@@ -131,7 +129,7 @@ function _renderTable(headers, bodyRows) {
         <thead>
           <tr>
             ${headers.map(h => `<th style="
-              position:sticky;top:0;z-index:2;
+              position:sticky;top:56px;z-index:2;
               background:var(--bg2);
               border-bottom:2px solid var(--border2);
               text-align:left;padding:9px 12px;

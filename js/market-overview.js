@@ -483,10 +483,12 @@ async function loadNewHighStocks() {
   const _kst  = new Date(Date.now() + 9 * 60 * 60 * 1000);
   const today = _kst.toISOString().split('T')[0];
 
+  const _HGPR_SEL = 'stock_code,corp_name,price,price_change_rate,market_cap,listing_shares,hgpr_cls,hgpr_cls_code';
+
   // 오늘 신고가 전체 조회
   let targetDate = today;
   let { data: rows } = await sb.from('market_data')
-    .select('stock_code,corp_name,price,price_change_rate,market_cap,hgpr_cls,hgpr_cls_code')
+    .select(_HGPR_SEL)
     .eq('base_date', today)
     .not('hgpr_cls_code', 'is', null)
     .neq('hgpr_cls_code', '')
@@ -502,7 +504,7 @@ async function loadNewHighStocks() {
     }
     targetDate = latest[0].base_date;
     const { data: rows2 } = await sb.from('market_data')
-      .select('stock_code,corp_name,price,price_change_rate,market_cap,hgpr_cls,hgpr_cls_code')
+      .select(_HGPR_SEL)
       .eq('base_date', targetDate)
       .not('hgpr_cls_code', 'is', null)
       .neq('hgpr_cls_code', '')
@@ -510,21 +512,33 @@ async function loadNewHighStocks() {
     rows = rows2 || [];
   }
 
-  // market_cap null 종목 → 다른 날짜 최근값으로 보완
+  // market_cap null 종목 보완: ① price×listing_shares 직접 계산 ② 역사적 최근값 조회
   const _nullCapCodes = (rows || []).filter(r => !r.market_cap).map(r => r.stock_code);
   if (_nullCapCodes.length) {
-    const { data: _capRows } = await sb.from('market_data')
-      .select('stock_code,market_cap')
-      .in('stock_code', _nullCapCodes)
-      .not('market_cap', 'is', null)
-      .gt('market_cap', 0)
-      .order('base_date', { ascending: false })
-      .limit(_nullCapCodes.length * 5);
-    const _capMap = {};
-    for (const r of (_capRows || [])) {
-      if (!_capMap[r.stock_code]) _capMap[r.stock_code] = r.market_cap;
+    // ① 현재 행에 listing_shares가 있으면 즉시 계산
+    rows = rows.map(r => {
+      if (r.market_cap) return r;
+      if (r.listing_shares && r.price) return { ...r, market_cap: r.listing_shares * r.price };
+      return r;
+    });
+
+    // ② 여전히 null인 종목 → 역사적 비-null 최근값 조회
+    const _stillNull = rows.filter(r => !r.market_cap).map(r => r.stock_code);
+    if (_stillNull.length) {
+      const { data: _capRows } = await sb.from('market_data')
+        .select('stock_code,market_cap,listing_shares,price')
+        .in('stock_code', _stillNull)
+        .order('base_date', { ascending: false })
+        .limit(_stillNull.length * 30);
+      const _capMap = {};
+      for (const r of (_capRows || [])) {
+        if (_capMap[r.stock_code]) continue;
+        const cap = r.market_cap ||
+          (r.listing_shares && r.price ? r.listing_shares * r.price : null);
+        if (cap) _capMap[r.stock_code] = cap;
+      }
+      rows = rows.map(r => r.market_cap ? r : { ...r, market_cap: _capMap[r.stock_code] || null });
     }
-    rows = rows.map(r => r.market_cap ? r : { ...r, market_cap: _capMap[r.stock_code] || null });
   }
 
   // 모니터링 종목 + 산업 정보 조회
@@ -658,10 +672,13 @@ function renderHgprTab(tab) {
       if (!byInd[ind]) byInd[ind] = [];
       byInd[ind].push(r);
     });
-    const indOrder = Object.keys(byInd).sort((a,b) =>
-      (byInd[b].reduce((s,r)=>s+(r.market_cap||0),0)) -
-      (byInd[a].reduce((s,r)=>s+(r.market_cap||0),0))
-    );
+    const indOrder = Object.keys(byInd).sort((a,b) => {
+      const maxStreakA = Math.max(...byInd[a].map(r => r.streak || 0));
+      const maxStreakB = Math.max(...byInd[b].map(r => r.streak || 0));
+      return maxStreakB - maxStreakA ||
+        (byInd[b].reduce((s,r)=>s+(r.market_cap||0),0)) -
+        (byInd[a].reduce((s,r)=>s+(r.market_cap||0),0));
+    });
 
     const clrMap = { '0':'var(--text3)','1':'var(--tg)','2':'#fb923c','3':'#f5a623',
                      '신고가':'var(--tg)','52주 신고가':'var(--tg)','신고가 근접':'var(--text3)',
@@ -701,7 +718,11 @@ function renderHgprTab(tab) {
     };
 
     const cols = indOrder.map(ind => {
-      const indRows = byInd[ind];
+      const indRows = [...byInd[ind]].sort((a, b) =>
+        (b.streak || 0) - (a.streak || 0) ||
+        (b.count7 || 0) - (a.count7 || 0) ||
+        (b.market_cap || 0) - (a.market_cap || 0)
+      );
       const rows_html = indRows.map(makeRow).join('');
       return `<div style="min-width:0;background:var(--bg3);border-radius:8px;
         border:1px solid var(--border);overflow:hidden">
@@ -729,73 +750,110 @@ function renderHgprTab(tab) {
       </div>
     </div>`;
   } else {
-    // 전체 종목 — 이름순 테이블
-    const allSorted = [...rows].sort((a,b) =>
-      (a.corp_name||'').localeCompare(b.corp_name||'', 'ko'));
-    const shown     = _hgprExpanded ? allSorted : allSorted.slice(0, HGPR_PAGE);
-
-    const clrMap = { '0':'var(--text3)','1':'var(--tg)','2':'#fb923c','3':'#f5a623',
-                     '신고가':'var(--tg)','52주 신고가':'var(--tg)','신고가 근접':'var(--text3)',
+    // 전체 종목 — streak 그룹별 카드 (가로 배치)
+    const clrMap = { '신고가':'var(--tg)','52주 신고가':'var(--tg)','신고가 근접':'var(--text3)',
                      '연간 신고가':'#fb923c','역사적 신고가':'#f5a623' };
-    const lbMap  = { '0':'근접','1':'52주','2':'연간','3':'역사적',
-                     '신고가':'52주','52주 신고가':'52주','신고가 근접':'근접',
-                     '연간 신고가':'연간','역사적 신고가':'역사적' };
 
-    const streakCell = r => {
-      if (r.streak >= 3)  return `<td style="text-align:center"><span style="font-size:10px;padding:1px 6px;border-radius:10px;background:rgba(245,54,92,.18);color:var(--red);font-weight:700;white-space:nowrap">🔥${r.streak}일</span></td>`;
-      if (r.streak === 2) return `<td style="text-align:center"><span style="font-size:10px;padding:1px 6px;border-radius:10px;background:rgba(251,99,64,.15);color:var(--yellow);font-weight:700;white-space:nowrap">🔥2일</span></td>`;
-      if (r.isFirst)      return `<td style="text-align:center"><span style="font-size:10px;padding:1px 6px;border-radius:10px;background:rgba(42,171,238,.15);color:var(--tg);font-weight:700;white-space:nowrap">🎯첫</span></td>`;
-      if (r.count7 >= 3)  return `<td style="text-align:center"><span style="font-size:10px;padding:1px 6px;border-radius:10px;background:rgba(45,206,137,.12);color:var(--green);font-weight:700;white-space:nowrap">📈${r.count7}회</span></td>`;
-      return `<td style="text-align:center;color:var(--text3);font-size:11px">—</td>`;
+    // ─── 그룹 정의 (우선순위 순) ───
+    const streakVals = [...new Set(rows.map(r => r.streak||0).filter(s => s >= 2))]
+                         .sort((a, b) => b - a);
+    const used = new Set();
+    const _groupDefs = [];
+
+    // 연속 N일 그룹 (높은 순)
+    for (const s of streakVals) {
+      const isHot = s >= 3;
+      _groupDefs.push({
+        title:     `${s}일 연속`,
+        icon:      '🔥',
+        hdrBg:     isHot ? 'rgba(245,54,92,.12)' : 'rgba(251,99,64,.09)',
+        textColor: isHot ? 'var(--red)' : 'var(--yellow)',
+        filter:    r => (r.streak||0) === s,
+      });
+    }
+    // 오늘 첫 신고가
+    _groupDefs.push({
+      title: '첫 신고가', icon: '🎯',
+      hdrBg: 'rgba(42,171,238,.09)', textColor: 'var(--tg)',
+      filter: r => r.isFirst,
+    });
+    // 7일 내 반복 진입 (연속 아님)
+    _groupDefs.push({
+      title: '반복 진입', icon: '📈',
+      hdrBg: 'rgba(45,206,137,.07)', textColor: 'var(--green)',
+      filter: r => !r.isFirst && (r.streak||0) < 2 && (r.count7||0) >= 2,
+    });
+    // 나머지
+    _groupDefs.push({
+      title: '신고가', icon: '',
+      hdrBg: 'rgba(255,255,255,.02)', textColor: 'var(--text2)',
+      filter: () => true,
+    });
+
+    // 각 그룹에 종목 배분 (중복 방지)
+    const groups = [];
+    for (const def of _groupDefs) {
+      const members = rows
+        .filter(r => !used.has(r.stock_code) && def.filter(r))
+        .sort((a, b) => (b.market_cap||0) - (a.market_cap||0));
+      if (!members.length) continue;
+      members.forEach(r => used.add(r.stock_code));
+      groups.push({ ...def, members });
+    }
+
+    // ─── 카드 1개 렌더링 ───
+    const CARD_LIMIT = 10;
+    const makeCard = g => {
+      const shown = g.members.slice(0, CARD_LIMIT);
+      const extra = g.members.length - CARD_LIMIT;
+
+      const itemsHtml = shown.map(r => {
+        const bClr   = clrMap[r.hgpr_cls_code] || 'var(--tg)';
+        const chg    = r.price_change_rate;
+        const chgClr = (chg||0) >= 0 ? 'var(--red)' : 'var(--blue)';
+        const chgTxt = chg != null ? (chg>=0?'+':'')+chg.toFixed(2)+'%' : '—';
+        const safeName = (r.corp_name||r.stock_code).replace(/'/g,"\'");
+        return `<div onclick="openStockDetail('${r.stock_code}','${safeName}')"
+          style="display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:6px;
+            padding:5px 10px;border-bottom:1px solid var(--border);cursor:pointer;
+            border-left:2px solid ${bClr}"
+          onmouseover="this.style.background='rgba(255,255,255,.03)'"
+          onmouseout="this.style.background=''">
+          <div style="min-width:0">
+            <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.corp_name||r.stock_code}</div>
+            <div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.industry||''}</div>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:${chgClr};white-space:nowrap">${chgTxt}</div>
+          <div style="font-size:10px;color:var(--text3);white-space:nowrap;text-align:right">${r.market_cap?fmtCap(r.market_cap):'—'}</div>
+        </div>`;
+      }).join('');
+
+      const moreHtml = extra > 0
+        ? `<div style="padding:6px 10px;text-align:center;font-size:11px;color:var(--text3);
+            border-top:1px solid var(--border)">+${extra}개 더</div>`
+        : '';
+
+      return `<div style="flex:1 1 180px;min-width:180px;max-width:260px;
+        background:var(--bg3);border-radius:8px;border:1px solid var(--border);overflow:hidden">
+        <div style="padding:7px 10px;background:${g.hdrBg};border-bottom:1px solid var(--border);
+          display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:11px;font-weight:700;color:${g.textColor}">${g.icon}${g.icon?' ':''}${g.title}</span>
+          <span style="font-size:10px;font-weight:400;color:var(--text3)">${g.members.length}개</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto auto;gap:6px;
+          padding:3px 10px;background:var(--bg2);border-bottom:1px solid var(--border)">
+          <span style="font-size:10px;color:var(--text3)">종목</span>
+          <span style="font-size:10px;color:var(--text3)">등락</span>
+          <span style="font-size:10px;color:var(--text3);text-align:right">시총</span>
+        </div>
+        ${itemsHtml}${moreHtml}
+      </div>`;
     };
 
-    const rowsHtml = shown.map(r => {
-      const bClr  = clrMap[r.hgpr_cls_code] || 'var(--tg)';
-      const clsLb = lbMap[r.hgpr_cls_code]  || '';
-      const chg   = r.price_change_rate;
-      const chgClr = chg>=0 ? 'var(--red)' : 'var(--blue)';
-      const safeName = (r.corp_name||r.stock_code).replace(/'/g,"\'");
-      return `<tr style="border-bottom:1px solid var(--border);border-left:3px solid ${bClr}"
-        onclick="openStockDetail('${r.stock_code}','${safeName}')"
-        style="cursor:pointer"
-        onmouseover="this.style.background='rgba(255,255,255,.03)'"
-        onmouseout="this.style.background=''">
-        <td style="padding:5px 10px;font-weight:600;font-size:13px;white-space:nowrap">${r.corp_name||r.stock_code}</td>
-        <td style="padding:5px 8px;font-size:11px;color:var(--text3)">${r.industry||'—'}</td>
-        <td style="padding:5px 8px;font-size:11px">
-          <span style="padding:1px 5px;border-radius:3px;background:${bClr}22;color:${bClr};font-weight:600">${clsLb}</span>
-        </td>
-        ${streakCell(r)}
-        <td style="padding:5px 8px;text-align:right;font-weight:700;white-space:nowrap">${r.price?r.price.toLocaleString()+'원':'—'}</td>
-        <td style="padding:5px 8px;text-align:right;color:${chgClr};font-weight:700">${chg!=null?(chg>=0?'+':'')+chg.toFixed(2)+'%':'—'}</td>
-        <td style="padding:5px 8px;text-align:right;color:var(--text3);font-size:12px">${r.market_cap?fmtCap(r.market_cap):'—'}</td>
-      </tr>`;
-    }).join('');
-
-    const toggleBtn = allSorted.length > HGPR_PAGE ? `<tr>
-      <td colspan="7" style="padding:8px;text-align:center">
-        <button onclick="toggleHgprExpand()" style="font-size:12px;background:none;
-          border:1px solid var(--border);border-radius:4px;cursor:pointer;
-          color:var(--text3);padding:4px 16px">
-          ${_hgprExpanded ? '▲ 접기' : `▼ 전체 보기 (${allSorted.length}개)`}
-        </button>
-      </td></tr>` : '';
-
-    body.innerHTML = `<div style="padding:0 .5rem">
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead>
-          <tr style="background:var(--bg3)">
-            <th style="padding:5px 10px;font-size:11px;color:var(--text3);font-weight:500;text-align:left">종목명</th>
-            <th style="padding:5px 8px;font-size:11px;color:var(--text3);font-weight:500;text-align:left;width:70px">산업</th>
-            <th style="padding:5px 8px;font-size:11px;color:var(--text3);font-weight:500;text-align:left;width:50px">구분</th>
-            <th style="padding:5px 8px;font-size:11px;color:var(--text3);font-weight:500;text-align:center;width:80px">연속/이력</th>
-            <th style="padding:5px 8px;font-size:11px;color:var(--text3);font-weight:500;text-align:right;width:90px">현재가</th>
-            <th style="padding:5px 8px;font-size:11px;color:var(--text3);font-weight:500;text-align:right;width:65px">등락률</th>
-            <th style="padding:5px 8px;font-size:11px;color:var(--text3);font-weight:500;text-align:right;width:80px">시총</th>
-          </tr>
-        </thead>
-        <tbody>${rowsHtml}${toggleBtn}</tbody>
-      </table>
+    body.innerHTML = `<div style="padding:.5rem .75rem">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:start">
+        ${groups.map(makeCard).join('')}
+      </div>
     </div>`;
   }
 }

@@ -154,36 +154,66 @@ async function loadMacroData() {
         `</div>` +
       `</div>`;
     };
-    const sep = '<div style="width:1px;background:var(--border);height:28px;flex-shrink:0;align-self:center"></div>';
-    // 위험 항목은 자체 박스가 있으므로 sep 없이 gap만으로 분리
-    const _items = [
-      { str: mkB('S&P500',    m.sp500,       m.sp500_chg,      '',  'sp500_chg'),    risk: _getRisk('sp500_chg',      m.sp500_chg) },
-      { str: mkB('나스닥',     m.nasdaq,      m.nasdaq_chg,     '',  'nasdaq_chg'),   risk: _getRisk('nasdaq_chg',     m.nasdaq_chg) },
-      { str: mkB('다우',       m.dow,         m.dow_chg),                             risk: null },
-      { str: mkB('S&P선물',   m.sp500_fut,   m.sp500_fut_chg,  '',  'sp500_fut_chg'), risk: _getRisk('sp500_fut_chg',  m.sp500_fut_chg) },
-      { str: mkB('나스닥선물', m.nasdaq_fut,  m.nasdaq_fut_chg, '',  'nasdaq_fut_chg'), risk: _getRisk('nasdaq_fut_chg', m.nasdaq_fut_chg) },
-      { str: mkB('다우선물',   m.dow_fut,     m.dow_fut_chg),                         risk: null },
-      { str: mkB('VIX',        m.vix,         m.vix_chg,        '',  'vix'),           risk: _getRisk('vix',            m.vix) },
-      { str: mkB('미10년',     m.us10y,       m.us10y_chg,      '%', 'us10y'),         risk: _getRisk('us10y',          m.us10y) },
-      { str: mkB('달러',       m.usd_krw,     m.usd_krw_chg,    '',  'usd_krw'),       risk: _getRisk('usd_krw',        m.usd_krw) },
-      { str: mkB('엔',         m.jpy_krw,     m.jpy_krw_chg),                         risk: null },
-      { str: mkB('유로',       m.eur_krw,     m.eur_krw_chg),                         risk: null },
-      { str: mkB('BTC',        m.bitcoin,     m.bitcoin_chg),                         risk: null },
+    const sep = '<div style="width:1px;background:var(--border);height:32px;flex-shrink:0;align-self:center"></div>';
+
+    // 선물 행 전용 컴팩트 렌더러 (mkB의 축소판)
+    const mkBFut = (label, val, chg, unit, riskKey) => {
+      if (val == null || isNaN(Number(val))) return '<div></div>';
+      const risk = riskKey ? _getRisk(riskKey, riskKey.endsWith('_chg') ? chg : val) : null;
+      const ri   = risk ? _BI[risk] : null;
+      const clr  = chg != null ? chgColor(chg) : 'var(--text2)';
+      const valStr = unit === '%'
+        ? Number(val).toFixed(3) + '%'
+        : Number(val).toLocaleString(undefined, {maximumFractionDigits: 2});
+      const chgHtml = chg != null
+        ? `<span style="color:${clr};font-size:9px">${chg>0?'+':''}${chg.toFixed(2)}%</span>`
+        : '';
+      const boxStyle = ri
+        ? `padding:2px 6px;border-radius:5px;background:${ri.bg};border:1px solid ${ri.border};${ri.glow?'box-shadow:'+ri.glow+';':''}`
+        : '';
+      return `<div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0;${boxStyle}">` +
+        `<span style="font-size:9px;color:var(--text3);font-weight:500;line-height:1;white-space:nowrap">${label}</span>` +
+        `<div style="display:flex;align-items:baseline;gap:2px">` +
+          `<span style="font-size:11px;font-weight:700;color:var(--text1)">${valStr}</span>` +
+          chgHtml +
+        `</div>` +
+      `</div>`;
+    };
+
+    // ─── US 증시: 지수(1행) + 선물(2행) 그리드 ───
+    const _usGrid = `<div style="display:grid;grid-template-columns:repeat(3,auto);gap:4px 14px;align-items:start;flex-shrink:0">` +
+      mkB('S&P500',   m.sp500,      m.sp500_chg,      '', 'sp500_chg') +
+      mkB('나스닥',    m.nasdaq,     m.nasdaq_chg,     '', 'nasdaq_chg') +
+      mkB('다우',      m.dow,        m.dow_chg) +
+      mkBFut('S&P 선물',   m.sp500_fut,  m.sp500_fut_chg,  '', 'sp500_fut_chg') +
+      mkBFut('나스닥 선물', m.nasdaq_fut, m.nasdaq_fut_chg, '', 'nasdaq_fut_chg') +
+      mkBFut('다우 선물',   m.dow_fut,    m.dow_fut_chg) +
+    `</div>`;
+
+    // ─── 나머지 단행 항목 ───
+    const _restItems = [
+      { str: mkB('VIX',    m.vix,     m.vix_chg,     '',  'vix'),     risk: _getRisk('vix',     m.vix) },
+      { str: mkB('미10년', m.us10y,   m.us10y_chg,   '%', 'us10y'),   risk: _getRisk('us10y',   m.us10y) },
+      { str: mkB('달러',   m.usd_krw, m.usd_krw_chg, '',  'usd_krw'), risk: _getRisk('usd_krw', m.usd_krw) },
+      { str: mkB('엔',     m.jpy_krw, m.jpy_krw_chg),                  risk: null },
+      { str: mkB('유로',   m.eur_krw, m.eur_krw_chg),                  risk: null },
+      { str: mkB('BTC',    m.bitcoin, m.bitcoin_chg),                   risk: null },
     ].filter(it => it.str);
 
-    // 연속 일반 항목은 sep으로 연결, 위험 항목 경계에선 sep 생략
-    let bannerParts = [];
-    for (let i = 0; i < _items.length; i++) {
-      const cur  = _items[i];
-      const prev = _items[i - 1];
-      if (prev && !cur.risk && !prev.risk) bannerParts.push(sep);
-      bannerParts.push(cur.str);
+    let restParts = [];
+    for (let i = 0; i < _restItems.length; i++) {
+      const cur  = _restItems[i];
+      const prev = _restItems[i - 1];
+      if (prev && !cur.risk && !prev.risk) restParts.push(sep);
+      restParts.push(cur.str);
     }
 
-    bannerEl.innerHTML =
-      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:nowrap">' +
-      bannerParts.join('') +
-      '</div>';
+    // 컨테이너 스타일을 JS에서 직접 제어 (HTML inline 스타일 덮어쓰기)
+    bannerEl.style.cssText =
+      'display:flex;gap:8px;align-items:center;flex-wrap:nowrap;' +
+      'margin-left:auto;overflow-x:auto;overflow-y:hidden;' +
+      'scrollbar-width:none;';
+    bannerEl.innerHTML = _usGrid + sep + restParts.join('');
 
   }  // end if (m)
 }  // end loadMacroData
