@@ -510,6 +510,23 @@ async function loadNewHighStocks() {
     rows = rows2 || [];
   }
 
+  // market_cap null 종목 → 다른 날짜 최근값으로 보완
+  const _nullCapCodes = (rows || []).filter(r => !r.market_cap).map(r => r.stock_code);
+  if (_nullCapCodes.length) {
+    const { data: _capRows } = await sb.from('market_data')
+      .select('stock_code,market_cap')
+      .in('stock_code', _nullCapCodes)
+      .not('market_cap', 'is', null)
+      .gt('market_cap', 0)
+      .order('base_date', { ascending: false })
+      .limit(_nullCapCodes.length * 5);
+    const _capMap = {};
+    for (const r of (_capRows || [])) {
+      if (!_capMap[r.stock_code]) _capMap[r.stock_code] = r.market_cap;
+    }
+    rows = rows.map(r => r.market_cap ? r : { ...r, market_cap: _capMap[r.stock_code] || null });
+  }
+
   // 모니터링 종목 + 산업 정보 조회
   const { data: companies } = await sb.from('companies')
     .select('code,industry,sub_industry')
