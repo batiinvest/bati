@@ -295,14 +295,29 @@ function pInvestment() {
 
 
 // ── 지수 카드 ──
-function mkIndexCard(label, value, chg, unit, sub) {
+// risk: null | 'caution' | 'danger' | 'critical'
+function mkIndexCard(label, value, chg, unit, sub, risk) {
   const cc  = chg != null ? chgColor(chg) : 'var(--text2)';
   const cs  = chg != null ? chgStr(chg) : '—';
   const val = value != null ? Number(value).toLocaleString() + (unit||'') : '—';
+
+  const _RS = {
+    caution:  { border:'1px solid #f59e0b', bg:'rgba(245,158,11,0.09)', icon:'⚠️', shadow:'' },
+    danger:   { border:'1px solid #ef4444', bg:'rgba(239,68,68,0.09)',  icon:'🚨', shadow:'' },
+    critical: { border:'2px solid #dc2626', bg:'rgba(220,38,38,0.13)', icon:'🔴', shadow:'box-shadow:0 0 10px rgba(220,38,38,0.25);' },
+  };
+  const rs = risk ? _RS[risk] : null;
+  const cardStyle = rs
+    ? `padding:10px 12px;border:${rs.border};background:${rs.bg};${rs.shadow}`
+    : 'padding:10px 12px';
+
   return `
-  <div class="card" style="padding:10px 12px">
-    <div style="font-size:10px;color:var(--text2);margin-bottom:3px;font-weight:500">${label}</div>
-    <div style="font-size:15px;font-weight:700;color:var(--text1);line-height:1.2">${val}</div>
+  <div class="card" style="${cardStyle}">
+    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text2);margin-bottom:3px;font-weight:500">
+      ${rs ? `<span style="font-size:11px">${rs.icon}</span>` : ''}
+      <span>${label}</span>
+    </div>
+    <div style="font-size:15px;font-weight:700;color:${rs?'var(--text1)':'var(--text1)'};line-height:1.2">${val}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
       <div style="font-size:12px;color:${cc};font-weight:600">${cs}</div>
       ${sub ? `<div style="font-size:10px;color:var(--text2)">${sub}</div>` : ''}

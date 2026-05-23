@@ -1,22 +1,89 @@
 // chart-macro.js — 글로벌 매크로 차트 (흐름 비교 차트, ETF 배너)
 // 의존: config.js, investment.js (INV_ALL_METRICS, INV)
 
+// ── 매크로 위험 신호 임계값 (투자전문가 기준) ──
+const MACRO_RISK_SIGNALS = {
+  vix:            { caution: 20,    danger: 30,    critical: 40,   dir: 'above' },
+  us10y:          { caution: 4.3,   danger: 4.5,   critical: 5.0,  dir: 'above' },
+  usd_krw:        { caution: 1400,  danger: 1500,  critical: 1600, dir: 'above' },
+  sp500_chg:      { caution: -1.5,  danger: -2.5,  critical: -4.0, dir: 'below' },
+  nasdaq_chg:     { caution: -2.0,  danger: -3.5,  critical: -5.0, dir: 'below' },
+  sp500_fut_chg:  { caution: -1.0,  danger: -2.0,                  dir: 'below' },
+  nasdaq_fut_chg: { caution: -1.5,  danger: -2.5,                  dir: 'below' },
+  wti:            { caution: 90,    danger: 100,                   dir: 'above' },
+};
+
+function _getRisk(key, value) {
+  if (value == null || isNaN(Number(value))) return null;
+  const v = Number(value);
+  const s = MACRO_RISK_SIGNALS[key];
+  if (!s) return null;
+  if (s.dir === 'above') {
+    if (s.critical != null && v >= s.critical) return 'critical';
+    if (s.danger   != null && v >= s.danger)   return 'danger';
+    if (s.caution  != null && v >= s.caution)  return 'caution';
+  } else {
+    if (s.critical != null && v <= s.critical) return 'critical';
+    if (s.danger   != null && v <= s.danger)   return 'danger';
+    if (s.caution  != null && v <= s.caution)  return 'caution';
+  }
+  return null;
+}
+
 async function loadMacroData() {
   const { data } = await sb.from('macro_data')
     .select('*').order('base_date', { ascending: false }).limit(1);
   const m = data?.[0] || {};
   window._macroData = m;  // market-insight.js에서 재활용
 
+  // 위험 신호 감지 → 동적 스트립 삽입
+  const _riskItems = [
+    { key: 'vix',            val: m.vix,            label: 'VIX',      fmt: v => Number(v).toFixed(2) },
+    { key: 'us10y',          val: m.us10y,           label: '미10년금리', fmt: v => Number(v).toFixed(3) + '%' },
+    { key: 'usd_krw',        val: m.usd_krw,         label: 'USD/KRW',  fmt: v => Number(v).toLocaleString() + '원' },
+    { key: 'sp500_chg',      val: m.sp500_chg,       label: 'S&P500',   fmt: v => (v>0?'+':'') + Number(v).toFixed(2) + '%' },
+    { key: 'nasdaq_chg',     val: m.nasdaq_chg,      label: '나스닥',    fmt: v => (v>0?'+':'') + Number(v).toFixed(2) + '%' },
+    { key: 'sp500_fut_chg',  val: m.sp500_fut_chg,   label: 'S&P선물',  fmt: v => (v>0?'+':'') + Number(v).toFixed(2) + '%' },
+    { key: 'nasdaq_fut_chg', val: m.nasdaq_fut_chg,  label: '나스닥선물', fmt: v => (v>0?'+':'') + Number(v).toFixed(2) + '%' },
+    { key: 'wti',            val: m.wti,             label: 'WTI',      fmt: v => '$' + Number(v).toFixed(1) },
+  ];
+  const _activeRisks = _riskItems
+    .map(r => ({ ...r, risk: _getRisk(r.key, r.val) }))
+    .filter(r => r.risk);
+
+  const _oldStrip = document.getElementById('_macro-risk-strip');
+  if (_oldStrip) _oldStrip.remove();
+
   const globalEl = document.getElementById('inv-global');
+  if (_activeRisks.length && globalEl?.parentElement) {
+    const _RI = {
+      caution:  { color: '#f59e0b', icon: '⚠️', label: '주의' },
+      danger:   { color: '#ef4444', icon: '🚨', label: '위험' },
+      critical: { color: '#dc2626', icon: '🔴', label: '긴급' },
+    };
+    const strip = document.createElement('div');
+    strip.id = '_macro-risk-strip';
+    strip.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 12px;margin-bottom:8px;border-radius:8px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.25)';
+    strip.innerHTML =
+      '<span style="font-size:11px;color:var(--text3);font-weight:600;white-space:nowrap">🔔 위험 신호</span>' +
+      _activeRisks.map(r => {
+        const ri = _RI[r.risk];
+        return `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:12px;` +
+          `background:${ri.color}22;border:1px solid ${ri.color}55;font-size:11px;color:${ri.color};font-weight:600;white-space:nowrap">` +
+          `${ri.icon} ${r.label} ${r.fmt(r.val)}</span>`;
+      }).join('');
+    globalEl.parentElement.insertBefore(strip, globalEl);
+  }
+
   if (globalEl) globalEl.innerHTML = [
-    mkIndexCard('S&P 500',     m.sp500,       m.sp500_chg,       '',  'USA 현물'),
-    mkIndexCard('나스닥',       m.nasdaq,      m.nasdaq_chg,      '',  'USA 현물'),
+    mkIndexCard('S&P 500',     m.sp500,       m.sp500_chg,       '',  'USA 현물', _getRisk('sp500_chg',      m.sp500_chg)),
+    mkIndexCard('나스닥',       m.nasdaq,      m.nasdaq_chg,      '',  'USA 현물', _getRisk('nasdaq_chg',     m.nasdaq_chg)),
     mkIndexCard('다우존스',     m.dow,         m.dow_chg,         '',  'USA 현물'),
-    mkIndexCard('S&P 선물',    m.sp500_fut,   m.sp500_fut_chg,   '',  '선물'),
-    mkIndexCard('나스닥 선물',  m.nasdaq_fut,  m.nasdaq_fut_chg,  '',  '선물'),
+    mkIndexCard('S&P 선물',    m.sp500_fut,   m.sp500_fut_chg,   '',  '선물',     _getRisk('sp500_fut_chg',  m.sp500_fut_chg)),
+    mkIndexCard('나스닥 선물',  m.nasdaq_fut,  m.nasdaq_fut_chg,  '',  '선물',     _getRisk('nasdaq_fut_chg', m.nasdaq_fut_chg)),
     mkIndexCard('다우 선물',    m.dow_fut,     m.dow_fut_chg,     '',  '선물'),
-    mkIndexCard('VIX',         m.vix,         m.vix_chg,         '',  '공포지수'),
-    mkIndexCard('미 10년 금리', m.us10y,       m.us10y_chg,       '%', '국채'),
+    mkIndexCard('VIX',         m.vix,         m.vix_chg,         '',  '공포지수', _getRisk('vix',            m.vix)),
+    mkIndexCard('미 10년 금리', m.us10y,       m.us10y_chg,       '%', '국채',    _getRisk('us10y',          m.us10y)),
   ].join('');
 
   const domEl = document.getElementById('inv-domestic');
@@ -27,7 +94,7 @@ async function loadMacroData() {
 
   const fxEl = document.getElementById('inv-fx');
   if (fxEl) fxEl.innerHTML = [
-    mkIndexCard('USD/KRW', m.usd_krw, m.usd_krw_chg, '원', '달러'),
+    mkIndexCard('USD/KRW', m.usd_krw, m.usd_krw_chg, '원', '달러', _getRisk('usd_krw', m.usd_krw)),
     mkIndexCard('JPY/KRW', m.jpy_krw, m.jpy_krw_chg, '원', '100엔'),
     mkIndexCard('EUR/KRW', m.eur_krw, m.eur_krw_chg, '원', '유로'),
     mkIndexCard('CNY/KRW', m.cny_krw, m.cny_krw_chg, '원', '위안'),
@@ -35,7 +102,7 @@ async function loadMacroData() {
 
   const cmdEl = document.getElementById('inv-commodity');
   if (cmdEl) cmdEl.innerHTML = [
-    mkIndexCard('WTI 유가',  m.wti,    m.wti_chg,    '$', '배럴'),
+    mkIndexCard('WTI 유가',  m.wti,    m.wti_chg,    '$', '배럴', _getRisk('wti', m.wti)),
     mkIndexCard('금',        m.gold,   m.gold_chg,   '$', '온스'),
     mkIndexCard('천연가스',   m.gas,    m.gas_chg,    '$', 'MMBtu'),
     mkIndexCard('구리',      m.copper, m.copper_chg, '$', '파운드'),
@@ -44,9 +111,15 @@ async function loadMacroData() {
   // 전체 종목 동향 카드 헤더 배너에 글로벌 지수 인라인 표시
   const bannerEl = document.getElementById('inv-banner-content');
   if (bannerEl) {
-    const mkB = (label, val, chg, unit) => {
+    const _BI = { caution: '#f59e0b', danger: '#ef4444', critical: '#dc2626' };
+    const mkB = (label, val, chg, unit, riskKey) => {
       if (val == null || isNaN(Number(val))) return '';
+      const risk = riskKey ? _getRisk(riskKey, riskKey.endsWith('_chg') ? chg : val) : null;
+      const dot  = risk
+        ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${_BI[risk]};flex-shrink:0;margin-top:1px"></span>`
+        : '';
       const clr = chg != null ? chgColor(chg) : 'var(--text2)';
+      const labelClr = risk ? _BI[risk] : 'var(--text2)';
       const valStr = unit === '%'
         ? Number(val).toFixed(3) + '%'
         : Number(val).toLocaleString(undefined, {maximumFractionDigits: 2});
@@ -54,7 +127,9 @@ async function loadMacroData() {
         ? '<span style="color:' + clr + ';font-size:10px">' + (chg>0?'+':'') + chg.toFixed(2) + '%</span>'
         : '';
       return '<div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">' +
-        '<span style="font-size:10px;color:var(--text2);line-height:1;font-weight:500">' + label + '</span>' +
+        '<div style="display:flex;align-items:center;gap:3px">' + dot +
+          '<span style="font-size:10px;color:' + labelClr + ';line-height:1;font-weight:' + (risk?'700':'500') + '">' + label + '</span>' +
+        '</div>' +
         '<div style="display:flex;align-items:baseline;gap:3px">' +
           '<span style="font-size:12px;font-weight:700;color:var(--text1)">' + valStr + '</span>' +
           chgHtml +
@@ -65,23 +140,23 @@ async function loadMacroData() {
     bannerEl.innerHTML =
       '<div style="display:flex;gap:10px;align-items:center;flex-wrap:nowrap">' +
       [
-        mkB('S&P500',    m.sp500,       m.sp500_chg),
+        mkB('S&P500',    m.sp500,       m.sp500_chg,      '',  'sp500_chg'),
         sep,
-        mkB('나스닥',     m.nasdaq,      m.nasdaq_chg),
+        mkB('나스닥',     m.nasdaq,      m.nasdaq_chg,     '',  'nasdaq_chg'),
         sep,
         mkB('다우',       m.dow,         m.dow_chg),
         sep,
-        mkB('S&P선물',   m.sp500_fut,   m.sp500_fut_chg),
+        mkB('S&P선물',   m.sp500_fut,   m.sp500_fut_chg,  '',  'sp500_fut_chg'),
         sep,
-        mkB('나스닥선물', m.nasdaq_fut,  m.nasdaq_fut_chg),
+        mkB('나스닥선물', m.nasdaq_fut,  m.nasdaq_fut_chg, '',  'nasdaq_fut_chg'),
         sep,
         mkB('다우선물',   m.dow_fut,     m.dow_fut_chg),
         sep,
-        mkB('VIX',        m.vix,         m.vix_chg),
+        mkB('VIX',        m.vix,         m.vix_chg,        '',  'vix'),
         sep,
-        mkB('미10년',     m.us10y,       m.us10y_chg, '%'),
+        mkB('미10년',     m.us10y,       m.us10y_chg,      '%', 'us10y'),
         sep,
-        mkB('달러',       m.usd_krw,     m.usd_krw_chg),
+        mkB('달러',       m.usd_krw,     m.usd_krw_chg,    '',  'usd_krw'),
         sep,
         mkB('엔',         m.jpy_krw,     m.jpy_krw_chg),
         sep,
