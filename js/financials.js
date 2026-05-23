@@ -130,7 +130,7 @@ function _renderTable(headers, bodyRows) {
         <thead>
           <tr>
             ${headers.map(h => `<th style="
-              position:sticky;top:56px;z-index:2;
+              position:sticky;top:0;z-index:2;
               background:var(--bg2);
               border-bottom:2px solid var(--border2);
               text-align:left;padding:9px 12px;
