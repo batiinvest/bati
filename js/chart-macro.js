@@ -136,7 +136,7 @@ async function loadMacroData() {
           `${ri.glow ? 'box-shadow:' + ri.glow + ';' : ''}">` +
           `<div style="display:flex;align-items:center;gap:3px;line-height:1">` +
             `<span style="font-size:11px;line-height:1">${ri.icon}</span>` +
-            `<span style="font-size:10px;color:${ri.color};font-weight:700;white-space:nowrap">${label}</span>` +
+            `<span style="font-size:10px;color:var(--text2);font-weight:500;white-space:nowrap">${label}</span>` +
           `</div>` +
           `<div style="display:flex;align-items:baseline;gap:3px">` +
             `<span style="font-size:13px;font-weight:800;color:var(--text1)">${valStr}</span>` +
