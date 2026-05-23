@@ -111,59 +111,78 @@ async function loadMacroData() {
   // 전체 종목 동향 카드 헤더 배너에 글로벌 지수 인라인 표시
   const bannerEl = document.getElementById('inv-banner-content');
   if (bannerEl) {
-    const _BI = { caution: '#f59e0b', danger: '#ef4444', critical: '#dc2626' };
+    const _BI = {
+      caution:  { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.55)', icon: '⚠️', glow: '' },
+      danger:   { color: '#ef4444', bg: 'rgba(239,68,68,0.13)',   border: 'rgba(239,68,68,0.6)',   icon: '🚨', glow: '' },
+      critical: { color: '#dc2626', bg: 'rgba(220,38,38,0.17)',   border: 'rgba(220,38,38,0.75)',  icon: '🔴', glow: '0 0 8px rgba(220,38,38,0.45)' },
+    };
     const mkB = (label, val, chg, unit, riskKey) => {
       if (val == null || isNaN(Number(val))) return '';
       const risk = riskKey ? _getRisk(riskKey, riskKey.endsWith('_chg') ? chg : val) : null;
-      const dot  = risk
-        ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${_BI[risk]};flex-shrink:0;margin-top:1px"></span>`
-        : '';
-      const clr = chg != null ? chgColor(chg) : 'var(--text2)';
-      const labelClr = risk ? _BI[risk] : 'var(--text2)';
+      const ri   = risk ? _BI[risk] : null;
+      const clr  = chg != null ? chgColor(chg) : 'var(--text2)';
       const valStr = unit === '%'
         ? Number(val).toFixed(3) + '%'
         : Number(val).toLocaleString(undefined, {maximumFractionDigits: 2});
       const chgHtml = chg != null
-        ? '<span style="color:' + clr + ';font-size:10px">' + (chg>0?'+':'') + chg.toFixed(2) + '%</span>'
+        ? `<span style="color:${clr};font-size:10px">${chg>0?'+':''}${chg.toFixed(2)}%</span>`
         : '';
-      return '<div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">' +
-        '<div style="display:flex;align-items:center;gap:3px">' + dot +
-          '<span style="font-size:10px;color:' + labelClr + ';line-height:1;font-weight:' + (risk?'700':'500') + '">' + label + '</span>' +
-        '</div>' +
-        '<div style="display:flex;align-items:baseline;gap:3px">' +
-          '<span style="font-size:12px;font-weight:700;color:var(--text1)">' + valStr + '</span>' +
+
+      if (ri) {
+        // 위험 항목: 컬러 박스로 강조
+        return `<div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;` +
+          `padding:4px 8px;border-radius:7px;` +
+          `background:${ri.bg};border:1px solid ${ri.border};` +
+          `${ri.glow ? 'box-shadow:' + ri.glow + ';' : ''}">` +
+          `<div style="display:flex;align-items:center;gap:3px;line-height:1">` +
+            `<span style="font-size:11px;line-height:1">${ri.icon}</span>` +
+            `<span style="font-size:10px;color:${ri.color};font-weight:700;white-space:nowrap">${label}</span>` +
+          `</div>` +
+          `<div style="display:flex;align-items:baseline;gap:3px">` +
+            `<span style="font-size:13px;font-weight:800;color:${ri.color}">${valStr}</span>` +
+            chgHtml +
+          `</div>` +
+        `</div>`;
+      }
+
+      // 일반 항목
+      return `<div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">` +
+        `<span style="font-size:10px;color:var(--text2);line-height:1;font-weight:500">${label}</span>` +
+        `<div style="display:flex;align-items:baseline;gap:3px">` +
+          `<span style="font-size:12px;font-weight:700;color:var(--text1)">${valStr}</span>` +
           chgHtml +
-        '</div>' +
-      '</div>';
+        `</div>` +
+      `</div>`;
     };
     const sep = '<div style="width:1px;background:var(--border);height:28px;flex-shrink:0;align-self:center"></div>';
+    // 위험 항목은 자체 박스가 있으므로 sep 없이 gap만으로 분리
+    const _items = [
+      { str: mkB('S&P500',    m.sp500,       m.sp500_chg,      '',  'sp500_chg'),    risk: _getRisk('sp500_chg',      m.sp500_chg) },
+      { str: mkB('나스닥',     m.nasdaq,      m.nasdaq_chg,     '',  'nasdaq_chg'),   risk: _getRisk('nasdaq_chg',     m.nasdaq_chg) },
+      { str: mkB('다우',       m.dow,         m.dow_chg),                             risk: null },
+      { str: mkB('S&P선물',   m.sp500_fut,   m.sp500_fut_chg,  '',  'sp500_fut_chg'), risk: _getRisk('sp500_fut_chg',  m.sp500_fut_chg) },
+      { str: mkB('나스닥선물', m.nasdaq_fut,  m.nasdaq_fut_chg, '',  'nasdaq_fut_chg'), risk: _getRisk('nasdaq_fut_chg', m.nasdaq_fut_chg) },
+      { str: mkB('다우선물',   m.dow_fut,     m.dow_fut_chg),                         risk: null },
+      { str: mkB('VIX',        m.vix,         m.vix_chg,        '',  'vix'),           risk: _getRisk('vix',            m.vix) },
+      { str: mkB('미10년',     m.us10y,       m.us10y_chg,      '%', 'us10y'),         risk: _getRisk('us10y',          m.us10y) },
+      { str: mkB('달러',       m.usd_krw,     m.usd_krw_chg,    '',  'usd_krw'),       risk: _getRisk('usd_krw',        m.usd_krw) },
+      { str: mkB('엔',         m.jpy_krw,     m.jpy_krw_chg),                         risk: null },
+      { str: mkB('유로',       m.eur_krw,     m.eur_krw_chg),                         risk: null },
+      { str: mkB('BTC',        m.bitcoin,     m.bitcoin_chg),                         risk: null },
+    ].filter(it => it.str);
+
+    // 연속 일반 항목은 sep으로 연결, 위험 항목 경계에선 sep 생략
+    let bannerParts = [];
+    for (let i = 0; i < _items.length; i++) {
+      const cur  = _items[i];
+      const prev = _items[i - 1];
+      if (prev && !cur.risk && !prev.risk) bannerParts.push(sep);
+      bannerParts.push(cur.str);
+    }
+
     bannerEl.innerHTML =
-      '<div style="display:flex;gap:10px;align-items:center;flex-wrap:nowrap">' +
-      [
-        mkB('S&P500',    m.sp500,       m.sp500_chg,      '',  'sp500_chg'),
-        sep,
-        mkB('나스닥',     m.nasdaq,      m.nasdaq_chg,     '',  'nasdaq_chg'),
-        sep,
-        mkB('다우',       m.dow,         m.dow_chg),
-        sep,
-        mkB('S&P선물',   m.sp500_fut,   m.sp500_fut_chg,  '',  'sp500_fut_chg'),
-        sep,
-        mkB('나스닥선물', m.nasdaq_fut,  m.nasdaq_fut_chg, '',  'nasdaq_fut_chg'),
-        sep,
-        mkB('다우선물',   m.dow_fut,     m.dow_fut_chg),
-        sep,
-        mkB('VIX',        m.vix,         m.vix_chg,        '',  'vix'),
-        sep,
-        mkB('미10년',     m.us10y,       m.us10y_chg,      '%', 'us10y'),
-        sep,
-        mkB('달러',       m.usd_krw,     m.usd_krw_chg,    '',  'usd_krw'),
-        sep,
-        mkB('엔',         m.jpy_krw,     m.jpy_krw_chg),
-        sep,
-        mkB('유로',       m.eur_krw,     m.eur_krw_chg),
-        sep,
-        mkB('BTC',        m.bitcoin,     m.bitcoin_chg),
-      ].filter(s => s && s !== sep).join(sep) +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:nowrap">' +
+      bannerParts.join('') +
       '</div>';
 
   }  // end if (m)
