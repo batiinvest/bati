@@ -474,8 +474,7 @@ async function saveDartLevel(key, elId) {
   if (!el) return;
   const value = el.value.trim();
   const { error } = await sb.from('app_config')
-    .update({ value, updated_at: new Date().toISOString() })
-    .eq('key', key);
+    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
   if (error) { toast('저장 실패: ' + error.message, 'error'); return; }
   toast('저장 완료 — 봇 재로드 후 반영됩니다', 'success');
 }
@@ -497,8 +496,7 @@ async function saveNewsFilter(key, elId, separator) {
   if (!el) return;
   const value = el.value.trim();
   const { error } = await sb.from('app_config')
-    .update({ value, updated_at: new Date().toISOString() })
-    .eq('key', key);
+    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
   if (error) { toast('저장 실패: ' + error.message, 'error'); return; }
   toast('저장 완료 — 봇 재로드 후 반영됩니다', 'success');
 }
@@ -542,10 +540,10 @@ async function saveBotKeywords() {
 
   try {
     if (aiKw !== undefined) {
-      await sb.from('app_config').update({ value: aiKw, updated_at: new Date().toISOString() }).eq('key','ai_trigger_keywords');
+      await sb.from('app_config').upsert({ key: 'ai_trigger_keywords', value: aiKw, updated_at: new Date().toISOString() }, { onConflict: 'key' });
     }
     if (globalKw !== undefined) {
-      await sb.from('app_config').update({ value: globalKw, updated_at: new Date().toISOString() }).eq('key','global_important_keywords');
+      await sb.from('app_config').upsert({ key: 'global_important_keywords', value: globalKw, updated_at: new Date().toISOString() }, { onConflict: 'key' });
     }
     toast('키워드 저장 완료 — 봇 다음 사이클에 반영됩니다', 'success');
   } catch(e) { toast('저장 실패: ' + e.message, 'error'); }
@@ -554,7 +552,7 @@ async function saveBotKeywords() {
 async function toggleSchedule(key, enabled) {
   if (!isAdmin()) { toast('권한이 없습니다.', 'error'); return; }
   try {
-    await sb.from('app_config').update({ value: enabled ? '1' : '0', updated_at: new Date().toISOString() }).eq('key', key);
+    await sb.from('app_config').upsert({ key, value: enabled ? '1' : '0', updated_at: new Date().toISOString() }, { onConflict: 'key' });
     toast(`스케줄 ${enabled?'활성화':'비활성화'} 완료`, 'info');
   } catch(e) { toast('변경 실패: ' + e.message, 'error'); }
 }
