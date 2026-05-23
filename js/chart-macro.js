@@ -154,41 +154,62 @@ async function loadMacroData() {
         `</div>` +
       `</div>`;
     };
-    const sep = '<div style="width:1px;background:var(--border);height:32px;flex-shrink:0;align-self:center"></div>';
+    const sep = '<div style="width:1px;background:var(--border);min-height:24px;align-self:stretch;flex-shrink:0"></div>';
 
-    // 선물 행 전용 컴팩트 렌더러 (mkB의 축소판)
-    const mkBFut = (label, val, chg, unit, riskKey) => {
-      if (val == null || isNaN(Number(val))) return '<div></div>';
-      const risk = riskKey ? _getRisk(riskKey, riskKey.endsWith('_chg') ? chg : val) : null;
+    // ─── US 증시: 지수 + 선물을 한 카드에 쌍으로 묶어 표시 ───
+    const mkBPair = (idxLabel, idxVal, idxChg, futLabel, futVal, futChg, idxRiskKey, futRiskKey) => {
+      if (idxVal == null || isNaN(Number(idxVal))) return '';
+      const risk = idxRiskKey ? _getRisk(idxRiskKey, idxRiskKey.endsWith('_chg') ? idxChg : idxVal) : null;
       const ri   = risk ? _BI[risk] : null;
-      const clr  = chg != null ? chgColor(chg) : 'var(--text2)';
-      const valStr = unit === '%'
-        ? Number(val).toFixed(3) + '%'
-        : Number(val).toLocaleString(undefined, {maximumFractionDigits: 2});
-      const chgHtml = chg != null
-        ? `<span style="color:${clr};font-size:9px">${chg>0?'+':''}${chg.toFixed(2)}%</span>`
+      const clr  = idxChg != null ? chgColor(idxChg) : 'var(--text2)';
+      const valStr = Number(idxVal).toLocaleString(undefined, {maximumFractionDigits: 2});
+      const chgHtml = idxChg != null
+        ? `<span style="color:${clr};font-size:10px">${idxChg>0?'+':''}${idxChg.toFixed(2)}%</span>`
         : '';
+
+      // 선물 섹션: 지수에 위험 색상이 없을 때만 선물 독립 하이라이트 적용
+      let futHtml = '';
+      if (futVal != null && !isNaN(Number(futVal))) {
+        const futRisk = !ri && futRiskKey ? _getRisk(futRiskKey, futRiskKey.endsWith('_chg') ? futChg : futVal) : null;
+        const futRi   = futRisk ? _BI[futRisk] : null;
+        const futClr  = futChg != null ? chgColor(futChg) : 'var(--text3)';
+        const futValStr = Number(futVal).toLocaleString(undefined, {maximumFractionDigits: 2});
+        const futChgHtml = futChg != null
+          ? `<span style="color:${futClr};font-size:9px">${futChg>0?'+':''}${futChg.toFixed(2)}%</span>`
+          : '';
+        const futBox = futRi
+          ? `background:${futRi.bg};border:1px solid ${futRi.border};border-radius:4px;padding:1px 5px;${futRi.glow?'box-shadow:'+futRi.glow+';':''}`
+          : '';
+        futHtml =
+          `<div style="display:flex;align-items:baseline;gap:3px;margin-top:4px;padding-top:3px;` +
+          `border-top:1px solid rgba(255,255,255,0.08);${futBox}">` +
+            `<span style="font-size:9px;color:var(--text3);white-space:nowrap;font-weight:500">${futLabel}</span>` +
+            `<span style="font-size:10px;font-weight:600;color:${futClr}">${futValStr}</span>` +
+            futChgHtml +
+          `</div>`;
+      }
+
       const boxStyle = ri
-        ? `padding:2px 6px;border-radius:5px;background:${ri.bg};border:1px solid ${ri.border};${ri.glow?'box-shadow:'+ri.glow+';':''}`
+        ? `padding:4px 8px;border-radius:7px;background:${ri.bg};border:1px solid ${ri.border};${ri.glow?'box-shadow:'+ri.glow+';':''}`
         : '';
-      return `<div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0;${boxStyle}">` +
-        `<span style="font-size:9px;color:var(--text3);font-weight:500;line-height:1;white-space:nowrap">${label}</span>` +
-        `<div style="display:flex;align-items:baseline;gap:2px">` +
-          `<span style="font-size:11px;font-weight:700;color:var(--text1)">${valStr}</span>` +
+
+      return `<div style="display:flex;flex-direction:column;gap:0;flex-shrink:0;${boxStyle}">` +
+        `<span style="font-size:10px;color:var(--text2);line-height:1;font-weight:500">${idxLabel}</span>` +
+        `<div style="display:flex;align-items:baseline;gap:3px;margin-top:1px">` +
+          `<span style="font-size:12px;font-weight:700;color:var(--text1)">${valStr}</span>` +
           chgHtml +
         `</div>` +
+        futHtml +
       `</div>`;
     };
 
-    // ─── US 증시: 지수(1행) + 선물(2행) 그리드 ───
-    const _usGrid = `<div style="display:grid;grid-template-columns:repeat(3,auto);gap:4px 14px;align-items:start;flex-shrink:0">` +
-      mkB('S&P500',   m.sp500,      m.sp500_chg,      '', 'sp500_chg') +
-      mkB('나스닥',    m.nasdaq,     m.nasdaq_chg,     '', 'nasdaq_chg') +
-      mkB('다우',      m.dow,        m.dow_chg) +
-      mkBFut('S&P 선물',   m.sp500_fut,  m.sp500_fut_chg,  '', 'sp500_fut_chg') +
-      mkBFut('나스닥 선물', m.nasdaq_fut, m.nasdaq_fut_chg, '', 'nasdaq_fut_chg') +
-      mkBFut('다우 선물',   m.dow_fut,    m.dow_fut_chg) +
-    `</div>`;
+    const _usParts = [
+      mkBPair('S&P500', m.sp500,  m.sp500_chg,  '선물', m.sp500_fut,  m.sp500_fut_chg,  'sp500_chg',  'sp500_fut_chg'),
+      mkBPair('나스닥',  m.nasdaq, m.nasdaq_chg, '선물', m.nasdaq_fut, m.nasdaq_fut_chg, 'nasdaq_chg', 'nasdaq_fut_chg'),
+      mkBPair('다우',    m.dow,    m.dow_chg,    '선물', m.dow_fut,    m.dow_fut_chg),
+    ].filter(Boolean);
+
+    const _usBlock = `<div style="display:flex;gap:14px;align-items:flex-start;flex-shrink:0">${_usParts.join('')}</div>`;
 
     // ─── 나머지 단행 항목 ───
     const _restItems = [
@@ -210,10 +231,10 @@ async function loadMacroData() {
 
     // 컨테이너 스타일을 JS에서 직접 제어 (HTML inline 스타일 덮어쓰기)
     bannerEl.style.cssText =
-      'display:flex;gap:8px;align-items:center;flex-wrap:nowrap;' +
+      'display:flex;gap:8px;align-items:flex-start;flex-wrap:nowrap;' +
       'margin-left:auto;overflow-x:auto;overflow-y:hidden;' +
-      'scrollbar-width:none;';
-    bannerEl.innerHTML = _usGrid + sep + restParts.join('');
+      'scrollbar-width:none;padding:2px 0;';
+    bannerEl.innerHTML = _usBlock + sep + restParts.join('');
 
   }  // end if (m)
 }  // end loadMacroData
