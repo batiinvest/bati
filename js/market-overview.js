@@ -802,19 +802,31 @@ async function loadFlowData() {
       return;
     }
 
-    const { data, error } = await sb.from('market_data')
+    let { data, error } = await sb.from('market_data')
       .select('stock_code,corp_name,price,price_change_rate,market_cap,foreign_net_buy,institution_net_buy,foreign_hold_rate,market')
       .eq('base_date', maxDate)
       .or('foreign_net_buy.gt.0,institution_net_buy.gt.0')
       .order('foreign_net_buy', { ascending: false })
       .limit(300);
 
-    if (error) throw error;
+    if (error) {
+      // institution_net_buy 컬럼 미존재 시 fallback — 외국인 수급만 조회
+      console.warn('[FlowData] institution_net_buy 컬럼 조회 실패, fallback 실행:', error.message);
+      const fb = await sb.from('market_data')
+        .select('stock_code,corp_name,price,price_change_rate,market_cap,foreign_net_buy,foreign_hold_rate,market')
+        .eq('base_date', maxDate)
+        .gt('foreign_net_buy', 0)
+        .order('foreign_net_buy', { ascending: false })
+        .limit(300);
+      if (fb.error) throw fb.error;
+      data = fb.data;
+    }
+
     _flowData = data || [];
     renderFlowData(_flowTab);
   } catch(e) {
-    console.error('[FlowData]', e);
-    body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">수급 데이터 로드 실패</div>';
+    console.error('[FlowData] 최종 오류:', e?.message || e);
+    body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">수급 데이터 로드 실패 — 콘솔 확인 필요</div>';
   }
 }
 
