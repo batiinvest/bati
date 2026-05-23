@@ -184,7 +184,7 @@ async function loadMacroData() {
           `<div style="display:flex;align-items:baseline;gap:3px;margin-top:4px;padding-top:3px;` +
           `border-top:1px solid rgba(255,255,255,0.08);${futBox}">` +
             `<span style="font-size:9px;color:var(--text3);white-space:nowrap;font-weight:500">${futLabel}</span>` +
-            `<span style="font-size:10px;font-weight:600;color:${futClr}">${futValStr}</span>` +
+            `<span style="font-size:10px;font-weight:600;color:var(--text1)">${futValStr}</span>` +
             futChgHtml +
           `</div>`;
       }
