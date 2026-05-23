@@ -121,6 +121,7 @@ function _renderTable(headers, bodyRows) {
   return `
     <div style="
       overflow-x:auto;
+      overflow-y:clip;
       width:100%;
       scrollbar-width:thin;
       scrollbar-color:rgba(255,255,255,.2) var(--bg3);
