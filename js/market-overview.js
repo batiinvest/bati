@@ -782,3 +782,106 @@ function renderHgprTab(tab) {
     </div>`;
   }
 }
+
+
+// ══════════════════════════════════════════
+// 💰 기관/외국인 수급 (loadFlowData / switchFlowTab / renderFlowData)
+// ══════════════════════════════════════════
+
+let _flowData = null;
+let _flowTab  = 'both';
+
+async function loadFlowData() {
+  const body = document.getElementById('flow-body');
+  if (!body) return;
+
+  try {
+    const maxDate = await getLatestMarketDate();
+    if (!maxDate) {
+      body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">데이터 없음</div>';
+      return;
+    }
+
+    const { data, error } = await sb.from('market_data')
+      .select('stock_code,corp_name,price,price_change_rate,market_cap,foreign_net_buy,institution_net_buy,foreign_hold_rate,market')
+      .eq('base_date', maxDate)
+      .or('foreign_net_buy.gt.0,institution_net_buy.gt.0')
+      .order('foreign_net_buy', { ascending: false })
+      .limit(300);
+
+    if (error) throw error;
+    _flowData = data || [];
+    renderFlowData(_flowTab);
+  } catch(e) {
+    console.error('[FlowData]', e);
+    body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">수급 데이터 로드 실패</div>';
+  }
+}
+
+function switchFlowTab(tab) {
+  _flowTab = tab;
+  document.querySelectorAll('[data-flow-tab]').forEach(b =>
+    b.classList.toggle('active', b.dataset.flowTab === tab));
+  renderFlowData(tab);
+}
+
+function renderFlowData(tab) {
+  const body = document.getElementById('flow-body');
+  if (!body || !_flowData) return;
+
+  let rows;
+  if (tab === 'both') {
+    rows = _flowData
+      .filter(r => (r.foreign_net_buy || 0) > 0 && (r.institution_net_buy || 0) > 0)
+      .sort((a, b) =>
+        ((b.foreign_net_buy || 0) + (b.institution_net_buy || 0)) -
+        ((a.foreign_net_buy || 0) + (a.institution_net_buy || 0))
+      )
+      .slice(0, 30);
+  } else if (tab === 'frgn') {
+    rows = _flowData
+      .filter(r => r.foreign_net_buy != null)
+      .sort((a, b) => (b.foreign_net_buy || 0) - (a.foreign_net_buy || 0))
+      .slice(0, 30);
+  } else {
+    rows = _flowData
+      .filter(r => r.institution_net_buy != null)
+      .sort((a, b) => (b.institution_net_buy || 0) - (a.institution_net_buy || 0))
+      .slice(0, 30);
+  }
+
+  if (!rows.length) {
+    body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">해당 수급 데이터 없음 — 장중 집계 시간(09:35·11:25·13:25·14:35) 이후 조회하세요</div>';
+    return;
+  }
+
+  const COLS = '1fr 80px 58px 90px 90px 58px';
+  const numClr = (v) => (v || 0) >= 0 ? 'var(--red)' : 'var(--blue)';
+  const numFmt = (v) => v != null ? v.toLocaleString() : '—';
+
+  const header =
+    `<div style="display:grid;grid-template-columns:${COLS};padding:5px 14px;border-bottom:1px solid var(--border);background:var(--bg3)">
+      <span style="font-size:11px;color:var(--text2)">종목</span>
+      <span style="font-size:11px;color:var(--text2);text-align:right">현재가</span>
+      <span style="font-size:11px;color:var(--text2);text-align:right">등락률</span>
+      <span style="font-size:11px;color:var(--tg);text-align:right">외국인순매수</span>
+      <span style="font-size:11px;color:var(--yellow);text-align:right">기관순매수</span>
+      <span style="font-size:11px;color:var(--text2);text-align:right">외국인보유율</span>
+    </div>`;
+
+  const rowsHtml = rows.map((r, i) => {
+    const safeName = (r.corp_name || r.stock_code).replace(/'/g, "\\'");
+    return `<div style="display:grid;grid-template-columns:${COLS};align-items:center;padding:6px 14px;border-bottom:1px solid var(--border);cursor:pointer"
+      onclick="openStockDetail('${r.stock_code}','${safeName}')"
+      onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+      <span style="font-size:12px;font-weight:500">${r.corp_name || r.stock_code}</span>
+      <span style="font-size:12px;text-align:right;color:var(--text1)">${r.price != null ? r.price.toLocaleString() + '원' : '—'}</span>
+      <span style="font-size:12px;font-weight:700;color:${chgColor(r.price_change_rate)};text-align:right">${chgStr(r.price_change_rate)}</span>
+      <span style="font-size:12px;font-weight:600;text-align:right;color:${numClr(r.foreign_net_buy)}">${numFmt(r.foreign_net_buy)}</span>
+      <span style="font-size:12px;font-weight:600;text-align:right;color:${numClr(r.institution_net_buy)}">${numFmt(r.institution_net_buy)}</span>
+      <span style="font-size:11px;text-align:right;color:var(--text2)">${r.foreign_hold_rate != null ? r.foreign_hold_rate.toFixed(1) + '%' : '—'}</span>
+    </div>`;
+  }).join('');
+
+  body.innerHTML = header + rowsHtml;
+}
