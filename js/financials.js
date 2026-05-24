@@ -385,7 +385,13 @@ async function loadFinancialData(el) {
       _sortBtn('operating_cashflow','영업현금흐름','D'),
       _sortBtn('investing_cashflow','투자현금흐름','D'),
       _sortBtn('financing_cashflow','재무현금흐름','D'),
-      _sortBtn('capex','CapEx','D'),
+      _sortBtn('capex','CapEx(유형)','D'),
+      _sortBtn('capex_intangible','CapEx(무형)','D'),
+      _sortBtn('capex_total','CapEx합계','C'),
+      _sortBtn('depreciation','감가상각비','D'),
+      _sortBtn('amortization','무형상각비','D'),
+      _sortBtn('da','D&A','C'),
+      _sortBtn('ebitda','EBITDA','C'),
       // 파생비율 (계산)
       _sortBtn('gross_margin','GPM','C'),
       _sortBtn('operating_margin','OPM','C'),
@@ -401,8 +407,9 @@ async function loadFinancialData(el) {
     rowTemplate: r => {
       const opC  = (r.operating_profit||0) > 0 ? 'var(--red)' : (r.operating_profit||0) < 0 ? 'var(--blue)' : '';
       const niC  = (r.net_income||0)       > 0 ? 'var(--red)' : (r.net_income||0)       < 0 ? 'var(--blue)' : '';
-      const fcfC = (r.fcf||0)              > 0 ? 'var(--red)' : (r.fcf||0)              < 0 ? 'var(--blue)' : '';
-      const ocfC = (r.operating_cashflow||0)>0 ? 'var(--red)' : 'var(--blue)';
+      const fcfC   = (r.fcf||0)              > 0 ? 'var(--red)' : (r.fcf||0)              < 0 ? 'var(--blue)' : '';
+      const ocfC   = (r.operating_cashflow||0)>0 ? 'var(--red)' : 'var(--blue)';
+      const ebitdaC= (r.ebitda||0)           > 0 ? 'var(--red)' : (r.ebitda||0)           < 0 ? 'var(--blue)' : '';
       return `<tr>
         <td style="font-weight:500;cursor:pointer;color:var(--tg);white-space:nowrap"
           onclick="openStockDetail('${r.stock_code}','${r.corp_name}','financial')">${r.corp_name}</td>
@@ -432,6 +439,12 @@ async function loadFinancialData(el) {
         <td>${cap(r.investing_cashflow)}</td>
         <td>${cap(r.financing_cashflow)}</td>
         <td>${cap(r.capex)}</td>
+        <td>${cap(r.capex_intangible)}</td>
+        <td>${cap(r.capex_total)}</td>
+        <td>${cap(r.depreciation)}</td>
+        <td>${cap(r.amortization)}</td>
+        <td>${cap(r.da)}</td>
+        <td style="color:${ebitdaC};font-weight:500">${cap(r.ebitda)}</td>
         <td style="font-size:11px">${pct(r.gross_margin)}</td>
         <td style="font-size:11px">${pct(r.operating_margin)}</td>
         <td style="font-size:11px">${pct(r.net_margin)}</td>
@@ -711,7 +724,7 @@ async function _sdOverview(body, code, name) {
     ] = await Promise.all([
       sb.from('market_data').select('*').eq('stock_code', code)
         .order('base_date', { ascending:false }).limit(1).single(),
-      sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,operating_margin,net_margin,roe,roa,debt_ratio,total_assets,total_equity,operating_cashflow,fcf,capex')
+      sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,operating_margin,net_margin,roe,roa,debt_ratio,total_assets,total_equity,operating_cashflow,fcf,fcf_direct,fcf_indirect,capex,capex_intangible,capex_total,depreciation,amortization,da,ebitda')
         .eq('stock_code', code).eq('fs_div','CFS')
         .order('bsns_year',{ascending:false}).order('quarter',{ascending:false}).limit(8),
       sb.from('analyst_opinions').select('firm_name,opinion,target_price,gap_rate,opinion_date')
@@ -781,6 +794,7 @@ async function _sdOverview(body, code, name) {
           ${_row2('영업이익률', _pct(latestFin.operating_margin), (latestFin.operating_margin||0)>=10?'var(--green)':'var(--text1)')}
           ${_row2('순이익', _cap(latestFin.net_income), (latestFin.net_income||0)>0?'var(--red)':'var(--blue)')}
           ${_row2('FCF', _cap(latestFin.fcf), (latestFin.fcf||0)>0?'var(--green)':'var(--red)')}
+          ${latestFin.ebitda!=null?_row2('EBITDA', _cap(latestFin.ebitda), (latestFin.ebitda||0)>0?'var(--red)':'var(--blue)'):''}
           ${qoqOp != null ? _row2('QoQ 영업이익', `<span style="color:${qoqOp>=0?'var(--red)':'var(--blue)'}">${qoqOp>=0?'+':''}${qoqOp}%</span>`) : ''}
           ${_row2('ROE', _pct(latestFin.roe))}
           ${_row2('부채비율', _pct(latestFin.debt_ratio))}
@@ -1354,7 +1368,9 @@ async function _renderFinancialTab(body, code, name) {
       if (qsel) qsel.style.display = window._finView === 'qcomp' ? 'flex' : 'none';
 
       const rows = window._finGetRows();
-      document.getElementById('fin-table-body').innerHTML = rows.map(f => `<tr>
+      // 테이블은 최신 기간이 위로 (역순) — 차트는 _finDrawChart에서 원본 순서 유지
+      const tableRows = [...rows].reverse();
+      document.getElementById('fin-table-body').innerHTML = tableRows.map(f => `<tr>
         <td style="font-size:12px;color:var(--text3);white-space:nowrap">${f.label}</td>
         <td style="text-align:right;font-weight:600">${fmt(f.revenue)}</td>
         <td style="text-align:right">${fmt(f.operating_profit)}</td>
