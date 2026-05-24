@@ -245,6 +245,7 @@ async function loadMarketData(el) {
       _sortBtn('price_change','전일대비'),
       _sortBtn('price_change_rate','등락률'),
       _sortBtn('volume_change_rate','거래량증감률'),
+      _sortBtn('high_price','고가'), _sortBtn('low_price','저가'),
       _sortBtn('vwap','VWAP'),
       _sortBtn('volume','거래량'), _sortBtn('trading_value','거래대금'),
       _sortBtn('listing_shares','상장주수'), _sortBtn('vol_turnover','거래량회전율'),
