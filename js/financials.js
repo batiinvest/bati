@@ -255,7 +255,7 @@ async function loadMarketData(el) {
       _sortBtn('loan_balance_rate','융자잔고율'), _sortBtn('short_sell_qty','공매도수량'),
       _sortBtn('w52_high','52주고가'), _sortBtn('w52_low','52주저가'),
       '52주고가일', '52주저가일',
-      _sortBtn('w52_high_rate','52주고가대비%'), _sortBtn('w52_low_rate','52주저가대비%'),
+      '52주고가대비%', '52주저가대비%',
 
       '전일부호', '시장경고', '투자유의', '관리종목', '단기과열', '정리매매', '신고가구분', '신고가코드', '기준일',
     ],
@@ -315,8 +315,8 @@ async function loadMarketData(el) {
         <td style="color:var(--blue);font-size:12px">${n(r.w52_low)}</td>
         <td style="font-size:10px;color:var(--text3)">${r.w52_high_date||'—'}</td>
         <td style="font-size:10px;color:var(--text3)">${r.w52_low_date||'—'}</td>
-        <td style="font-size:11px">${p(r.w52_high_rate)}</td>
-        <td style="font-size:11px">${p(r.w52_low_rate)}</td>
+        <td style="font-size:11px">${p(r.price && r.w52_high ? (r.price - r.w52_high) / r.w52_high * 100 : null)}</td>
+        <td style="font-size:11px">${p(r.price && r.w52_low  ? (r.price - r.w52_low)  / r.w52_low  * 100 : null)}</td>
         <td style="font-size:11px;color:var(--text3);font-family:monospace">${r.price_change_sign||'—'}</td>
         <td>${warn(r.market_warn_code)}</td>
         <td>${yn(r.is_caution)}</td>
@@ -889,8 +889,8 @@ async function _sdMarket(body, code, name) {
           ${_row2('52주 고가', _won(r.w52_high), 'var(--red)')}
           ${_row2('52주 저가', _won(r.w52_low), 'var(--blue)')}
           ${_row2('52주 고가일', r.w52_high_date||'—')}
-          ${_row2('52주 고가대비', _pct(r.w52_high_rate))}
-          ${_row2('52주 저가대비', _pct(r.w52_low_rate))}
+          ${_row2('52주 고가대비', _pct(r.price && r.w52_high ? (r.price - r.w52_high) / r.w52_high * 100 : null))}
+          ${_row2('52주 저가대비', _pct(r.price && r.w52_low  ? (r.price - r.w52_low)  / r.w52_low  * 100 : null))}
           ${_row2('1주 수익률', _retStr(hist,5))}
           ${_row2('1달 수익률', _retStr(hist,21))}
           ${_row2('3달 수익률', _retStr(hist,63))}
