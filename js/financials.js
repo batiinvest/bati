@@ -1,13 +1,12 @@
-// financials.js — 재무 조회 (시장/재무제표/종합)
+// financials.js — 기업 분석 (시장 현황/재무제표)
 // fmtCap, chgColor, chgStr, loadingHTML, emptyHTML, errorHTML, fetchAllPages → config.js 참조
 
 function pFinancials() {
   const industries = ['전체', ...INDUSTRIES];
   return `
   <div class="tabs" style="margin-bottom:.75rem">
-    <button class="tab fin-tab ${F.mode==='market'?'active':''}" data-mode="market" onclick="F.mode='market';loadFinancials()">시장 데이터</button>
+    <button class="tab fin-tab ${F.mode==='market'?'active':''}" data-mode="market" onclick="F.mode='market';loadFinancials()">시장 현황</button>
     <button class="tab fin-tab ${F.mode==='financial'?'active':''}" data-mode="financial" onclick="F.mode='financial';loadFinancials()">재무제표</button>
-    <button class="tab fin-tab ${F.mode==='combined'?'active':''}" data-mode="combined" onclick="F.mode='combined';loadFinancials()">종합</button>
     <div style="margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11px;padding:0 4px">
       <span style="padding:1px 6px;border-radius:3px;background:rgba(45,206,137,.15);color:var(--green);font-weight:600">DART</span><span style="color:var(--text3)">금융감독원 공시</span>
       <span style="padding:1px 6px;border-radius:3px;background:rgba(251,99,64,.15);color:var(--yellow);font-weight:600">계산</span><span style="color:var(--text3)">DB 자동계산</span>
@@ -223,12 +222,10 @@ async function loadFinancials() {
   el.innerHTML = loadingHTML();
 
   try {
-    if (F.mode === 'market') {
-      await loadMarketData(el);
-    } else if (F.mode === 'financial') {
+    if (F.mode === 'financial') {
       await loadFinancialData(el);
     } else {
-      await loadCombinedData(el);
+      await loadMarketData(el);
     }
   } catch(e) {
     el.innerHTML = `${errorHTML(e.message)}`;
