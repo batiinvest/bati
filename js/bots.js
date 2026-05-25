@@ -133,6 +133,7 @@ function pBotConfig() {
       <button class="tab" onclick="switchBotCfgTab('schedule',this)">스케줄</button>
       <button class="tab" onclick="switchBotCfgTab('news-terms',this)">산업별 검색어</button>
       <button class="tab" onclick="switchBotCfgTab('alert',this)">시세 알림</button>
+      <button class="tab" onclick="switchBotCfgTab('pro',this)">프로 채널</button>
     </div>
     <button class="btn btn-sm btn-primary" id="botcfg-reload-btn" onclick="requestBotReload('botcfg-reload-btn')" title="저장한 설정을 봇에 즉시 반영합니다">
       <svg style="width:12px;height:12px;vertical-align:middle;margin-right:3px" viewBox="0 0 16 16" fill="none"><path d="M13.5 8A5.5 5.5 0 112.5 5M2.5 2v3h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -392,6 +393,75 @@ function pBotConfig() {
     </div>
   </div>
 
+  <!-- 프로 채널 탭 -->
+  <div id="botcfg-pro" style="display:none">
+
+    <!-- 현황 요약 -->
+    <div class="metrics-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:1rem" id="pro-stats-grid">
+      <div class="metric-card"><div class="metric-label">전체 멤버</div><div class="metric-value" id="pro-stat-total">—</div></div>
+      <div class="metric-card"><div class="metric-label">활성 구독</div><div class="metric-value" style="color:var(--green)" id="pro-stat-active">—</div></div>
+      <div class="metric-card"><div class="metric-label">채널 입장 중</div><div class="metric-value" style="color:var(--tg)" id="pro-stat-inch">—</div></div>
+      <div class="metric-card"><div class="metric-label">7일 내 만료</div><div class="metric-value" style="color:var(--yellow)" id="pro-stat-exp">—</div></div>
+    </div>
+
+    <!-- 프로 채널 ID 설정 -->
+    <div class="card" style="margin-bottom:.75rem">
+      <div class="card-header"><span class="card-title">⚙️ 프로 채널 설정</span></div>
+      <div class="card-body">
+        <div class="form-group" style="margin-bottom:.75rem">
+          <label class="form-label">프로 채널 ID</label>
+          <input class="form-input" id="cfg-pro-channel" placeholder="@batipro">
+          <div class="form-hint">유료 구독자 전용 비공개 채널의 @username 또는 숫자 ID. 봇이 해당 채널의 관리자여야 합니다.</div>
+        </div>
+        <button class="btn btn-primary" onclick="saveAlertConfig('pro_channel_id', 'cfg-pro-channel')">저장</button>
+      </div>
+    </div>
+
+    <!-- 신규 멤버 등록 -->
+    <div class="card" style="margin-bottom:.75rem">
+      <div class="card-header"><span class="card-title">➕ 신규 멤버 등록</span></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:10px;margin-bottom:.75rem">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">텔레그램 ID <span style="color:var(--red)">*</span></label>
+            <input class="form-input" id="pro-new-tid" type="number" placeholder="숫자 ID (예: 123456789)">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">실명</label>
+            <input class="form-input" id="pro-new-name" placeholder="홍길동">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">기간(개월)</label>
+            <input class="form-input" id="pro-new-months" type="number" min="1" max="24" value="1">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:.75rem">
+          <label class="form-label">텔레그램 @username</label>
+          <input class="form-input" id="pro-new-username" placeholder="@username (선택)">
+        </div>
+        <div class="form-group" style="margin-bottom:.75rem">
+          <label class="form-label">메모</label>
+          <input class="form-input" id="pro-new-memo" placeholder="결제 방법, 특이사항 등">
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="proAddMember()">등록 후 초대 발송</button>
+          <button class="btn" onclick="proAddMember(false)">등록만 (초대 나중에)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 멤버 목록 -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">👥 멤버 목록</span>
+        <button class="btn btn-sm" onclick="loadProMembers()">새로고침</button>
+      </div>
+      <div id="pro-member-list">
+        <div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>
+      </div>
+    </div>
+  </div>
+
   <div style="background:linear-gradient(135deg,rgba(42,171,238,.12),rgba(42,171,238,.04));border:1px solid rgba(42,171,238,.25);border-radius:var(--radius);padding:1rem 1.25rem">
     <div style="font-size:13px;font-weight:600;color:var(--tg);margin-bottom:.5rem">봇 서버 연동 방법</div>
     <div style="font-size:12px;color:var(--text2);line-height:1.9">
@@ -404,7 +474,7 @@ function pBotConfig() {
 }
 
 function switchBotCfgTab(tab, el) {
-  ['keywords','news-filter','dart-level','schedule','news-terms','alert'].forEach(t => {
+  ['keywords','news-filter','dart-level','schedule','news-terms','alert','pro'].forEach(t => {
     document.getElementById(`botcfg-${t}`).style.display = t === tab ? '' : 'none';
   });
   document.querySelectorAll('#botcfg-tabs .tab').forEach(t => t.classList.remove('active'));
@@ -415,6 +485,7 @@ function switchBotCfgTab(tab, el) {
   if (tab === 'news-filter') loadNewsFilter();
   if (tab === 'dart-level') loadDartLevel();
   if (tab === 'alert') loadAlertConfig();
+  if (tab === 'pro') { loadProChannelConfig(); loadProMembers(); }
 }
 
 async function loadBotConfig() {
@@ -664,6 +735,216 @@ function pSettings() {
     <p style="margin-top:.5rem;font-size:12px;color:var(--text3)">URL/Key 변경이 필요하면 index.html 상단의 SB_URL, SB_KEY를 직접 수정하세요.</p>
   </div></div>
 `;
+}
+
+// ══════════════════════════════════════════
+//  프로 채널 관리
+// ══════════════════════════════════════════
+
+async function loadProChannelConfig() {
+  const { data } = await sb.from('app_config').select('key,value').in('key', ['pro_channel_id']);
+  const map = {};
+  (data || []).forEach(r => map[r.key] = r.value);
+  const el = document.getElementById('cfg-pro-channel');
+  if (el) el.value = map['pro_channel_id'] || '@batipro';
+}
+
+async function loadProMembers() {
+  const listEl = document.getElementById('pro-member-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>';
+
+  try {
+    const { data: members, error } = await sb.from('pro_members')
+      .select('*').order('paid_until', { ascending: true });
+    if (error) throw error;
+
+    // 통계 업데이트
+    const today = new Date().toISOString().slice(0,10);
+    const in7   = new Date(Date.now() + 7*86400000).toISOString().slice(0,10);
+    const total  = (members||[]).length;
+    const active = (members||[]).filter(m => m.is_active).length;
+    const inCh   = (members||[]).filter(m => m.in_channel).length;
+    const exp7   = (members||[]).filter(m => m.is_active && m.paid_until <= in7 && m.paid_until >= today).length;
+
+    const s = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
+    s('pro-stat-total',  total);
+    s('pro-stat-active', active);
+    s('pro-stat-inch',   inCh);
+    s('pro-stat-exp',    exp7);
+
+    if (!members || !members.length) {
+      listEl.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:13px">등록된 멤버가 없습니다.</div>';
+      return;
+    }
+
+    const rows = (members || []).map(m => {
+      const until   = m.paid_until || '—';
+      const isExp   = until < today;
+      const isNear  = !isExp && until <= in7;
+      const expStyle = isExp ? 'color:var(--red)' : isNear ? 'color:var(--yellow)' : 'color:var(--green)';
+      const status  = m.in_channel
+        ? '<span class="badge" style="background:rgba(42,171,238,.15);color:var(--tg)">채널 내</span>'
+        : (m.is_active ? '<span class="badge badge-cat">초대 대기</span>' : '<span class="badge" style="background:rgba(var(--red-rgb),.12);color:var(--red)">비활성</span>');
+      return `<tr>
+        <td style="font-size:12px;color:var(--text2)">${m.telegram_id}</td>
+        <td><b>${m.real_name||'—'}</b><br><span style="font-size:11px;color:var(--text3)">${m.telegram_name||''}</span></td>
+        <td style="${expStyle};font-size:12px;font-weight:600">${until}${isExp?' <span style="font-size:10px">(만료)</span>':isNear?' <span style="font-size:10px">(D-'+Math.ceil((new Date(until)-new Date(today))/86400000)+')</span>':''}</td>
+        <td>${status}</td>
+        <td>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            <button class="btn btn-sm btn-primary" style="padding:2px 8px;font-size:11px" onclick="proSendInvite(${m.telegram_id})">초대</button>
+            <button class="btn btn-sm" style="padding:2px 8px;font-size:11px" onclick="proExtend(${m.telegram_id})">+1개월</button>
+            ${m.in_channel ? `<button class="btn btn-sm" style="padding:2px 8px;font-size:11px;color:var(--red)" onclick="proKick(${m.telegram_id}, '${(m.real_name||m.telegram_id+'').replace(/'/g,"\\'")}')">퇴장</button>` : ''}
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+
+    listEl.innerHTML = `<div class="table-wrap"><table>
+      <thead><tr><th>텔레그램 ID</th><th>이름</th><th>만료일</th><th>상태</th><th>액션</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+
+  } catch(e) {
+    listEl.innerHTML = `<div style="padding:1rem;color:var(--red);font-size:13px">조회 실패: ${e.message}</div>`;
+  }
+}
+
+async function proAddMember(sendInvite = true) {
+  if (!isAdmin()) { toast('admin만 가능합니다.', 'error'); return; }
+
+  const tid      = parseInt(document.getElementById('pro-new-tid')?.value.trim() || '0');
+  const name     = document.getElementById('pro-new-name')?.value.trim() || '';
+  const username = document.getElementById('pro-new-username')?.value.trim().replace(/^@/, '') || '';
+  const months   = parseInt(document.getElementById('pro-new-months')?.value || '1');
+  const memo     = document.getElementById('pro-new-memo')?.value.trim() || '';
+
+  if (!tid) { toast('텔레그램 ID를 입력해주세요.', 'error'); return; }
+  if (months < 1 || months > 24) { toast('기간은 1~24개월이어야 합니다.', 'error'); return; }
+
+  // 만료일 계산
+  const paidUntil = new Date(Date.now() + months * 30 * 86400000).toISOString().slice(0,10);
+
+  try {
+    // 기존 멤버 확인
+    const { data: existing } = await sb.from('pro_members').select('id,paid_until').eq('telegram_id', tid).maybeSingle();
+
+    if (existing) {
+      // 이미 있으면 연장
+      const current = new Date(existing.paid_until);
+      const base    = current > new Date() ? current : new Date();
+      const newUntil = new Date(base.getTime() + months * 30 * 86400000).toISOString().slice(0,10);
+      const { error } = await sb.from('pro_members').update({
+        real_name:     name || undefined,
+        telegram_name: username ? '@'+username : undefined,
+        paid_until:    newUntil,
+        is_active:     true,
+        updated_at:    new Date().toISOString(),
+      }).eq('telegram_id', tid);
+      if (error) throw error;
+      toast(`기존 멤버 ${months}개월 연장 (${newUntil})`, 'success');
+    } else {
+      // 신규 등록
+      const { error } = await sb.from('pro_members').insert({
+        telegram_id:   tid,
+        telegram_name: username ? '@'+username : '',
+        real_name:     name,
+        paid_until:    paidUntil,
+        is_active:     true,
+        in_channel:    false,
+        memo:          memo,
+      });
+      if (error) throw error;
+      toast(`멤버 등록 완료 (만료: ${paidUntil})`, 'success');
+    }
+
+    // 입력 필드 초기화
+    ['pro-new-tid','pro-new-name','pro-new-username','pro-new-memo'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const mEl = document.getElementById('pro-new-months');
+    if (mEl) mEl.value = '1';
+
+    // 초대 발송
+    if (sendInvite) {
+      await proSendInviteById(tid, months);
+    }
+
+    loadProMembers();
+
+  } catch(e) { toast('등록 실패: ' + e.message, 'error'); }
+}
+
+async function proSendInvite(telegramId) {
+  await proSendInviteById(telegramId, null);
+}
+
+async function proSendInviteById(telegramId, months) {
+  if (!isAdmin()) { toast('admin만 가능합니다.', 'error'); return; }
+  if (!confirm(`텔레그램 ID ${telegramId}에게 초대 링크를 발송할까요?`)) return;
+
+  try {
+    await sb.from('app_config').upsert({
+      key:   'pro_action_flag',
+      value: JSON.stringify({
+        action:       'invite',
+        telegram_id:  telegramId,
+        months:       months || 1,
+        requested_at: new Date().toISOString(),
+      }),
+    }, { onConflict: 'key' });
+    toast('초대 링크 발송 요청 전송 — 봇이 곧 처리합니다.', 'success');
+  } catch(e) { toast('요청 실패: ' + e.message, 'error'); }
+}
+
+async function proExtend(telegramId) {
+  if (!isAdmin()) { toast('admin만 가능합니다.', 'error'); return; }
+  const months = parseInt(prompt('연장 기간 (개월 수):', '1') || '0');
+  if (!months || months < 1) return;
+
+  try {
+    // DB 직접 업데이트
+    const { data: m } = await sb.from('pro_members').select('paid_until').eq('telegram_id', telegramId).single();
+    const current = new Date(m.paid_until);
+    const base    = current > new Date() ? current : new Date();
+    const newUntil = new Date(base.getTime() + months * 30 * 86400000).toISOString().slice(0,10);
+
+    const { error } = await sb.from('pro_members').update({
+      paid_until: newUntil,
+      is_active:  true,
+      updated_at: new Date().toISOString(),
+    }).eq('telegram_id', telegramId);
+    if (error) throw error;
+    toast(`${months}개월 연장 완료 → ${newUntil}`, 'success');
+    loadProMembers();
+  } catch(e) { toast('연장 실패: ' + e.message, 'error'); }
+}
+
+async function proKick(telegramId, memberName) {
+  if (!isAdmin()) { toast('admin만 가능합니다.', 'error'); return; }
+  if (!confirm(`${memberName || telegramId}을(를) 프로 채널에서 퇴장시킬까요?`)) return;
+
+  try {
+    await sb.from('app_config').upsert({
+      key:   'pro_action_flag',
+      value: JSON.stringify({
+        action:       'kick',
+        telegram_id:  telegramId,
+        requested_at: new Date().toISOString(),
+      }),
+    }, { onConflict: 'key' });
+
+    // DB is_active 즉시 업데이트
+    await sb.from('pro_members').update({
+      is_active:  false,
+      updated_at: new Date().toISOString(),
+    }).eq('telegram_id', telegramId);
+
+    toast('퇴장 요청 전송 — 봇이 곧 처리합니다.', 'success');
+    setTimeout(loadProMembers, 1000);
+  } catch(e) { toast('퇴장 요청 실패: ' + e.message, 'error'); }
 }
 
 // ══════════════════════════════════════════
