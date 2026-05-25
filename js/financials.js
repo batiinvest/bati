@@ -183,6 +183,19 @@ function initFinancials() {
   F.sortBy   = 'market_cap';
   F.sortDir  = 'desc';
 
+  // #content overflow-x:hidden → body 가로스크롤 차단
+  // (탭 레전드 등 #fin-table 외부 요소도 원인일 수 있어 최상위에서 차단)
+  // 페이지 이탈 시 MutationObserver가 자동으로 리셋
+  const _contentEl = document.getElementById('content');
+  if (_contentEl) {
+    _contentEl.style.overflowX = 'hidden';
+    const _obs = new MutationObserver(() => {
+      _contentEl.style.overflowX = '';
+      _obs.disconnect();
+    });
+    _obs.observe(_contentEl, { childList: true });
+  }
+
   loadFinancials();
 
   // #fin-table 높이를 viewport 잔여 공간에 맞게 설정
