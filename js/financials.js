@@ -34,7 +34,7 @@ function pFinancials() {
     </div>
 
     <div class="card" id="fin-table" style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;margin-bottom:0">
-      <div id="fin-table-inner" style="flex:1;min-height:0;overflow:hidden">${loadingHTML()}</div>
+      <div id="fin-table-inner" style="flex:1;min-height:0;overflow-x:auto;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) var(--bg3)">${loadingHTML()}</div>
     </div>
 
   </div>`;
@@ -121,32 +121,24 @@ async function _getMonitoredCodes() {
  */
 function _renderTable(headers, bodyRows) {
   if (!bodyRows.length) return emptyHTML();
+  // overflow/scroll 은 #fin-table-inner 가 직접 담당 (pFinancials 참조)
   return `
-    <div style="
-      overflow-x:auto;
-      overflow-y:auto;
-      height:100%;
-      width:100%;
-      scrollbar-width:thin;
-      scrollbar-color:rgba(255,255,255,.2) var(--bg3);
-    ">
-      <table style="border-collapse:collapse;width:max-content;min-width:100%;font-size:13px">
-        <thead>
-          <tr>
-            ${headers.map(h => `<th style="
-              position:sticky;top:0;z-index:2;
-              background:var(--bg2);
-              border-bottom:2px solid var(--border2);
-              text-align:left;padding:9px 12px;
-              font-size:11px;font-weight:600;color:var(--text2);
-              text-transform:uppercase;letter-spacing:.06em;
-              white-space:nowrap;
-            ">${h}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>${bodyRows.join('')}</tbody>
-      </table>
-    </div>`;
+    <table style="border-collapse:collapse;width:max-content;min-width:100%;font-size:13px">
+      <thead>
+        <tr>
+          ${headers.map(h => `<th style="
+            position:sticky;top:0;z-index:2;
+            background:var(--bg2);
+            border-bottom:2px solid var(--border2);
+            text-align:left;padding:9px 12px;
+            font-size:11px;font-weight:600;color:var(--text2);
+            text-transform:uppercase;letter-spacing:.06em;
+            white-space:nowrap;
+          ">${h}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>${bodyRows.join('')}</tbody>
+    </table>`;
 }
 
 /**
