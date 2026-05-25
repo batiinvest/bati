@@ -168,6 +168,10 @@ function _setFinTableHeight() {
   if (!el) return;
   const top = el.getBoundingClientRect().top;
   el.style.maxHeight = Math.max(200, window.innerHeight - top - 8) + 'px';
+  // fin-table-inner 너비를 fin-table 내부 너비(스크롤바 제외)로 명시 고정
+  // → overflow:visible인 inner가 테이블 너비를 body로 흘리는 경로를 차단
+  const inner = document.getElementById('fin-table-inner');
+  if (inner) inner.style.width = el.clientWidth + 'px';
 }
 
 function initFinancials() {
