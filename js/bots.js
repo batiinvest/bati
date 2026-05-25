@@ -699,9 +699,9 @@ function pPro() {
     <div class="card-header"><span class="card-title">➕ 신규 멤버 등록</span></div>
     <div class="card-body">
       <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:.75rem;font-size:12px;color:var(--text2);line-height:1.9">
-        💡 <b>텔레그램 ID 확인 방법</b><br>
-        멤버에게 <a href="https://t.me/baticompanybot" target="_blank" style="color:var(--tg)">@baticompanybot</a> 에서 <code style="background:var(--bg2);padding:1px 5px;border-radius:3px">/myid</code> 를 보내달라고 안내하세요.<br>
-        또는 <a href="https://t.me/userinfobot" target="_blank" style="color:var(--tg)">@userinfobot</a> 에서 /start 를 보내도 확인 가능합니다.
+        💡 <b>텔레그램 ID 확인</b><br>
+        구독 신청자가 <a href="https://t.me/baticompanybot" target="_blank" style="color:var(--tg)">@baticompanybot</a> 에 <b>말을 걸면</b> 어드민 채팅방으로 신청자 정보(이름·ID)가 자동으로 전달됩니다.<br>
+        <span style="color:var(--text3)">별도로 ID를 물어보거나 복사할 필요 없습니다.</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:10px;margin-bottom:.75rem">
         <div class="form-group" style="margin:0">
