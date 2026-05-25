@@ -31,8 +31,10 @@ function pFinancials() {
     </div>
   </div>
 
-  <div class="card" id="fin-table" style="overflow-x:auto;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) var(--bg3);margin-bottom:0">
-    <div id="fin-table-inner">${loadingHTML()}</div>
+  <div id="fin-table" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:0">
+    <div id="fin-table-inner" style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 210px);scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) var(--bg3)">
+      ${loadingHTML()}
+    </div>
   </div>`;
 }
 
@@ -171,18 +173,6 @@ function initFinancials() {
   F.industry = '전체';
   F.sortBy   = 'market_cap';
   F.sortDir  = 'desc';
-
-  // #fin-table max-height를 DOM 실측으로 동적 세팅
-  // card.top ~ 뷰포트 하단(content paddingBottom 제외)까지 정확히 계산
-  requestAnimationFrame(() => {
-    const card    = document.getElementById('fin-table');
-    const content = document.getElementById('content');
-    if (card && content) {
-      const top = card.getBoundingClientRect().top;
-      const pb  = parseFloat(getComputedStyle(content).paddingBottom) || 21;
-      card.style.maxHeight = (window.innerHeight - top - pb) + 'px';
-    }
-  });
 
   loadFinancials();
 }
