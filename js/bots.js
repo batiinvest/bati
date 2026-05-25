@@ -690,7 +690,12 @@ function pPro() {
         <input class="form-input" id="cfg-pro-channel" placeholder="@batipro">
         <div class="form-hint">유료 구독자 전용 비공개 채널의 @username 또는 숫자 ID. 봇이 해당 채널의 관리자여야 합니다.</div>
       </div>
-      <button class="btn btn-primary" onclick="saveAlertConfig('pro_channel_id', 'cfg-pro-channel')">저장</button>
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label class="form-label">구독 신청 알림 수신 ID</label>
+        <input class="form-input" id="cfg-pro-admin" placeholder="숫자 ID (예: 123456789)">
+        <div class="form-hint">누군가 @baticompanybot 에 말을 걸면 이 ID로 알림이 옵니다. <b>@baticompanybot 에서 /myid</b> 로 확인하세요.</div>
+      </div>
+      <button class="btn btn-primary" onclick="saveProChannelConfig()">저장</button>
     </div>
   </div>
 
@@ -754,7 +759,7 @@ function initPro() {
 // ══════════════════════════════════════════
 
 async function loadProChannelConfig() {
-  const keys = ['pro_channel_id', 'sms_webhook_token'];
+  const keys = ['pro_channel_id', 'pro_admin_chat_id', 'sms_webhook_token'];
   const { data } = await sb.from('app_config').select('key,value').in('key', keys);
   const map = {};
   (data || []).forEach(r => map[r.key] = r.value);
@@ -762,8 +767,30 @@ async function loadProChannelConfig() {
   const el = document.getElementById('cfg-pro-channel');
   if (el) el.value = map['pro_channel_id'] || '@batipro';
 
+  const adminEl = document.getElementById('cfg-pro-admin');
+  if (adminEl) adminEl.value = map['pro_admin_chat_id'] || '';
+
   const tokenEl = document.getElementById('cfg-sms-token');
   if (tokenEl) tokenEl.value = map['sms_webhook_token'] || '';
+}
+
+async function saveProChannelConfig() {
+  if (!isAdmin()) { toast('admin만 가능합니다.', 'error'); return; }
+  const channelVal = document.getElementById('cfg-pro-channel')?.value.trim();
+  const adminVal   = document.getElementById('cfg-pro-admin')?.value.trim();
+  if (!channelVal && !adminVal) { toast('값을 입력해주세요.', 'error'); return; }
+  try {
+    const updates = [];
+    if (channelVal) updates.push({ key: 'pro_channel_id',    value: channelVal });
+    if (adminVal)   updates.push({ key: 'pro_admin_chat_id', value: adminVal });
+    for (const u of updates) {
+      await sb.from('app_config').upsert(
+        { key: u.key, value: u.value, updated_at: new Date().toISOString() },
+        { onConflict: 'key' }
+      );
+    }
+    toast('저장 완료', 'success');
+  } catch(e) { toast('저장 실패: ' + e.message, 'error'); }
 }
 
 async function saveSmsToken() {
