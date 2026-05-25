@@ -417,6 +417,36 @@ function pBotConfig() {
       </div>
     </div>
 
+    <!-- SMS 입금 자동화 설정 -->
+    <div class="card" style="margin-bottom:.75rem">
+      <div class="card-header">
+        <span class="card-title">📱 입금 자동 인식 (SMS Forwarder)</span>
+        <button class="btn btn-sm" onclick="loadSmsDeposits()">이력 새로고침</button>
+      </div>
+      <div class="card-body">
+        <div style="font-size:12px;color:var(--text2);background:var(--bg3);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:.75rem;line-height:2">
+          <b>설정 방법</b><br>
+          1. 안드로이드에 <b>SmsForwarder</b> 앱 설치<br>
+          2. 채널 추가 → <b>自定义WebHook</b> 선택<br>
+          3. URL: <code id="sms-webhook-url" style="background:var(--bg2);padding:1px 6px;border-radius:3px">http://서버IP:5001/sms?token=SECRET</code>
+          <button class="btn btn-sm" style="margin-left:6px;padding:2px 8px;font-size:11px" onclick="copySmsUrl()">복사</button><br>
+          4. 은행 SMS 수신 시 자동으로 입금자 확인 → 구독 연장 → 초대 링크 발송
+        </div>
+        <div class="form-group" style="margin-bottom:.75rem">
+          <label class="form-label">웹훅 인증 토큰 <span style="font-size:11px;color:var(--text3)">(app_config → sms_webhook_token)</span></label>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" id="cfg-sms-token" placeholder="비밀 토큰 (미설정 시 인증 없음)">
+            <button class="btn btn-primary" style="white-space:nowrap" onclick="saveSmsToken()">저장</button>
+          </div>
+          <div class="form-hint">보안을 위해 랜덤 문자열을 설정하세요. 웹훅 URL의 ?token= 뒤에 동일하게 입력.</div>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:.5rem;font-weight:600">최근 입금 처리 이력</div>
+        <div id="sms-deposit-log">
+          <div style="font-size:12px;color:var(--text3)">이력 새로고침 버튼을 눌러주세요.</div>
+        </div>
+      </div>
+    </div>
+
     <!-- 신규 멤버 등록 -->
     <div class="card" style="margin-bottom:.75rem">
       <div class="card-header"><span class="card-title">➕ 신규 멤버 등록</span></div>
@@ -742,11 +772,78 @@ function pSettings() {
 // ══════════════════════════════════════════
 
 async function loadProChannelConfig() {
-  const { data } = await sb.from('app_config').select('key,value').in('key', ['pro_channel_id']);
+  const keys = ['pro_channel_id', 'sms_webhook_token'];
+  const { data } = await sb.from('app_config').select('key,value').in('key', keys);
   const map = {};
   (data || []).forEach(r => map[r.key] = r.value);
+
   const el = document.getElementById('cfg-pro-channel');
   if (el) el.value = map['pro_channel_id'] || '@batipro';
+
+  const tokenEl = document.getElementById('cfg-sms-token');
+  if (tokenEl) tokenEl.value = map['sms_webhook_token'] || '';
+}
+
+async function saveSmsToken() {
+  if (!isAdmin()) { toast('admin만 가능합니다.', 'error'); return; }
+  const val = document.getElementById('cfg-sms-token')?.value.trim();
+  if (!val) { toast('토큰을 입력해주세요.', 'error'); return; }
+  try {
+    await sb.from('app_config').upsert(
+      { key: 'sms_webhook_token', value: val, updated_at: new Date().toISOString() },
+      { onConflict: 'key' }
+    );
+    toast('토큰 저장 완료', 'success');
+  } catch(e) { toast('저장 실패: ' + e.message, 'error'); }
+}
+
+function copySmsUrl() {
+  const urlEl = document.getElementById('sms-webhook-url');
+  if (!urlEl) return;
+  const text = urlEl.textContent;
+  navigator.clipboard?.writeText(text).then(() => toast('URL 복사됨', 'info'))
+    .catch(() => toast('직접 복사해주세요: ' + text, 'info'));
+}
+
+async function loadSmsDeposits() {
+  const logEl = document.getElementById('sms-deposit-log');
+  if (!logEl) return;
+
+  try {
+    // app_config에서 최근 이력 로드
+    const { data } = await sb.from('app_config').select('value').eq('key', 'sms_deposit_log').maybeSingle();
+    if (!data || !data.value) {
+      logEl.innerHTML = '<div style="font-size:12px;color:var(--text3)">아직 처리 이력이 없습니다.</div>';
+      return;
+    }
+    const entries = JSON.parse(data.value).reverse();
+    if (!entries.length) {
+      logEl.innerHTML = '<div style="font-size:12px;color:var(--text3)">아직 처리 이력이 없습니다.</div>';
+      return;
+    }
+
+    const STATUS_LABEL = {
+      'auto_extended': ['✅ 자동 처리', 'var(--green)'],
+      'unmatched':     ['❓ 미매칭',   'var(--yellow)'],
+      'error':         ['❌ 오류',     'var(--red)'],
+    };
+
+    logEl.innerHTML = '<div class="table-wrap"><table><thead><tr><th>시각</th><th>은행</th><th>입금자</th><th>금액</th><th>처리</th></tr></thead><tbody>' +
+      entries.map(e => {
+        const [label, color] = STATUS_LABEL[e.action] || ['?', 'var(--text3)'];
+        const time = new Date(e.time).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+        return `<tr>
+          <td style="font-size:11px;color:var(--text2)">${time}</td>
+          <td style="font-size:12px">${e.bank||'?'}</td>
+          <td><b>${e.name||'?'}</b>${e.member && e.member !== e.name ? `<br><span style="font-size:10px;color:var(--text3)">→ ${e.member}</span>` : ''}</td>
+          <td style="font-size:12px">${(e.amount||0).toLocaleString()}원</td>
+          <td style="color:${color};font-size:12px;font-weight:600">${label}</td>
+        </tr>`;
+      }).join('') +
+    '</tbody></table></div>';
+  } catch(e) {
+    logEl.innerHTML = `<div style="font-size:12px;color:var(--red)">로드 실패: ${e.message}</div>`;
+  }
 }
 
 async function loadProMembers() {
