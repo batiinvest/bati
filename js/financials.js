@@ -31,7 +31,7 @@ function pFinancials() {
     </div>
   </div>
 
-  <div id="fin-table" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:0;overflow:hidden">
+  <div id="fin-table" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) var(--bg3)">
     <div id="fin-table-inner">${loadingHTML()}</div>
   </div>`;
 }
@@ -118,24 +118,22 @@ async function _getMonitoredCodes() {
 function _renderTable(headers, bodyRows) {
   if (!bodyRows.length) return emptyHTML();
   return `
-    <div style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 400px);scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) var(--bg3)">
-      <table style="border-collapse:collapse;width:max-content;min-width:100%;font-size:13px">
-        <thead>
-          <tr>
-            ${headers.map(h => `<th style="
-              position:sticky;top:0;z-index:2;
-              background:var(--bg2);
-              border-bottom:2px solid var(--border2);
-              text-align:left;padding:9px 12px;
-              font-size:11px;font-weight:600;color:var(--text2);
-              text-transform:uppercase;letter-spacing:.06em;
-              white-space:nowrap;
-            ">${h}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>${bodyRows.join('')}</tbody>
-      </table>
-    </div>`;
+    <table style="border-collapse:collapse;width:max-content;min-width:100%;font-size:13px">
+      <thead>
+        <tr>
+          ${headers.map(h => `<th style="
+            position:sticky;top:0;z-index:2;
+            background:var(--bg2);
+            border-bottom:2px solid var(--border2);
+            text-align:left;padding:9px 12px;
+            font-size:11px;font-weight:600;color:var(--text2);
+            text-transform:uppercase;letter-spacing:.06em;
+            white-space:nowrap;
+          ">${h}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>${bodyRows.join('')}</tbody>
+    </table>`;
 }
 
 /**
@@ -162,6 +160,14 @@ async function _loadTabData(el, config) {
     typeof headers === 'function' ? headers(rows) : headers,
     rows.map(config.rowTemplate)
   );
+  _setFinTableHeight();
+}
+
+function _setFinTableHeight() {
+  const el = document.getElementById('fin-table');
+  if (!el) return;
+  const top = el.getBoundingClientRect().top;
+  el.style.maxHeight = Math.max(200, window.innerHeight - top - 8) + 'px';
 }
 
 function initFinancials() {
@@ -174,6 +180,12 @@ function initFinancials() {
   F.sortDir  = 'desc';
 
   loadFinancials();
+
+  // #fin-table 높이를 viewport 잔여 공간에 맞게 설정
+  requestAnimationFrame(_setFinTableHeight);
+  window.removeEventListener('resize', window._finResizeHandler);
+  window._finResizeHandler = _setFinTableHeight;
+  window.addEventListener('resize', _setFinTableHeight);
 }
 
 async function loadFinancials() {
