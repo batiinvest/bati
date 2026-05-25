@@ -365,6 +365,18 @@ function pBotConfig() {
       </div>
     </div>
 
+    <div class="card" style="margin-bottom:.75rem">
+      <div class="card-header"><span class="card-title">📑 리포트 채널</span></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">리포트 채널 ID</label>
+          <input class="form-input" id="cfg-report-chat" placeholder="@batiarchive">
+          <div class="form-hint">네이버 증권 리포트(산업분석·기업분석 PDF)가 발송되는 채널입니다. @username 또는 숫자 ID 형식.</div>
+        </div>
+        <button class="btn btn-primary" onclick="saveAlertConfig('report_chat_id', 'cfg-report-chat')">저장</button>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-header">
         <span class="card-title">🔍 신뢰도 낮은 출처 <span style="font-size:11px;font-weight:400;color:var(--text3)">— URL에 포함 시 낮은 우선순위</span></span>
@@ -562,7 +574,7 @@ async function toggleSchedule(key, enabled) {
 // ══════════════════════════════════════════
 async function loadAlertConfig() {
   const keys = ['alert_threshold_surge', 'alert_threshold_up', 'alert_threshold_down',
-                'admin_chat_id', 'news_low_trust_sources'];
+                'admin_chat_id', 'report_chat_id', 'news_low_trust_sources'];
   const { data } = await sb.from('app_config').select('key,value').in('key', keys);
   const map = {};
   (data || []).forEach(r => map[r.key] = r.value);
@@ -575,6 +587,7 @@ async function loadAlertConfig() {
   set('cfg-alert-up',    'alert_threshold_up',    '5');
   set('cfg-alert-down',  'alert_threshold_down',  '-5');
   set('cfg-admin-chat',  'admin_chat_id',          '@batiinvest');
+  set('cfg-report-chat', 'report_chat_id',         '@batiarchive');
   set('cfg-low-trust',   'news_low_trust_sources', 'blog.naver,cafe.naver,tistory,brunch,newspim,fntoday,edaily');
 }
 
