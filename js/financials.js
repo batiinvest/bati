@@ -31,8 +31,8 @@ function pFinancials() {
     </div>
   </div>
 
-  <div class="card" id="fin-table" style="display:flex;flex-direction:column;overflow:hidden;margin-bottom:0">
-    <div id="fin-table-inner" style="flex:1;min-height:0;overflow-x:auto;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) var(--bg3)">${loadingHTML()}</div>
+  <div class="card" id="fin-table" style="overflow-x:auto;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) var(--bg3);margin-bottom:0">
+    <div id="fin-table-inner">${loadingHTML()}</div>
   </div>`;
 }
 
@@ -172,15 +172,15 @@ function initFinancials() {
   F.sortBy   = 'market_cap';
   F.sortDir  = 'desc';
 
-  // #fin-table 높이를 DOM 실측으로 동적 세팅
-  // (CSS calc 하드코딩 없이, 카드 상단 위치~뷰포트 하단 정확하게 계산)
+  // #fin-table max-height를 DOM 실측으로 동적 세팅
+  // card.top ~ 뷰포트 하단(content paddingBottom 제외)까지 정확히 계산
   requestAnimationFrame(() => {
     const card    = document.getElementById('fin-table');
     const content = document.getElementById('content');
     if (card && content) {
       const top = card.getBoundingClientRect().top;
       const pb  = parseFloat(getComputedStyle(content).paddingBottom) || 21;
-      card.style.height = (window.innerHeight - top - pb) + 'px';
+      card.style.maxHeight = (window.innerHeight - top - pb) + 'px';
     }
   });
 
