@@ -31,7 +31,7 @@ function pFinancials() {
     </div>
   </div>
 
-  <div id="fin-table" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:0">
+  <div id="fin-table" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:0;overflow:hidden">
     <div id="fin-table-inner">${loadingHTML()}</div>
   </div>`;
 }
