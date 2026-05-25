@@ -133,7 +133,6 @@ function pBotConfig() {
       <button class="tab" onclick="switchBotCfgTab('schedule',this)">스케줄</button>
       <button class="tab" onclick="switchBotCfgTab('news-terms',this)">산업별 검색어</button>
       <button class="tab" onclick="switchBotCfgTab('alert',this)">시세 알림</button>
-      <button class="tab" onclick="switchBotCfgTab('pro',this)">프로 채널</button>
     </div>
     <button class="btn btn-sm btn-primary" id="botcfg-reload-btn" onclick="requestBotReload('botcfg-reload-btn')" title="저장한 설정을 봇에 즉시 반영합니다">
       <svg style="width:12px;height:12px;vertical-align:middle;margin-right:3px" viewBox="0 0 16 16" fill="none"><path d="M13.5 8A5.5 5.5 0 112.5 5M2.5 2v3h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -393,105 +392,6 @@ function pBotConfig() {
     </div>
   </div>
 
-  <!-- 프로 채널 탭 -->
-  <div id="botcfg-pro" style="display:none">
-
-    <!-- 현황 요약 -->
-    <div class="metrics-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:1rem" id="pro-stats-grid">
-      <div class="metric-card"><div class="metric-label">전체 멤버</div><div class="metric-value" id="pro-stat-total">—</div></div>
-      <div class="metric-card"><div class="metric-label">활성 구독</div><div class="metric-value" style="color:var(--green)" id="pro-stat-active">—</div></div>
-      <div class="metric-card"><div class="metric-label">채널 입장 중</div><div class="metric-value" style="color:var(--tg)" id="pro-stat-inch">—</div></div>
-      <div class="metric-card"><div class="metric-label">7일 내 만료</div><div class="metric-value" style="color:var(--yellow)" id="pro-stat-exp">—</div></div>
-    </div>
-
-    <!-- 프로 채널 ID 설정 -->
-    <div class="card" style="margin-bottom:.75rem">
-      <div class="card-header"><span class="card-title">⚙️ 프로 채널 설정</span></div>
-      <div class="card-body">
-        <div class="form-group" style="margin-bottom:.75rem">
-          <label class="form-label">프로 채널 ID</label>
-          <input class="form-input" id="cfg-pro-channel" placeholder="@batipro">
-          <div class="form-hint">유료 구독자 전용 비공개 채널의 @username 또는 숫자 ID. 봇이 해당 채널의 관리자여야 합니다.</div>
-        </div>
-        <button class="btn btn-primary" onclick="saveAlertConfig('pro_channel_id', 'cfg-pro-channel')">저장</button>
-      </div>
-    </div>
-
-    <!-- SMS 입금 자동화 설정 -->
-    <div class="card" style="margin-bottom:.75rem">
-      <div class="card-header">
-        <span class="card-title">📱 입금 자동 인식 (SMS Forwarder)</span>
-        <button class="btn btn-sm" onclick="loadSmsDeposits()">이력 새로고침</button>
-      </div>
-      <div class="card-body">
-        <div style="font-size:12px;color:var(--text2);background:var(--bg3);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:.75rem;line-height:2">
-          <b>설정 방법</b><br>
-          1. 안드로이드에 <b>SmsForwarder</b> 앱 설치<br>
-          2. 채널 추가 → <b>自定义WebHook</b> 선택<br>
-          3. URL: <code id="sms-webhook-url" style="background:var(--bg2);padding:1px 6px;border-radius:3px">http://서버IP:5001/sms?token=SECRET</code>
-          <button class="btn btn-sm" style="margin-left:6px;padding:2px 8px;font-size:11px" onclick="copySmsUrl()">복사</button><br>
-          4. 은행 SMS 수신 시 자동으로 입금자 확인 → 구독 연장 → 초대 링크 발송
-        </div>
-        <div class="form-group" style="margin-bottom:.75rem">
-          <label class="form-label">웹훅 인증 토큰 <span style="font-size:11px;color:var(--text3)">(app_config → sms_webhook_token)</span></label>
-          <div style="display:flex;gap:8px">
-            <input class="form-input" id="cfg-sms-token" placeholder="비밀 토큰 (미설정 시 인증 없음)">
-            <button class="btn btn-primary" style="white-space:nowrap" onclick="saveSmsToken()">저장</button>
-          </div>
-          <div class="form-hint">보안을 위해 랜덤 문자열을 설정하세요. 웹훅 URL의 ?token= 뒤에 동일하게 입력.</div>
-        </div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:.5rem;font-weight:600">최근 입금 처리 이력</div>
-        <div id="sms-deposit-log">
-          <div style="font-size:12px;color:var(--text3)">이력 새로고침 버튼을 눌러주세요.</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 신규 멤버 등록 -->
-    <div class="card" style="margin-bottom:.75rem">
-      <div class="card-header"><span class="card-title">➕ 신규 멤버 등록</span></div>
-      <div class="card-body">
-        <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:10px;margin-bottom:.75rem">
-          <div class="form-group" style="margin:0">
-            <label class="form-label">텔레그램 ID <span style="color:var(--red)">*</span></label>
-            <input class="form-input" id="pro-new-tid" type="number" placeholder="숫자 ID (예: 123456789)">
-          </div>
-          <div class="form-group" style="margin:0">
-            <label class="form-label">실명</label>
-            <input class="form-input" id="pro-new-name" placeholder="홍길동">
-          </div>
-          <div class="form-group" style="margin:0">
-            <label class="form-label">기간(개월)</label>
-            <input class="form-input" id="pro-new-months" type="number" min="1" max="24" value="1">
-          </div>
-        </div>
-        <div class="form-group" style="margin-bottom:.75rem">
-          <label class="form-label">텔레그램 @username</label>
-          <input class="form-input" id="pro-new-username" placeholder="@username (선택)">
-        </div>
-        <div class="form-group" style="margin-bottom:.75rem">
-          <label class="form-label">메모</label>
-          <input class="form-input" id="pro-new-memo" placeholder="결제 방법, 특이사항 등">
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-primary" onclick="proAddMember()">등록 후 초대 발송</button>
-          <button class="btn" onclick="proAddMember(false)">등록만 (초대 나중에)</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 멤버 목록 -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">👥 멤버 목록</span>
-        <button class="btn btn-sm" onclick="loadProMembers()">새로고침</button>
-      </div>
-      <div id="pro-member-list">
-        <div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>
-      </div>
-    </div>
-  </div>
-
   <div style="background:linear-gradient(135deg,rgba(42,171,238,.12),rgba(42,171,238,.04));border:1px solid rgba(42,171,238,.25);border-radius:var(--radius);padding:1rem 1.25rem">
     <div style="font-size:13px;font-weight:600;color:var(--tg);margin-bottom:.5rem">봇 서버 연동 방법</div>
     <div style="font-size:12px;color:var(--text2);line-height:1.9">
@@ -504,7 +404,7 @@ function pBotConfig() {
 }
 
 function switchBotCfgTab(tab, el) {
-  ['keywords','news-filter','dart-level','schedule','news-terms','alert','pro'].forEach(t => {
+  ['keywords','news-filter','dart-level','schedule','news-terms','alert'].forEach(t => {
     document.getElementById(`botcfg-${t}`).style.display = t === tab ? '' : 'none';
   });
   document.querySelectorAll('#botcfg-tabs .tab').forEach(t => t.classList.remove('active'));
@@ -515,7 +415,6 @@ function switchBotCfgTab(tab, el) {
   if (tab === 'news-filter') loadNewsFilter();
   if (tab === 'dart-level') loadDartLevel();
   if (tab === 'alert') loadAlertConfig();
-  if (tab === 'pro') { loadProChannelConfig(); loadProMembers(); }
 }
 
 async function loadBotConfig() {
@@ -765,6 +664,84 @@ function pSettings() {
     <p style="margin-top:.5rem;font-size:12px;color:var(--text3)">URL/Key 변경이 필요하면 index.html 상단의 SB_URL, SB_KEY를 직접 수정하세요.</p>
   </div></div>
 `;
+}
+
+// ══════════════════════════════════════════
+//  프로 채널 페이지 (독립 페이지)
+// ══════════════════════════════════════════
+
+function pPro() {
+  if (!isAdmin()) return `<div style="padding:2rem;text-align:center;color:var(--text3);font-size:13px">admin만 접근 가능합니다.</div>`;
+  return `
+  <!-- 현황 요약 -->
+  <div class="metrics-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:1rem">
+    <div class="metric-card"><div class="metric-label">전체 멤버</div><div class="metric-value" id="pro-stat-total">—</div></div>
+    <div class="metric-card"><div class="metric-label">활성 구독</div><div class="metric-value" style="color:var(--green)" id="pro-stat-active">—</div></div>
+    <div class="metric-card"><div class="metric-label">채널 입장 중</div><div class="metric-value" style="color:var(--tg)" id="pro-stat-inch">—</div></div>
+    <div class="metric-card"><div class="metric-label">7일 내 만료</div><div class="metric-value" style="color:var(--yellow)" id="pro-stat-exp">—</div></div>
+  </div>
+
+  <!-- 프로 채널 ID 설정 -->
+  <div class="card" style="margin-bottom:.75rem">
+    <div class="card-header"><span class="card-title">⚙️ 프로 채널 설정</span></div>
+    <div class="card-body">
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label class="form-label">프로 채널 ID</label>
+        <input class="form-input" id="cfg-pro-channel" placeholder="@batipro">
+        <div class="form-hint">유료 구독자 전용 비공개 채널의 @username 또는 숫자 ID. 봇이 해당 채널의 관리자여야 합니다.</div>
+      </div>
+      <button class="btn btn-primary" onclick="saveAlertConfig('pro_channel_id', 'cfg-pro-channel')">저장</button>
+    </div>
+  </div>
+
+  <!-- 신규 멤버 등록 -->
+  <div class="card" style="margin-bottom:.75rem">
+    <div class="card-header"><span class="card-title">➕ 신규 멤버 등록</span></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:10px;margin-bottom:.75rem">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">텔레그램 ID <span style="color:var(--red)">*</span></label>
+          <input class="form-input" id="pro-new-tid" type="number" placeholder="숫자 ID (예: 123456789)">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">실명</label>
+          <input class="form-input" id="pro-new-name" placeholder="홍길동">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">기간(개월)</label>
+          <input class="form-input" id="pro-new-months" type="number" min="1" max="24" value="1">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label class="form-label">텔레그램 @username</label>
+        <input class="form-input" id="pro-new-username" placeholder="@username (선택)">
+      </div>
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label class="form-label">메모</label>
+        <input class="form-input" id="pro-new-memo" placeholder="결제 방법, 특이사항 등">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="proAddMember()">등록 후 초대 발송</button>
+        <button class="btn" onclick="proAddMember(false)">등록만 (초대 나중에)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 멤버 목록 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">👥 멤버 목록</span>
+      <button class="btn btn-sm" onclick="loadProMembers()">새로고침</button>
+    </div>
+    <div id="pro-member-list">
+      <div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>
+    </div>
+  </div>`;
+}
+
+function initPro() {
+  loadProChannelConfig();
+  loadProMembers();
 }
 
 // ══════════════════════════════════════════

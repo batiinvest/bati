@@ -21,6 +21,7 @@ const PAGE_META = {
   financials: { title: '기업 분석',     fn: 'pFinancials',  onLoad: 'initFinancials' },
   comparison: { title: '기업 비교 분석',fn: 'pComparison',  onLoad: 'initCmpPage' },
   stocks:     { title: '종목 관리',     fn: 'pStocks',      onLoad: 'loadStocks' },
+  pro:        { title: '프로 채널',     fn: 'pPro',         onLoad: 'initPro' },
   team:       { title: '팀원 관리',     fn: 'pTeam',        onLoad: 'loadTeam' },
   settings:   { title: '설정',          fn: 'pSettings',    onLoad: null },
 };
