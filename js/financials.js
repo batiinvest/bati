@@ -4,39 +4,35 @@
 function pFinancials() {
   const industries = ['전체', ...INDUSTRIES];
   return `
-  <div style="display:flex;flex-direction:column;height:calc(100vh - 104px);overflow:hidden">
-
-    <div class="tabs" style="flex-shrink:0;margin-bottom:.75rem">
-      <button class="tab fin-tab ${F.mode==='market'?'active':''}" data-mode="market" onclick="F.mode='market';loadFinancials()">시장 데이터</button>
-      <button class="tab fin-tab ${F.mode==='financial'?'active':''}" data-mode="financial" onclick="F.mode='financial';loadFinancials()">재무제표</button>
-      <button class="tab fin-tab ${F.mode==='combined'?'active':''}" data-mode="combined" onclick="F.mode='combined';loadFinancials()">종합</button>
-      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11px;padding:0 4px">
-        <span style="padding:1px 6px;border-radius:3px;background:rgba(45,206,137,.15);color:var(--green);font-weight:600">DART</span><span style="color:var(--text3)">금융감독원 공시</span>
-        <span style="padding:1px 6px;border-radius:3px;background:rgba(251,99,64,.15);color:var(--yellow);font-weight:600">계산</span><span style="color:var(--text3)">DB 자동계산</span>
-        <span style="padding:1px 6px;border-radius:3px;background:rgba(42,171,238,.15);color:var(--tg);font-weight:600">KIS</span><span style="color:var(--text3)">한투 API</span>
-      </div>
+  <div class="tabs" style="margin-bottom:.75rem">
+    <button class="tab fin-tab ${F.mode==='market'?'active':''}" data-mode="market" onclick="F.mode='market';loadFinancials()">시장 데이터</button>
+    <button class="tab fin-tab ${F.mode==='financial'?'active':''}" data-mode="financial" onclick="F.mode='financial';loadFinancials()">재무제표</button>
+    <button class="tab fin-tab ${F.mode==='combined'?'active':''}" data-mode="combined" onclick="F.mode='combined';loadFinancials()">종합</button>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11px;padding:0 4px">
+      <span style="padding:1px 6px;border-radius:3px;background:rgba(45,206,137,.15);color:var(--green);font-weight:600">DART</span><span style="color:var(--text3)">금융감독원 공시</span>
+      <span style="padding:1px 6px;border-radius:3px;background:rgba(251,99,64,.15);color:var(--yellow);font-weight:600">계산</span><span style="color:var(--text3)">DB 자동계산</span>
+      <span style="padding:1px 6px;border-radius:3px;background:rgba(42,171,238,.15);color:var(--tg);font-weight:600">KIS</span><span style="color:var(--text3)">한투 API</span>
     </div>
+  </div>
 
-    <div style="flex-shrink:0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1rem">
-      <select class="form-select" id="fin-scope" onchange="F.scope=this.value;loadFinancials()" style="width:130px;padding:6px 10px">
-        <option value="monitored" ${F.scope==='monitored'?'selected':''}>모니터링 종목</option>
-        <option value="all" ${F.scope==='all'?'selected':''}>전체</option>
-      </select>
-      <input class="search-box" id="fin-q" placeholder="종목명 검색..." oninput="F.q=this.value;loadFinancials()" style="max-width:160px">
-      <select class="form-select" id="fin-ind" onchange="F.industry=this.value;loadFinancials()" style="width:120px;padding:6px 10px">
-        ${industries.map(i=>`<option value="${i}" ${F.industry===i?'selected':''}>${i}</option>`).join('')}
-      </select>
-      <span style="font-size:12px;color:var(--text3)" id="fin-count"></span>
-      <div style="margin-left:auto;display:flex;gap:6px">
-        <button class="btn btn-sm" onclick="loadFinancials()">새로고침</button>
-        <button class="btn btn-sm" onclick="exportFinancials()">CSV 다운로드</button>
-      </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1rem">
+    <select class="form-select" id="fin-scope" onchange="F.scope=this.value;loadFinancials()" style="width:130px;padding:6px 10px">
+      <option value="monitored" ${F.scope==='monitored'?'selected':''}>모니터링 종목</option>
+      <option value="all" ${F.scope==='all'?'selected':''}>전체</option>
+    </select>
+    <input class="search-box" id="fin-q" placeholder="종목명 검색..." oninput="F.q=this.value;loadFinancials()" style="max-width:160px">
+    <select class="form-select" id="fin-ind" onchange="F.industry=this.value;loadFinancials()" style="width:120px;padding:6px 10px">
+      ${industries.map(i=>`<option value="${i}" ${F.industry===i?'selected':''}>${i}</option>`).join('')}
+    </select>
+    <span style="font-size:12px;color:var(--text3)" id="fin-count"></span>
+    <div style="margin-left:auto;display:flex;gap:6px">
+      <button class="btn btn-sm" onclick="loadFinancials()">새로고침</button>
+      <button class="btn btn-sm" onclick="exportFinancials()">CSV 다운로드</button>
     </div>
+  </div>
 
-    <div class="card" id="fin-table" style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;margin-bottom:0">
-      <div id="fin-table-inner" style="flex:1;min-height:0;overflow-x:auto;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) var(--bg3)">${loadingHTML()}</div>
-    </div>
-
+  <div class="card" id="fin-table" style="display:flex;flex-direction:column;overflow:hidden;margin-bottom:0">
+    <div id="fin-table-inner" style="flex:1;min-height:0;overflow-x:auto;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) var(--bg3)">${loadingHTML()}</div>
   </div>`;
 }
 
@@ -175,6 +171,19 @@ function initFinancials() {
   F.industry = '전체';
   F.sortBy   = 'market_cap';
   F.sortDir  = 'desc';
+
+  // #fin-table 높이를 DOM 실측으로 동적 세팅
+  // (CSS calc 하드코딩 없이, 카드 상단 위치~뷰포트 하단 정확하게 계산)
+  requestAnimationFrame(() => {
+    const card    = document.getElementById('fin-table');
+    const content = document.getElementById('content');
+    if (card && content) {
+      const top = card.getBoundingClientRect().top;
+      const pb  = parseFloat(getComputedStyle(content).paddingBottom) || 21;
+      card.style.height = (window.innerHeight - top - pb) + 'px';
+    }
+  });
+
   loadFinancials();
 }
 
