@@ -440,6 +440,7 @@ async function loadSchedules() {
     { key:'schedule_report',   label:'네이버 리포트 (08:50, 18:00)' },
     { key:'schedule_saturday', label:'토요일 주간 랭킹 (10:00)' },
     { key:'schedule_sunday',   label:'일요일 리포트 (10:00)' },
+    { key:'kind_ir',           label:'KIND IR자료 (09:05, 18:05)' },
   ];
   const { data: cfgRows } = await sb.from('app_config').select('key,value').in('key', schedules.map(s => s.key));
   const cfg = {};
