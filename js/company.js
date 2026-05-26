@@ -115,6 +115,7 @@ function _renderScheduleTab() {
     { time:'06:10', job:'collect_macro',              label:'글로벌 매크로 수집 (미국 장 마감 직후)', group:'장전', color:'var(--tg)' },
     { time:'06:15', job:'collect_us_etf',             label:'US ETF 수집 (미국 장 마감 직후)',       group:'장전', color:'var(--tg)' },
     { time:'08:50', job:'naver_report',               label:'네이버 리포트 수집',                    group:'장전', color:'var(--text3)' },
+    { time:'09:05', job:'kind_ir',                   label:'KIND IR자료 수집',                       group:'장전', color:'var(--text3)' },
     { time:'09:30', job:'collect_market',             label:'모니터링 종목 시장 데이터',     group:'장중', color:'#2dce89' },
     { time:'09:35', job:'collect_foreign_institution',label:'기관/외국인 가집계 (1차)',      group:'장중', color:'#fb923c' },
     { time:'11:25', job:'collect_foreign_institution',label:'기관/외국인 가집계 (2차)',      group:'장중', color:'#fb923c' },
@@ -128,6 +129,7 @@ function _renderScheduleTab() {
     { time:'16:30', job:'collect_new_high',           label:'52주 신고가 종목 수집',         group:'장후', color:'#f5a623' },
     { time:'17:00', job:'collect_market_closing',     label:'전체 상장사 확정 시세 (외국인 집계 완료 후)', group:'장후', color:'#f5365c', badge:'핵심' },
     { time:'18:00', job:'naver_report',               label:'네이버 리포트 수집',            group:'장후', color:'var(--text3)' },
+    { time:'18:05', job:'kind_ir',                   label:'KIND IR자료 수집',               group:'장후', color:'var(--text3)' },
     { time:'18:30', job:'daily_closing',              label:'일일 마감 브리핑',             group:'장후', color:'var(--text3)' },
     { time:'18:30', job:'collect_financials',         label:'재무제표 수집 (공시 기반)',      group:'장후', color:'#2dce89' },
     // 주말
