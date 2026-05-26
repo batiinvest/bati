@@ -60,7 +60,15 @@ async function saveEdit(id) {
   const { error } = await DB('rooms').update(p).eq('id', id);
   if (error) { toast('수정 실패: ' + error.message, 'error'); return; }
   Object.assign(A.rooms.find(x => x.id === id), p);
-  toast('수정 완료', 'success'); dtab('info', null);
+  toast('수정 완료 — 봇에 반영 중...', 'success'); dtab('info', null);
+  // 채팅방 ID 변경이 봇에 즉시 반영되도록 자동 재로드
+  try {
+    await sb.from('app_config')
+      .upsert({ key: 'reload_flag', value: String(Date.now()) }, { onConflict: 'key' });
+    toast('✓ 봇 재로드 완료 — 1분 내 반영됩니다', 'success');
+  } catch(e) {
+    toast('봇 재로드 실패 — 수동으로 재로드 버튼을 눌러주세요', 'error');
+  }
 }
 
 // ══════════════════════════════════════════
