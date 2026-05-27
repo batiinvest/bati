@@ -485,18 +485,18 @@ async function loadNewHighStocks() {
 
   const _HGPR_SEL = 'stock_code,corp_name,price,price_change_rate,market_cap,listing_shares,hgpr_cls,hgpr_cls_code';
 
-  // 오늘 신고가 전체 조회
+  // 52주 신고가 종목만 조회 (근접 제외)
+  const _HGPR_VALS = ['신고가', '52주 신고가', '1'];
   let targetDate = today;
   let { data: rows } = await sb.from('market_data')
     .select(_HGPR_SEL)
     .eq('base_date', today)
-    .not('hgpr_cls_code', 'is', null)
-    .neq('hgpr_cls_code', '')
+    .in('hgpr_cls_code', _HGPR_VALS)
     .order('market_cap', { ascending: false });
 
   if (!rows?.length) {
     const { data: latest } = await sb.from('market_data')
-      .select('base_date').not('hgpr_cls_code', 'is', null)
+      .select('base_date').in('hgpr_cls_code', _HGPR_VALS)
       .order('base_date', { ascending: false }).limit(1);
     if (!latest?.length) {
       body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">신고가 데이터 없음 — 장 마감 후 수집됩니다</div>';
@@ -506,8 +506,7 @@ async function loadNewHighStocks() {
     const { data: rows2 } = await sb.from('market_data')
       .select(_HGPR_SEL)
       .eq('base_date', targetDate)
-      .not('hgpr_cls_code', 'is', null)
-      .neq('hgpr_cls_code', '')
+      .in('hgpr_cls_code', _HGPR_VALS)
       .order('market_cap', { ascending: false });
     rows = rows2 || [];
   }
@@ -558,8 +557,7 @@ async function loadNewHighStocks() {
     .select('stock_code,base_date,hgpr_cls_code')
     .in('stock_code', codes)
     .gte('base_date', date7)
-    .not('hgpr_cls_code', 'is', null)
-    .neq('hgpr_cls_code', '')
+    .in('hgpr_cls_code', _HGPR_VALS)
     .order('base_date', { ascending: false });
 
   const histMap = {};
