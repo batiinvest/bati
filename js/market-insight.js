@@ -219,73 +219,89 @@ function _fmt(v) {
 
 function generateInsightText(a) {
   const sections = [];
-
-  // 1) 한줄 총평
-  const regimeIcon = { 'risk-on':'🟢','risk-off':'🔴','방어주 장세':'🛡','성장주 장세':'🚀','관망':'🟡','혼조':'⚪' };
-  const usOneLiner = _usOneLiner(a);
-  const krOneLiner = _krOneLiner(a);
-
-  sections.push({ id: 'summary', title: '오늘의 시장 총평',
-    items: [
-      { icon: regimeIcon[a.marketRegime] || '⚪', label: '장세', text: a.marketRegime },
-      { icon: '🇺🇸', label: '미국', text: usOneLiner },
-      { icon: '🇰🇷', label: '한국', text: krOneLiner },
-    ]
-  });
-
-  // 2) 미국 업종 흐름
-  const usFlowItems = [];
-  if (a.usStrong.length) usFlowItems.push({ icon:'📈', label:'강세', text: a.usStrong.map(i=>`${i}(${_fmt(a.usIndAvg[i]?.d1)})`).join(' · ') });
-  if (a.usWeak.length)   usFlowItems.push({ icon:'📉', label:'약세', text: a.usWeak.map(i=>`${i}(${_fmt(a.usIndAvg[i]?.d1)})`).join(' · ') });
-  if (a.usNeutral.length)usFlowItems.push({ icon:'➖', label:'중립', text: a.usNeutral.join(' · ') });
-
-  sections.push({ id: 'us-flow', title: '🇺🇸 미국 업종 흐름', items: usFlowItems });
-
-  // 3) 미국→한국 연계 해석
-  const crossItems = [];
   const lagSigs      = a.crossSignals.filter(s => s.type === 'lag');
   const riskSigs     = a.crossSignals.filter(s => s.type === 'decouple-risk');
   const syncUpSigs   = a.crossSignals.filter(s => s.type === 'sync-up');
   const syncDownSigs = a.crossSignals.filter(s => s.type === 'sync-down');
 
-  if (lagSigs.length)      crossItems.push({ icon:'⏳', label:'후행 관찰', text: lagSigs.map(s=>`${s.ind}(미국 ${_fmt(s.usChg)} → 한국 ${_fmt(s.krChg)})`).join(' / ') });
-  if (riskSigs.length)     crossItems.push({ icon:'⚠️', label:'디커플링 주의', text: riskSigs.map(s=>`${s.ind}(한국 ${_fmt(s.krChg)} 강하나 미국 ${_fmt(s.usChg)})`).join(' / ') });
-  if (syncUpSigs.length)   crossItems.push({ icon:'🔗', label:'동반 강세', text: syncUpSigs.map(s=>s.ind).join(' · ') });
-  if (syncDownSigs.length) crossItems.push({ icon:'🔗', label:'동반 약세', text: syncDownSigs.map(s=>s.ind).join(' · ') });
-  if (!crossItems.length)  crossItems.push({ icon:'➖', label:'신호 없음', text: '미국·한국 뚜렷한 연계 신호 없음' });
+  // ── 1) 시장 요약 (숫자 중심, 2줄) ──────────────────────────
+  const regimeIcon = { 'risk-on':'🟢','risk-off':'🔴','방어주 장세':'🛡️','성장주 장세':'🚀','관망':'🟡','혼조':'⚪' };
 
-  sections.push({ id: 'cross', title: '🔀 미국→한국 업종 연계 해석', items: crossItems });
+  const usStrTop = a.usStrong.slice(0,2).map(i=>`${i}${_fmt(a.usIndAvg[i]?.d1)}`).join(' ');
+  const usWkTop  = a.usWeak.slice(0,2).map(i=>`${i}${_fmt(a.usIndAvg[i]?.d1)}`).join(' ');
+  const usTail   = [usStrTop && `▲${usStrTop}`, usWkTop && `▼${usWkTop}`].filter(Boolean).join('  ');
+  const krTop1   = a.krSorted[0];
+  const krBot1   = a.krSorted[a.krSorted.length - 1];
 
-  // 4) 변화 감지
-  const changeItems = [];
-  if (a.krRising.length)  changeItems.push({ icon:'🔺', label:'모멘텀 강화', text: a.krRising.map(({ind,diff})=>`${ind}(5일 대비 ${diff}단계↑)`).join(' / ') });
-  if (a.krFalling.length) changeItems.push({ icon:'🔻', label:'모멘텀 둔화', text: a.krFalling.map(({ind,diff})=>`${ind}(5일 대비 ${diff}단계↓)`).join(' / ') });
-  if (!changeItems.length) changeItems.push({ icon:'➖', label:'변화 없음', text: '뚜렷한 업종 순위 변동 없음' });
+  sections.push({ id: 'summary', title: '📊 시장',
+    items: [
+      { icon: regimeIcon[a.marketRegime] || '⚪',
+        label: '장세',
+        text: `${a.marketRegime}` },
+      { icon: '🇺🇸',
+        label: 'S&P / NDX',
+        text: `${_fmt(a.sp500Chg)} / ${_fmt(a.nasdaqChg)}  VIX ${a.vix?.toFixed(0) ?? '—'}` + (usTail ? `  ${usTail}` : '') },
+      { icon: '🇰🇷',
+        label: '코스피 / 코스닥',
+        text: `${_fmt(a.kospiChg)} / ${_fmt(a.kosdaqChg)}` +
+          (krTop1 ? `  ▲${krTop1}${_fmt(a.krPeriod[krTop1]?.d1)}` : '') +
+          (krBot1 && krBot1 !== krTop1 ? `  ▼${krBot1}${_fmt(a.krPeriod[krBot1]?.d1)}` : '') },
+    ]
+  });
 
-  // 20일 대비 KR 상대강도 변화 상위/하위
-  const kr20sorted = KR_INDUSTRIES.filter(i=>a.krPeriod[i]?.d20!=null)
-    .sort((a2,b2)=>(a.krPeriod[b2]?.d1??0)-(a.krPeriod[b2]?.d20??0)*0 - ((a.krPeriod[a2]?.d1??0)-(a.krPeriod[a2]?.d20??0)*0));
-  const krTop = a.krSorted.slice(0,3).map(i=>`${i} ${_fmt(a.krPeriod[i]?.d1)}`).join(' · ');
-  const krBot = [...a.krSorted].reverse().slice(0,2).map(i=>`${i} ${_fmt(a.krPeriod[i]?.d1)}`).join(' · ');
-  changeItems.push({ icon:'📊', label:'업종 등락', text: `▲ ${krTop}  ▼ ${krBot}` });
+  // ── 2) 주목 업종 (기회 신호만) ─────────────────────────────
+  const watchItems = [];
 
-  sections.push({ id: 'change', title: '📡 변화 감지', items: changeItems });
+  if (lagSigs.length)
+    watchItems.push({ icon:'⏳', label:'후행 관찰',
+      text: lagSigs.map(s=>`${s.ind} (미국${_fmt(s.usChg)}→한국${_fmt(s.krChg)})`).join(' / ') });
 
-  // 5) 행동 포인트
+  if (syncUpSigs.length)
+    watchItems.push({ icon:'🔗', label:'동반 강세',
+      text: syncUpSigs.map(s=>`${s.ind}(미국${_fmt(s.usChg)}·한국${_fmt(s.krChg)})`).join(' / ') });
+
+  if (a.krRising.length)
+    watchItems.push({ icon:'🔺', label:'모멘텀↑',
+      text: a.krRising.map(({ind})=>ind).join(' · ') + '  (5일 대비 순위 상승)' });
+
+  if (!watchItems.length)
+    watchItems.push({ icon:'➖', label:'—', text: '뚜렷한 기회 신호 없음' });
+
+  sections.push({ id: 'watch', title: '👀 주목 업종', items: watchItems });
+
+  // ── 3) 오늘의 판단 (리스크 + 전략 1줄) ────────────────────
   const actionItems = [];
-  if (a.watchList.length)   actionItems.push({ icon:'👀', label:'먼저 볼 업종', text: [...new Set(a.watchList)].slice(0,4).join(' · ') });
-  if (a.cautionList.length) actionItems.push({ icon:'🚫', label:'조심할 업종', text: [...new Set(a.cautionList)].slice(0,3).join(' · ') });
 
-  // 시장 전체 행동 판단
-  if (a.marketRegime === 'risk-off' || a.vix >= THR.VIX_HIGH) {
-    actionItems.push({ icon:'🛡', label:'전략', text: `VIX ${a.vix?.toFixed(1)} — 추격 자제, 방어·현금 비중 점검` });
-  } else if (a.krRising.length >= 3 && a.usStrong.length >= 3) {
-    actionItems.push({ icon:'🚀', label:'전략', text: '미국·한국 동반 강세 확인 — 강세 업종 집중, 포트폴리오 압축보다 확인 후 진입' });
-  } else {
-    actionItems.push({ icon:'🔍', label:'전략', text: '혼조 국면 — 추격보다 관찰, 후행 업종 중심 선별 대응' });
-  }
+  if (riskSigs.length)
+    actionItems.push({ icon:'⚠️', label:'디커플링',
+      text: riskSigs.map(s=>`${s.ind}(한국${_fmt(s.krChg)} but 미국${_fmt(s.usChg)})`).join(' / ') });
 
-  sections.push({ id: 'action', title: '⚡ 행동 포인트', items: actionItems });
+  if (syncDownSigs.length)
+    actionItems.push({ icon:'🔻', label:'동반 약세',
+      text: syncDownSigs.map(s=>s.ind).join(' · ') + '  — 비중 축소 검토' });
+
+  if (a.krFalling.length)
+    actionItems.push({ icon:'📉', label:'모멘텀↓',
+      text: a.krFalling.map(({ind})=>ind).join(' · ') });
+
+  // 전략 1줄
+  let strategy;
+  if (a.vix >= THR.VIX_HIGH)
+    strategy = `VIX ${a.vix?.toFixed(0)} 공포 구간 — 추격 금지, 현금 비중 점검`;
+  else if (a.marketRegime === 'risk-off')
+    strategy = '리스크오프 — 방어 포지션 유지, 낙폭 과대 관찰';
+  else if (lagSigs.length)
+    strategy = `후행 업종(${lagSigs.map(s=>s.ind).join('·')}) 선점 기회 점검`;
+  else if (syncUpSigs.length >= 2 && a.krRising.length >= 2)
+    strategy = '미·한 동반 강세 — 강세 업종 집중, 눌림 구간 분할 진입';
+  else if (riskSigs.length)
+    strategy = `디커플링(${riskSigs.map(s=>s.ind).join('·')}) 차익 실현 검토`;
+  else
+    strategy = '혼조 국면 — 추격보다 관찰, 후행 업종 중심 선별 대응';
+
+  actionItems.push({ icon:'⚡', label:'전략', text: strategy });
+
+  sections.push({ id: 'action', title: '⚡ 오늘의 판단', items: actionItems });
 
   return { sections };
 }
@@ -316,18 +332,16 @@ function renderMarketInsight(insightData) {
   const el = document.getElementById('market-insight-card');
   if (!el) return;
 
-  // 섹션 순서: 행동포인트 → 총평 → 미국 → 연계 → 변화
-  const ordered = ['action', 'summary', 'us-flow', 'cross', 'change'];
+  // 섹션 순서: 시장 → 주목 업종 → 오늘의 판단
+  const ordered = ['summary', 'watch', 'action'];
   const sections = ordered
     .map(id => insightData.sections.find(s => s.id === id))
     .filter(Boolean);
 
   const sectionColors = {
-    'action':   '#fbbf24',
     'summary':  '#2AABEE',
-    'us-flow':  '#60a5fa',
-    'cross':    '#a78bfa',
-    'change':   '#34d399',
+    'watch':    '#34d399',
+    'action':   '#fbbf24',
   };
 
   el.innerHTML = sections.map((sec, si) => {
