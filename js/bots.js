@@ -485,27 +485,34 @@ function pBotConfig() {
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
             </tr>
             <tr>
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">🌏 글로벌 매크로 브리핑</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">06:30</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+            </tr>
+            <tr style="background:var(--bg2)">
               <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">🍱 점심·🏁마감 시황 브리핑</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">전광판+랭킹</span></td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">산업 랭킹</span></td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">종목 상세</span></td>
             </tr>
-            <tr style="background:var(--bg2)">
+            <tr>
               <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">📑 증권사 리포트 (네이버)</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">목록+PDF</span></td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">산업분석</span></td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">기업분석</span></td>
             </tr>
-            <tr>
+            <tr style="background:var(--bg2)">
               <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">🏆 주간 랭킹 (토요일)</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">산업별</span></td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
             </tr>
-            <tr style="background:var(--bg2)">
+            <tr>
               <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">🗓 일요일 기술적 진단</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
@@ -522,6 +529,10 @@ function pBotConfig() {
       <div class="card-header"><span class="card-title">⏰ 정기 발송 스케줄</span></div>
       <div class="card-body" style="font-size:12px;color:var(--text2)">
         <div style="display:grid;grid-template-columns:110px 1fr auto;gap:5px 12px;line-height:1.8;align-items:center">
+          <span style="color:var(--text3);font-size:11px">평일 06:30</span>
+          <span>🌏 글로벌 매크로 — 미국 마감·야간선물·금리·환율·원자재·BTC</span>
+          <span style="font-size:10px;color:var(--tg);white-space:nowrap">메인</span>
+
           <span style="color:var(--text3);font-size:11px">평일 08:50</span>
           <span>📑 증권사 리포트 — 산업분석·기업분석 PDF</span>
           <span style="font-size:10px;color:var(--tg);white-space:nowrap">@batiarchive · 산업 · 기업</span>
@@ -538,7 +549,7 @@ function pBotConfig() {
           <span>📑 증권사 리포트 — 장후 추가분</span>
           <span style="font-size:10px;color:var(--tg);white-space:nowrap">@batiarchive · 산업 · 기업</span>
 
-          <span style="color:var(--text3);font-size:11px">평일 18:05</span>
+          <span style="color:var(--text3);font-size:11px">평일 18:10</span>
           <span>📋 KIND IR자료 오후 수집</span>
           <span style="font-size:10px;color:var(--tg);white-space:nowrap">@batiarchive · 산업 · 기업</span>
 
