@@ -100,10 +100,10 @@ function pInvestment() {
       </div>
     </div>
 
-    <!-- 📈 신고가 종목 -->
+    <!-- 📈 52주 신고가 종목 -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span class="card-title">📈 신고가 종목</span>
+        <span class="card-title">📈 52주 신고가 종목</span>
         <div style="display:flex;gap:4px;margin-left:auto">
           <button class="chip active" data-hgpr-tab="monitored" onclick="switchHgprTab('monitored')" style="font-size:11px;padding:2px 8px">⭐ 모니터링</button>
           <button class="chip"        data-hgpr-tab="all"       onclick="switchHgprTab('all')"       style="font-size:11px;padding:2px 8px">전체 종목</button>
