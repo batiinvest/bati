@@ -1,8 +1,5 @@
-// market-overview.js — KR 산업 동향 (loadMarketOverview)
-// 의존: config.js (sb, chgColor, chgStr, fmtCap, getIndustryMap, IND_COLORS)
-
 // market-overview.js — 시황 탭: 매크로 지표, 흐름 차트, 전체 종목 동향
-// 의존: config.js (sb, chgColor, chgStr, getIndustryMap, getLatestMarketDate), investment.js (INV_ALL_METRICS, INV, mkIndexCard)
+// 의존: config.js (sb, chgColor, chgStr, fmtCap, getIndustryMap, IND_COLORS, getLatestMarketDate), investment.js (INV_ALL_METRICS, INV, mkIndexCard)
 
 // ── 흐름 비교 차트 전역 변수 ──
 let _invTrendChart = null;

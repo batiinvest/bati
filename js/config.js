@@ -21,6 +21,7 @@ const DB = sb.from.bind(sb);
 //  산업 목록 — 단일 정의, 전체 파일 참조
 // ══════════════════════════════════════════
 const INDUSTRIES = ['바이오','뷰티','로봇','2차전지','신재생','소비재','테크','반도체','엔터','조선','우주'];
+// CATS: 채팅방 UI 배지 색상 (IND_COLORS와 의도적으로 다름 — 차트 라인 색상과 분리)
 const CATS = { '바이오':'#2AABEE','뷰티':'#f5365c','로봇':'#2dce89','2차전지':'#fb6340','신재생':'#5e72e4','소비재':'#f3a4b5','테크':'#a259ff','반도체':'#8898aa','엔터':'#ffd600','조선':'#11cdef','우주':'#4a6fa5' };
 
 // ══════════════════════════════════════════
@@ -124,9 +125,13 @@ const chgStr = v => v != null ? `${v > 0 ? '+' : ''}${v.toFixed(2)}%` : '—';
 //  사용법: const map = await getIndustryMap();
 // ══════════════════════════════════════════
 let _globalIndustryMap = null;
+let _globalSubMap      = null;  // ✅ subMap도 모듈 스코프에 캐싱 (캐시 HIT 시 복원용)
 
 async function getIndustryMap() {
-  if (_globalIndustryMap) return _globalIndustryMap;
+  if (_globalIndustryMap) {
+    window._subIndustryMap = _globalSubMap;  // ✅ 캐시 HIT 시도 subMap 복원
+    return _globalIndustryMap;
+  }
   const map    = {};   // stock_code → industry  (모니터링 종목만)
   const subMap = {};   // stock_code → sub_industry (모니터링 종목만)
   try {
@@ -146,9 +151,10 @@ async function getIndustryMap() {
       from += 1000;
     }
   } catch(e) { console.warn('getIndustryMap 실패:', e); }
-  _globalIndustryMap = map;
+  _globalIndustryMap       = map;
+  _globalSubMap            = subMap;  // ✅ 모듈 스코프에 보존
   window._industryMapCache = map;
-  window._subIndustryMap   = subMap;   // ✅ 캐시 HIT 없이 항상 여기서 세팅
+  window._subIndustryMap   = subMap;
   return map;
 }
 
@@ -193,7 +199,7 @@ async function requestBotReload(btnId = 'reload-btn') {
 }
 
 // ── KR 산업 목록 (단일 정의 — 전 파일에서 이 상수를 참조할 것) ──
-const KR_INDUSTRIES = ['반도체','바이오','로봇','우주','2차전지','소비재','엔터','조선','테크','뷰티','신재생'];
+const KR_INDUSTRIES = INDUSTRIES;  // alias — 동일 11개 산업, INDUSTRIES를 단일 소스로 사용
 
 // ── KR 산업별 색상 (단일 정의) ──
 // 주의: IND_COLORS(산업 흐름 차트용)와 KR_IND_COLORS(US vs KR 비교용)를 통합
