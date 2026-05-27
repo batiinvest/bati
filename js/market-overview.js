@@ -587,8 +587,8 @@ async function loadNewHighStocks() {
 
   // 탭 데이터 구성
   _hgprData = {
-    monitored: enriched.filter(r => r.isMonitored),
-    all:       enriched,
+    monitored: enriched.filter(r =>  r.isMonitored),
+    all:       enriched.filter(r => !r.isMonitored),  // 모니터링 종목 제외
   };
 
   _hgprExpanded = false;
