@@ -731,12 +731,13 @@ async function loadBotConfig() {
 
 async function loadSchedules() {
   const schedules = [
-    { key:'schedule_lunch',    label:'점심 브리핑 (11:30)' },
-    { key:'schedule_closing',  label:'마감 브리핑 (18:30)' },
-    { key:'schedule_report',   label:'네이버 리포트 (08:50, 18:00)' },
-    { key:'schedule_saturday', label:'토요일 주간 랭킹 (10:00)' },
-    { key:'schedule_sunday',   label:'일요일 리포트 (10:00)' },
-    { key:'kind_ir',           label:'KIND IR자료 (09:05, 18:05)' },
+    { key:'schedule_macro_briefing', label:'글로벌 매크로 브리핑 (06:30)' },
+    { key:'schedule_lunch',          label:'점심 브리핑 (11:30)' },
+    { key:'schedule_closing',        label:'마감 브리핑 (18:30)' },
+    { key:'schedule_report',         label:'네이버 리포트 (08:50, 18:00)' },
+    { key:'schedule_saturday',       label:'토요일 주간 랭킹 (10:00)' },
+    { key:'schedule_sunday',         label:'일요일 리포트 (10:00)' },
+    { key:'schedule_kind_ir',        label:'KIND IR자료 (09:05, 18:10)' },
   ];
   const { data: cfgRows } = await sb.from('app_config').select('key,value').in('key', schedules.map(s => s.key));
   const cfg = {};
