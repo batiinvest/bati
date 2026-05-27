@@ -492,11 +492,11 @@ function pBotConfig() {
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">종목 상세</span></td>
             </tr>
             <tr style="background:var(--bg2)">
-              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">📑 증권사 리포트</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">📑 증권사 리포트 (네이버)</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">목록+PDF</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">산업분석</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">기업분석</span></td>
             </tr>
             <tr>
               <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">🏆 주간 랭킹 (토요일)</td>
@@ -519,14 +519,48 @@ function pBotConfig() {
 
     <!-- 정기 브리핑 스케줄 -->
     <div class="card" style="margin-bottom:.75rem">
-      <div class="card-header"><span class="card-title">⏰ 정기 브리핑 스케줄 (메인 채널 기준)</span></div>
+      <div class="card-header"><span class="card-title">⏰ 정기 발송 스케줄</span></div>
       <div class="card-body" style="font-size:12px;color:var(--text2)">
-        <div style="display:grid;grid-template-columns:110px 1fr;gap:6px 16px;line-height:1.8">
-          <span style="color:var(--text3)">평일 08:50</span><span>📑 증권사 리포트 (장전)</span>
-          <span style="color:var(--text3)">평일 11:30</span><span>🍱 점심 시황 — 시장 전광판 + 모니터링 종목 등락 랭킹</span>
-          <span style="color:var(--text3)">평일 18:00</span><span>📑 증권사 리포트 (장후)</span>
-          <span style="color:var(--text3)">평일 18:30</span><span>🏁 마감 시황 — 시장 전광판 + 등락 랭킹</span>
-          <span style="color:var(--text3)">토요일 10:00</span><span>🏆 주간 랭킹 — 모니터링 종목 주간 수익률 순위</span>
+        <div style="display:grid;grid-template-columns:110px 1fr auto;gap:5px 12px;line-height:1.8;align-items:center">
+          <span style="color:var(--text3);font-size:11px">평일 08:50</span>
+          <span>📑 증권사 리포트 — 산업분석·기업분석 PDF</span>
+          <span style="font-size:10px;color:var(--tg);white-space:nowrap">@batiarchive · 산업 · 기업</span>
+
+          <span style="color:var(--text3);font-size:11px">평일 09:05</span>
+          <span>📋 KIND IR자료 오전 수집</span>
+          <span style="font-size:10px;color:var(--tg);white-space:nowrap">@batiarchive · 산업 · 기업</span>
+
+          <span style="color:var(--text3);font-size:11px">평일 11:30</span>
+          <span>🍱 점심 시황 — 시장 전광판 + 유니버스 랭킹 + 산업 테마 현황</span>
+          <span style="font-size:10px;color:var(--tg);white-space:nowrap">메인 · 산업</span>
+
+          <span style="color:var(--text3);font-size:11px">평일 18:00</span>
+          <span>📑 증권사 리포트 — 장후 추가분</span>
+          <span style="font-size:10px;color:var(--tg);white-space:nowrap">@batiarchive · 산업 · 기업</span>
+
+          <span style="color:var(--text3);font-size:11px">평일 18:05</span>
+          <span>📋 KIND IR자료 오후 수집</span>
+          <span style="font-size:10px;color:var(--tg);white-space:nowrap">@batiarchive · 산업 · 기업</span>
+
+          <span style="color:var(--text3);font-size:11px">평일 18:30</span>
+          <span>🏁 마감 시황 — 시장 전광판 + 유니버스 랭킹 + 종목 상세</span>
+          <span style="font-size:10px;color:var(--tg);white-space:nowrap">메인 · 산업 · 기업</span>
+
+          <span style="color:var(--text3);font-size:11px">토요일 10:00</span>
+          <span>🏆 주간 랭킹 — 모니터링 종목 주간 수익률</span>
+          <span style="font-size:10px;color:var(--tg);white-space:nowrap">메인</span>
+
+          <span style="color:var(--text3);font-size:11px">토요일 10:30</span>
+          <span>🏭 주간 산업 리포트 — 산업별 주간 수익률 + 테마 성적표</span>
+          <span style="font-size:10px;color:var(--tg);white-space:nowrap">산업</span>
+
+          <span style="color:var(--text3);font-size:11px">일요일 10:00</span>
+          <span>🗓 산업별 시총 리포트</span>
+          <span style="font-size:10px;color:var(--tg);white-space:nowrap">산업</span>
+
+          <span style="color:var(--text3);font-size:11px">일요일 10:30</span>
+          <span>🗓 종목별 기술적 진단 — 이평선·RSI·볼린저밴드</span>
+          <span style="font-size:10px;color:var(--tg);white-space:nowrap">기업</span>
         </div>
       </div>
     </div>
