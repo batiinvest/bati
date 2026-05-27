@@ -130,6 +130,7 @@ function pBotConfig() {
       <button class="tab active" onclick="switchBotCfgTab('keywords',this)">키워드 설정</button>
       <button class="tab" onclick="switchBotCfgTab('news-filter',this)">뉴스 필터</button>
       <button class="tab" onclick="switchBotCfgTab('dart-level',this)">공시 등급</button>
+      <button class="tab" onclick="switchBotCfgTab('channel-info',this)">채널 정보</button>
       <button class="tab" onclick="switchBotCfgTab('schedule',this)">스케줄</button>
       <button class="tab" onclick="switchBotCfgTab('news-terms',this)">산업별 검색어</button>
       <button class="tab" onclick="switchBotCfgTab('alert',this)">시세 알림</button>
@@ -396,6 +397,162 @@ function pBotConfig() {
     </div>
   </div>
 
+  <!-- 채널 정보 탭 -->
+  <div id="botcfg-channel-info" style="display:none">
+
+    <!-- 채널 구조 -->
+    <div class="card" style="margin-bottom:.75rem">
+      <div class="card-header"><span class="card-title">📡 채널 구조</span></div>
+      <div class="card-body" style="font-size:12px;color:var(--text2);line-height:1.9">
+        <div style="display:grid;grid-template-columns:150px 1fr;gap:4px 16px;padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
+          <span style="color:var(--tg);font-weight:600">@BatiInvestChat</span><span>메인 채널 — 시장 속보 + 정기 브리핑</span>
+          <span style="color:var(--tg);font-weight:600">@batiarchive</span><span>아카이브 채널 — KIND IR자료 PDF 전체</span>
+          <span style="color:var(--text1);font-weight:600">산업 채널 11개</span><span>반도체·2차전지·바이오·로봇·조선·뷰티·엔터·신재생·테크·소비재·우주</span>
+          <span style="color:var(--text1);font-weight:600">기업 채널</span><span>모니터링 등록 종목별 개별 채널</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 채널별 수신 정보 테이블 -->
+    <div class="card" style="margin-bottom:.75rem">
+      <div class="card-header"><span class="card-title">📋 채널별 수신 정보</span></div>
+      <div class="card-body" style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:11px;min-width:520px">
+          <thead>
+            <tr style="background:var(--bg3);color:var(--text3)">
+              <th style="padding:6px 10px;border:1px solid var(--border);text-align:left;min-width:160px">정보 종류</th>
+              <th style="padding:6px 8px;border:1px solid var(--border);text-align:center">메인<br><span style="font-weight:400;font-size:10px">@BatiInvestChat</span></th>
+              <th style="padding:6px 8px;border:1px solid var(--border);text-align:center">아카이브<br><span style="font-weight:400;font-size:10px">@batiarchive</span></th>
+              <th style="padding:6px 8px;border:1px solid var(--border);text-align:center">산업<br><span style="font-weight:400;font-size:10px">11개 채널</span></th>
+              <th style="padding:6px 8px;border:1px solid var(--border);text-align:center">기업<br><span style="font-weight:400;font-size:10px">종목별</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--red);font-weight:600">🚨 DART 긴급 공시</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">시총 1,000억↑</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
+            </tr>
+            <tr style="background:var(--bg2)">
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--green);font-weight:600">📌 DART 중요 (내 종목)</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--green);font-weight:600">🔥 DART 중요 (비보유+전체중요키워드)</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">시총 1,000억↑</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+            </tr>
+            <tr style="background:var(--bg2)">
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">📄 DART 일반</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text3)">🔇 DART 잡공시</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
+            </tr>
+            <tr style="background:var(--bg2)">
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">📰 네이버 뉴스</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">📋 KIND IR자료 PDF</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">전체</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">모니터링</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">모니터링</span></td>
+            </tr>
+            <tr style="background:var(--bg2)">
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">🤖 AI 심층 분석</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">🍱 점심·🏁마감 시황 브리핑</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">전광판+랭킹</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">산업 랭킹</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">종목 상세</span></td>
+            </tr>
+            <tr style="background:var(--bg2)">
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">📑 증권사 리포트</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">🏆 주간 랭킹 (토요일)</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">산업별</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+            </tr>
+            <tr style="background:var(--bg2)">
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">🗓 일요일 기술적 진단</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">시총 리포트</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">차트 진단</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 정기 브리핑 스케줄 -->
+    <div class="card" style="margin-bottom:.75rem">
+      <div class="card-header"><span class="card-title">⏰ 정기 브리핑 스케줄 (메인 채널 기준)</span></div>
+      <div class="card-body" style="font-size:12px;color:var(--text2)">
+        <div style="display:grid;grid-template-columns:110px 1fr;gap:6px 16px;line-height:1.8">
+          <span style="color:var(--text3)">평일 08:50</span><span>📑 증권사 리포트 (장전)</span>
+          <span style="color:var(--text3)">평일 11:30</span><span>🍱 점심 시황 — 시장 전광판 + 모니터링 종목 등락 랭킹</span>
+          <span style="color:var(--text3)">평일 18:00</span><span>📑 증권사 리포트 (장후)</span>
+          <span style="color:var(--text3)">평일 18:30</span><span>🏁 마감 시황 — 시장 전광판 + 등락 랭킹</span>
+          <span style="color:var(--text3)">토요일 10:00</span><span>🏆 주간 랭킹 — 모니터링 종목 주간 수익률 순위</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- KIND IR 흐름 -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">📋 KIND IR자료 흐름</span></div>
+      <div class="card-body" style="font-size:12px;color:var(--text2);line-height:1.8">
+        <div style="padding:8px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
+          <div style="margin-bottom:6px;color:var(--text3)">하루 2회 수집: 09:05 · 18:05</div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div>① KIND 자료실 신규 업로드 감지 (irSeq 기준)</div>
+            <div style="padding-left:16px;color:var(--text3)">↓ 전체 상장사</div>
+            <div>② <span style="color:var(--tg);font-weight:600">@batiarchive</span>에 PDF 전송 (요약 메시지 + 종목별 파일)</div>
+            <div style="padding-left:16px;color:var(--text3)">↓ 모니터링 등록 종목만 추가 전달</div>
+            <div>③ 해당 <b>산업 채널</b> + <b>기업 채널</b>에도 동일 PDF 전달</div>
+          </div>
+        </div>
+        <div style="margin-top:.75rem;font-size:11px;color:var(--text3)">
+          * "일자" 컬럼은 IR 개최 예정일이며 업로드일과 다를 수 있음. 업로드 즉시 수집됩니다.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
   <!-- 스케줄 탭 -->
   <div id="botcfg-schedule" style="display:none">
     <div class="card" style="margin-bottom:1rem"><div class="card-header"><span class="card-title">스케줄 ON/OFF</span></div><div class="card-body">
@@ -498,7 +655,7 @@ function pBotConfig() {
 }
 
 function switchBotCfgTab(tab, el) {
-  ['keywords','news-filter','dart-level','schedule','news-terms','alert'].forEach(t => {
+  ['keywords','news-filter','dart-level','channel-info','schedule','news-terms','alert'].forEach(t => {
     document.getElementById(`botcfg-${t}`).style.display = t === tab ? '' : 'none';
   });
   document.querySelectorAll('#botcfg-tabs .tab').forEach(t => t.classList.remove('active'));
