@@ -288,16 +288,110 @@ function pBotConfig() {
       </div>
     </div>
 
+    <!-- 공시 알림 규칙 요약 -->
     <div class="card">
-      <div class="card-header"><span class="card-title">채널 라우팅 기준</span></div>
-      <div class="card-body" style="font-size:12px;color:var(--text2);line-height:2">
-        <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 16px">
-          <span style="color:var(--red);font-weight:600">🚨 긴급</span><span>거래정지·횡령·배임·상장폐지·불성실 → <b>메인 + 산업 + 기업채널</b></span>
-          <span style="color:var(--green);font-weight:600">📈 중요</span><span>공급계약·수주·실적·증자·합병 등 → <b>산업 + 기업채널</b></span>
-          <span style="color:var(--text2)">📄 일반</span><span>그 외 공시 → <b>산업 + 기업채널</b></span>
-          <span style="color:var(--text3)">📊 잡공시</span><span>소유상황·IR·감사보고서 등 → <b>기업채널만</b></span>
-          <span style="color:var(--red)">🚫 블랙리스트</span><span>지정 기업 → <b>모든 채널 차단</b></span>
+      <div class="card-header"><span class="card-title">📋 공시 알림 규칙 요약</span></div>
+      <div class="card-body" style="font-size:12px;color:var(--text2);line-height:1.8">
+
+        <!-- 수신 조건 -->
+        <div style="margin-bottom:1rem">
+          <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">① 수신 대상</div>
+          <div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
+            <b>내 종목</b> (companies 테이블 is_monitored=true) <span style="color:var(--text3)">또는</span>
+            <b>전체 중요 키워드</b> 포함 공시만 수신<br>
+            <span style="color:var(--text3)">비상장 종목(stock_code 없음) · 블랙리스트 · 제목/기업명 필터는 수신 전 차단</span>
+          </div>
         </div>
+
+        <!-- 등급 분류 -->
+        <div style="margin-bottom:1rem">
+          <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">② 등급 분류 우선순위</div>
+          <div style="display:grid;grid-template-columns:80px 1fr;gap:4px 12px;padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
+            <span style="color:var(--text3)">판정 순서</span><span style="color:var(--text3)">잡공시 체크 → 긴급 체크 → 중요 체크 → 일반</span>
+            <span style="color:var(--red);font-weight:600">🚨 긴급</span><span>거래정지, 횡령, 배임, 상장폐지, 관리종목, 공개매수, 불성실공시, 영업정지</span>
+            <span style="color:var(--green);font-weight:600">📌 중요</span><span>공급계약, 수주, 잠정실적, 무/유상증자, 최대주주변경, 합병, 분할, 인수, CB/BW, 소송, 특허, 임상, 정기보고서</span>
+            <span style="color:var(--text3)">🔇 잡공시</span><span>소유상황보고, 기업설명회, IR개최, 감사보고서, 주주총회, 의결권대리, 증권발행실적, 투자설명서, 자기주식취득/처분결과</span>
+            <span style="color:var(--text2)">📄 일반</span><span>위 3가지 외 모두</span>
+          </div>
+        </div>
+
+        <!-- 채널 라우팅 -->
+        <div style="margin-bottom:1rem">
+          <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">③ 채널 라우팅</div>
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead>
+              <tr style="background:var(--bg3);color:var(--text3)">
+                <th style="padding:5px 8px;border:1px solid var(--border);text-align:left">등급</th>
+                <th style="padding:5px 8px;border:1px solid var(--border);text-align:center">메인<br><span style="font-weight:400">@BatiInvestChat</span></th>
+                <th style="padding:5px 8px;border:1px solid var(--border);text-align:center">산업 채널</th>
+                <th style="padding:5px 8px;border:1px solid var(--border);text-align:center">기업 채널</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding:5px 8px;border:1px solid var(--border);color:var(--red);font-weight:600">🚨 긴급</td>
+                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3)">시총 1,000억↑</span></td>
+                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">✅</td>
+                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">✅</td>
+              </tr>
+              <tr style="background:var(--bg2)">
+                <td style="padding:5px 8px;border:1px solid var(--border);color:var(--green);font-weight:600">📌 중요 (내 종목)</td>
+                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">✅</td>
+                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">✅</td>
+              </tr>
+              <tr>
+                <td style="padding:5px 8px;border:1px solid var(--border);color:var(--green);font-weight:600">📌 중요 (비보유+전체중요)</td>
+                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3)">시총 1,000억↑</span></td>
+                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              </tr>
+              <tr style="background:var(--bg2)">
+                <td style="padding:5px 8px;border:1px solid var(--border);color:var(--text2)">📄 일반</td>
+                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">✅</td>
+                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">✅</td>
+              </tr>
+              <tr>
+                <td style="padding:5px 8px;border:1px solid var(--border);color:var(--text3)">🔇 잡공시</td>
+                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">✅</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- AI 분석 -->
+        <div style="margin-bottom:1rem">
+          <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">④ AI 심층 분석 (Gemini)</div>
+          <div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
+            <b>긴급 또는 중요</b> 등급 + <b>AI 키워드</b> 포함 시 자동 실행 → 기업채널에 후속 메시지 발송<br>
+            <span style="color:var(--text3)">AI 키워드는 '키워드 설정' 탭에서 관리</span>
+          </div>
+        </div>
+
+        <!-- 공시 원문 파싱 -->
+        <div style="margin-bottom:1rem">
+          <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">⑤ 공시 원문 파싱 (방식 B)</div>
+          <div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
+            모바일 DART 원문에서 핵심 필드를 추출하여 메시지에 포함. 파싱 실패 시 기존 메시지 그대로 발송.<br>
+            <span style="color:var(--text3)">지원 타입 (17종):
+              계약/수주 · 유상증자 · 무상증자 · CB/BW · 최대주주변경 · 잠정실적 · 합병 · 관리종목 ·
+              거래정지 · 배당결정 · 타법인주식취득 · 신규시설투자 · 대량보유 · 자기주식처분 ·
+              IND신청 · 임상시험결과 · 투자판단관련주요경영사항
+            </span>
+          </div>
+        </div>
+
+        <!-- 운영 시간 -->
+        <div>
+          <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">⑥ 운영 시간</div>
+          <div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
+            평일 <b>07:00 ~ 19:00</b> — 60초 간격 폴링 &nbsp;|&nbsp; 주말·19시 이후 — 슬립 (수신 없음)
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
