@@ -71,18 +71,12 @@ async function loadUskrChart() {
 
   // Step2: KR — loadIndTrendChart와 동일하게 market_data 전체 조회 후 industryMap 필터
   const krDates = {};
-  let allRows = [], from2 = 0;
-  while (true) {
-    const { data } = await sb.from('market_data')
+  const allRows = await fetchAllPages(
+    sb.from('market_data')
       .select('stock_code,base_date,price_change_rate')
       .gte('base_date', oldestDate)
       .not('price_change_rate', 'is', null)
-      .range(from2, from2 + 999);
-    if (!data?.length) break;
-    allRows = allRows.concat(data);
-    if (data.length < 1000) break;
-    from2 += 1000;
-  }
+  );
   allRows.forEach(r => {
     if (industryMap[r.stock_code] !== ind) return;
     if (!krDates[r.base_date]) krDates[r.base_date] = [];

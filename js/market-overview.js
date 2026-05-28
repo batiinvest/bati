@@ -19,19 +19,12 @@ function toggleTrendChart() {
 async function loadMarketOverview(maxDate) {
   // 전체 종목 조회 — 페이지네이션 (Supabase 기본 limit 1000 우회)
   const industryMap = await getIndustryMap();
-  let all = [];
-  let from = 0;
-  while (true) {
-    const { data } = await sb.from('market_data')
+  const all = await fetchAllPages(
+    sb.from('market_data')
       .select('stock_code,corp_name,price,price_change_rate,market,market_cap,foreign_net_buy,foreign_hold_rate,hgpr_cls_code')
       .eq('base_date', maxDate)
       .not('price_change_rate', 'is', null)
-      .range(from, from + 999);
-    if (!data?.length) break;
-    all = all.concat(data);
-    if (data.length < 1000) break;
-    from += 1000;
-  }
+  );
   const enriched = all.map(r => ({
     ...r,
     industry:    industryMap[r.stock_code] || r.market || '기타',

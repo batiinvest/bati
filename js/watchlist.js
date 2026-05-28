@@ -70,18 +70,11 @@ async function searchWatchlistStock(query) {
 
   // 전체 companies 캐시 로드 (최초 1회)
   if (!_wlCompanies) {
-    let all = [], page = 0;
-    while (true) {
-      const { data } = await sb.from('companies')
+    _wlCompanies = await fetchAllPages(
+      sb.from('companies')
         .select('code,name,industry,sub_industry,market')
         .eq('active', true)
-        .range(page*1000, (page+1)*1000-1);
-      if (!data?.length) break;
-      all = all.concat(data);
-      if (data.length < 1000) break;
-      page++;
-    }
-    _wlCompanies = all;
+    );
   }
 
   const q = query.toLowerCase();

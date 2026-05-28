@@ -36,19 +36,12 @@ async function loadIndTrendChart() {
   const dateList = [...new Set(dateRows.map(r => r.base_date))].sort().slice(-_indTrendPeriod);
   if (dateList.length < 2) return;
   const oldestDate = dateList[0];
-  let allRows = [];
-  let from = 0;
-  while (true) {
-    const { data } = await sb.from('market_data')
+  const allRows = await fetchAllPages(
+    sb.from('market_data')
       .select('stock_code,base_date,price_change_rate')
       .gte('base_date', oldestDate)
       .not('price_change_rate', 'is', null)
-      .range(from, from + 999);
-    if (!data?.length) break;
-    allRows = allRows.concat(data);
-    if (data.length < 1000) break;
-    from += 1000;
-  }
+  );
 
   // 날짜 × 산업별 평균 등락률 집계
   const indDates = {}; // { '반도체': { '2026-05-09': [chg, chg, ...] } }
