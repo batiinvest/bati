@@ -108,8 +108,8 @@ function _renderEtfTab() {
   </div>`;
 }
 
-// ── 수집 스케줄 탭 ──────────────────────────────────────
-function _renderScheduleTab() {
+// ── 수집 스케줄 카드 (봇 관리 > 스케줄 탭에서 사용) ──────
+function _collectionScheduleCard() {
   const schedules = [
     // 장중
     { time:'06:10', job:'collect_macro',              label:'글로벌 매크로 수집 (미국 장 마감 직후)', group:'장전', color:'var(--tg)' },
@@ -174,17 +174,15 @@ function _renderScheduleTab() {
   }).join('');
 
   return `
-  <div id="company-tab-schedule" style="display:none;padding:1.25rem">
-    <div class="card">
-      <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span class="card-title">📅 수집 스케줄</span>
-        <span style="font-size:12px;color:var(--text3)">평일 자동 실행 기준 · 주말/공휴일 자동 스킵</span>
-        <div style="margin-left:auto;font-size:11px;color:var(--text3)">
-          market_data 보존: 모니터링 <b style="color:var(--tg)">90일</b> / 전체 <b style="color:var(--text2)">28일</b>
-        </div>
+  <div class="card" style="margin-bottom:1rem">
+    <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="card-title">📅 수집 스케줄</span>
+      <span style="font-size:12px;color:var(--text3)">평일 자동 실행 기준 · 주말/공휴일 자동 스킵</span>
+      <div style="margin-left:auto;font-size:11px;color:var(--text3)">
+        market_data 보존: 모니터링 <b style="color:var(--tg)">90일</b> / 전체 <b style="color:var(--text2)">28일</b>
       </div>
-      <div class="card-body">${rows}</div>
     </div>
+    <div class="card-body">${rows}</div>
   </div>`;
 }
 
@@ -208,18 +206,10 @@ function pCompany() {
         color:${_companyTab==='etf'?'var(--text)':'var(--text3)'};margin-bottom:-1px">
       🌐 US 종목 관리
     </button>
-    <button class="company-tab ${_companyTab==='schedule'?'active':''}"
-      data-tab="schedule" onclick="switchCompanyTab('schedule')"
-      style="padding:12px 20px;font-size:13px;font-weight:600;background:none;border:none;
-        cursor:pointer;border-bottom:2px solid ${_companyTab==='schedule'?'var(--tg)':'transparent'};
-        color:${_companyTab==='schedule'?'var(--text)':'var(--text3)'};margin-bottom:-1px">
-      📅 수집 스케줄
-    </button>
   </div>
 
   ${_renderMonitoringTab()}
   ${_renderEtfTab()}
-  ${_renderScheduleTab()}
   </div>`;
 }
 
@@ -227,10 +217,8 @@ function switchCompanyTab(tab) {
   _companyTab = tab;
   const monEl = document.getElementById('company-tab-monitoring');
   const etfEl = document.getElementById('company-tab-etf');
-  const schEl = document.getElementById('company-tab-schedule');
   if (monEl) monEl.style.display = tab === 'monitoring' ? 'grid' : 'none';
   if (etfEl) etfEl.style.display = tab === 'etf' ? 'block' : 'none';
-  if (schEl) schEl.style.display = tab === 'schedule' ? 'block' : 'none';
   // 탭 버튼 스타일
   document.querySelectorAll('.company-tab').forEach(btn => {
     const isActive = btn.dataset.tab === tab;

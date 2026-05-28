@@ -127,13 +127,12 @@ function pBotConfig() {
   return `
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
     <div class="tabs" style="margin-bottom:0" id="botcfg-tabs">
-      <button class="tab active" onclick="switchBotCfgTab('keywords',this)">키워드 설정</button>
-      <button class="tab" onclick="switchBotCfgTab('news-filter',this)">뉴스 필터</button>
-      <button class="tab" onclick="switchBotCfgTab('dart-level',this)">공시 등급</button>
-      <button class="tab" onclick="switchBotCfgTab('channel-info',this)">채널 정보</button>
+      <button class="tab active" onclick="switchBotCfgTab('status',this)">현황</button>
+      <button class="tab" onclick="switchBotCfgTab('dart',this)">공시 설정</button>
+      <button class="tab" onclick="switchBotCfgTab('news',this)">뉴스 설정</button>
+      <button class="tab" onclick="switchBotCfgTab('alert',this)">알림·채널</button>
       <button class="tab" onclick="switchBotCfgTab('schedule',this)">스케줄</button>
-      <button class="tab" onclick="switchBotCfgTab('news-terms',this)">산업별 검색어</button>
-      <button class="tab" onclick="switchBotCfgTab('alert',this)">시세 알림</button>
+      <button class="tab" onclick="switchBotCfgTab('guide',this)">채널 안내</button>
     </div>
     <button class="btn btn-sm btn-primary" id="botcfg-reload-btn" onclick="requestBotReload('botcfg-reload-btn')" title="저장한 설정을 봇에 즉시 반영합니다">
       <svg style="width:12px;height:12px;vertical-align:middle;margin-right:3px" viewBox="0 0 16 16" fill="none"><path d="M13.5 8A5.5 5.5 0 112.5 5M2.5 2v3h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -141,9 +140,54 @@ function pBotConfig() {
     </button>
   </div>
 
-  <!-- 키워드 설정 탭 -->
-  <div id="botcfg-keywords">
-    <div class="card" style="margin-bottom:1rem"><div class="card-header"><span class="card-title">AI 분석 키워드</span></div><div class="card-body">
+  <!-- ① 현황 탭 (봇 모니터링 통합) -->
+  <div id="botcfg-status">
+    <div class="metrics-grid" style="grid-template-columns:repeat(2,1fr)">
+      <div class="metric-card" id="bot-dart-card">
+        <div class="metric-label">DART 공시 봇</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <span class="dot dot-gray" id="bot-dart-dot"></span>
+          <span class="metric-value" style="font-size:16px" id="bot-dart-status">확인 중...</span>
+        </div>
+        <div class="metric-sub" id="bot-dart-time">—</div>
+      </div>
+      <div class="metric-card" id="bot-news-card">
+        <div class="metric-label">뉴스 봇</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <span class="dot dot-gray" id="bot-news-dot"></span>
+          <span class="metric-value" style="font-size:16px" id="bot-news-status">확인 중...</span>
+        </div>
+        <div class="metric-sub" id="bot-news-time">—</div>
+      </div>
+      <div class="metric-card" id="bot-price-card">
+        <div class="metric-label">시세 감시 봇</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <span class="dot dot-gray" id="bot-price-dot"></span>
+          <span class="metric-value" style="font-size:16px" id="bot-price-status">확인 중...</span>
+        </div>
+        <div class="metric-sub" id="bot-price-time">—</div>
+      </div>
+      <div class="metric-card" id="bot-sched-card">
+        <div class="metric-label">스케줄러 봇</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <span class="dot dot-gray" id="bot-sched-dot"></span>
+          <span class="metric-value" style="font-size:16px" id="bot-sched-status">확인 중...</span>
+        </div>
+        <div class="metric-sub" id="bot-sched-time">—</div>
+      </div>
+    </div>
+    <div class="section-header" style="margin-top:.5rem">
+      <span class="section-title">최근 발송 기록</span>
+      <button class="btn btn-sm" onclick="loadBotStatus()">새로고침</button>
+    </div>
+    <div class="card" id="bot-notice-card">
+      <div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>
+    </div>
+  </div>
+
+  <!-- ② 공시 설정 탭 (키워드 설정 + 공시 등급 통합) -->
+  <div id="botcfg-dart" style="display:none">
+    <div class="card" style="margin-bottom:1rem"><div class="card-header"><span class="card-title">알림 키워드</span></div><div class="card-body">
       <div class="form-group">
         <label class="form-label">AI 트리거 키워드 <span style="font-size:11px;color:var(--text3)">(쉼표로 구분)</span></label>
         <textarea class="form-input" id="cfg-ai-kw" rows="3" placeholder="공급계약,임상,무상증자,..."></textarea>
@@ -156,44 +200,7 @@ function pBotConfig() {
       </div>
       <button class="btn btn-primary" onclick="saveBotKeywords()">저장</button>
     </div></div>
-  </div>
 
-  <!-- 뉴스 필터 탭 -->
-  <div id="botcfg-news-filter" style="display:none">
-    <div class="card" style="margin-bottom:1rem">
-      <div class="card-header">
-        <span class="card-title">스팸 패턴 <span style="font-size:11px;font-weight:400;color:var(--text3)">— 제목에 포함 시 발송 차단</span></span>
-      </div>
-      <div class="card-body">
-        <div class="form-group">
-          <label class="form-label">패턴 목록 <span style="font-size:11px;color:var(--text3)">(한 줄에 하나씩, 정규식 가능)</span></label>
-          <textarea class="form-input" id="cfg-spam-patterns" rows="10" placeholder="매수.*위&#10;급등.*예고&#10;순매수.*위"></textarea>
-          <div class="form-hint">예: <code>매수.*위</code> → "매수 1위", "매수 3위" 등 모두 차단</div>
-        </div>
-        <button class="btn btn-primary" onclick="saveNewsFilter('news_spam_patterns', 'cfg-spam-patterns', '\\n')">저장</button>
-      </div>
-    </div>
-
-    <div class="card" style="margin-bottom:1rem">
-      <div class="card-header">
-        <span class="card-title">실질 보도 키워드 <span style="font-size:11px;font-weight:400;color:var(--text3)">— 하나도 없으면 발송 안 함</span></span>
-      </div>
-      <div class="card-body">
-        <div class="form-group">
-          <label class="form-label">키워드 목록 <span style="font-size:11px;color:var(--text3)">(쉼표로 구분)</span></label>
-          <textarea class="form-input" id="cfg-meaningful-kw" rows="6" placeholder="계약,수주,실적,임상,특허,인수..."></textarea>
-          <div class="form-hint">이 중 하나라도 제목/본문에 있어야 발송합니다. 없으면 단순 언급으로 판단해 스킵.</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn btn-primary" onclick="saveNewsFilter('news_meaningful_keywords', 'cfg-meaningful-kw', ',')">저장</button>
-          <span style="font-size:11px;color:var(--text3)">저장 후 봇 재로드 버튼을 눌러주세요.</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 공시 등급 탭 -->
-  <div id="botcfg-dart-level" style="display:none">
     <div style="font-size:12px;color:var(--text2);margin-bottom:1rem;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
       공시 제목에 키워드가 포함되면 해당 등급으로 분류됩니다. 쉼표로 구분하며 저장 후 봇 재로드 시 반영됩니다.<br>
       <b style="color:var(--red)">긴급</b> → 메인+산업+기업 &nbsp;|&nbsp; <b style="color:var(--green)">중요</b> → 산업+기업 &nbsp;|&nbsp; <b style="color:var(--text2)">일반</b> → 산업+기업 &nbsp;|&nbsp; <b style="color:var(--text3)">잡공시</b> → 기업채널만
@@ -209,7 +216,7 @@ function pBotConfig() {
           placeholder="거래정지,횡령,배임,상장폐지,불성실,공개매수,영업정지"></textarea>
         <div style="display:flex;gap:8px;margin-top:.75rem;align-items:center">
           <button class="btn btn-primary btn-sm" onclick="saveDartLevel('dart_urgent','cfg-dart-urgent')">저장</button>
-          <span style="font-size:11px;color:var(--text3)">우선순위 가장 높음 — 중요/잡공시 키워드와 중복 시 긴급 우선</span>
+          <span style="font-size:11px;color:var(--text3)">우선순위 가장 높음</span>
         </div>
       </div>
     </div>
@@ -228,7 +235,7 @@ function pBotConfig() {
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" style="margin-bottom:.75rem">
       <div class="card-header">
         <span class="card-title" style="color:var(--text3)">📊 잡공시 키워드</span>
         <span style="font-size:11px;color:var(--text3)">기업채널만 (산업/메인 발송 안 함)</span>
@@ -247,13 +254,11 @@ function pBotConfig() {
         <span class="card-title">🔍 공시 제목 필터 <span style="font-size:11px;font-weight:400;color:var(--text3)">— 제목에 포함 시 모든 채널 차단</span></span>
       </div>
       <div class="card-body">
-        <div class="form-group">
-          <label class="form-label">단어 목록 <span style="font-size:11px;color:var(--text3)">(쉼표로 구분)</span></label>
-          <textarea class="form-input" id="cfg-dart-title-filter" rows="3"
-            placeholder="자기주식,증권발행실적,투자설명서,합병등종료보고..."></textarea>
-          <div class="form-hint">공시 제목에 이 단어가 포함되면 등급에 관계없이 모든 채널에 발송하지 않습니다.</div>
+        <textarea class="form-input" id="cfg-dart-title-filter" rows="3"
+          placeholder="자기주식,증권발행실적,투자설명서,합병등종료보고..."></textarea>
+        <div style="margin-top:.75rem">
+          <button class="btn btn-primary btn-sm" onclick="saveDartLevel('dart_title_filter','cfg-dart-title-filter')">저장</button>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="saveDartLevel('dart_title_filter','cfg-dart-title-filter')">저장</button>
       </div>
     </div>
 
@@ -262,13 +267,11 @@ function pBotConfig() {
         <span class="card-title">🏢 기업명 부분 필터 <span style="font-size:11px;font-weight:400;color:var(--text3)">— 기업명에 포함 시 차단</span></span>
       </div>
       <div class="card-body">
-        <div class="form-group">
-          <label class="form-label">단어 목록 <span style="font-size:11px;color:var(--text3)">(쉼표로 구분)</span></label>
-          <textarea class="form-input" id="cfg-dart-corp-filter" rows="3"
-            placeholder="홀딩스,지주,캐피탈,리츠..."></textarea>
-          <div class="form-hint">기업명에 이 단어가 포함되면 차단합니다. 블랙리스트는 정확한 기업명 일치, 여기는 부분 일치입니다.<br>예: <code>홀딩스</code> 입력 시 "삼성홀딩스", "XX홀딩스" 등 전체 차단</div>
+        <textarea class="form-input" id="cfg-dart-corp-filter" rows="3"
+          placeholder="홀딩스,지주,캐피탈,리츠..."></textarea>
+        <div style="margin-top:.75rem">
+          <button class="btn btn-primary btn-sm" onclick="saveDartLevel('dart_corp_filter','cfg-dart-corp-filter')">저장</button>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="saveDartLevel('dart_corp_filter','cfg-dart-corp-filter')">저장</button>
       </div>
     </div>
 
@@ -277,128 +280,94 @@ function pBotConfig() {
         <span class="card-title">🚫 기업 블랙리스트 <span style="font-size:11px;font-weight:400;color:var(--text3)">— 정확한 기업명 일치 시 차단</span></span>
       </div>
       <div class="card-body">
-        <div class="form-group">
-          <label class="form-label">기업명 <span style="font-size:11px;color:var(--text3)">(쉼표로 구분)</span></label>
-          <textarea class="form-input" id="cfg-dart-blacklist" rows="3" placeholder="삼성전자,SK하이닉스,..."></textarea>
-          <div class="form-hint">여기 입력된 기업의 공시는 기업채널 포함 모든 채널에 발송하지 않습니다.</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
+        <textarea class="form-input" id="cfg-dart-blacklist" rows="3" placeholder="삼성전자,SK하이닉스,..."></textarea>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:.75rem">
           <button class="btn btn-primary btn-sm" onclick="saveDartLevel('dart_blacklist','cfg-dart-blacklist')">저장</button>
           <span style="font-size:11px;color:var(--text3)">저장 후 봇 재로드 버튼을 눌러주세요.</span>
         </div>
       </div>
     </div>
 
-    <!-- 공시 알림 규칙 요약 -->
-    <div class="card">
-      <div class="card-header"><span class="card-title">📋 공시 알림 규칙 요약</span></div>
-      <div class="card-body" style="font-size:12px;color:var(--text2);line-height:1.8">
-
-        <!-- 수신 조건 -->
-        <div style="margin-bottom:1rem">
-          <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">① 수신 대상</div>
-          <div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
-            <b>내 종목</b> (companies 테이블 is_monitored=true) <span style="color:var(--text3)">또는</span>
-            <b>전체 중요 키워드</b> 포함 공시만 수신<br>
-            <span style="color:var(--text3)">비상장 종목(stock_code 없음) · 블랙리스트 · 제목/기업명 필터는 수신 전 차단</span>
+    <!-- 공시 알림 규칙 요약 (접어두기) -->
+    <details style="margin-bottom:.75rem">
+      <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);padding:10px 14px;
+        background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);list-style:none">
+        📋 공시 알림 규칙 요약 (클릭해서 펼치기)
+      </summary>
+      <div class="card" style="border-radius:0 0 var(--radius-sm) var(--radius-sm)">
+        <div class="card-body" style="font-size:12px;color:var(--text2);line-height:1.8">
+          <div style="margin-bottom:1rem">
+            <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">① 수신 대상</div>
+            <div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
+              <b>내 종목</b> (companies 테이블 is_monitored=true) <span style="color:var(--text3)">또는</span>
+              <b>전체 중요 키워드</b> 포함 공시만 수신<br>
+              <span style="color:var(--text3)">비상장 종목 · 블랙리스트 · 제목/기업명 필터는 수신 전 차단</span>
+            </div>
+          </div>
+          <div style="margin-bottom:1rem">
+            <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">② 등급 분류 우선순위</div>
+            <div style="display:grid;grid-template-columns:80px 1fr;gap:4px 12px;padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
+              <span style="color:var(--text3)">판정 순서</span><span style="color:var(--text3)">잡공시 → 긴급 → 중요 → 일반</span>
+              <span style="color:var(--red);font-weight:600">🚨 긴급</span><span>거래정지, 횡령, 배임, 상장폐지, 관리종목, 공개매수, 불성실공시, 영업정지</span>
+              <span style="color:var(--green);font-weight:600">📌 중요</span><span>공급계약, 수주, 잠정실적, 무/유상증자, 최대주주변경, 합병, CB/BW, 소송, 특허, 임상</span>
+              <span style="color:var(--text3)">🔇 잡공시</span><span>소유상황보고, 기업설명회, IR개최, 감사보고서, 주주총회, 의결권대리</span>
+              <span style="color:var(--text2)">📄 일반</span><span>위 3가지 외 모두</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">③ AI 심층 분석 (Gemini)</div>
+            <div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
+              <b>긴급 또는 중요</b> 등급 + <b>AI 키워드</b> 포함 시 자동 실행 → 기업채널에 후속 메시지 발송
+            </div>
           </div>
         </div>
-
-        <!-- 등급 분류 -->
-        <div style="margin-bottom:1rem">
-          <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">② 등급 분류 우선순위</div>
-          <div style="display:grid;grid-template-columns:80px 1fr;gap:4px 12px;padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
-            <span style="color:var(--text3)">판정 순서</span><span style="color:var(--text3)">잡공시 체크 → 긴급 체크 → 중요 체크 → 일반</span>
-            <span style="color:var(--red);font-weight:600">🚨 긴급</span><span>거래정지, 횡령, 배임, 상장폐지, 관리종목, 공개매수, 불성실공시, 영업정지</span>
-            <span style="color:var(--green);font-weight:600">📌 중요</span><span>공급계약, 수주, 잠정실적, 무/유상증자, 최대주주변경, 합병, 분할, 인수, CB/BW, 소송, 특허, 임상, 정기보고서</span>
-            <span style="color:var(--text3)">🔇 잡공시</span><span>소유상황보고, 기업설명회, IR개최, 감사보고서, 주주총회, 의결권대리, 증권발행실적, 투자설명서, 자기주식취득/처분결과</span>
-            <span style="color:var(--text2)">📄 일반</span><span>위 3가지 외 모두</span>
-          </div>
-        </div>
-
-        <!-- 채널 라우팅 -->
-        <div style="margin-bottom:1rem">
-          <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">③ 채널 라우팅</div>
-          <table style="width:100%;border-collapse:collapse;font-size:11px">
-            <thead>
-              <tr style="background:var(--bg3);color:var(--text3)">
-                <th style="padding:5px 8px;border:1px solid var(--border);text-align:left">등급</th>
-                <th style="padding:5px 8px;border:1px solid var(--border);text-align:center">메인<br><span style="font-weight:400">@BatiInvestChat</span></th>
-                <th style="padding:5px 8px;border:1px solid var(--border);text-align:center">산업 채널</th>
-                <th style="padding:5px 8px;border:1px solid var(--border);text-align:center">기업 채널</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td style="padding:5px 8px;border:1px solid var(--border);color:var(--red);font-weight:600">🚨 긴급</td>
-                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3)">시총 1,000억↑</span></td>
-                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">✅</td>
-                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">✅</td>
-              </tr>
-              <tr style="background:var(--bg2)">
-                <td style="padding:5px 8px;border:1px solid var(--border);color:var(--green);font-weight:600">📌 중요 (내 종목)</td>
-                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">✅</td>
-                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">✅</td>
-              </tr>
-              <tr>
-                <td style="padding:5px 8px;border:1px solid var(--border);color:var(--green);font-weight:600">📌 중요 (비보유+전체중요)</td>
-                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3)">시총 1,000억↑</span></td>
-                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              </tr>
-              <tr style="background:var(--bg2)">
-                <td style="padding:5px 8px;border:1px solid var(--border);color:var(--text2)">📄 일반</td>
-                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">✅</td>
-                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">✅</td>
-              </tr>
-              <tr>
-                <td style="padding:5px 8px;border:1px solid var(--border);color:var(--text3)">🔇 잡공시</td>
-                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-                <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">✅</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- AI 분석 -->
-        <div style="margin-bottom:1rem">
-          <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">④ AI 심층 분석 (Gemini)</div>
-          <div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
-            <b>긴급 또는 중요</b> 등급 + <b>AI 키워드</b> 포함 시 자동 실행 → 기업채널에 후속 메시지 발송<br>
-            <span style="color:var(--text3)">AI 키워드는 '키워드 설정' 탭에서 관리</span>
-          </div>
-        </div>
-
-        <!-- 공시 원문 파싱 -->
-        <div style="margin-bottom:1rem">
-          <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">⑤ 공시 원문 파싱 (방식 B)</div>
-          <div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
-            모바일 DART 원문에서 핵심 필드를 추출하여 메시지에 포함. 파싱 실패 시 기존 메시지 그대로 발송.<br>
-            <span style="color:var(--text3)">지원 타입 (17종):
-              계약/수주 · 유상증자 · 무상증자 · CB/BW · 최대주주변경 · 잠정실적 · 합병 · 관리종목 ·
-              거래정지 · 배당결정 · 타법인주식취득 · 신규시설투자 · 대량보유 · 자기주식처분 ·
-              IND신청 · 임상시험결과 · 투자판단관련주요경영사항
-            </span>
-          </div>
-        </div>
-
-        <!-- 운영 시간 -->
-        <div>
-          <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">⑥ 운영 시간</div>
-          <div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
-            평일 <b>07:00 ~ 19:00</b> — 60초 간격 폴링 &nbsp;|&nbsp; 주말·19시 이후 — 슬립 (수신 없음)
-          </div>
-        </div>
-
       </div>
-    </div>
+    </details>
   </div>
 
-  <!-- 채널 정보 탭 -->
-  <div id="botcfg-channel-info" style="display:none">
+  <!-- ③ 뉴스 설정 탭 (뉴스 필터 + 산업별 검색어 통합) -->
+  <div id="botcfg-news" style="display:none">
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-header">
+        <span class="card-title">스팸 패턴 <span style="font-size:11px;font-weight:400;color:var(--text3)">— 제목에 포함 시 발송 차단</span></span>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">패턴 목록 <span style="font-size:11px;color:var(--text3)">(한 줄에 하나씩, 정규식 가능)</span></label>
+          <textarea class="form-input" id="cfg-spam-patterns" rows="8" placeholder="매수.*위&#10;급등.*예고&#10;순매수.*위"></textarea>
+          <div class="form-hint">예: <code>매수.*위</code> → "매수 1위", "매수 3위" 등 모두 차단</div>
+        </div>
+        <button class="btn btn-primary" onclick="saveNewsFilter('news_spam_patterns', 'cfg-spam-patterns', '\\n')">저장</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-header">
+        <span class="card-title">실질 보도 키워드 <span style="font-size:11px;font-weight:400;color:var(--text3)">— 하나도 없으면 발송 안 함</span></span>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">키워드 목록 <span style="font-size:11px;color:var(--text3)">(쉼표로 구분)</span></label>
+          <textarea class="form-input" id="cfg-meaningful-kw" rows="5" placeholder="계약,수주,실적,임상,특허,인수..."></textarea>
+          <div class="form-hint">이 중 하나라도 제목/본문에 있어야 발송합니다.</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-primary" onclick="saveNewsFilter('news_meaningful_keywords', 'cfg-meaningful-kw', ',')">저장</button>
+          <span style="font-size:11px;color:var(--text3)">저장 후 봇 재로드 버튼을 눌러주세요.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1rem"><div class="card-header">
+      <span class="card-title">산업별 뉴스 검색어</span>
+      <span style="font-size:11px;color:var(--text3)">쉼표로 구분 — 저장 즉시 봇 다음 사이클에 반영</span>
+    </div><div class="card-body">
+      <div id="news-terms-list"><span class="loading"></span></div>
+    </div></div>
+  </div>
+
+  <!-- ⑥ 채널 안내 탭 -->
+  <div id="botcfg-guide" style="display:none">
 
     <!-- 채널 구조 -->
     <div class="card" style="margin-bottom:.75rem">
@@ -596,26 +565,30 @@ function pBotConfig() {
       </div>
     </div>
 
+    <div style="background:linear-gradient(135deg,rgba(42,171,238,.12),rgba(42,171,238,.04));border:1px solid rgba(42,171,238,.25);border-radius:var(--radius);padding:1rem 1.25rem">
+      <div style="font-size:13px;font-weight:600;color:var(--tg);margin-bottom:.5rem">봇 서버 연동 방법</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.9">
+        1. <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">supabase_bridge.py</code> 를 봇 폴더에 복사<br>
+        2. <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">pip install supabase</code> 실행<br>
+        3. <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">.env</code> 에 <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">SB_URL</code>, <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">SB_SERVICE_KEY</code> 추가<br>
+        4. 봇 재시작 → 대시보드에서 heartbeat 확인
+      </div>
+    </div>
+
   </div>
 
-  <!-- 스케줄 탭 -->
+  <!-- ⑤ 스케줄 탭 -->
   <div id="botcfg-schedule" style="display:none">
-    <div class="card" style="margin-bottom:1rem"><div class="card-header"><span class="card-title">스케줄 ON/OFF</span></div><div class="card-body">
-      <div id="schedule-list"><span class="loading"></span></div>
-    </div></div>
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-header"><span class="card-title">정기 발송 ON/OFF</span></div>
+      <div class="card-body">
+        <div id="schedule-list"><span class="loading"></span></div>
+      </div>
+    </div>
+    ${_collectionScheduleCard()}
   </div>
 
-  <!-- 산업별 검색어 탭 -->
-  <div id="botcfg-news-terms" style="display:none">
-    <div class="card" style="margin-bottom:1rem"><div class="card-header">
-      <span class="card-title">산업별 뉴스 검색어</span>
-      <span style="font-size:11px;color:var(--text3)">쉼표로 구분 — 저장 즉시 봇 다음 사이클에 반영</span>
-    </div><div class="card-body">
-      <div id="news-terms-list"><span class="loading"></span></div>
-    </div></div>
-  </div>
-
-  <!-- 시세 알림 탭 -->
+  <!-- ④ 알림·채널 탭 -->
   <div id="botcfg-alert" style="display:none">
 
     <div style="font-size:12px;color:var(--text2);margin-bottom:1rem;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
@@ -686,47 +659,26 @@ function pBotConfig() {
         <button class="btn btn-primary" onclick="saveAlertConfig('news_low_trust_sources', 'cfg-low-trust')">저장</button>
       </div>
     </div>
-  </div>
-
-  <div style="background:linear-gradient(135deg,rgba(42,171,238,.12),rgba(42,171,238,.04));border:1px solid rgba(42,171,238,.25);border-radius:var(--radius);padding:1rem 1.25rem">
-    <div style="font-size:13px;font-weight:600;color:var(--tg);margin-bottom:.5rem">봇 서버 연동 방법</div>
-    <div style="font-size:12px;color:var(--text2);line-height:1.9">
-      1. <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">supabase_bridge.py</code> 를 봇 폴더에 복사<br>
-      2. <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">pip install supabase</code> 실행<br>
-      3. <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">.env</code> 에 <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">SB_URL</code>, <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">SB_SERVICE_KEY</code> 추가<br>
-      4. 봇 재시작 → 대시보드에서 heartbeat 확인
-    </div>
   </div>`;
 }
 
 function switchBotCfgTab(tab, el) {
-  ['keywords','news-filter','dart-level','channel-info','schedule','news-terms','alert'].forEach(t => {
+  ['status','dart','news','alert','schedule','guide'].forEach(t => {
     document.getElementById(`botcfg-${t}`).style.display = t === tab ? '' : 'none';
   });
   document.querySelectorAll('#botcfg-tabs .tab').forEach(t => t.classList.remove('active'));
   if (el) el.classList.add('active');
 
+  if (tab === 'status')   loadBotStatus();
+  if (tab === 'dart')     loadDartLevel();
+  if (tab === 'news')     { loadNewsFilter(); loadNewsTerms(); }
+  if (tab === 'alert')    loadAlertConfig();
   if (tab === 'schedule') loadSchedules();
-  if (tab === 'news-terms') loadNewsTerms();
-  if (tab === 'news-filter') loadNewsFilter();
-  if (tab === 'dart-level') loadDartLevel();
-  if (tab === 'alert') loadAlertConfig();
 }
 
 async function loadBotConfig() {
-  // 키워드 탭 로드
-  const allKeys = ['ai_trigger_keywords', 'global_important_keywords'];
-  const { data: cfgRows } = await sb.from('app_config').select('key,value').in('key', allKeys);
-  const cfg = {};
-  (cfgRows || []).forEach(r => cfg[r.key] = r.value);
-
-  const aiEl = document.getElementById('cfg-ai-kw');
-  const glEl = document.getElementById('cfg-global-kw');
-  if (aiEl && cfg['ai_trigger_keywords']) aiEl.value = cfg['ai_trigger_keywords'];
-  if (glEl && cfg['global_important_keywords']) glEl.value = cfg['global_important_keywords'];
-
-  // 스케줄은 탭 전환 시 로드
-  loadSchedules();
+  // 현황 탭이 기본 — 봇 상태 및 최근 발송 기록 로드
+  loadBotStatus();
 }
 
 async function loadSchedules() {
