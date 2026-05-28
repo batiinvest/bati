@@ -44,6 +44,28 @@ const _ICO = (() => {
   };
 })();
 
+// ── 스켈레톤 리스트 헬퍼 ──
+function _skelList(n=5, compact=false) {
+  const h = compact ? 10 : 12, p = compact ? '5px 10px' : '7px 12px';
+  return Array(n).fill(0).map(() =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:${p};border-bottom:1px solid var(--border)">` +
+    `<span class="skeleton" style="width:18px;height:${h}px;border-radius:3px;flex-shrink:0"></span>` +
+    `<span class="skeleton" style="flex:1;height:${h}px;border-radius:3px"></span>` +
+    `<span class="skeleton" style="width:44px;height:${h}px;border-radius:3px"></span>` +
+    `</div>`
+  ).join('');
+}
+function _skelCards(n=4) {
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;padding:12px">` +
+    Array(n).fill(0).map(() =>
+      `<div style="background:var(--bg3);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px">` +
+      `<span class="skeleton" style="width:60%;height:12px;border-radius:4px"></span>` +
+      `<span class="skeleton" style="width:40%;height:18px;border-radius:4px"></span>` +
+      `<span class="skeleton" style="width:80%;height:10px;border-radius:3px"></span>` +
+      `</div>`
+    ).join('') + `</div>`;
+}
+
 // ── 페이지 HTML ──
 function pInvestment() {
   window._invTab = window._invTab || 'market';
@@ -144,9 +166,7 @@ function pInvestment() {
         </div>
       </div>
       <div id="hgpr-body" style="padding:.5rem 0">
-        <div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">
-          <span class="loading"></span> 신고가 데이터 로딩 중...
-        </div>
+        ${_skelList(6)}
       </div>
     </div>
 
@@ -161,19 +181,19 @@ function pInvestment() {
           <div style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--text2);background:var(--bg2);border-bottom:1px solid var(--border)">
             ${_ICO.shuffle}동시매수 <span style="font-size:10px;color:var(--text3);font-weight:400">외국인+기관</span>
           </div>
-          <div id="flow-body-both"><div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div></div>
+          <div id="flow-body-both">${_skelList(8, true)}</div>
         </div>
         <div style="border-left:1px solid var(--border)">
           <div style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--tg);background:var(--bg2);border-bottom:1px solid var(--border)">
             ${_ICO.globe}외국인 순매수
           </div>
-          <div id="flow-body-frgn"><div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div></div>
+          <div id="flow-body-frgn">${_skelList(8, true)}</div>
         </div>
         <div style="border-left:1px solid var(--border)">
           <div style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--yellow);background:var(--bg2);border-bottom:1px solid var(--border)">
             ${_ICO.building}기관 순매수
           </div>
-          <div id="flow-body-orgn"><div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div></div>
+          <div id="flow-body-orgn">${_skelList(8, true)}</div>
         </div>
       </div>
     </div>
@@ -288,12 +308,12 @@ function pInvestment() {
           onclick="toggleAllDisclosures()">+ 전체 공시</button>
       </div>
       <div id="inv-disclosure-list" style="padding:.5rem 0">
-        <div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:12px"><span class="loading"></span></div>
+        ${_skelList(4)}
       </div>
       <!-- 전체 공시 펼침 영역 -->
       <div id="inv-all-disclosure" style="display:none;border-top:1px solid var(--border)">
         <div id="inv-all-disclosure-list" style="padding:.5rem 0">
-          <div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:12px"><span class="loading"></span></div>
+          ${_skelList(6)}
         </div>
       </div>
     </div>
@@ -317,7 +337,7 @@ function pInvestment() {
         </div>
       </div>
       <div id="inv-earnings-list" style="padding:.5rem 0">
-        <div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:12px"><span class="loading"></span></div>
+        ${_skelCards(4)}
       </div>
     </div>
   </div>`;
