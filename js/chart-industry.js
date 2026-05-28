@@ -38,7 +38,6 @@ async function loadIndTrendChart() {
   const oldestDate = dateList[0];
 
   // 모니터링 종목만 조회 (전체 상장사 × N일 → 모니터링 ~300 × N일, 약 88% 감소)
-  const monCodes = Object.keys(industryMap);
   const allRows = await fetchAllPages((s, e) =>
     sb.from('market_data')
       .select('stock_code,base_date,price_change_rate')
