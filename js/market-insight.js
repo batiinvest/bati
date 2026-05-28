@@ -196,6 +196,48 @@ function _fmt(v) {
 
 
 // ════════════════════════════════════════════════════════════
+// 프론트 → DB 저장 (어드민 전용)
+// ════════════════════════════════════════════════════════════
+window._insightSaveDB = async function() {
+  const btn  = document.getElementById('insight-save-btn');
+  const data = window._insightCurrentData;
+  if (!data || data.generated_by !== 'live') return;
+
+  if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
+
+  try {
+    const record = {
+      market_date:       data.market_date,
+      market_type:       'KR',
+      one_line_summary:  data.one_line_summary,
+      flow_summary:      JSON.stringify(data.flow    || {}),
+      key_points:        JSON.stringify(data.key_points   || []),
+      risk_factors:      JSON.stringify(data.risk_factors || []),
+      watch_events:      JSON.stringify(data.watch_events || []),
+      strong_industries: JSON.stringify((data.flow?.strong_industries) || []),
+      weak_industries:   JSON.stringify((data.flow?.weak_industries)   || []),
+      top_stocks:        JSON.stringify([]),
+      data_basis:        data.data_basis || '',
+      generated_at:      new Date().toISOString(),
+    };
+
+    const { error } = await sb
+      .from('market_investment_summary')
+      .upsert(record, { onConflict: 'market_date,market_type' });
+
+    if (error) throw error;
+
+    if (btn) { btn.textContent = '✅ 저장됨'; btn.style.color = 'var(--green)'; }
+    if (typeof toast === 'function') toast('투자포인트 요약이 DB에 저장되었습니다.', 'success');
+  } catch(e) {
+    console.error('[Insight] 저장 실패:', e);
+    if (btn) { btn.textContent = 'DB 저장'; btn.disabled = false; }
+    if (typeof toast === 'function') toast('저장 실패: ' + e.message, 'error');
+  }
+};
+
+
+// ════════════════════════════════════════════════════════════
 // ③ DB 우선 조회 (market_investment_summary)
 // ════════════════════════════════════════════════════════════
 async function _loadSummaryFromDB() {
@@ -400,6 +442,9 @@ function _renderInsightCard(data) {
   const el = document.getElementById('market-insight-card');
   if (!el) return;
 
+  // 어드민 저장 버튼용으로 현재 데이터 보관
+  window._insightCurrentData = data;
+
   const f = data.flow || {};
 
   // 장세 색상
@@ -506,10 +551,28 @@ function _renderInsightCard(data) {
 
   // ─── 푸터 ────────────────────────────────────────────────────────────────
   const source = data.generated_by === 'db' ? '백엔드 분석' : '실시간 계산';
+  const _isAdm = typeof isAdmin === 'function' && isAdmin();
+
+  const adminBtns = _isAdm ? `
+  <div style="display:flex;gap:5px;justify-content:flex-end;margin-top:6px">
+    ${data.generated_by === 'live' ? `
+    <button id="insight-save-btn" onclick="window._insightSaveDB()"
+      style="font-size:10px;padding:2px 9px;border-radius:4px;border:1px solid var(--border);
+             background:var(--bg3);color:var(--text2);cursor:pointer">
+      DB 저장
+    </button>` : ''}
+    <button onclick="loadMarketInsight(true)"
+      style="font-size:10px;padding:2px 9px;border-radius:4px;border:1px solid var(--border);
+             background:var(--bg3);color:var(--text2);cursor:pointer">
+      재생성
+    </button>
+  </div>` : '';
+
   const footer = `
   <div style="text-align:right;font-size:10px;color:var(--text3);margin-top:6px">
     ${source} · ${data.data_basis || ''}
-  </div>`;
+  </div>
+  ${adminBtns}`;
 
   el.innerHTML = sec1 + sec2 + sec3 + sec4 + sec5 + footer;
 }
@@ -518,21 +581,26 @@ function _renderInsightCard(data) {
 // ════════════════════════════════════════════════════════════
 // 메인 진입점
 // ════════════════════════════════════════════════════════════
-async function loadMarketInsight() {
+/**
+ * @param {boolean} [force=false]  true면 DB 캐시를 건너뛰고 실시간 재계산
+ */
+async function loadMarketInsight(force = false) {
   const el = document.getElementById('market-insight-card');
   if (!el) return;
 
   el.innerHTML = `<div style="padding:.5rem;color:var(--text3);font-size:12px">
-    <span class="loading"></span> 분석 중...</div>`;
+    <span class="loading"></span> ${force ? '재생성 중...' : '분석 중...'}</div>`;
 
   try {
-    // DB 우선 조회
-    const dbData = await _loadSummaryFromDB();
-    if (dbData) {
-      _renderInsightCard(dbData);
-      return;
+    // DB 우선 조회 (force=true 이면 건너뜀)
+    if (!force) {
+      const dbData = await _loadSummaryFromDB();
+      if (dbData) {
+        _renderInsightCard(dbData);
+        return;
+      }
     }
-    // 폴백: 프론트 실시간 계산
+    // 실시간 계산 (폴백 또는 강제 재생성)
     const liveData = await _buildLiveSections();
     _renderInsightCard(liveData);
   } catch(e) {
