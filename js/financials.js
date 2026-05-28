@@ -682,15 +682,15 @@ async function openMarketDetail(code, name) { openStockDetail(code, name, 'marke
 const _row2 = (label, val, color='') =>
   `<div style="display:flex;justify-content:space-between;align-items:center;
     padding:5px 0;border-bottom:1px solid var(--border)">
-    <span style="font-size:12px;color:var(--text2)">${label}</span>
+    <span style="font-size:12px;color:var(--text)">${label}</span>
     <span style="font-size:13px;font-weight:600;color:${color||'var(--text1)'}">${val}</span>
   </div>`;
 
 const _sec = (title, content, accent='var(--tg)') =>
   `<div style="background:var(--bg3);border-radius:10px;padding:14px 16px;
     border:1px solid var(--border);border-top:2px solid ${accent}">
-    <div style="font-size:10px;font-weight:700;color:var(--text3);
-      letter-spacing:.8px;margin-bottom:10px">${title}</div>
+    <div style="font-size:11px;font-weight:700;color:var(--text2);
+      letter-spacing:.6px;margin-bottom:10px">${title}</div>
     ${content}
   </div>`;
 
@@ -706,7 +706,7 @@ function _w52bar(r) {
   const c = pct>=80?'var(--red)':pct<=20?'var(--blue)':'var(--tg)';
   return `
     <div style="margin:8px 0 4px">
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:4px">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-bottom:4px">
         <span>저 ${_won(lo)}</span>
         <span style="color:${c};font-weight:700">현재 ${pct}%</span>
         <span>고 ${_won(hi)}</span>
@@ -790,7 +790,7 @@ async function _sdOverview(body, code, name) {
           ['외국인 보유율', r.foreign_hold_rate!=null?r.foreign_hold_rate.toFixed(1)+'%':'—', ''],
         ].map(([lb,v,c])=>`
           <div style="background:var(--bg3);border-radius:8px;padding:12px 14px;border:1px solid var(--border);text-align:center">
-            <div style="font-size:10px;color:var(--text3);margin-bottom:6px">${lb}</div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:6px">${lb}</div>
             <div style="font-size:16px;font-weight:700;color:${c||'var(--text1)'}">${v}</div>
           </div>`).join('')}
       </div>
@@ -824,14 +824,14 @@ async function _sdOverview(body, code, name) {
         ${_sec('증권사 컨센서스', `
           ${avgTarget ? `
             <div style="text-align:center;margin-bottom:10px">
-              <div style="font-size:11px;color:var(--text3);margin-bottom:2px">평균 목표주가</div>
+              <div style="font-size:11px;color:var(--text2);margin-bottom:2px">평균 목표주가</div>
               <div style="font-size:22px;font-weight:700;color:var(--text1)">${avgTarget.toLocaleString()}원</div>
               ${upside != null ? `<div style="font-size:14px;color:${upside>=0?'var(--green)':'var(--red)'};font-weight:600">현재가 대비 ${upside>=0?'+':''}${upside}%</div>` : ''}
             </div>` : '<div style="color:var(--text3);font-size:12px;padding:8px 0">컨센서스 없음</div>'}
           ${_row2('커버리지', `${buyCount}개 증권사`)}
           ${(opinions||[]).slice(0,4).map(o=>
             `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px">
-              <span style="color:var(--text3)">${o.firm_name}</span>
+              <span style="color:var(--text2)">${o.firm_name}</span>
               <span style="color:${o.opinion?.includes('매수')||o.opinion==='BUY'?'var(--red)':'var(--text2)'}">
                 ${o.opinion} ${o.target_price?o.target_price.toLocaleString()+'원':''}
               </span>
@@ -864,7 +864,7 @@ async function _sdMarket(body, code, name) {
       <!-- 3종 차트 -->
       <div style="background:var(--bg3);border-radius:10px;border:1px solid var(--border);
         padding:14px 16px;margin-bottom:14px">
-        <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.6px;margin-bottom:10px">
           주가 · 거래량 · 외국인 지분율
         </div>
         <div style="display:grid;grid-template-columns:1fr;gap:8px">
@@ -925,7 +925,7 @@ async function _sdMarket(body, code, name) {
           ${_row2('시장', r.market||'—')}
         `)}
       </div>
-      <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;margin-bottom:8px">
+      <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.6px;margin-bottom:8px">
         최근 시장 데이터 (${sorted.length}일)
       </div>
       <div class="table-wrap"><table>
@@ -1057,7 +1057,7 @@ async function _sdSupply(body, code, name) {
           ${r.listing_shares&&r.volume?_row2('일 회전율', (r.volume/r.listing_shares*100).toFixed(3)+'%'):''}
         `, 'var(--green)')}
       </div>
-      <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;margin-bottom:8px">최근 30일 수급 추이</div>
+      <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.6px;margin-bottom:8px">최근 30일 수급 추이</div>
       <div class="table-wrap"><table>
         <thead><tr>
           <th>기준일</th><th style="text-align:right">종가</th><th style="text-align:right">등락률</th>
@@ -1129,9 +1129,9 @@ async function _sdOpinion(body, code, name) {
           ['중립/기타', `${holdCnt}개`, ''],
         ].map(([lb,v,sub])=>`
           <div style="background:var(--bg3);border-radius:8px;padding:12px 14px;border:1px solid var(--border);text-align:center">
-            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">${lb}</div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:4px">${lb}</div>
             <div style="font-size:18px;font-weight:700">${v}</div>
-            ${sub?`<div style="font-size:10px;color:${upside&&upside>=0?'var(--green)':'var(--text3)'};margin-top:2px">${sub}</div>`:''}
+            ${sub?`<div style="font-size:10px;color:${upside&&upside>=0?'var(--green)':'var(--text2)'};margin-top:2px">${sub}</div>`:''}
           </div>`).join('')}
       </div>
       <!-- 의견 목록 -->
