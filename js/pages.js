@@ -8,14 +8,14 @@
  * onLoad: draw() 후 추가로 실행할 초기화 함수명 (문자열 or null)
  */
 const PAGE_META = {
-  overview:   { title: '전체 현황',     fn: 'pOverview',    onLoad: null },
+  overview:   { title: '채팅방 현황',   fn: 'pOverview',    onLoad: null },
   rooms:      { title: '채팅방 관리',   fn: 'pRooms',       onLoad: null },
-  notice:     { title: '전체 공지',     fn: 'pNotice',      onLoad: 'loadNotices' },
+  notice:     { title: '공지 발송',     fn: 'pNotice',      onLoad: 'loadNotices' },
   logs:       { title: '동기화 로그',   fn: 'pLogs',        onLoad: 'loadLogs' },
   bot:        { title: '봇 모니터링',   fn: 'pBot',         onLoad: 'loadBotStatus' },
   botconfig:  { title: '봇 설정',       fn: 'pBotConfig',   onLoad: 'loadBotConfig' },
   investment: { title: '오늘의 시황',   fn: 'pInvestment',  onLoad: 'loadInvestment' },
-  company:    { title: '리서치 설정',    fn: 'pCompany',     onLoad: 'loadCompanyPage' },
+  company:    { title: '모니터링 종목',  fn: 'pCompany',     onLoad: 'loadCompanyPage' },
   watchlist:  { title: '투자노트',      fn: 'pWatchlist',   onLoad: '_initWatchlist' },
   screener:   { title: '종목 스크리너', fn: 'pScreener',    onLoad: null },
   financials: { title: '기업 분석',     fn: 'pFinancials',  onLoad: 'initFinancials' },
