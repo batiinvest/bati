@@ -475,7 +475,7 @@ function _renderInsightCard(data) {
       <div class="insight-row-label">장세</div>
       <div class="insight-row-val">
         <span style="font-weight:700;color:${moodColor}">${f.market_mood_label || '—'}</span>
-        ${f.market_regime ? `<span style="color:${regimeColor};font-size:11px">${f.market_regime}</span>` : ''}
+        ${f.market_regime ? `<span style="color:${regimeColor};font-size:12px">${f.market_regime}</span>` : ''}
       </div>
     </div>
     <div class="insight-row">
@@ -525,7 +525,7 @@ function _renderInsightCard(data) {
     ${(data.risk_factors || []).map(text => `
       <div class="insight-risk-row">
         <span class="insight-risk-icon">${text.slice(0,2)}</span>
-        <span style="font-size:12px;color:var(--text)">${text.slice(2).trim()}</span>
+        <span style="font-size:13px;color:var(--text)">${text.slice(2).trim()}</span>
       </div>`).join('')}
   </div>`;
 
@@ -536,15 +536,15 @@ function _renderInsightCard(data) {
     ${(data.watch_events || []).map(text => `
       <div class="insight-event-row">
         <span class="insight-risk-icon">${text.slice(0,2)}</span>
-        <span style="font-size:12px;color:var(--text2)">${text.slice(2).trim()}</span>
+        <span style="font-size:13px;color:var(--text2)">${text.slice(2).trim()}</span>
       </div>`).join('')}
   </div>`;
 
   // ─── 섹션 5: 한 줄 요약 ─────────────────────────────────────────────────
   const sec5 = `
   <div class="insight-oneliner">
-    <div style="font-size:10px;color:var(--text3);font-weight:600;margin-bottom:4px;letter-spacing:.06em">한 줄 요약</div>
-    <div style="font-size:13px;font-weight:600;color:var(--text);line-height:1.55">
+    <div style="font-size:11px;color:var(--text3);font-weight:600;margin-bottom:5px;letter-spacing:.05em">한 줄 요약</div>
+    <div style="font-size:14px;font-weight:600;color:var(--text);line-height:1.55">
       ${data.one_line_summary || '—'}
     </div>
   </div>`;

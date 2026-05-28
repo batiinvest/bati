@@ -2,7 +2,7 @@
 :root {
   --bg:#0f1117; --bg2:#1a1d27; --bg3:#222535;
   --border:rgba(255,255,255,0.08); --border2:rgba(255,255,255,0.14);
-  --text:#f0f2f8; --text2:#a8adc4; --text3:#6e7491;
+  --text:#f0f2f8; --text2:#a8adc4; --text3:#8892b0;
   --tg:#2AABEE; --tg2:#1e96d3; --green:#2dce89; --red:#f5365c; --yellow:#fb6340;
   --radius:10px; --radius-sm:6px;
 }
@@ -339,47 +339,47 @@ td:first-child { color:var(--text); }
   padding:3px 10px; white-space:nowrap;
 }
 .market-strip-name {
-  font-size:11px; color:var(--text3); font-weight:500;
+  font-size:12px; color:var(--text2); font-weight:500;
 }
 .market-strip-val {
-  font-size:12px; font-weight:700; color:var(--text);
+  font-size:13px; font-weight:700; color:var(--text);
 }
 .market-strip-sep {
-  color:var(--border2); font-size:11px; align-self:center; flex-shrink:0;
+  color:rgba(255,255,255,.22); font-size:12px; align-self:center; flex-shrink:0;
 }
 @media(max-width:900px) { .market-strip { display:none !important; } }
 
 /* ── 투자포인트 카드 5섹션 ── */
-.insight-sec { margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid rgba(255,255,255,.05); }
+.insight-sec { margin-bottom:16px; padding-bottom:13px; border-bottom:1px solid rgba(255,255,255,.05); }
 .insight-sec:last-of-type { border-bottom:none; margin-bottom:0; }
 .insight-sec-title {
-  font-size:11px; font-weight:700; letter-spacing:.06em; margin-bottom:8px;
+  font-size:12px; font-weight:700; letter-spacing:.05em; margin-bottom:9px;
   display:flex; align-items:center; gap:5px;
 }
 .insight-sec-title::before {
-  content:''; display:inline-block; width:2px; height:11px;
+  content:''; display:inline-block; width:2px; height:12px;
   background:currentColor; border-radius:2px; opacity:.7; flex-shrink:0;
 }
-.insight-row { display:flex; align-items:flex-start; gap:8px; padding:2px 0; }
+.insight-row { display:flex; align-items:flex-start; gap:9px; padding:3px 0; }
 .insight-row-label {
-  min-width:44px; font-size:10px; color:var(--text3); font-weight:600;
+  min-width:46px; font-size:11px; color:var(--text3); font-weight:600;
   padding-top:2px; flex-shrink:0;
 }
-.insight-row-val { flex:1; color:var(--text); display:flex; flex-wrap:wrap; align-items:center; gap:5px; font-size:12px; }
-.insight-tag { font-size:11px; padding:1px 7px; border-radius:100px; font-weight:600; white-space:nowrap; }
+.insight-row-val { flex:1; color:var(--text); display:flex; flex-wrap:wrap; align-items:center; gap:5px; font-size:13px; }
+.insight-tag { font-size:12px; padding:2px 8px; border-radius:100px; font-weight:600; white-space:nowrap; }
 .insight-tag.up { background:rgba(245,54,92,.12); color:var(--red); border:1px solid rgba(245,54,92,.25); }
 .insight-tag.dn { background:rgba(74,158,255,.12); color:var(--blue); border:1px solid rgba(74,158,255,.25); }
 .insight-tag.neu { background:rgba(255,255,255,.07); color:var(--text3); border:1px solid var(--border); }
-.insight-point-row { display:flex; align-items:baseline; gap:8px; padding:4px 6px; border-radius:5px; margin-bottom:2px; }
+.insight-point-row { display:flex; align-items:baseline; gap:9px; padding:5px 6px; border-radius:5px; margin-bottom:2px; }
 .insight-point-num {
-  min-width:18px; height:18px; line-height:18px; border-radius:50%;
+  min-width:19px; height:19px; line-height:19px; border-radius:50%;
   background:rgba(52,211,153,.15); color:#34d399;
-  font-size:10px; font-weight:700; text-align:center; flex-shrink:0;
+  font-size:11px; font-weight:700; text-align:center; flex-shrink:0;
 }
-.insight-point-text { font-size:12px; color:var(--text); line-height:1.45; }
-.insight-risk-row, .insight-event-row { display:flex; align-items:baseline; gap:8px; padding:3px 2px; }
-.insight-risk-icon { font-size:12px; flex-shrink:0; width:18px; text-align:center; line-height:1.6; }
+.insight-point-text { font-size:13px; color:var(--text); line-height:1.5; }
+.insight-risk-row, .insight-event-row { display:flex; align-items:baseline; gap:9px; padding:4px 2px; }
+.insight-risk-icon { font-size:13px; flex-shrink:0; width:19px; text-align:center; line-height:1.6; }
 .insight-oneliner {
   background:rgba(42,171,238,.05); border:1px solid rgba(42,171,238,.15);
-  border-left:3px solid var(--tg); border-radius:6px; padding:10px 12px; margin-top:2px;
+  border-left:3px solid var(--tg); border-radius:6px; padding:11px 13px; margin-top:2px;
 }
