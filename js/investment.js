@@ -118,18 +118,28 @@ function pInvestment() {
 
     <!-- 💰 기관/외국인 수급 -->
     <div class="card" style="margin-bottom:12px">
-      <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div class="card-header" style="display:flex;align-items:center;gap:8px">
         <span class="card-title">💰 기관/외국인 수급</span>
-        <span style="font-size:11px;color:var(--text3)">장중 집계 기준 (09:30·11:20·13:20·14:30)</span>
-        <div style="display:flex;gap:4px;margin-left:auto">
-          <button class="chip active" data-flow-tab="both" onclick="switchFlowTab('both')" style="font-size:11px;padding:2px 8px">동시매수</button>
-          <button class="chip" data-flow-tab="frgn"  onclick="switchFlowTab('frgn')"  style="font-size:11px;padding:2px 8px">외국인</button>
-          <button class="chip" data-flow-tab="orgn"  onclick="switchFlowTab('orgn')"  style="font-size:11px;padding:2px 8px">기관</button>
-        </div>
+        <span style="font-size:11px;color:var(--text3)">장중 집계 기준 (09:35·11:25·13:25·14:35)</span>
       </div>
-      <div id="flow-body" style="padding:.5rem 0">
-        <div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">
-          <span class="loading"></span> 수급 데이터 로딩 중...
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--border)">
+        <div>
+          <div style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--text2);background:var(--bg2);border-bottom:1px solid var(--border)">
+            🔀 동시매수 <span style="font-size:10px;color:var(--text3);font-weight:400">외국인+기관</span>
+          </div>
+          <div id="flow-body-both"><div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div></div>
+        </div>
+        <div style="border-left:1px solid var(--border)">
+          <div style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--tg);background:var(--bg2);border-bottom:1px solid var(--border)">
+            🌏 외국인 순매수
+          </div>
+          <div id="flow-body-frgn"><div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div></div>
+        </div>
+        <div style="border-left:1px solid var(--border)">
+          <div style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--yellow);background:var(--bg2);border-bottom:1px solid var(--border)">
+            🏢 기관 순매수
+          </div>
+          <div id="flow-body-orgn"><div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div></div>
         </div>
       </div>
     </div>

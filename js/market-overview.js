@@ -850,20 +850,25 @@ function renderHgprTab(tab) {
 
 
 // ══════════════════════════════════════════
-// 💰 기관/외국인 수급 (loadFlowData / switchFlowTab / renderFlowData)
+// 💰 기관/외국인 수급 — 3열 그리드 (동시매수 | 외국인 | 기관)
 // ══════════════════════════════════════════
 
 let _flowData = null;
-let _flowTab  = 'both';
 
 async function loadFlowData() {
-  const body = document.getElementById('flow-body');
-  if (!body) return;
+  const loading = '<div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>';
+  ['flow-body-both','flow-body-frgn','flow-body-orgn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = loading;
+  });
 
   try {
     const maxDate = await getLatestMarketDate();
     if (!maxDate) {
-      body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">데이터 없음</div>';
+      ['flow-body-both','flow-body-frgn','flow-body-orgn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:12px">데이터 없음</div>';
+      });
       return;
     }
 
@@ -888,31 +893,24 @@ async function loadFlowData() {
     }
 
     _flowData = data || [];
-
-    // 기관 데이터 미수집 시(장중 집계 전) → '외국인' 탭으로 자동 전환
-    const hasInstData = _flowData.some(r => (r.institution_net_buy ?? 0) !== 0);
-    if (!hasInstData && _flowTab === 'both') {
-      _flowTab = 'frgn';
-      document.querySelectorAll('[data-flow-tab]').forEach(b =>
-        b.classList.toggle('active', b.dataset.flowTab === _flowTab));
-    }
-
-    renderFlowData(_flowTab);
+    renderAllFlowData();
   } catch(e) {
     console.error('[FlowData] 최종 오류:', e?.message || e);
-    body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">수급 데이터 로드 실패 — 콘솔 확인 필요</div>';
+    ['flow-body-both','flow-body-frgn','flow-body-orgn'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:12px">로드 실패</div>';
+    });
   }
 }
 
-function switchFlowTab(tab) {
-  _flowTab = tab;
-  document.querySelectorAll('[data-flow-tab]').forEach(b =>
-    b.classList.toggle('active', b.dataset.flowTab === tab));
-  renderFlowData(tab);
+function renderAllFlowData() {
+  _renderFlowCol('both', 'flow-body-both');
+  _renderFlowCol('frgn', 'flow-body-frgn');
+  _renderFlowCol('orgn', 'flow-body-orgn');
 }
 
-function renderFlowData(tab) {
-  const body = document.getElementById('flow-body');
+function _renderFlowCol(tab, bodyId) {
+  const body = document.getElementById(bodyId);
   if (!body || !_flowData) return;
 
   let rows;
@@ -922,55 +920,62 @@ function renderFlowData(tab) {
       .sort((a, b) =>
         ((b.foreign_net_buy || 0) + (b.institution_net_buy || 0)) -
         ((a.foreign_net_buy || 0) + (a.institution_net_buy || 0))
-      )
-      .slice(0, 30);
+      ).slice(0, 20);
   } else if (tab === 'frgn') {
     rows = _flowData
       .filter(r => (r.foreign_net_buy ?? 0) > 0)
       .sort((a, b) => (b.foreign_net_buy || 0) - (a.foreign_net_buy || 0))
-      .slice(0, 30);
-  } else {  // orgn
+      .slice(0, 20);
+  } else {
     rows = _flowData
       .filter(r => (r.institution_net_buy ?? 0) > 0)
       .sort((a, b) => (b.institution_net_buy || 0) - (a.institution_net_buy || 0))
-      .slice(0, 30);
+      .slice(0, 20);
   }
 
   if (!rows.length) {
     const msg = tab === 'both'
-      ? '동시매수 종목 없음 — 기관 집계 시간(09:35·11:25·13:25·14:35) 이후 조회하세요'
+      ? '기관 집계 전<br><span style="font-size:10px">09:35·11:25·13:25·14:35</span>'
       : tab === 'orgn'
-        ? '기관 순매수 데이터 없음 — 장중 집계(09:35·11:25·13:25·14:35) 이후 조회하세요'
-        : '외국인 순매수 데이터 없음';
-    body.innerHTML = `<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">${msg}</div>`;
+        ? '기관 집계 전'
+        : '외국인 데이터 없음';
+    body.innerHTML = `<div style="padding:1.5rem;color:var(--text3);font-size:12px;text-align:center">${msg}</div>`;
     return;
   }
 
-  const COLS = '1fr 80px 58px 90px 90px 58px';
-  const numClr = (v) => (v || 0) >= 0 ? 'var(--red)' : 'var(--blue)';
-  const numFmt = (v) => v != null ? v.toLocaleString() : '—';
+  // 컬럼별 레이아웃
+  const CFG = {
+    both: { cols: '1fr 42px 52px 52px',
+            hdr: `<span style="font-size:10px;color:var(--text3)">종목</span><span style="font-size:10px;color:var(--text3);text-align:right">등락</span><span style="font-size:10px;color:var(--tg);text-align:right">외국인</span><span style="font-size:10px;color:var(--yellow);text-align:right">기관</span>` },
+    frgn: { cols: '1fr 42px 58px',
+            hdr: `<span style="font-size:10px;color:var(--text3)">종목</span><span style="font-size:10px;color:var(--text3);text-align:right">등락</span><span style="font-size:10px;color:var(--tg);text-align:right">외국인</span>` },
+    orgn: { cols: '1fr 42px 58px',
+            hdr: `<span style="font-size:10px;color:var(--text3)">종목</span><span style="font-size:10px;color:var(--text3);text-align:right">등락</span><span style="font-size:10px;color:var(--yellow);text-align:right">기관</span>` },
+  };
+  const { cols, hdr } = CFG[tab];
 
-  const header =
-    `<div style="display:grid;grid-template-columns:${COLS};padding:5px 14px;border-bottom:1px solid var(--border);background:var(--bg3)">
-      <span style="font-size:11px;color:var(--text2)">종목</span>
-      <span style="font-size:11px;color:var(--text2);text-align:right">현재가</span>
-      <span style="font-size:11px;color:var(--text2);text-align:right">등락률</span>
-      <span style="font-size:11px;color:var(--tg);text-align:right">외국인순매수</span>
-      <span style="font-size:11px;color:var(--yellow);text-align:right">기관순매수</span>
-      <span style="font-size:11px;color:var(--text2);text-align:right">외국인보유율</span>
-    </div>`;
+  const numFmt = v => v != null ? (Math.abs(v) >= 10000
+    ? (v / 10000).toFixed(0) + '만'
+    : v.toLocaleString()) : '—';
 
-  const rowsHtml = rows.map((r, i) => {
+  const header = `<div style="display:grid;grid-template-columns:${cols};padding:4px 8px;background:var(--bg3);border-bottom:1px solid var(--border)">${hdr}</div>`;
+
+  const rowsHtml = rows.map(r => {
     const safeName = (r.corp_name || r.stock_code).replace(/'/g, "\\'");
-    return `<div style="display:grid;grid-template-columns:${COLS};align-items:center;padding:6px 14px;border-bottom:1px solid var(--border);cursor:pointer"
+    const name = r.corp_name || r.stock_code;
+    const dispName = name.length > 7 ? name.slice(0, 7) + '…' : name;
+    const cells = tab === 'both'
+      ? `<span style="font-size:11px;font-weight:600;text-align:right;color:var(--tg)">${numFmt(r.foreign_net_buy)}</span>
+         <span style="font-size:11px;font-weight:600;text-align:right;color:var(--yellow)">${numFmt(r.institution_net_buy)}</span>`
+      : tab === 'frgn'
+        ? `<span style="font-size:11px;font-weight:600;text-align:right;color:var(--tg)">${numFmt(r.foreign_net_buy)}</span>`
+        : `<span style="font-size:11px;font-weight:600;text-align:right;color:var(--yellow)">${numFmt(r.institution_net_buy)}</span>`;
+    return `<div style="display:grid;grid-template-columns:${cols};align-items:center;padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer"
       onclick="openStockDetail('${r.stock_code}','${safeName}')"
       onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
-      <span style="font-size:12px;font-weight:500">${r.corp_name || r.stock_code}</span>
-      <span style="font-size:12px;text-align:right;color:var(--text1)">${r.price != null ? r.price.toLocaleString() + '원' : '—'}</span>
-      <span style="font-size:12px;font-weight:700;color:${chgColor(r.price_change_rate)};text-align:right">${chgStr(r.price_change_rate)}</span>
-      <span style="font-size:12px;font-weight:600;text-align:right;color:${numClr(r.foreign_net_buy)}">${numFmt(r.foreign_net_buy)}</span>
-      <span style="font-size:12px;font-weight:600;text-align:right;color:${numClr(r.institution_net_buy)}">${numFmt(r.institution_net_buy)}</span>
-      <span style="font-size:11px;text-align:right;color:var(--text2)">${r.foreign_hold_rate != null ? r.foreign_hold_rate.toFixed(1) + '%' : '—'}</span>
+      <span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${name}">${dispName}</span>
+      <span style="font-size:11px;font-weight:700;color:${chgColor(r.price_change_rate)};text-align:right">${chgStr(r.price_change_rate)}</span>
+      ${cells}
     </div>`;
   }).join('');
 
