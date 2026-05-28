@@ -225,6 +225,25 @@ function pInvestment() {
       </div>
     </div>
 
+    <!-- 🏆 주도주 탐색기 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+        <span class="card-title">${_ICO.rocket}주도주 탐색기</span>
+        <span style="font-size:11px;color:var(--text3)" id="ls-date"></span>
+        <div style="display:flex;gap:4px;margin-left:auto">
+          <button class="chip active" data-ls-tab="all"    onclick="switchLsTab('all')"
+            style="font-size:11px;padding:2px 8px">전체</button>
+          <button class="chip"        data-ls-tab="kospi"  onclick="switchLsTab('kospi')"
+            style="font-size:11px;padding:2px 8px">코스피</button>
+          <button class="chip"        data-ls-tab="kosdaq" onclick="switchLsTab('kosdaq')"
+            style="font-size:11px;padding:2px 8px">코스닥</button>
+        </div>
+      </div>
+      <div id="ls-body">
+        ${_skelList(10)}
+      </div>
+    </div>
+
     <!-- 💰 기관/외국인 수급 -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="display:flex;align-items:center;gap:8px">
@@ -250,6 +269,26 @@ function pInvestment() {
           </div>
           <div id="flow-body-orgn">${_skelList(8, true)}</div>
         </div>
+      </div>
+    </div>
+
+    <!-- 📊 섹터 수급 트렌드 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+        <span class="card-title">${_ICO.shuffle}섹터 수급 트렌드</span>
+        <span style="font-size:10px;color:var(--text3)" id="sf-date"></span>
+        <div style="display:flex;gap:4px;margin-left:auto">
+          ${[{p:1,l:'1일'},{p:3,l:'3일'},{p:5,l:'5일'},{p:20,l:'20일'}].map(({p,l})=>`
+            <button class="chip ${p===3?'active':''}" data-sf-period="${p}"
+              onclick="switchSfPeriod(${p})" style="font-size:11px;padding:2px 8px">${l}</button>
+          `).join('')}
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px">
+        외국인 순매수 (모니터링 종목 기준) — 위: 순매수 강세 ↔ 아래: 순매도
+      </div>
+      <div id="sf-body" style="padding:.25rem 0">
+        ${_skelList(12, true)}
       </div>
     </div>
 
@@ -486,6 +525,10 @@ async function refreshInvestment() {
             key: 'run_macro_flag', value: String(Date.now()),
             description: '대시보드 매크로 수동 수집 트리거'
           }, { onConflict: 'key' }),
+          sb.from('app_config').upsert({
+            key: 'run_leading_stocks_flag', value: String(Date.now()),
+            description: '주도주 탐색기 수동 생성 트리거'
+          }, { onConflict: 'key' }),
         ];
         if (!isWeekend) {
           upserts.push(sb.from('app_config').upsert({
@@ -573,6 +616,10 @@ async function loadInvestment() {
   // Phase 1 — 온도계 + 거래대금 상위 (window._allMarketRows / _macroData 재활용)
   renderMarketTemperature();
   renderVolumeLeaders();
+
+  // Phase 2 — 주도주 탐색기 + 섹터 수급 트렌드
+  loadLeadingStocks();
+  loadSectorFlow();
 
   // 모니터링 종목 목록 — getIndustryMap() 캐시 재활용 (companies 중복 조회 방지)
   const industryMap = await getIndustryMap();

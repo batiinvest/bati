@@ -54,7 +54,7 @@ async function loadMarketOverview(maxDate) {
   const industryMap = await getIndustryMap();
   const all = await fetchAllPages(
     sb.from('market_data')
-      .select('stock_code,corp_name,price,price_change_rate,market,market_cap,foreign_net_buy,foreign_hold_rate')
+      .select('stock_code,corp_name,price,price_change_rate,volume,market,market_cap,foreign_net_buy,foreign_hold_rate')
       .eq('base_date', maxDate)
       .not('price_change_rate', 'is', null)
   );
@@ -558,7 +558,10 @@ async function loadNewHighStocks() {
     histMap[r.stock_code].push(r.base_date);
   });
 
-  // 각 행에 메타 추가
+  // 각 행에 메타 추가 (+ _allMarketRows에서 volume/foreign_net_buy 조인)
+  const _mrMap = {};
+  (window._allMarketRows || []).forEach(r => { _mrMap[r.stock_code] = r; });
+
   const enriched = rows.map(r => {
     const dates  = (histMap[r.stock_code] || []).sort().reverse();
     const count7 = dates.length;
@@ -569,11 +572,15 @@ async function loadNewHighStocks() {
       if (diff <= 1) { streak++; prev = d; } else break;
     }
     const mon = monMap[r.stock_code];
+    const mr  = _mrMap[r.stock_code] || {};
+    const tv  = (mr.volume || 0) * (r.price || mr.price || 0);
     return { ...r,
       streak, count7, isFirst: count7 === 1,
       isMonitored: !!mon,
       industry:    mon?.industry    || '기타',
       sub_industry:mon?.sub_industry || '',
+      tv,
+      foreign_net_buy: mr.foreign_net_buy ?? null,
     };
   });
 
@@ -692,8 +699,20 @@ function renderHgprTab(tab) {
       const chgTxt = chg!=null ? (chg>=0?'+':'')+chg.toFixed(2)+'%' : '—';
       const chgClr = chg>=0 ? 'var(--red)' : 'var(--blue)';
       const safeName = (r.corp_name||r.stock_code).replace(/'/g,"\'");
+
+      // ── Phase 2: 거래대금 + 외국인 배지 ──────────────────────
+      const tvStr = r.tv >= 1e10
+        ? '<span style="font-size:9px;padding:1px 4px;border-radius:3px;background:rgba(245,158,11,.12);color:#f59e0b;font-weight:600">' +
+          (r.tv >= 1e11 ? (r.tv/1e11).toFixed(1)+'천억' : (r.tv/1e8).toFixed(0)+'억') + '</span>'
+        : '';
+      const frgnBadge = r.foreign_net_buy != null && r.foreign_net_buy !== 0
+        ? (r.foreign_net_buy > 0
+            ? '<span style="font-size:9px;padding:1px 4px;border-radius:3px;background:rgba(42,171,238,.12);color:var(--tg);font-weight:600">외↑</span>'
+            : '<span style="font-size:9px;padding:1px 4px;border-radius:3px;background:rgba(74,158,255,.10);color:var(--blue);font-weight:600">외↓</span>')
+        : '';
+
       return `<div onclick="openStockDetail('${r.stock_code}','${safeName}')"
-        style="display:grid;grid-template-columns:1fr 90px 52px 70px;align-items:center;gap:6px;
+        style="display:grid;grid-template-columns:1fr auto 52px 70px;align-items:center;gap:6px;
           padding:5px 10px;border-bottom:1px solid var(--border);cursor:pointer;
           border-left:2px solid ${bClr}"
         onmouseover="this.style.background='rgba(255,255,255,.03)'"
@@ -701,7 +720,9 @@ function renderHgprTab(tab) {
         <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
           ${r.corp_name||r.stock_code}
         </div>
-        ${streakBadge(r)}
+        <div style="display:flex;align-items:center;gap:3px;flex-wrap:nowrap">
+          ${streakBadge(r)}${tvStr}${frgnBadge}
+        </div>
         <div style="text-align:right;font-size:12px;font-weight:700;color:${chgClr}">${chgTxt}</div>
         <div style="text-align:right;font-size:11px;color:var(--text3)">${r.market_cap?fmtCap(r.market_cap):'—'}</div>
       </div>`;
