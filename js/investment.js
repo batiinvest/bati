@@ -54,6 +54,18 @@ function pInvestment() {
       <div id="inv-industry-grid"></div>
     </div>
 
+    <!-- 💡 투자포인트 요약 -->
+    <div class="card insight-card" style="margin-bottom:12px">
+      <div class="card-header" style="justify-content:space-between">
+        <span class="card-title">💡 투자포인트 요약</span>
+        <button class="chip" style="font-size:11px;padding:2px 8px"
+          onclick="loadMarketInsight()">🔄 재분석</button>
+      </div>
+      <div class="card-body" style="padding:.75rem 1rem" id="market-insight-card">
+        <div style="color:var(--text3);font-size:12px"><span class="loading"></span> 분석 중...</div>
+      </div>
+    </div>
+
     <!-- 📈 흐름 비교 차트 (접기/펼치기) -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="cursor:pointer" onclick="toggleTrendChart()">
@@ -144,35 +156,23 @@ function pInvestment() {
       </div>
     </div>
 
-    <!-- 🔴🔵 급등/급락 -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px">
-      <div class="card">
+    <!-- 🔴🔵 급등/급락 — 2×2 그리드 (코스피 행 / 코스닥 행) -->
+    <div class="surge-drop-grid">
+      <div class="card" style="margin-bottom:0">
         <div class="card-header"><span class="card-title">🔴 코스피 급등</span></div>
         <div id="inv-surge-kospi" style="padding:.5rem 0"></div>
       </div>
-      <div class="card">
+      <div class="card" style="margin-bottom:0">
         <div class="card-header"><span class="card-title">🔵 코스피 급락</span></div>
         <div id="inv-drop-kospi" style="padding:.5rem 0"></div>
       </div>
-      <div class="card">
+      <div class="card" style="margin-bottom:0">
         <div class="card-header"><span class="card-title">🔴 코스닥 급등</span></div>
         <div id="inv-surge-kosdaq" style="padding:.5rem 0"></div>
       </div>
-      <div class="card">
+      <div class="card" style="margin-bottom:0">
         <div class="card-header"><span class="card-title">🔵 코스닥 급락</span></div>
         <div id="inv-drop-kosdaq" style="padding:.5rem 0"></div>
-      </div>
-    </div>
-
-    <!-- 💡 투자포인트 요약 -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header" style="justify-content:space-between">
-        <span class="card-title">💡 투자포인트 요약</span>
-        <button class="chip" style="font-size:11px;padding:2px 8px"
-          onclick="loadMarketInsight()">🔄 재분석</button>
-      </div>
-      <div class="card-body" style="padding:.75rem 1rem" id="market-insight-card">
-        <div style="color:var(--text3);font-size:12px"><span class="loading"></span> 분석 중...</div>
       </div>
     </div>
 
