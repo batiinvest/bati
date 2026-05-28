@@ -886,6 +886,15 @@ async function loadFlowData() {
     }
 
     _flowData = data || [];
+
+    // 기관 데이터 미수집 시(장중 집계 전) → '외국인' 탭으로 자동 전환
+    const hasInstData = _flowData.some(r => (r.institution_net_buy ?? 0) !== 0);
+    if (!hasInstData && _flowTab === 'both') {
+      _flowTab = 'frgn';
+      document.querySelectorAll('[data-flow-tab]').forEach(b =>
+        b.classList.toggle('active', b.dataset.flowTab === _flowTab));
+    }
+
     renderFlowData(_flowTab);
   } catch(e) {
     console.error('[FlowData] 최종 오류:', e?.message || e);
@@ -915,18 +924,23 @@ function renderFlowData(tab) {
       .slice(0, 30);
   } else if (tab === 'frgn') {
     rows = _flowData
-      .filter(r => r.foreign_net_buy != null)
+      .filter(r => (r.foreign_net_buy ?? 0) > 0)
       .sort((a, b) => (b.foreign_net_buy || 0) - (a.foreign_net_buy || 0))
       .slice(0, 30);
-  } else {
+  } else {  // orgn
     rows = _flowData
-      .filter(r => r.institution_net_buy != null)
+      .filter(r => (r.institution_net_buy ?? 0) > 0)
       .sort((a, b) => (b.institution_net_buy || 0) - (a.institution_net_buy || 0))
       .slice(0, 30);
   }
 
   if (!rows.length) {
-    body.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">해당 수급 데이터 없음 — 장중 집계 시간(09:35·11:25·13:25·14:35) 이후 조회하세요</div>';
+    const msg = tab === 'both'
+      ? '동시매수 종목 없음 — 기관 집계 시간(09:35·11:25·13:25·14:35) 이후 조회하세요'
+      : tab === 'orgn'
+        ? '기관 순매수 데이터 없음 — 장중 집계(09:35·11:25·13:25·14:35) 이후 조회하세요'
+        : '외국인 순매수 데이터 없음';
+    body.innerHTML = `<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">${msg}</div>`;
     return;
   }
 
