@@ -383,3 +383,23 @@ td:first-child { color:var(--text); }
   background:rgba(42,171,238,.05); border:1px solid rgba(42,171,238,.15);
   border-left:3px solid var(--tg); border-radius:6px; padding:11px 13px; margin-top:2px;
 }
+
+/* ── 시장 온도계 게이지 ── */
+.temp-gauge-bar {
+  position:relative; height:10px; border-radius:6px; overflow:hidden;
+  background:linear-gradient(to right,#f5365c 0%,#fb6340 25%,#f59e0b 45%,#2dce89 65%,#4a9eff 100%);
+}
+.temp-gauge-fill {
+  position:absolute; right:0; top:0; bottom:0;
+  background:var(--bg3); border-radius:0 6px 6px 0;
+  transition:width .6s ease;
+}
+.temp-detail-row {
+  display:flex; align-items:center; gap:8px; padding:1px 0;
+}
+.temp-detail-bar {
+  flex:1; height:5px; border-radius:3px; background:rgba(255,255,255,.08); overflow:hidden;
+}
+.temp-detail-fill {
+  height:100%; border-radius:3px; transition:width .5s ease;
+}

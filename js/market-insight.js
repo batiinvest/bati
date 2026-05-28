@@ -579,6 +579,90 @@ function _renderInsightCard(data) {
 
 
 // ════════════════════════════════════════════════════════════
+// 투자포인트 히스토리 로더 (타임라인 뷰)
+// ════════════════════════════════════════════════════════════
+async function loadInsightHistory() {
+  const el = document.getElementById('insight-history-body');
+  if (!el) return;
+  el.innerHTML = `<div style="color:var(--text3);font-size:12px;padding:.5rem 0"><span class="loading"></span> 불러오는 중...</div>`;
+
+  try {
+    const { data, error } = await sb.from('market_investment_summary')
+      .select('market_date,one_line_summary,flow_summary,key_points,risk_factors,generated_at')
+      .eq('market_type', 'KR')
+      .order('market_date', { ascending: false })
+      .limit(14);
+
+    if (error) throw error;
+    if (!data || !data.length) {
+      el.innerHTML = `<div style="color:var(--text3);font-size:12px;padding:.5rem 0">저장된 기록이 없습니다.</div>`;
+      return;
+    }
+
+    el.innerHTML = data.map((row, idx) => {
+      // flow_summary 파싱
+      let flow = {};
+      try { flow = typeof row.flow_summary === 'string' ? JSON.parse(row.flow_summary) : (row.flow_summary || {}); } catch(e) {}
+
+      // key_points 파싱
+      let kps = [];
+      try { kps = typeof row.key_points === 'string' ? JSON.parse(row.key_points) : (row.key_points || []); } catch(e) {}
+
+      // 장세 색
+      const moodColors = { strong:'var(--red)', 'mild-up':'#2dce89', flat:'var(--text3)', 'mild-down':'#f59e0b', weak:'var(--blue)' };
+      const moodColor = moodColors[flow.market_mood] || 'var(--text2)';
+      const kospiStr  = flow.kospi_chg != null
+        ? `<span style="color:${chgColor(flow.kospi_chg)};font-weight:600">${flow.kospi_chg >= 0 ? '+' : ''}${Number(flow.kospi_chg).toFixed(1)}%</span>`
+        : '';
+      const vixStr    = flow.vix != null
+        ? `<span style="color:var(--text3)">VIX ${Number(flow.vix).toFixed(0)}</span>`
+        : '';
+
+      const isFirst = idx === 0;
+      const dotColor = isFirst ? '#2dce89' : 'var(--border2)';
+
+      return `
+      <div style="display:flex;gap:10px;padding:8px 0;${idx < data.length - 1 ? 'border-bottom:1px solid rgba(255,255,255,.04)' : ''}">
+        <!-- 타임라인 선 -->
+        <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;padding-top:3px">
+          <div style="width:8px;height:8px;border-radius:50%;background:${dotColor};flex-shrink:0"></div>
+          ${idx < data.length - 1
+            ? `<div style="width:1px;flex:1;background:rgba(255,255,255,.07);margin-top:3px"></div>`
+            : ''}
+        </div>
+        <!-- 내용 -->
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+            <span style="font-size:11px;font-weight:700;color:${isFirst ? 'var(--text)' : 'var(--text2)'}">${row.market_date}</span>
+            ${flow.market_mood_label
+              ? `<span style="font-size:10px;font-weight:600;color:${moodColor}">${flow.market_mood_label}</span>`
+              : ''}
+            ${kospiStr}
+            ${vixStr}
+          </div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:4px">
+            ${row.one_line_summary || '—'}
+          </div>
+          ${kps.length ? `
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px">
+            ${kps.slice(0, 3).map(kp =>
+              `<span style="font-size:10px;color:var(--text3);background:rgba(255,255,255,.04);
+                border:1px solid rgba(255,255,255,.07);border-radius:3px;padding:1px 6px;
+                white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px">${kp}</span>`
+            ).join('')}
+          </div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+  } catch(e) {
+    console.error('[InsightHistory]', e);
+    el.innerHTML = `<div style="color:var(--text3);font-size:12px;padding:.5rem 0">기록 조회 실패: ${e.message}</div>`;
+  }
+}
+
+
+// ════════════════════════════════════════════════════════════
 // 메인 진입점
 // ════════════════════════════════════════════════════════════
 /**

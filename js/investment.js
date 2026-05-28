@@ -41,6 +41,9 @@ const _ICO = (() => {
     doc:      s('<rect x="3" y="1.5" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>'),
     rocket:   s('<path d="M8 2c2.5 0 5 2.2 5 5.5C13 10.5 10.5 12.5 8 14 5.5 12.5 3 10.5 3 7.5 3 4.2 5.5 2 8 2z" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="7.5" r="1.5" stroke="currentColor" stroke-width="1.3"/>'),
     refresh:  s('<path d="M13.5 8A5.5 5.5 0 112.5 5M2.5 2v3h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>', 12, 3),
+    temp:     s('<path d="M10 9.2V3a2 2 0 0 0-4 0v6.2A4 4 0 1 0 10 9.2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>'),
+    coin:     s('<ellipse cx="8" cy="5" rx="5.5" ry="2.2" stroke="currentColor" stroke-width="1.4"/><path d="M2.5 5v6c0 1.2 2.5 2.2 5.5 2.2s5.5-1 5.5-2.2V5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M2.5 8c0 1.2 2.5 2.2 5.5 2.2S13.5 9.2 13.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>'),
+    history:  s('<circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M8 5v3.5l2.5 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>'),
   };
 })();
 
@@ -85,6 +88,24 @@ function pInvestment() {
   <!-- 시황 탭 -->
   <div id="inv-tab-market" style="display:${window._invTab==='market'?'block':'none'}">
 
+    <!-- 🌡️ 시장 온도계 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header">
+        <span class="card-title">${_ICO.temp}시장 온도계</span>
+        <span style="font-size:11px;color:var(--text3);margin-left:auto" id="market-temp-date"></span>
+      </div>
+      <div class="card-body" style="padding:.75rem 1rem" id="market-temp-body">
+        <div style="display:flex;align-items:center;gap:16px">
+          <span class="skeleton" style="width:54px;height:46px;border-radius:6px;flex-shrink:0"></span>
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+            <span class="skeleton" style="width:100px;height:14px;border-radius:4px"></span>
+            <span class="skeleton" style="width:100%;height:8px;border-radius:4px"></span>
+            <span class="skeleton" style="width:80%;height:10px;border-radius:3px"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ① 증시 동향 (최상단) -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="flex-wrap:wrap;gap:6px">
@@ -100,13 +121,28 @@ function pInvestment() {
 
     <!-- 💡 투자포인트 요약 -->
     <div class="card insight-card" style="margin-bottom:12px">
-      <div class="card-header" style="justify-content:space-between">
+      <div class="card-header" style="justify-content:space-between;flex-wrap:wrap;gap:4px">
         <span class="card-title">${_ICO.bulb}투자포인트 요약</span>
-        <button class="chip" style="font-size:11px;padding:2px 8px"
-          onclick="loadMarketInsight()">${_ICO.refresh}재분석</button>
+        <div style="display:flex;gap:5px">
+          <button class="chip" id="btn-insight-hist" style="font-size:11px;padding:2px 8px"
+            onclick="toggleInsightHistory()">${_ICO.history}히스토리</button>
+          <button class="chip" style="font-size:11px;padding:2px 8px"
+            onclick="loadMarketInsight()">${_ICO.refresh}재분석</button>
+        </div>
       </div>
       <div class="card-body" style="padding:.75rem 1rem" id="market-insight-card">
         <div style="color:var(--text3);font-size:12px"><span class="loading"></span> 분석 중...</div>
+      </div>
+      <!-- 히스토리 패널 (접힘) -->
+      <div id="insight-history" style="display:none;border-top:1px solid var(--border)">
+        <div style="padding:7px 1rem 4px;font-size:11px;font-weight:600;color:var(--text3);
+          letter-spacing:.04em;display:flex;align-items:center;gap:6px">
+          최근 시장 국면
+          <span style="font-size:10px;font-weight:400;opacity:.7">(DB 저장 기준)</span>
+        </div>
+        <div id="insight-history-body" style="padding:0 1rem .75rem">
+          <div style="color:var(--text3);font-size:12px;padding:.5rem 0"><span class="loading"></span></div>
+        </div>
       </div>
     </div>
 
@@ -167,6 +203,25 @@ function pInvestment() {
       </div>
       <div id="hgpr-body" style="padding:.5rem 0">
         ${_skelList(6)}
+      </div>
+    </div>
+
+    <!-- 💰 거래대금 상위 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+        <span class="card-title">${_ICO.coin}거래대금 상위</span>
+        <span style="font-size:11px;color:var(--text3)">당일 거래대금 기준</span>
+        <div style="display:flex;gap:4px;margin-left:auto">
+          <button class="chip active" data-vl-tab="all"    onclick="switchVlTab('all')"
+            style="font-size:11px;padding:2px 8px">전체</button>
+          <button class="chip"        data-vl-tab="kospi"  onclick="switchVlTab('kospi')"
+            style="font-size:11px;padding:2px 8px">코스피</button>
+          <button class="chip"        data-vl-tab="kosdaq" onclick="switchVlTab('kosdaq')"
+            style="font-size:11px;padding:2px 8px">코스닥</button>
+        </div>
+      </div>
+      <div id="inv-volume-body">
+        ${_skelList(10)}
       </div>
     </div>
 
@@ -515,6 +570,10 @@ async function loadInvestment() {
   // 전체 종목 + 산업별 동향 (내부에서 window._allMarketRows 세팅)
   await loadMarketOverview(maxDate);
 
+  // Phase 1 — 온도계 + 거래대금 상위 (window._allMarketRows / _macroData 재활용)
+  renderMarketTemperature();
+  renderVolumeLeaders();
+
   // 모니터링 종목 목록 — getIndustryMap() 캐시 재활용 (companies 중복 조회 방지)
   const industryMap = await getIndustryMap();
   const monList = Object.keys(industryMap);
@@ -581,7 +640,84 @@ async function loadInvestment() {
 }
 
 
+// ── 거래대금 상위 ──────────────────────────────────────────────────────────────
+let _vlTab = 'all';
+
+function switchVlTab(tab) {
+  _vlTab = tab;
+  document.querySelectorAll('[data-vl-tab]').forEach(b =>
+    b.classList.toggle('active', b.dataset.vlTab === tab));
+  renderVolumeLeaders();
+}
+
+function renderVolumeLeaders() {
+  const el = document.getElementById('inv-volume-body');
+  if (!el) return;
+
+  const allRows = window._allMarketRows || [];
+  if (!allRows.length) {
+    el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text3);font-size:12px">데이터 없음</div>';
+    return;
+  }
+
+  // 시장 필터
+  let rows = allRows;
+  if (_vlTab === 'kospi')  rows = allRows.filter(r => r.market === 'KOSPI');
+  if (_vlTab === 'kosdaq') rows = allRows.filter(r => r.market === 'KOSDAQ');
+
+  // 거래대금 계산 (volume × price) + 정렬
+  const withTV = rows
+    .filter(r => r.volume && r.price && r.corp_name)
+    .map(r => ({ ...r, tv: (r.volume || 0) * (r.price || 0) }))
+    .sort((a, b) => b.tv - a.tv)
+    .slice(0, 15);
+
+  if (!withTV.length) {
+    el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text3);font-size:12px">거래 데이터 없음</div>';
+    return;
+  }
+
+  const maxTV = withTV[0].tv;
+
+  el.innerHTML = withTV.map((r, i) => {
+    const c    = r.price_change_rate ?? 0;
+    const cc   = c > 0 ? 'var(--red)' : c < 0 ? 'var(--blue)' : 'var(--text3)';
+    const cs   = (c >= 0 ? '+' : '') + c.toFixed(1) + '%';
+    const tvStr = r.tv >= 1e11
+      ? (r.tv / 1e11).toFixed(1) + '천억'
+      : (r.tv / 1e8).toFixed(0) + '억';
+    const barW = Math.round(r.tv / maxTV * 100);
+    const mktTag = (r.market === 'KOSDAQ' && _vlTab === 'all')
+      ? '<span style="font-size:9px;color:var(--text3);margin-left:2px;font-weight:600">Q</span>' : '';
+
+    return `
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 12px;
+      border-bottom:1px solid var(--border);position:relative;overflow:hidden">
+      <div style="position:absolute;left:0;top:0;bottom:0;
+        background:rgba(255,255,255,.022);width:${barW}%;pointer-events:none"></div>
+      <span style="min-width:18px;font-size:11px;color:var(--text3);font-weight:600">${i + 1}</span>
+      <span style="flex:1;font-size:12px;font-weight:500">${r.corp_name}${mktTag}</span>
+      <span style="font-size:12px;color:var(--text2);min-width:52px;text-align:right">${tvStr}</span>
+      <span style="min-width:48px;text-align:right;font-size:12px;font-weight:600;color:${cc}">${cs}</span>
+    </div>`;
+  }).join('');
+}
+
+
+// ── 투자포인트 히스토리 토글 ───────────────────────────────────────────────────
+function toggleInsightHistory() {
+  const hist = document.getElementById('insight-history');
+  const btn  = document.getElementById('btn-insight-hist');
+  if (!hist) return;
+  const isOpen = hist.style.display !== 'none';
+  hist.style.display = isOpen ? 'none' : 'block';
+  if (btn) btn.classList.toggle('active', !isOpen);
+  if (!isOpen) loadInsightHistory();
+}
+
+
 // ── 시황/공시/급등 로직은 분리된 파일에서 로드 ──
-// market-overview.js : loadMacroData, loadTrendChart, loadMarketOverview
-// disclosure.js      : loadTodayDisclosures, loadAllDisclosures, toggleAllDisclosures
-// earnings-surge.js  : loadEarningsSurge, renderSurgeList, setSurgeGrade 등
+// market-overview.js    : loadMacroData, loadTrendChart, loadMarketOverview
+// market-temperature.js : renderMarketTemperature
+// disclosure.js         : loadTodayDisclosures, loadAllDisclosures, toggleAllDisclosures
+// earnings-surge.js     : loadEarningsSurge, renderSurgeList, setSurgeGrade 등
