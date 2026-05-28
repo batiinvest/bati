@@ -4,6 +4,39 @@
 // ── 흐름 비교 차트 전역 변수 ──
 let _invTrendChart = null;
 
+// ── 시장별 종목 현황 카드 렌더러 ─────────────────────────────────────────────
+// loadMarketOverview() 내부 closure였던 것을 모듈 최상위로 추출
+function _mkCard(id, label, st, color, indexVal, indexChg) {
+  const el = document.getElementById(id);
+  if (!el || !st.total) return;
+  const pct = (st.rise / st.total * 100).toFixed(0);
+  const valStr = indexVal != null
+    ? indexVal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})
+    : '';
+  el.innerHTML =
+    // 헤더: 라벨 — 지수값 — 등락률 한 줄
+    '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">' +
+      '<span style="font-size:12px;font-weight:700;color:' + color + '">' + label + '</span>' +
+      (indexVal != null
+        ? '<span style="font-size:15px;font-weight:800;margin-left:4px">' + valStr + '</span>' +
+          '<span style="font-size:12px;font-weight:700;color:' + chgColor(indexChg) + '">' + chgStr(indexChg) + '</span>'
+        : '') +
+      '<span style="margin-left:auto;font-size:10px;color:var(--text3)">' + st.total.toLocaleString() + '개</span>' +
+    '</div>' +
+    // 바
+    '<div style="height:5px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.08);margin-bottom:6px;display:flex">' +
+      '<div style="width:' + pct + '%;background:var(--red)"></div>' +
+      '<div style="flex:1;background:var(--blue)"></div>' +
+    '</div>' +
+    // 수치
+    '<div style="display:flex;gap:8px;font-size:11px">' +
+      '<span style="color:var(--red);font-weight:700">▲ ' + st.rise.toLocaleString() + '</span>' +
+      '<span style="color:var(--blue);font-weight:700">▼ ' + st.fall.toLocaleString() + '</span>' +
+      '<span style="color:var(--text3)">━ ' + st.flat.toLocaleString() + '</span>' +
+      '<span style="margin-left:auto;color:var(--text3)">총 ' + st.total.toLocaleString() + '개</span>' +
+    '</div>';
+}
+
 // ── 시황 차트 접기/펼치기 ──
 function toggleTrendChart() {
   const body   = document.getElementById('inv-trend-body');
@@ -45,38 +78,6 @@ async function loadMarketOverview(maxDate) {
   };
   const kospi  = mkStat('KOSPI');
   const kosdaq = mkStat('KOSDAQ');
-
-  // ── 시장별 종목 현황 카드 ─────────────────────────────────────
-  const _mkCard = (id, label, st, color, indexVal, indexChg) => {
-    const el = document.getElementById(id);
-    if (!el || !st.total) return;
-    const pct = (st.rise / st.total * 100).toFixed(0);
-    const valStr = indexVal != null
-      ? indexVal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})
-      : '';
-    el.innerHTML =
-      // 헤더: 라벨 — 지수값 — 등락률 한 줄
-      '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">' +
-        '<span style="font-size:12px;font-weight:700;color:' + color + '">' + label + '</span>' +
-        (indexVal != null
-          ? '<span style="font-size:15px;font-weight:800;margin-left:4px">' + valStr + '</span>' +
-            '<span style="font-size:12px;font-weight:700;color:' + chgColor(indexChg) + '">' + chgStr(indexChg) + '</span>'
-          : '') +
-        '<span style="margin-left:auto;font-size:10px;color:var(--text3)">' + st.total.toLocaleString() + '개</span>' +
-      '</div>' +
-      // 바
-      '<div style="height:5px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.08);margin-bottom:6px;display:flex">' +
-        '<div style="width:' + pct + '%;background:var(--red)"></div>' +
-        '<div style="flex:1;background:var(--blue)"></div>' +
-      '</div>' +
-      // 수치
-      '<div style="display:flex;gap:8px;font-size:11px">' +
-        '<span style="color:var(--red);font-weight:700">▲ ' + st.rise.toLocaleString() + '</span>' +
-        '<span style="color:var(--blue);font-weight:700">▼ ' + st.fall.toLocaleString() + '</span>' +
-        '<span style="color:var(--text3)">━ ' + st.flat.toLocaleString() + '</span>' +
-        '<span style="margin-left:auto;color:var(--text3)">총 ' + st.total.toLocaleString() + '개</span>' +
-      '</div>';
-  };
 
   // ── 전체 요약 카드 ────────────────────────────────────────────
   const totalEl = document.getElementById('inv-total-summary');
