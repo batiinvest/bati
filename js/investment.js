@@ -460,26 +460,19 @@ async function loadInvestment() {
   const maxDate = await getLatestMarketDate();
   if (!maxDate) return;
 
-  // 전체 종목 + 산업별 동향
-  loadMarketOverview(maxDate);
+  // 전체 종목 + 산업별 동향 (내부에서 window._allMarketRows 세팅)
+  await loadMarketOverview(maxDate);
 
-  // 모니터링 종목만 조회 — stock_code로 직접 필터
-  const { data: monCodes } = await sb.from('companies')
-    .select('code').eq('is_monitored', true);
-  const monList = (monCodes || []).map(r => r.code.replace(/\.(KS|KQ)$/, ''));
+  // 모니터링 종목 목록 — getIndustryMap() 캐시 재활용 (companies 중복 조회 방지)
+  const industryMap = await getIndustryMap();
+  const monList = Object.keys(industryMap);
 
   if (!monList.length) return;
 
-  // Supabase in() 500개 제한 대응 — 청크로 분할 조회
-  let mktRows = [];
-  const chunk = 200;
-  for (let i = 0; i < monList.length; i += chunk) {
-    const { data } = await sb.from('market_data')
-      .select('stock_code,corp_name,price,price_change_rate,market_cap,market')
-      .eq('base_date', maxDate)
-      .in('stock_code', monList.slice(i, i + chunk));
-    if (data) mktRows = mktRows.concat(data);
-  }
+  // loadMarketOverview에서 이미 가져온 전체 데이터를 메모리에서 필터
+  const allRows = window._allMarketRows || [];
+  const monSet  = new Set(monList);
+  let mktRows   = allRows.filter(r => monSet.has(r.stock_code));
 
   if (!mktRows.length) return;
   const rows = mktRows.filter(r => r.price_change_rate != null);
@@ -504,22 +497,19 @@ async function loadInvestment() {
     ].join(' ');
   }
 
-  // 전체 상장사 급등/급락 — 상위/하위 5개씩 별도 조회
-  const [{ data: surgeKospi }, { data: dropKospi }, { data: surgeKosdaq }, { data: dropKosdaq }] =
-    await Promise.all([
-      sb.from('market_data').select('stock_code,corp_name,price_change_rate,market')
-        .eq('base_date', maxDate).eq('market','KOSPI').not('price_change_rate','is',null)
-        .order('price_change_rate', {ascending:false}).limit(10),
-      sb.from('market_data').select('stock_code,corp_name,price_change_rate,market')
-        .eq('base_date', maxDate).eq('market','KOSPI').not('price_change_rate','is',null)
-        .order('price_change_rate', {ascending:true}).limit(10),
-      sb.from('market_data').select('stock_code,corp_name,price_change_rate,market')
-        .eq('base_date', maxDate).eq('market','KOSDAQ').not('price_change_rate','is',null)
-        .order('price_change_rate', {ascending:false}).limit(10),
-      sb.from('market_data').select('stock_code,corp_name,price_change_rate,market')
-        .eq('base_date', maxDate).eq('market','KOSDAQ').not('price_change_rate','is',null)
-        .order('price_change_rate', {ascending:true}).limit(10),
-    ]);
+  // 전체 상장사 급등/급락 — loadMarketOverview가 이미 가져온 데이터를 메모리에서 계산
+  // (DB 쿼리 4회 → 0회, window._allMarketRows 재활용)
+  const _all = (window._allMarketRows || []).filter(r => r.price_change_rate != null);
+  const _byMkt = (mkt, asc) => [..._all]
+    .filter(r => r.market === mkt)
+    .sort((a, b) => asc
+      ? a.price_change_rate - b.price_change_rate
+      : b.price_change_rate - a.price_change_rate)
+    .slice(0, 10);
+  const surgeKospi  = _byMkt('KOSPI',  false);
+  const dropKospi   = _byMkt('KOSPI',  true);
+  const surgeKosdaq = _byMkt('KOSDAQ', false);
+  const dropKosdaq  = _byMkt('KOSDAQ', true);
 
   const rankRow = (r, i) => `
     <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border)">
@@ -532,10 +522,10 @@ async function loadInvestment() {
     const el = document.getElementById(id);
     if (el) el.innerHTML = (data || []).map(rankRow).join('') || '<div style="padding:12px;color:var(--text3);font-size:12px;text-align:center">데이터 없음</div>';
   };
-  setCard('inv-surge-kospi',  surgeKospi);
-  setCard('inv-drop-kospi',   dropKospi);
-  setCard('inv-surge-kosdaq', surgeKosdaq);
-  setCard('inv-drop-kosdaq',  dropKosdaq);
+  setCard('inv-surge-kospi',  surgeKospi  || []);
+  setCard('inv-drop-kospi',   dropKospi   || []);
+  setCard('inv-surge-kosdaq', surgeKosdaq || []);
+  setCard('inv-drop-kosdaq',  dropKosdaq  || []);
 }
 
 

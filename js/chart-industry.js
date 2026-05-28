@@ -36,11 +36,16 @@ async function loadIndTrendChart() {
   const dateList = [...new Set(dateRows.map(r => r.base_date))].sort().slice(-_indTrendPeriod);
   if (dateList.length < 2) return;
   const oldestDate = dateList[0];
-  const allRows = await fetchAllPages(
+
+  // 모니터링 종목만 조회 (전체 상장사 × N일 → 모니터링 ~300 × N일, 약 88% 감소)
+  const monCodes = Object.keys(industryMap);
+  const allRows = await fetchAllPages((s, e) =>
     sb.from('market_data')
       .select('stock_code,base_date,price_change_rate')
+      .in('stock_code', monCodes)
       .gte('base_date', oldestDate)
       .not('price_change_rate', 'is', null)
+      .range(s, e)
   );
 
   // 날짜 × 산업별 평균 등락률 집계

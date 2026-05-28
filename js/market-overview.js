@@ -54,10 +54,12 @@ async function loadMarketOverview(maxDate) {
   const industryMap = await getIndustryMap();
   const all = await fetchAllPages(
     sb.from('market_data')
-      .select('stock_code,corp_name,price,price_change_rate,market,market_cap,foreign_net_buy,foreign_hold_rate,hgpr_cls_code')
+      .select('stock_code,corp_name,price,price_change_rate,market,market_cap,foreign_net_buy,foreign_hold_rate')
       .eq('base_date', maxDate)
       .not('price_change_rate', 'is', null)
   );
+  // 급등/급락 카드에서 재활용 — investment.js가 window._allMarketRows 참조
+  window._allMarketRows = all;
   const enriched = all.map(r => ({
     ...r,
     industry:    industryMap[r.stock_code] || r.market || '기타',
@@ -531,13 +533,12 @@ async function loadNewHighStocks() {
     }
   }
 
-  // 모니터링 종목 + 산업 정보 조회
-  const { data: companies } = await sb.from('companies')
-    .select('code,industry,sub_industry')
-    .eq('is_monitored', true);
+  // 모니터링 종목 + 산업 정보 — getIndustryMap() 캐시 재활용 (companies 중복 조회 방지)
+  const _indMap  = await getIndustryMap();
+  const _subMap  = window._subIndustryMap || {};
   const monMap = {};  // code → { industry, sub_industry }
-  (companies || []).forEach(c => {
-    monMap[c.code.split('.')[0]] = { industry: c.industry, sub_industry: c.sub_industry };
+  Object.keys(_indMap).forEach(code => {
+    monMap[code] = { industry: _indMap[code], sub_industry: _subMap[code] || '' };
   });
 
   // 과거 7일 이력
