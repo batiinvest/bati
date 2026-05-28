@@ -237,7 +237,33 @@ async function loadMacroData() {
     bannerEl.innerHTML = _usBlock + sep + restParts.join('');
 
   }  // end if (m)
+
+  // 탑바 시장 스트립 갱신
+  _renderTopbarStrip();
 }  // end loadMacroData
+
+// ── 탑바 시장 스트립 렌더 ──
+function _renderTopbarStrip() {
+  const strip = document.getElementById('topbar-market-strip');
+  if (!strip) return;
+  const m = window._macroData || {};
+  const items = [
+    { name: '코스피',  val: m.kospi,   chg: m.kospi_chg },
+    { name: '코스닥',  val: m.kosdaq,  chg: m.kosdaq_chg },
+    { name: 'S&P500', val: m.sp500,   chg: m.sp500_chg },
+    { name: '달러',    val: m.usd_krw, chg: m.usd_krw_chg },
+  ].filter(i => i.val != null);
+  if (!items.length) { strip.style.display = 'none'; return; }
+  strip.style.display = 'flex';
+  strip.innerHTML = items.map((item, i) =>
+    (i > 0 ? '<span class="market-strip-sep">│</span>' : '') +
+    `<div class="market-strip-item">` +
+      `<span class="market-strip-name">${item.name}</span>` +
+      `<span class="market-strip-val">${Number(item.val).toLocaleString(undefined,{maximumFractionDigits:2})}</span>` +
+      `<span style="color:${chgColor(item.chg)};font-size:11px">${chgStr(item.chg)}</span>` +
+    `</div>`
+  ).join('');
+}
 
 // ── US ETF 배너: us_market 테이블에서 최신 산업별 평균 등락률 조회 ──
 async function loadUsEtfBanner() {
