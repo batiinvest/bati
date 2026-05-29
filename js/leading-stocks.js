@@ -144,28 +144,98 @@ function _lsEmptyHtml() {
   const isAdm = typeof isAdmin === 'function' && isAdmin();
   const adminBtn = isAdm
     ? `<button onclick="triggerLeadingStocks()"
-        style="margin-top:8px;font-size:11px;padding:4px 12px;border-radius:5px;
+        style="margin-top:8px;font-size:11px;padding:4px 14px;border-radius:5px;
                border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer">
         지금 계산 요청
        </button>`
     : '';
   return `<div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:12px;line-height:1.8">
-    백엔드 미실행 — 매일 장 마감 후 자동 생성됩니다<br>
+    오늘 데이터가 없습니다 — 매일 장 마감 후 자동 생성됩니다<br>
     <span style="font-size:11px;color:var(--text3);opacity:.7">(leading_stocks_generator.py)</span>
     ${adminBtn}
   </div>`;
 }
 
-// ── 어드민 전용: 백엔드 트리거 ─────────────────────────────────────────────────
+// ── 계산 중 HTML (폴링 상태) ───────────────────────────────────────────────────
+function _lsCalcHtml() {
+  return `<div id="ls-calc-state" style="padding:1.5rem;text-align:center;color:var(--text3);font-size:12px;line-height:2">
+    <span class="loading"></span> 백엔드에서 주도주 스코어 계산 중...<br>
+    <span style="font-size:11px;opacity:.7">전체 종목 분석 (최대 3분 소요)</span>
+    <div id="ls-poll-counter" style="font-size:10px;color:var(--text3);margin-top:2px;opacity:.6"></div>
+  </div>`;
+}
+
+// ── 어드민 전용: 백엔드 트리거 + 폴링 ─────────────────────────────────────────
 window.triggerLeadingStocks = async function() {
+  const el = document.getElementById('ls-body');
   try {
     await sb.from('app_config').upsert({
       key: 'run_leading_stocks_flag',
       value: String(Date.now()),
       description: '주도주 탐색기 수동 생성 트리거',
     }, { onConflict: 'key' });
-    if (typeof toast === 'function') toast('📡 주도주 탐색기 계산 요청 완료', 'info');
+
+    if (typeof toast === 'function') toast('📡 주도주 계산 요청 완료 — 최대 3분 소요', 'info');
+
+    // ── 계산 중 UI 표시 ──
+    if (el) el.innerHTML = _lsCalcHtml();
+
+    // ── 트리거 직전 기존 데이터 기준선 기록 ──────────────────────────────────
+    let _baselineDate = null;
+    try {
+      const { data: _prev } = await sb.from('leading_stocks')
+        .select('base_date').order('base_date', { ascending: false })
+        .limit(1).maybeSingle();
+      _baselineDate = _prev?.base_date || null;
+    } catch(_) {}
+
+    // ── 폴링: 5초마다 leading_stocks 신규 데이터 확인 (최대 36회 = 3분) ──
+    let tries = 0;
+    const MAX_TRIES = 36;
+
+    const poll = setInterval(async () => {
+      tries++;
+      const cntEl = document.getElementById('ls-poll-counter');
+      if (cntEl) cntEl.textContent = `${tries * 5}초 경과 / 최대 ${MAX_TRIES * 5}초`;
+
+      try {
+        const { data: row } = await sb.from('leading_stocks')
+          .select('base_date')
+          .order('base_date', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        // 기존 데이터 없었으면 → 어떤 데이터든 생기면 완료
+        // 기존 데이터 있었으면 → 더 최신 날짜 데이터가 생기면 완료
+        const isNew = row && (_baselineDate === null || row.base_date > _baselineDate);
+        if (isNew) {
+          clearInterval(poll);
+          await loadLeadingStocks();
+          if (typeof toast === 'function') toast('✅ 주도주 탐색기 업데이트 완료', 'success');
+          return;
+        }
+      } catch(_) {}
+
+      // 3분 타임아웃
+      if (tries >= MAX_TRIES) {
+        clearInterval(poll);
+        if (el) el.innerHTML = _lsEmptyHtml();
+        if (typeof toast === 'function') toast('⚠️ 3분 내 계산 미완료 — 백엔드 서버 상태 확인', 'warning');
+      }
+    }, 5000);
+
   } catch(e) {
     if (typeof toast === 'function') toast('트리거 실패: ' + e.message, 'error');
+  }
+};
+
+// ── 주도주 카드 수동 새로고침 ──────────────────────────────────────────────────
+window.refreshLeadingStocks = async function() {
+  const btn = document.getElementById('ls-refresh-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '.5'; }
+  try {
+    await loadLeadingStocks();
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
   }
 };

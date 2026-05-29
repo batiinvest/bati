@@ -230,13 +230,17 @@ function pInvestment() {
       <div class="card-header" style="flex-wrap:wrap;gap:6px">
         <span class="card-title">${_ICO.rocket}주도주 탐색기</span>
         <span style="font-size:11px;color:var(--text3)" id="ls-date"></span>
-        <div style="display:flex;gap:4px;margin-left:auto">
+        <div style="display:flex;gap:4px;margin-left:auto;align-items:center">
           <button class="chip active" data-ls-tab="all"    onclick="switchLsTab('all')"
             style="font-size:11px;padding:2px 8px">전체</button>
           <button class="chip"        data-ls-tab="kospi"  onclick="switchLsTab('kospi')"
             style="font-size:11px;padding:2px 8px">코스피</button>
           <button class="chip"        data-ls-tab="kosdaq" onclick="switchLsTab('kosdaq')"
             style="font-size:11px;padding:2px 8px">코스닥</button>
+          <button id="ls-refresh-btn" onclick="refreshLeadingStocks()"
+            style="font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid var(--border);
+                   background:transparent;color:var(--text3);cursor:pointer;line-height:1.6"
+            title="데이터 새로고침">${_ICO.refresh}</button>
         </div>
       </div>
       <div id="ls-body">
