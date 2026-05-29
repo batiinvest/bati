@@ -86,9 +86,10 @@ async function loadMarketOverview(maxDate) {
   if (totalEl) {
     const risePct = (rise / enriched.length * 100).toFixed(0);
     totalEl.innerHTML =
-      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;width:100%">' +
+      '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%">' +
         '<div id="inv-mkt-kospi"  style="padding:10px 14px;background:var(--bg3);border-radius:8px"></div>' +
         '<div id="inv-mkt-kosdaq" style="padding:10px 14px;background:var(--bg3);border-radius:8px"></div>' +
+        '<div id="inv-mkt-nasdaq" style="padding:10px 14px;background:var(--bg3);border-radius:8px"></div>' +
         '<div id="inv-mkt-total"  style="padding:10px 14px;background:var(--bg3);border-radius:8px"></div>' +
       '</div>';
 
@@ -116,20 +117,56 @@ async function loadMarketOverview(maxDate) {
     }
   }
 
-  // macro_data에서 코스피/코스닥 지수값 조회
+  // macro_data에서 코스피/코스닥/나스닥 지수값 조회
   let _kospiVal = null, _kospiChg = null, _kosdaqVal = null, _kosdaqChg = null;
+  let _nasdaqVal = null, _nasdaqChg = null, _nasdaqFut = null, _nasdaqFutChg = null;
   try {
     const { data: _macro } = await sb.from('macro_data')
-      .select('kospi,kospi_chg,kosdaq,kosdaq_chg')
+      .select('kospi,kospi_chg,kosdaq,kosdaq_chg,nasdaq,nasdaq_chg,nasdaq_fut,nasdaq_fut_chg')
       .order('base_date', {ascending: false}).limit(1).single();
     if (_macro) {
-      _kospiVal  = _macro.kospi;  _kospiChg  = _macro.kospi_chg;
-      _kosdaqVal = _macro.kosdaq; _kosdaqChg = _macro.kosdaq_chg;
+      _kospiVal    = _macro.kospi;       _kospiChg    = _macro.kospi_chg;
+      _kosdaqVal   = _macro.kosdaq;      _kosdaqChg   = _macro.kosdaq_chg;
+      _nasdaqVal   = _macro.nasdaq;      _nasdaqChg   = _macro.nasdaq_chg;
+      _nasdaqFut   = _macro.nasdaq_fut;  _nasdaqFutChg = _macro.nasdaq_fut_chg;
     }
   } catch(e) { /* null 유지 */ }
 
   _mkCard('inv-mkt-kospi',  '코스피', kospi,  '#2AABEE', _kospiVal,  _kospiChg);
   _mkCard('inv-mkt-kosdaq', '코스닥', kosdaq, '#2dce89', _kosdaqVal, _kosdaqChg);
+
+  // 나스닥 카드 (지수값 + 선물만 표시)
+  const _nasdaqCard = document.getElementById('inv-mkt-nasdaq');
+  if (_nasdaqCard && _nasdaqVal != null) {
+    const _nc = chgColor(_nasdaqChg);
+    const _futHtml = _nasdaqFut != null
+      ? `<div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,.07);` +
+          `display:flex;align-items:baseline;gap:4px">` +
+          `<span style="font-size:10px;color:var(--text3)">선물</span>` +
+          `<span style="font-size:12px;font-weight:700;color:var(--text1)">` +
+            Number(_nasdaqFut).toLocaleString(undefined,{maximumFractionDigits:2}) +
+          `</span>` +
+          (_nasdaqFutChg != null
+            ? `<span style="font-size:11px;font-weight:600;color:${chgColor(_nasdaqFutChg)}">` +
+              chgStr(_nasdaqFutChg) + `</span>`
+            : '') +
+        `</div>`
+      : '';
+    _nasdaqCard.innerHTML =
+      `<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">` +
+        `<span style="font-size:12px;font-weight:700;color:#fb923c">나스닥</span>` +
+        `<span style="font-size:15px;font-weight:800;margin-left:4px">` +
+          Number(_nasdaqVal).toLocaleString(undefined,{maximumFractionDigits:2}) +
+        `</span>` +
+        (_nasdaqChg != null
+          ? `<span style="font-size:12px;font-weight:700;color:${_nc}">${chgStr(_nasdaqChg)}</span>`
+          : '') +
+      `</div>` +
+      `<div style="font-size:11px;color:var(--text3);line-height:1.6">` +
+        `<span>🇺🇸 Nasdaq Composite</span>` +
+      `</div>` +
+      _futHtml;
+  }
 
   // ── 산업별 + 세부섹터별 집계 (모니터링 종목만) ─────────────────
   // industryMap 키 = 모니터링 종목 코드만 포함 (getIndustryMap is_monitored=true 필터)

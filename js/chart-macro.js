@@ -251,6 +251,7 @@ function _renderTopbarStrip() {
     { name: '코스피',  val: m.kospi,   chg: m.kospi_chg },
     { name: '코스닥',  val: m.kosdaq,  chg: m.kosdaq_chg },
     { name: 'S&P500', val: m.sp500,   chg: m.sp500_chg },
+    { name: '나스닥',  val: m.nasdaq,  chg: m.nasdaq_chg },
     { name: '달러',    val: m.usd_krw, chg: m.usd_krw_chg },
   ].filter(i => i.val != null);
   if (!items.length) { strip.style.display = 'none'; return; }
