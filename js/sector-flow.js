@@ -120,7 +120,9 @@ function renderSectorFlow() {
   if (!sectorMap) return;
 
   const key = `d${_sfPeriod}`;
-  const KR_INDS = window.KR_INDUSTRIES || [];
+  const KR_INDS = (typeof KR_INDUSTRIES !== 'undefined' ? KR_INDUSTRIES : null)
+               || (typeof INDUSTRIES    !== 'undefined' ? INDUSTRIES    : null)
+               || [];
 
   const entries = KR_INDS
     .filter(ind => sectorMap[ind])

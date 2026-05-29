@@ -16,7 +16,9 @@ function _calcTemperature() {
   const m    = window._macroData        || {};
   const rows = window._allMarketRows    || [];
   const krR  = window._krIndFinalReturn || {};
-  const inds = window.KR_INDUSTRIES     || [];
+  const inds = (typeof KR_INDUSTRIES !== 'undefined' ? KR_INDUSTRIES : null)
+             || (typeof INDUSTRIES    !== 'undefined' ? INDUSTRIES    : null)
+             || [];
 
   let score = 0;
   const parts = [];
