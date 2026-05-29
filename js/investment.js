@@ -281,15 +281,24 @@ function pInvestment() {
       <div class="card-header" style="flex-wrap:wrap;gap:6px">
         <span class="card-title">${_ICO.shuffle}섹터 수급 트렌드</span>
         <span style="font-size:10px;color:var(--text3)" id="sf-date"></span>
-        <div style="display:flex;gap:4px;margin-left:auto">
+        <div style="display:flex;gap:4px;margin-left:auto;flex-wrap:wrap;align-items:center">
+          <!-- 수급 타입 탭 -->
+          <button class="chip active" data-sf-type="combined"
+            onclick="switchSfType('combined')" style="font-size:11px;padding:2px 8px">합산</button>
+          <button class="chip" data-sf-type="foreign"
+            onclick="switchSfType('foreign')"  style="font-size:11px;padding:2px 8px">외국인</button>
+          <button class="chip" data-sf-type="inst"
+            onclick="switchSfType('inst')"     style="font-size:11px;padding:2px 8px">기관</button>
+          <div style="width:1px;height:14px;background:var(--border);margin:0 2px;flex-shrink:0"></div>
+          <!-- 기간 탭 -->
           ${[{p:1,l:'1일'},{p:3,l:'3일'},{p:5,l:'5일'},{p:20,l:'20일'}].map(({p,l})=>`
             <button class="chip ${p===3?'active':''}" data-sf-period="${p}"
               onclick="switchSfPeriod(${p})" style="font-size:11px;padding:2px 8px">${l}</button>
           `).join('')}
         </div>
       </div>
-      <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px">
-        외국인 순매수 (모니터링 종목 기준) — 위: 순매수 강세 ↔ 아래: 순매도
+      <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px" id="sf-desc">
+        외국인+기관 스마트머니 (모니터링 종목 기준)
       </div>
       <div id="sf-body" style="padding:.25rem 0">
         ${_skelList(12, true)}
