@@ -205,6 +205,13 @@ function autoGenIntro() {
     ...Object.keys(grouped).filter(c => !IND_ORDER.includes(c)),
   ])];
 
+  // 종목 N개씩 한 줄로 묶기 (가독성)
+  const chunkLine = (arr, n = 4) => {
+    const rows = [];
+    for (let i = 0; i < arr.length; i += n) rows.push(arr.slice(i, i + n));
+    return rows;
+  };
+
   const indSections = allCats.map(cat => {
     const emoji  = IND_EMOJI[cat] || '📌';
     const indR   = indRooms[cat];
@@ -217,12 +224,16 @@ function autoGenIntro() {
     lines.push('···········');
 
     if (full.length) {
-      lines.push('   [🔴정원 마감] ');
-      full.forEach(r => lines.push(`${lnk(r.name, r.link)}`));
+      lines.push('[🔴정원 마감]');
+      chunkLine(full).forEach(row =>
+        lines.push(row.map(r => lnk(r.name, r.link)).join('   '))
+      );
     }
     if (open.length) {
-      lines.push('   [🟢입장 가능]  ');
-      open.forEach(r => lines.push(`${lnk(r.name, r.link)}`));
+      lines.push('[🟢입장 가능]');
+      chunkLine(open).forEach(row =>
+        lines.push(row.map(r => lnk(r.name, r.link)).join('   '))
+      );
     }
     return lines.join('\n');
   }).join('\n');
