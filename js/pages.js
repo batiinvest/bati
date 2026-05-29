@@ -196,11 +196,11 @@ function pNotice() {
     .map(r => `<option value="room:${r.id}">[${r.cat||r.room_type}] ${r.name}</option>`)
     .join('');
 
-  // 어드민 테스트용 채팅방 (바티인베스트 메인 + industry 채팅방)
-  const adminRooms = A.rooms.filter(r => r.room_type === 'industry');
-  const adminOptions = adminRooms
-    .map(r => `<option value="room:${r.id}">🔧 ${r.name}</option>`)
-    .join('');
+  // 바티인베스트 어드민 채널
+  const batiRoom = A.rooms.find(r => r.room_type === 'industry' && (r.name||'').includes('바티인베스트'));
+  const batiOption = batiRoom
+    ? `<option value="room:${batiRoom.id}">바티인베스트 (어드민)</option>`
+    : '';
 
   return `
   <div class="card" style="margin-bottom:1rem"><div class="card-header"><span class="card-title">새 공지 작성</span></div><div class="card-body">
@@ -208,8 +208,8 @@ function pNotice() {
       <div class="form-group" style="margin:0;min-width:220px">
         <label class="form-label">발송 대상</label>
         <select class="form-select" id="i-target" onchange="onNoticeTargetChange()">
-          <optgroup label="── 🔧 테스트 ──">
-            ${adminOptions}
+          <optgroup label="── 어드민 ──">
+            ${batiOption}
           </optgroup>
           <optgroup label="── 그룹 발송 ──">
             <option value="all">전체 (${A.rooms.length}개)</option>
