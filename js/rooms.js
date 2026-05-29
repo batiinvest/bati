@@ -171,34 +171,10 @@ function onNoticeTargetChange() {
   }
 }
 
-// ── 소개 글 헤더 편집 패널 제어 ─────────────────────────────────────────────
-function toggleIntroHeader() {
-  const panel = document.getElementById('intro-header-panel');
-  const icon  = document.getElementById('intro-header-toggle-icon');
-  if (!panel) return;
-  const open = panel.style.display === 'none';
-  panel.style.display = open ? 'block' : 'none';
-  if (icon) icon.textContent = open ? '▴ 접기' : '▾ 펼치기';
-}
-
-async function saveIntroHeader() {
-  if (!isAdmin()) { toast('admin만 설정 가능합니다.', 'error'); return; }
-  const val = (document.getElementById('intro-header-input')?.value || '').trim();
-  const { error } = await DB('app_config')
-    .upsert({ key: 'intro_header', value: val, updated_at: new Date().toISOString() }, { onConflict: 'key' });
-  if (error) { toast('저장 실패: ' + error.message, 'error'); return; }
-  A.config.intro_header = val;
-  toast('✅ 소개 글 헤더 저장됨 — 다음 소개 글 생성 시 반영', 'success');
-}
-
-async function resetIntroHeader() {
-  if (!isAdmin()) { toast('admin만 설정 가능합니다.', 'error'); return; }
-  if (!confirm('저장된 헤더를 삭제하고 기본값으로 돌아갑니까?')) return;
-  await DB('app_config').delete().eq('key', 'intro_header');
-  A.config.intro_header = '';
-  const el = document.getElementById('intro-header-input');
-  if (el) el.value = '';
-  toast('🗑 헤더 초기화 — 기본값 사용', 'info');
+// ── 내용 지우기 ───────────────────────────────────────────────────────────────
+function clearNoticeContent() {
+  const ta = document.getElementById('i-content');
+  if (ta) { ta.value = ''; if (typeof prev === 'function') prev('', 'i-prev'); }
 }
 
 // ── 소개 글 전체 포맷 생성 (원본 소개 글 포맷) ──────────────────────────────
@@ -212,10 +188,9 @@ function autoGenIntro() {
   };
   const b = (t) => isHTML ? `<b>${t}</b>` : `*${t}*`;
 
-  // ── 헤더 (저장된 커스텀 헤더 우선, 없으면 기본값) ─────────────────────────
+  // ── 헤더 ────────────────────────────────────────────────────────────────────
   const buymeUrl = 'https://buymeacoffee.com/batiinvest';
-  const savedHeader = (A.config?.intro_header || '').trim();
-  const header = savedHeader ? savedHeader + '\n' : [
+  const header = [
     '안녕하세요, 바티입니다.',
     '',
     '바티인베스트는 건전한 투자 토론과 정보 공유를 위한 커뮤니티입니다. 광고 없는 클린한 환경 유지를 위해 아래 규정을 준수해 주세요.',

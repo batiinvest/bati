@@ -245,37 +245,17 @@ function pNotice() {
       </div>
       <div style="align-self:flex-end;font-size:12px;color:var(--text3)" id="i-target-info"></div>
     </div>
-    <!-- 소개 글 헤더 편집 (접힘) -->
-    <div class="form-group" style="margin-bottom:.5rem">
-      <div style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none"
-           onclick="toggleIntroHeader()">
-        <label class="form-label" style="cursor:pointer;margin:0">✏️ 소개 글 헤더 편집</label>
-        <span id="intro-header-toggle-icon" style="font-size:11px;color:var(--text3)">▾ 펼치기</span>
-        ${A.config?.intro_header ? '<span style="font-size:10px;color:var(--tg);padding:1px 6px;border-radius:3px;background:rgba(42,171,238,.12)">커스텀 헤더 저장됨</span>' : ''}
-      </div>
-      <div id="intro-header-panel" style="display:none;margin-top:8px">
-        <textarea id="intro-header-input" class="form-input" rows="10"
-          style="font-size:12px;font-family:monospace;resize:vertical"
-          placeholder="헤더 텍스트를 입력하세요. 비워두면 기본값 사용.">${A.config?.intro_header || ''}</textarea>
-        <div style="display:flex;gap:6px;margin-top:6px">
-          <button class="btn btn-sm btn-primary" onclick="saveIntroHeader()">💾 저장</button>
-          <button class="btn btn-sm" onclick="resetIntroHeader()" style="color:var(--red)">🗑 초기화 (기본값)</button>
-        </div>
-      </div>
-    </div>
-
     <div class="form-group"><label class="form-label">내용</label>
       <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-sm" onclick="autoGenIntro()" style="background:rgba(42,171,238,.12);border-color:rgba(42,171,238,.3);color:var(--tg)"
-          title="바티인베스트 소개 글 전체 포맷 생성 (규정·입장안내·산업별 채팅방 목록)">
+        <button class="btn btn-sm" onclick="autoGenIntro()" style="background:rgba(42,171,238,.12);border-color:rgba(42,171,238,.3);color:var(--tg)">
           📋 소개 글 생성
         </button>
-        <button class="btn btn-sm" onclick="autoGenNotice()" title="선택한 산업/채팅방 기준으로 간단 공지 자동 생성">
-          ✨ 채팅방 목록
-        </button>
-        <span style="font-size:10px;color:var(--text3);align-self:center">소개 글=규정+채팅방 전체 / 채팅방 목록=간단 포맷</span>
+        <button class="btn btn-sm" onclick="clearNoticeContent()">🗑 지우기</button>
+        <span style="font-size:10px;color:var(--text3);align-self:center">생성 후 텍스트를 직접 수정하세요</span>
       </div>
-      <textarea class="form-input" id="i-content" rows="16" oninput="prev(this.value,'i-prev')"></textarea>
+      <textarea class="form-input" id="i-content" rows="20" style="font-size:12px;font-family:monospace"
+        placeholder="직접 입력하거나 소개 글 생성 버튼을 누르세요"
+        oninput="prev(this.value,'i-prev')"></textarea>
     </div>
     <div class="form-group"><label class="form-label">미리보기</label><div id="i-prev" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;min-height:36px;color:var(--text2);white-space:pre-wrap"></div></div>
     <div id="i-prog" class="hidden" style="font-size:12px;padding:8px;background:var(--bg3);border-radius:var(--radius-sm);color:var(--text2);margin-bottom:.75rem"></div>
