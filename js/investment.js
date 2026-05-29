@@ -316,23 +316,31 @@ function pInvestment() {
       </div>
     </div>
 
-    <!-- 🔴🔵 급등/급락 — 2×2 그리드 (코스피 행 / 코스닥 행) -->
+    <!-- 🔴🔵 급등/급락 — 4열 그리드 -->
     <div class="surge-drop-grid">
       <div class="card" style="margin-bottom:0">
-        <div class="card-header"><span class="card-title" style="color:var(--red)">${_ICO.arrowUp}코스피 급등</span></div>
-        <div id="inv-surge-kospi" style="padding:.5rem 0"></div>
+        <div class="card-header" style="padding:8px 10px">
+          <span class="card-title" style="color:var(--red);font-size:13px">${_ICO.arrowUp}코스피 급등</span>
+        </div>
+        <div id="inv-surge-kospi" style="padding:.25rem 0"></div>
       </div>
       <div class="card" style="margin-bottom:0">
-        <div class="card-header"><span class="card-title" style="color:var(--blue)">${_ICO.arrowDn}코스피 급락</span></div>
-        <div id="inv-drop-kospi" style="padding:.5rem 0"></div>
+        <div class="card-header" style="padding:8px 10px">
+          <span class="card-title" style="color:var(--blue);font-size:13px">${_ICO.arrowDn}코스피 급락</span>
+        </div>
+        <div id="inv-drop-kospi" style="padding:.25rem 0"></div>
       </div>
       <div class="card" style="margin-bottom:0">
-        <div class="card-header"><span class="card-title" style="color:var(--red)">${_ICO.arrowUp}코스닥 급등</span></div>
-        <div id="inv-surge-kosdaq" style="padding:.5rem 0"></div>
+        <div class="card-header" style="padding:8px 10px">
+          <span class="card-title" style="color:var(--red);font-size:13px">${_ICO.arrowUp}코스닥 급등</span>
+        </div>
+        <div id="inv-surge-kosdaq" style="padding:.25rem 0"></div>
       </div>
       <div class="card" style="margin-bottom:0">
-        <div class="card-header"><span class="card-title" style="color:var(--blue)">${_ICO.arrowDn}코스닥 급락</span></div>
-        <div id="inv-drop-kosdaq" style="padding:.5rem 0"></div>
+        <div class="card-header" style="padding:8px 10px">
+          <span class="card-title" style="color:var(--blue);font-size:13px">${_ICO.arrowDn}코스닥 급락</span>
+        </div>
+        <div id="inv-drop-kosdaq" style="padding:.25rem 0"></div>
       </div>
     </div>
 
@@ -695,10 +703,10 @@ async function loadInvestment() {
   const dropKosdaq  = _byMkt('KOSDAQ', true);
 
   const rankRow = (r, i) => `
-    <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border)">
-      <span style="width:16px;font-size:11px;color:var(--text3);font-weight:600">${i+1}</span>
-      <span style="flex:1;font-size:13px;font-weight:500">${r.corp_name}</span>
-      <span style="font-size:13px;font-weight:600;color:${chgColor(r.price_change_rate)}">${chgStr(r.price_change_rate)}</span>
+    <div style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-bottom:1px solid var(--border)">
+      <span style="width:14px;font-size:10px;color:var(--text3);font-weight:600;flex-shrink:0">${i+1}</span>
+      <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.corp_name}</span>
+      <span style="font-size:12px;font-weight:700;color:${chgColor(r.price_change_rate)};flex-shrink:0">${chgStr(r.price_change_rate)}</span>
     </div>`;
 
   const setCard = (id, data) => {
