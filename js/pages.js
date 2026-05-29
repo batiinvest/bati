@@ -196,11 +196,16 @@ function pNotice() {
     .map(r => `<option value="room:${r.id}">[${r.cat||r.room_type}] ${r.name}</option>`)
     .join('');
 
-  // 바티인베스트 어드민 채널
-  const batiRoom = A.rooms.find(r => r.room_type === 'industry' && (r.name||'').includes('바티인베스트'));
-  const batiOption = batiRoom
-    ? `<option value="room:${batiRoom.id}">바티인베스트 (어드민)</option>`
-    : '';
+  // 어드민 채널: app_config.admin_chat_id (@batiinvest) 기준으로 rooms에서 찾기
+  const adminChatId = (A.config?.admin_chat_id || '').trim();
+  const adminRoom = adminChatId
+    ? A.rooms.find(r => (r.chat_id || '').trim() === adminChatId)
+    : null;
+  const batiOption = adminRoom
+    ? `<option value="room:${adminRoom.id}">${adminRoom.name} (어드민)</option>`
+    : (adminChatId
+        ? `<option value="admin_direct">@${adminChatId.replace('@','')} (어드민)</option>`
+        : '');
 
   return `
   <div class="card" style="margin-bottom:1rem"><div class="card-header"><span class="card-title">새 공지 작성</span></div><div class="card-body">

@@ -87,6 +87,11 @@ async function doNotice(content, target, btnId, progId) {
     const r = A.rooms.find(x => x.id === id);
     if (!r) { toast('채팅방을 찾을 수 없습니다.', 'error'); return; }
     targets = [r];
+  } else if (target === 'admin_direct') {
+    // rooms에 없는 어드민 채널 직접 발송 (app_config.admin_chat_id 사용)
+    const adminCid = (A.config?.admin_chat_id || '').trim();
+    if (!adminCid) { toast('admin_chat_id 미설정', 'error'); return; }
+    targets = [{ chat_id: adminCid, name: adminCid }];
   } else if (target === 'open') {
     targets = targets.filter(r => r.status === 'open');
   } else if (target !== 'all') {
@@ -125,6 +130,9 @@ function onNoticeTargetChange() {
     const id = parseInt(target.replace('room:', ''));
     const r = A.rooms.find(x => x.id === id);
     info.textContent = r ? `→ ${r.name} 1개` : '';
+  } else if (target === 'admin_direct') {
+    const adminCid = (A.config?.admin_chat_id || '').trim();
+    info.textContent = adminCid ? `→ ${adminCid} 1개` : '→ admin_chat_id 미설정';
   } else if (target === 'all') {
     info.textContent = `→ 전체 ${A.rooms.length}개`;
   } else if (target === 'open') {
