@@ -74,6 +74,24 @@ async function saveEdit(id) {
 // ══════════════════════════════════════════
 //  NOTICE
 // ══════════════════════════════════════════
+// ── 메시지 자동 분할 (4096자 한도, 줄 단위) ──────────────────────────────────
+function splitMessage(text, maxLen = 4000) {
+  if (text.length <= maxLen) return [text];
+  const parts = [];
+  let cur = '';
+  for (const line of text.split('\n')) {
+    const next = cur ? cur + '\n' + line : line;
+    if (next.length > maxLen) {
+      if (cur) parts.push(cur.trim());
+      cur = line;
+    } else {
+      cur = next;
+    }
+  }
+  if (cur.trim()) parts.push(cur.trim());
+  return parts;
+}
+
 async function doNotice(content, target, btnId, progId) {
   if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
   if (!content) { toast('내용 입력 필요', 'error'); return; }
@@ -99,7 +117,9 @@ async function doNotice(content, target, btnId, progId) {
     targets = targets.filter(r => r.cat === target);
   }
 
-  if (!confirm(`${targets.length}개 채팅방에 발송?\n형식: ${parseMode}`)) return;
+  const parts = splitMessage(content);
+  const splitInfo = parts.length > 1 ? ` (${parts.length}개 메시지로 자동 분할)` : '';
+  if (!confirm(`${targets.length}개 채팅방에 발송?${splitInfo}\n형식: ${parseMode}`)) return;
 
   const btn = document.getElementById(btnId), prog = document.getElementById(progId);
   btn.disabled = true; prog.classList.remove('hidden');
@@ -107,17 +127,23 @@ async function doNotice(content, target, btnId, progId) {
   for (let i = 0; i < targets.length; i++) {
     prog.innerHTML = `<span class="loading"></span>${i+1}/${targets.length} — ${targets[i].name}`;
     try {
-      await tg('sendMessage', { chat_id: targets[i].chat_id, text: content, parse_mode: parseMode });
+      for (let p = 0; p < parts.length; p++) {
+        if (parts.length > 1) {
+          prog.innerHTML = `<span class="loading"></span>${i+1}/${targets.length} — ${targets[i].name} (${p+1}/${parts.length})`;
+        }
+        await tg('sendMessage', { chat_id: targets[i].chat_id, text: parts[p], parse_mode: parseMode });
+        if (p < parts.length - 1) await new Promise(r => setTimeout(r, 300));
+      }
       ok++;
     } catch(e) {
       console.error(`[공지실패] ${targets[i].name}:`, e.message);
     }
-    await new Promise(r => setTimeout(r, 300));
+    await new Promise(r => setTimeout(r, 400));
   }
   await DB('notice_history').insert([{ target, content, sent_count: targets.length, ok_count: ok, sent_by: A.user.id }]);
-  prog.innerHTML = `✓ ${ok}/${targets.length} 완료 — DB 저장됨`;
+  prog.innerHTML = `✓ ${ok}/${targets.length} 완료${splitInfo} — DB 저장됨`;
   btn.disabled = false;
-  toast(`발송 완료: ${ok}/${targets.length}`, 'success');
+  toast(`발송 완료: ${ok}/${targets.length}${splitInfo}`, 'success');
   setTimeout(() => { prog.classList.add('hidden'); if (A.page === 'notice') loadNotices(); }, 3000);
 }
 
@@ -282,8 +308,9 @@ function autoGenIntro() {
 
   const text = (header + mainSection + indSections).trim();
 
-  if (text.length > 3800) {
-    toast(`⚠️ ${text.length}자 — 텔레그램 한도(4096자) 근접. 산업별로 나눠 발송을 권장합니다.`, 'error');
+  if (text.length > 4000) {
+    const n = splitMessage(text).length;
+    toast(`📨 ${text.length}자 — ${n}개 메시지로 자동 분할 발송됩니다.`, 'info');
   }
 
   const ta = document.getElementById('i-content');
