@@ -292,6 +292,26 @@ function pInvestment() {
       </div>
     </div>
 
+    <!-- 🌐 산업 강도 매트릭스 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+        <span class="card-title">${_ICO.grid}산업 강도 매트릭스</span>
+        <span style="font-size:10px;color:var(--text3)" id="im-date"></span>
+        <div style="display:flex;gap:4px;margin-left:auto">
+          ${[{p:1,l:'1일'},{p:5,l:'5일'},{p:20,l:'20일'}].map(({p,l})=>`
+            <button class="chip ${p===5?'active':''}" data-im-period="${p}"
+              onclick="switchImPeriod(${p})" style="font-size:11px;padding:2px 8px">${l}</button>
+          `).join('')}
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px">
+        US ETF ↔ KR 섹터 성과 비교 · 선행 신호 자동 탐지
+      </div>
+      <div id="im-body">
+        ${_skelList(11, true)}
+      </div>
+    </div>
+
     <!-- 🔴🔵 급등/급락 — 2×2 그리드 (코스피 행 / 코스닥 행) -->
     <div class="surge-drop-grid">
       <div class="card" style="margin-bottom:0">
@@ -617,9 +637,10 @@ async function loadInvestment() {
   renderMarketTemperature();
   renderVolumeLeaders();
 
-  // Phase 2 — 주도주 탐색기 + 섹터 수급 트렌드
+  // Phase 2 — 주도주 탐색기 + 섹터 수급 트렌드 + 산업 강도 매트릭스
   loadLeadingStocks();
   loadSectorFlow();
+  loadIndustryMatrix();
 
   // 모니터링 종목 목록 — getIndustryMap() 캐시 재활용 (companies 중복 조회 방지)
   const industryMap = await getIndustryMap();
