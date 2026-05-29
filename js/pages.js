@@ -196,16 +196,25 @@ function pNotice() {
     .map(r => `<option value="room:${r.id}">[${r.cat||r.room_type}] ${r.name}</option>`)
     .join('');
 
-  // 어드민 채널: app_config.admin_chat_id (@batiinvest) 기준으로 rooms에서 찾기
+  // 어드민 채널: app_config.admin_chat_id (@batiinvest)
   const adminChatId = (A.config?.admin_chat_id || '').trim();
-  const adminRoom = adminChatId
+  const adminRoom   = adminChatId
     ? A.rooms.find(r => (r.chat_id || '').trim() === adminChatId)
     : null;
-  const batiOption = adminRoom
+  const adminOption = adminRoom
     ? `<option value="room:${adminRoom.id}">${adminRoom.name} (어드민)</option>`
     : (adminChatId
         ? `<option value="admin_direct">@${adminChatId.replace('@','')} (어드민)</option>`
         : '');
+
+  // 바티인베스트 채팅방 (@BatiInvestChat) — DEFAULT_CHAT_ID
+  const batiChatRoom = A.rooms.find(r =>
+    (r.chat_id || '').toLowerCase().includes('batiinvestchat') ||
+    (r.link   || '').toLowerCase().includes('batiinvestchat')
+  );
+  const batiChatOption = batiChatRoom
+    ? `<option value="room:${batiChatRoom.id}">${batiChatRoom.name}</option>`
+    : `<option value="bati_direct">바티인베스트 채팅방</option>`;
 
   return `
   <div class="card" style="margin-bottom:1rem"><div class="card-header"><span class="card-title">새 공지 작성</span></div><div class="card-body">
@@ -214,7 +223,8 @@ function pNotice() {
         <label class="form-label">발송 대상</label>
         <select class="form-select" id="i-target" onchange="onNoticeTargetChange()">
           <optgroup label="── 어드민 ──">
-            ${batiOption}
+            ${adminOption}
+            ${batiChatOption}
           </optgroup>
           <optgroup label="── 그룹 발송 ──">
             <option value="all">전체 (${A.rooms.length}개)</option>
