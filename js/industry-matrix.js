@@ -188,7 +188,9 @@ async function loadIndustryMatrix() {
     }
 
     // ── ⑤ 산업별 매트릭스 데이터 빌드 ─────────────────────────────────
-    const KR_INDS = window.KR_INDUSTRIES || window.INDUSTRIES || [];
+    const KR_INDS = (typeof KR_INDUSTRIES !== 'undefined' ? KR_INDUSTRIES : null)
+                 || (typeof INDUSTRIES    !== 'undefined' ? INDUSTRIES    : null)
+                 || [];
     const matrixRows = [];
 
     for (const ind of KR_INDS) {
@@ -299,7 +301,7 @@ function renderIndustryMatrix() {
     const usV = r[usK];
     const krV = r[krK];
     const sig = r.sig[p];
-    const indColor = (window.IND_COLORS || {})[r.ind] || '#a8adc4';
+    const indColor = ((typeof IND_COLORS !== 'undefined' ? IND_COLORS : null) || {})[r.ind] || '#a8adc4';
 
     // Spread (US − KR)
     const sp = (usV != null && krV != null) ? usV - krV : null;
