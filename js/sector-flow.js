@@ -15,8 +15,8 @@ let _sfType   = 'combined';  // 'combined' | 'foreign' | 'inst'
 // ── 수급 타입 설정 ────────────────────────────────────────────────────────────
 const _SF_TYPES = {
   combined: { label: '합산',   posColor: '#2dce89', negColor: '#f5365c', desc: '외국인+기관 스마트머니' },
-  foreign:  { label: '외국인', posColor: '#2AABEE', negColor: '#5b7fff', desc: '외국인 순매수' },
-  inst:     { label: '기관',   posColor: '#f59e0b', negColor: '#fb923c', desc: '기관 순매수'   },
+  foreign:  { label: '외국인', posColor: '#2AABEE', negColor: '#f5365c', desc: '외국인 순매수' },
+  inst:     { label: '기관',   posColor: '#f59e0b', negColor: '#f5365c', desc: '기관 순매수'   },
 };
 
 // ── 로드 ──────────────────────────────────────────────────────────────────────
