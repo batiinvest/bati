@@ -222,11 +222,15 @@ function pNotice() {
       <div style="align-self:flex-end;font-size:12px;color:var(--text3)" id="i-target-info"></div>
     </div>
     <div class="form-group"><label class="form-label">내용</label>
-      <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">
-        <button class="btn btn-sm" onclick="autoGenNotice()" title="선택한 산업/채팅방 기준으로 공지 자동 생성">
-          ✨ 채팅방 목록 자동 생성
+      <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-sm" onclick="autoGenIntro()" style="background:rgba(42,171,238,.12);border-color:rgba(42,171,238,.3);color:var(--tg)"
+          title="바티인베스트 소개 글 전체 포맷 생성 (규정·입장안내·산업별 채팅방 목록)">
+          📋 소개 글 생성
         </button>
-        <span style="font-size:11px;color:var(--text3);align-self:center">선택한 대상 기준으로 링크 포함 공지 생성</span>
+        <button class="btn btn-sm" onclick="autoGenNotice()" title="선택한 산업/채팅방 기준으로 간단 공지 자동 생성">
+          ✨ 채팅방 목록
+        </button>
+        <span style="font-size:10px;color:var(--text3);align-self:center">소개 글=규정+채팅방 전체 / 채팅방 목록=간단 포맷</span>
       </div>
       <textarea class="form-input" id="i-content" rows="12" oninput="prev(this.value,'i-prev')"></textarea>
     </div>

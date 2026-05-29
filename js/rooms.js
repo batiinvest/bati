@@ -134,6 +134,113 @@ function onNoticeTargetChange() {
   }
 }
 
+// ── 소개 글 전체 포맷 생성 (원본 소개 글 포맷) ──────────────────────────────
+function autoGenIntro() {
+  const parseMode = document.getElementById('i-parse-mode')?.value || 'HTML';
+  const isHTML    = parseMode === 'HTML';
+
+  const lnk = (name, url) => {
+    if (!url) return name;
+    return isHTML ? `<a href="${url}">${name}</a>` : `[${name}](${url})`;
+  };
+  const b = (t) => isHTML ? `<b>${t}</b>` : `*${t}*`;
+
+  // ── 헤더 (고정 텍스트) ──────────────────────────────────────────────────
+  const buymeUrl = 'https://buymeacoffee.com/batiinvest';
+  const header = [
+    '안녕하세요, 바티입니다.',
+    '',
+    '바티인베스트는 건전한 투자 토론과 정보 공유를 위한 커뮤니티입니다. 광고 없는 클린한 환경 유지를 위해 아래 규정을 준수해 주세요.',
+    '',
+    '✅ 입장 및 운영 안내',
+    '①승인: 신청 후 1~2일 내 순차 승인 (정원 초과 시 대기 발생)',
+    '②퇴장: 3일 이상 미접속(미활동), 광고/욕설/비매너 행위 시 즉시 퇴장',
+    `③우선입장: 후원자는 (${lnk(buymeUrl, buymeUrl)}) 대기없이 최우선 입장 안내`,
+    '',
+    '🔒 기타',
+    '① 각 채팅방은 정원에 따라 비공개로 전환될 수 있습니다.',
+    '',
+    '📬 신규 채팅방 개설 문의',
+    '종목/산업 관련 신규 채팅방 개설 요청: @BatiInvestment',
+    '',
+  ].join('\n');
+
+  // ── 종합 채팅방 ─────────────────────────────────────────────────────────
+  const mainRoom = A.rooms.find(r => r.room_type === 'industry' && (r.name || '').includes('바티인베스트'));
+  const mainSection = [
+    '',
+    '📊 종합 투자 채팅방',
+    lnk('바티인베스트', mainRoom?.link || 'https://t.me/BatiInvestChat'),
+    '• 미국/국내 시황 요약',
+    '• 공시·뉴스 모니터링 (실시간)',
+    '• 증권사 리포트·52주 신고가 (장 마감 후)',
+    '• 산업별 상승·하락률 순위 (장 마감 후)',
+    '',
+  ].join('\n');
+
+  // ── 산업별 섹션 ─────────────────────────────────────────────────────────
+  const IND_EMOJI = {
+    '바이오':'💊','뷰티':'💄','로봇':'🤖','2차전지':'🔋',
+    '신재생':'☀️','소비재':'👗','테크':'💻','반도체':'💾',
+    '엔터':'🎤','조선':'🚢','우주':'🚀',
+  };
+
+  // 산업 채팅방 맵
+  const indRooms = {};
+  A.rooms.filter(r => r.room_type === 'industry' && r.cat).forEach(r => { indRooms[r.cat] = r; });
+
+  // 종목 채팅방 산업별 그룹
+  const grouped = {};
+  A.rooms.filter(r => r.room_type !== 'industry').forEach(r => {
+    const cat = r.cat || '기타';
+    if (!grouped[cat]) grouped[cat] = { full: [], open: [] };
+    const isFull = r.status === 'full' || (r.members || 0) >= (r.max_members || 1000);
+    grouped[cat][isFull ? 'full' : 'open'].push(r);
+  });
+
+  // 산업 순서 (고정 순서 우선, 나머지는 종목 수 내림차순)
+  const IND_ORDER = ['바이오','뷰티','로봇','2차전지','신재생','소비재','테크','반도체','엔터','조선','우주'];
+  const allCats = [...new Set([
+    ...IND_ORDER.filter(c => grouped[c]),
+    ...Object.keys(grouped).filter(c => !IND_ORDER.includes(c)),
+  ])];
+
+  const indSections = allCats.map(cat => {
+    const emoji  = IND_EMOJI[cat] || '📌';
+    const indR   = indRooms[cat];
+    const cap    = indR?.max_members ?? 1000;
+    const full   = (grouped[cat]?.full  || []).sort((a,b) => a.name.localeCompare(b.name,'ko'));
+    const open   = (grouped[cat]?.open  || []).sort((a,b) => a.name.localeCompare(b.name,'ko'));
+    const lines  = ['', `${emoji} ${b(cat)} 종목 채팅방 (정원: ${cap.toLocaleString()}명)`];
+
+    if (indR?.link) lines.push(` ➤ ${lnk(cat + ' 산업 채팅방 바로가기', indR.link)}`);
+    lines.push('···········');
+
+    if (full.length) {
+      lines.push('   [🔴정원 마감] ');
+      full.forEach(r => lines.push(`${lnk(r.name, r.link)}`));
+    }
+    if (open.length) {
+      lines.push('   [🟢입장 가능]  ');
+      open.forEach(r => lines.push(`${lnk(r.name, r.link)}`));
+    }
+    return lines.join('\n');
+  }).join('\n');
+
+  const text = (header + mainSection + indSections).trim();
+
+  if (text.length > 3800) {
+    toast(`⚠️ ${text.length}자 — 텔레그램 한도(4096자) 근접. 산업별로 나눠 발송을 권장합니다.`, 'error');
+  }
+
+  const ta = document.getElementById('i-content');
+  if (ta) {
+    ta.value = text;
+    if (typeof prev === 'function') prev(text, 'i-prev');
+    toast(`소개 글 생성 완료 ✨ (${text.length}자)`, 'success');
+  }
+}
+
 // ── 채팅방 목록 공지 자동 생성 ──
 function autoGenNotice() {
   const target    = document.getElementById('i-target')?.value || 'all';
