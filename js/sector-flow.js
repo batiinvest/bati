@@ -66,7 +66,9 @@ async function loadSectorFlow() {
     tradingDays.forEach((d, i) => { dayIdx[d] = i; });
 
     // ─ 산업별 집계 ─
-    const KR_INDS = window.KR_INDUSTRIES || [];
+    const KR_INDS = (typeof KR_INDUSTRIES !== 'undefined' ? KR_INDUSTRIES : null)
+                 || (typeof INDUSTRIES    !== 'undefined' ? INDUSTRIES    : null)
+                 || [];
     const sectorMap = {};
     KR_INDS.forEach(ind => { sectorMap[ind] = { d1: 0, d3: 0, d5: 0, d20: 0 }; });
 
