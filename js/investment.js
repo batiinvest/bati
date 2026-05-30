@@ -570,6 +570,10 @@ async function refreshInvestment() {
             key: 'run_leading_stocks_flag', value: String(Date.now()),
             description: '주도주 탐색기 수동 생성 트리거'
           }, { onConflict: 'key' }),
+          sb.from('app_config').upsert({
+            key: 'run_sector_summary_flag', value: String(Date.now()),
+            description: '산업별 요약·신호탐지 수동 집계 트리거'
+          }, { onConflict: 'key' }),
         ];
         if (!isWeekend) {
           upserts.push(sb.from('app_config').upsert({
