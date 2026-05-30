@@ -53,9 +53,18 @@ async function loadIndustryMatrix() {
     '<span class="loading"></span> 신호 분석 중...</div>';
 
   try {
-    const latestDate = (window._macroData || {}).base_date;
+    // sector_daily_summary 자체 최신 날짜로 조회 (macro_data 날짜와 불일치 방지)
+    const { data: latestRow } = await sb.from('sector_daily_summary')
+      .select('base_date')
+      .order('base_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const latestDate = latestRow?.base_date;
     if (!latestDate) {
-      el.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px">시장 데이터 미로드</div>';
+      el.innerHTML =
+        '<div style="padding:1rem;text-align:center;color:var(--text3);font-size:12px">' +
+        '신호 데이터 없음 — 장 마감 후 (17:15) 자동 집계됩니다</div>';
       return;
     }
 
