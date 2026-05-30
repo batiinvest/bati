@@ -148,37 +148,23 @@ async function loadIndustryMatrix() {
       usIndDate[ind][r.base_date].push(r.chg_pct);
     }
 
-    // ── ③ KR 섹터 등락률 조회 ──────────────────────────────────────────
-    const industryMap = await getIndustryMap();
-    const codes = Object.keys(industryMap);
-    if (!codes.length) return;
+    // ── ③ KR 섹터 누적 등락률 — sector_daily_summary (백엔드 사전집계) ──
+    const { data: krSummary } = await sb.from('sector_daily_summary')
+      .select('industry,avg_chg_1d,avg_chg_5d,avg_chg_20d')
+      .eq('base_date', latestDate);
 
-    const krRaw = await fetchAllPages(
-      sb.from('market_data')
-        .select('base_date,stock_code,price_change_rate')
-        .in('stock_code', codes)
-        .gte('base_date', cutoffDate)
-        .lte('base_date', latestDate)
-        .not('price_change_rate', 'is', null)
-    );
-
-    // krIndDate[ind][date] = [price_change_rate, ...]
-    const krIndDate = {};
-    for (const r of krRaw) {
-      const ind = industryMap[r.stock_code];
-      if (!ind) continue;
-      if (!krIndDate[ind]) krIndDate[ind] = {};
-      if (!krIndDate[ind][r.base_date]) krIndDate[ind][r.base_date] = [];
-      krIndDate[ind][r.base_date].push(r.price_change_rate);
+    // krChg[ind] = {1d, 5d, 20d}
+    const krChg = {};
+    for (const r of (krSummary || [])) {
+      krChg[r.industry] = { '1d': r.avg_chg_1d, '5d': r.avg_chg_5d, '20d': r.avg_chg_20d };
     }
 
-    // ── ④ 기간별 누적 성과 계산 ────────────────────────────────────────
-    // 최근 nDays 일의 단순 누적 (일별 평균등락률 합산)
-    function cumChg(indDate, ind, nDays) {
+    // ── ④ US ETF 누적 성과 계산 ────────────────────────────────────────
+    function cumChgUs(ind, nDays) {
       let total = 0, count = 0;
       for (let i = Math.max(0, N - nDays); i < N; i++) {
         const date = tradingDays[i];
-        const vals = (indDate[ind] || {})[date];
+        const vals = (usIndDate[ind] || {})[date];
         if (vals && vals.length) {
           total += vals.reduce((s, v) => s + v, 0) / vals.length;
           count++;
@@ -194,12 +180,12 @@ async function loadIndustryMatrix() {
     const matrixRows = [];
 
     for (const ind of KR_INDS) {
-      const us1d  = cumChg(usIndDate, ind, 1);
-      const us5d  = cumChg(usIndDate, ind, 5);
-      const us20d = cumChg(usIndDate, ind, 20);
-      const kr1d  = cumChg(krIndDate, ind, 1);
-      const kr5d  = cumChg(krIndDate, ind, 5);
-      const kr20d = cumChg(krIndDate, ind, 20);
+      const us1d  = cumChgUs(ind, 1);
+      const us5d  = cumChgUs(ind, 5);
+      const us20d = cumChgUs(ind, 20);
+      const kr1d  = (krChg[ind] || {})['1d']  ?? null;
+      const kr5d  = (krChg[ind] || {})['5d']  ?? null;
+      const kr20d = (krChg[ind] || {})['20d'] ?? null;
 
       // 각 기간별 신호 pre-compute
       const sig = {

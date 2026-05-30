@@ -119,6 +119,18 @@ const chgColor = v => v > 0 ? 'var(--red)' : v < 0 ? 'var(--blue)' : 'var(--text
 // 등락률 문자열 (예: +2.34% / -1.50% / —)
 const chgStr = v => v != null ? `${v > 0 ? '+' : ''}${v.toFixed(2)}%` : '—';
 
+// 순매수 금액 포맷 (단위: 백만원 → 조/억 표시)
+// 예: 1_500_000 → "+1.5조" / 123_400 → "+1,234억" / -50_000 → "-500억"
+function fmtNet(val) {
+  if (val == null) return '—';
+  const abs  = Math.abs(val);
+  const sign = val >= 0 ? '+' : '-';
+  if (abs >= 1_000_000) return sign + (abs / 1_000_000).toFixed(1) + '조';
+  if (abs >= 100)       return sign + Math.round(abs / 100).toLocaleString() + '억';
+  if (abs >= 1)         return sign + (abs / 100).toFixed(1) + '억';
+  return sign + abs + '백만';
+}
+
 // ══════════════════════════════════════════
 //  전역 캐시 — companies 산업 매핑
 //  {stock_code(suffix 제거): industry} 형태
@@ -129,17 +141,37 @@ let _globalSubMap      = null;  // ✅ subMap도 모듈 스코프에 캐싱 (캐
 
 async function getIndustryMap() {
   if (_globalIndustryMap) {
-    window._subIndustryMap = _globalSubMap;  // ✅ 캐시 HIT 시도 subMap 복원
+    window._subIndustryMap = _globalSubMap;
     return _globalIndustryMap;
   }
-  const map    = {};   // stock_code → industry  (모니터링 종목만)
-  const subMap = {};   // stock_code → sub_industry (모니터링 종목만)
+
+  const map    = {};
+  const subMap = {};
+
+  // ① app_config 캐시 우선 (auth 시 A.config에 로드됨 — DB 추가 조회 없음)
+  const cachedInd = A.config?.industry_map;
+  const cachedSub = A.config?.sub_industry_map;
+  if (cachedInd) {
+    try {
+      Object.assign(map,    JSON.parse(cachedInd));
+      Object.assign(subMap, cachedSub ? JSON.parse(cachedSub) : {});
+      _globalIndustryMap       = map;
+      _globalSubMap            = subMap;
+      window._industryMapCache = map;
+      window._subIndustryMap   = subMap;
+      return map;
+    } catch(e) {
+      console.warn('[getIndustryMap] app_config 캐시 파싱 실패 — DB 직접 조회', e);
+    }
+  }
+
+  // ② 폴백: companies 테이블 직접 조회 (캐시 미존재 시)
   try {
     let from = 0;
     while (true) {
       const { data } = await sb.from('companies')
         .select('code,industry,sub_industry')
-        .eq('is_monitored', true)   // ✅ 모니터링 종목만 (산업 동향용)
+        .eq('is_monitored', true)
         .range(from, from + 999);
       if (!data?.length) break;
       data.forEach(c => {
@@ -150,9 +182,10 @@ async function getIndustryMap() {
       if (data.length < 1000) break;
       from += 1000;
     }
-  } catch(e) { console.warn('getIndustryMap 실패:', e); }
+  } catch(e) { console.warn('getIndustryMap 직접조회 실패:', e); }
+
   _globalIndustryMap       = map;
-  _globalSubMap            = subMap;  // ✅ 모듈 스코프에 보존
+  _globalSubMap            = subMap;
   window._industryMapCache = map;
   window._subIndustryMap   = subMap;
   return map;
