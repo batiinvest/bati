@@ -131,6 +131,24 @@ function fmtNet(val) {
   return sign + abs + '백만';
 }
 
+// ── 날짜 포맷 헬퍼 — 전 파일에서 참조 ──────────────────────────────────────
+
+/** 오늘 날짜 → 'YYYY-MM-DD' 문자열 */
+const todayStr = () => new Date().toISOString().slice(0, 10);
+
+/**
+ * Date 객체 → 'YYYY-MM-DD' 문자열
+ * disclosure.js / investment.js 등의 인라인 패턴 통합
+ */
+const fmtDate = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+/**
+ * 오늘 기준 N일 후 날짜 → 'YYYY-MM-DD'
+ * 예: offsetDate(7) → 7일 후
+ */
+const offsetDate = (days) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+
 // ══════════════════════════════════════════
 //  전역 캐시 — companies 산업 매핑
 //  {stock_code(suffix 제거): industry} 형태

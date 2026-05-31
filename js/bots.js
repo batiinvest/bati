@@ -1,44 +1,25 @@
 // bots.js — 봇 모니터링, 봇 설정
 
-
-
-function pBot() {
+// ── 봇 카드 공통 HTML (pBot / pBotConfig 양쪽에서 재사용) ──────────────────
+function _botCardsHTML() {
+  const cards = [
+    { id:'dart',  label:'DART 공시 봇' },
+    { id:'news',  label:'뉴스 봇' },
+    { id:'price', label:'시세 감시 봇' },
+    { id:'sched', label:'스케줄러 봇' },
+  ];
+  const cardHTML = cards.map(c => `
+    <div class="metric-card" id="bot-${c.id}-card">
+      <div class="metric-label">${c.label}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+        <span class="dot dot-gray" id="bot-${c.id}-dot"></span>
+        <span class="metric-value" style="font-size:16px" id="bot-${c.id}-status">확인 중...</span>
+      </div>
+      <div class="metric-sub" id="bot-${c.id}-time">—</div>
+    </div>`).join('');
   return `
-  <div class="metrics-grid" style="grid-template-columns:repeat(2,1fr)">
-    <div class="metric-card" id="bot-dart-card">
-      <div class="metric-label">DART 공시 봇</div>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-        <span class="dot dot-gray" id="bot-dart-dot"></span>
-        <span class="metric-value" style="font-size:16px" id="bot-dart-status">확인 중...</span>
-      </div>
-      <div class="metric-sub" id="bot-dart-time">—</div>
-    </div>
-    <div class="metric-card" id="bot-news-card">
-      <div class="metric-label">뉴스 봇</div>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-        <span class="dot dot-gray" id="bot-news-dot"></span>
-        <span class="metric-value" style="font-size:16px" id="bot-news-status">확인 중...</span>
-      </div>
-      <div class="metric-sub" id="bot-news-time">—</div>
-    </div>
-    <div class="metric-card" id="bot-price-card">
-      <div class="metric-label">시세 감시 봇</div>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-        <span class="dot dot-gray" id="bot-price-dot"></span>
-        <span class="metric-value" style="font-size:16px" id="bot-price-status">확인 중...</span>
-      </div>
-      <div class="metric-sub" id="bot-price-time">—</div>
-    </div>
-    <div class="metric-card" id="bot-sched-card">
-      <div class="metric-label">스케줄러 봇</div>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-        <span class="dot dot-gray" id="bot-sched-dot"></span>
-        <span class="metric-value" style="font-size:16px" id="bot-sched-status">확인 중...</span>
-      </div>
-      <div class="metric-sub" id="bot-sched-time">—</div>
-    </div>
+  <div class="metrics-grid" style="grid-template-columns:repeat(2,1fr)">${cardHTML}
   </div>
-
   <div class="section-header" style="margin-top:.5rem">
     <span class="section-title">최근 발송 기록</span>
     <button class="btn btn-sm" onclick="loadBotStatus()">새로고침</button>
@@ -46,6 +27,10 @@ function pBot() {
   <div class="card" id="bot-notice-card">
     <div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>
   </div>`;
+}
+
+function pBot() {
+  return _botCardsHTML();
 }
 
 async function loadBotStatus() {
@@ -141,49 +126,7 @@ function pBotConfig() {
   </div>
 
   <!-- ① 현황 탭 (봇 모니터링 통합) -->
-  <div id="botcfg-status">
-    <div class="metrics-grid" style="grid-template-columns:repeat(2,1fr)">
-      <div class="metric-card" id="bot-dart-card">
-        <div class="metric-label">DART 공시 봇</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-          <span class="dot dot-gray" id="bot-dart-dot"></span>
-          <span class="metric-value" style="font-size:16px" id="bot-dart-status">확인 중...</span>
-        </div>
-        <div class="metric-sub" id="bot-dart-time">—</div>
-      </div>
-      <div class="metric-card" id="bot-news-card">
-        <div class="metric-label">뉴스 봇</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-          <span class="dot dot-gray" id="bot-news-dot"></span>
-          <span class="metric-value" style="font-size:16px" id="bot-news-status">확인 중...</span>
-        </div>
-        <div class="metric-sub" id="bot-news-time">—</div>
-      </div>
-      <div class="metric-card" id="bot-price-card">
-        <div class="metric-label">시세 감시 봇</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-          <span class="dot dot-gray" id="bot-price-dot"></span>
-          <span class="metric-value" style="font-size:16px" id="bot-price-status">확인 중...</span>
-        </div>
-        <div class="metric-sub" id="bot-price-time">—</div>
-      </div>
-      <div class="metric-card" id="bot-sched-card">
-        <div class="metric-label">스케줄러 봇</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-          <span class="dot dot-gray" id="bot-sched-dot"></span>
-          <span class="metric-value" style="font-size:16px" id="bot-sched-status">확인 중...</span>
-        </div>
-        <div class="metric-sub" id="bot-sched-time">—</div>
-      </div>
-    </div>
-    <div class="section-header" style="margin-top:.5rem">
-      <span class="section-title">최근 발송 기록</span>
-      <button class="btn btn-sm" onclick="loadBotStatus()">새로고침</button>
-    </div>
-    <div class="card" id="bot-notice-card">
-      <div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>
-    </div>
-  </div>
+  <div id="botcfg-status">${_botCardsHTML()}</div>
 
   <!-- ② 공시 설정 탭 (키워드 설정 + 공시 등급 통합) -->
   <div id="botcfg-dart" style="display:none">
@@ -1116,8 +1059,8 @@ async function loadProMembers() {
     if (error) throw error;
 
     // 통계 업데이트
-    const today = new Date().toISOString().slice(0,10);
-    const in7   = new Date(Date.now() + 7*86400000).toISOString().slice(0,10);
+    const today = todayStr();
+    const in7   = offsetDate(7);
     const total  = (members||[]).length;
     const active = (members||[]).filter(m => m.is_active).length;
     const inCh   = (members||[]).filter(m => m.in_channel).length;
@@ -1180,7 +1123,7 @@ async function proAddMember(sendInvite = true) {
   if (months < 1 || months > 24) { toast('기간은 1~24개월이어야 합니다.', 'error'); return; }
 
   // 만료일 계산
-  const paidUntil = new Date(Date.now() + months * 30 * 86400000).toISOString().slice(0,10);
+  const paidUntil = offsetDate(months * 30);
 
   try {
     // 기존 멤버 확인
@@ -1190,7 +1133,7 @@ async function proAddMember(sendInvite = true) {
       // 이미 있으면 연장
       const current = new Date(existing.paid_until);
       const base    = current > new Date() ? current : new Date();
-      const newUntil = new Date(base.getTime() + months * 30 * 86400000).toISOString().slice(0,10);
+      const newUntil = new Date(base.getTime() + months * 30 * 86400000).toISOString().slice(0, 10);
       const { error } = await sb.from('pro_members').update({
         real_name:     name || undefined,
         telegram_name: username ? '@'+username : undefined,

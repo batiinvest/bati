@@ -29,8 +29,7 @@ async function loadAllDisclosures() {
   el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text3);font-size:12px"><span class="loading"></span> 공시 목록 불러오는 중...</div>`;
 
   // ── 단일 쿼리: daily_disclosures 테이블에서 오늘 전체 조회 ──
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const todayStr = fmtDate();   // config.js fmtDate() 공통 헬퍼 사용
 
   const { data: all, error } = await sb.from('daily_disclosures')
     .select('corp_code,corp_name,report_nm,rcept_no,category,market_cap,insider_summary')
@@ -179,8 +178,7 @@ async function loadTodayDisclosures() {
   if (!el) return;
 
   if (dateEl) {
-    const _d = new Date();
-    dateEl.textContent = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')} 기준`;
+    dateEl.textContent = `${fmtDate()} 기준`;
   }
 
   const { data: cfg } = await sb.from('app_config')
