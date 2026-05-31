@@ -291,8 +291,8 @@ function pInvestment() {
             onclick="switchSfType('inst')"     style="font-size:11px;padding:2px 8px">기관</button>
           <div style="width:1px;height:14px;background:var(--border);margin:0 2px;flex-shrink:0"></div>
           <!-- 기간 탭 -->
-          ${[{p:1,l:'1일'},{p:3,l:'3일'},{p:5,l:'5일'},{p:20,l:'20일'}].map(({p,l})=>`
-            <button class="chip ${p===3?'active':''}" data-sf-period="${p}"
+          ${[{p:1,l:'1일'},{p:5,l:'5일'},{p:20,l:'20일'}].map(({p,l})=>`
+            <button class="chip ${p===5?'active':''}" data-sf-period="${p}"
               onclick="switchSfPeriod(${p})" style="font-size:11px;padding:2px 8px">${l}</button>
           `).join('')}
         </div>

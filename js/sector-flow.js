@@ -8,7 +8,7 @@
  * 의존: sb, fmtNet, KR_INDUSTRIES, IND_COLORS (config.js)
  */
 
-let _sfPeriod = 3;
+let _sfPeriod = 5;
 let _sfType   = 'combined';
 
 const _SF_TYPES = {
