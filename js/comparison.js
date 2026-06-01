@@ -605,12 +605,13 @@ async function runComparison() {
       <div class="card" style="margin-bottom:1rem">
         <div class="card-header">
           <span class="card-title">종합 지표 레이더</span>
-          <span style="font-size:11px;color:var(--text3)">최신 분기 기준 — 수익성·성장성·안정성 종합</span>
+          <span style="font-size:11px;color:var(--text3)">최신 분기 기준 — 종목 클릭 시 하이라이트</span>
         </div>
-        <div style="padding:1rem;display:flex;justify-content:center;align-items:center">
+        <div style="padding:1rem;display:flex;flex-direction:column;align-items:center;gap:12px">
           <div style="width:420px;height:420px;position:relative">
             <canvas id="cmp-radar"></canvas>
           </div>
+          <div id="cmp-radar-btns" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center"></div>
         </div>
       </div>
 
@@ -1070,48 +1071,87 @@ async function cmpAddToMonitor(code, name) {
 
 // ── 레이더 차트 (6개 지표 종합) ──
 let _cmpRadarInstance = null;
+let _cmpRadarHighlight = null;   // 하이라이트 종목 code (null = 전체 동일)
+let _cmpRadarScores   = {};      // 점수 캐시 (하이라이트 재적용용)
+let _cmpRadarColors   = {};      // 색상 캐시
+
+function _applyRadarHighlight() {
+  if (!_cmpRadarInstance) return;
+  const hl = _cmpRadarHighlight;
+  _cmpRadarInstance.data.datasets.forEach(ds => {
+    const code = CMP.selectedCodes.find(s => s.name === ds.label)?.code;
+    const isHl = !hl || code === hl;
+    const color = _cmpRadarColors[ds.label] || ds.borderColor;
+    ds.borderColor       = isHl ? color : color.replace(/[\d.]+\)$/, '0.18)');
+    ds.backgroundColor   = isHl ? color + '44' : color + '08';
+    ds.borderWidth       = isHl ? (hl ? 3 : 2) : 1;
+    ds.pointRadius       = isHl ? (hl ? 5 : 4) : 2;
+  });
+  _cmpRadarInstance.update('none');
+
+  // 버튼 스타일 갱신
+  CMP.selectedCodes.forEach(s => {
+    const btn = document.getElementById('radar-btn-' + s.code);
+    if (!btn) return;
+    const isHl = !hl || s.code === hl;
+    btn.style.opacity    = isHl ? '1' : '0.4';
+    btn.style.fontWeight = (hl && s.code === hl) ? '700' : '400';
+    btn.style.borderWidth = (hl && s.code === hl) ? '2px' : '1px';
+  });
+}
+
+function highlightCmpRadar(code) {
+  _cmpRadarHighlight = (_cmpRadarHighlight === code) ? null : code;  // 재클릭 = 해제
+  _applyRadarHighlight();
+}
+
 function drawCmpRadar(stockDataMap) {
   const canvas = document.getElementById('cmp-radar');
   if (!canvas || !window.Chart) return;
   if (_cmpRadarInstance) { _cmpRadarInstance.destroy(); _cmpRadarInstance = null; }
+  _cmpRadarHighlight = null;
 
   // 레이더 6개 축: 수익성/성장성/안정성/효율성/현금흐름/밸류에이션
   const RADAR_AXES = [
-    { key: 'operating_margin', label: '영업이익률', higher: true,  ref: 15 },
-    { key: 'roe',              label: 'ROE',        higher: true,  ref: 10 },
-    { key: 'revenue',          label: '매출 규모',  higher: true,  ref: null, isScale: true },
-    { key: 'operating_cashflow', label: '현금흐름', higher: true,  ref: null, isScale: true },
-    { key: 'debt_ratio',       label: '재무안정',   higher: false, ref: 100 },  // 낮을수록 좋음
-    { key: 'gross_profit',     label: '매출총이익', higher: true,  ref: null, isScale: true },
+    { key: 'operating_margin',    label: '영업이익률', higher: true  },
+    { key: 'roe',                 label: 'ROE',        higher: true  },
+    { key: 'revenue',             label: '매출 규모',  higher: true  },
+    { key: 'operating_cashflow',  label: '현금흐름',   higher: true  },
+    { key: 'debt_ratio',          label: '재무안정',   higher: false },
+    { key: 'gross_profit',        label: '매출총이익', higher: true  },
   ];
 
-  // 종목별 최신 1분기 데이터
+  // 종목별 최신 분기 데이터
   const latest = {};
   CMP.selectedCodes.forEach(s => {
-    const rows = (stockDataMap[s.code] || []);
-    latest[s.code] = rows[0] || {};
+    latest[s.code] = (stockDataMap[s.code] || [])[0] || {};
   });
 
-  // 정규화: 각 축별로 비교 종목 중 max/min 기준 0~100 점수화
-  const scores = {};
+  // 0~100 정규화
+  _cmpRadarScores = {};
   RADAR_AXES.forEach(ax => {
     const vals = CMP.selectedCodes.map(s => latest[s.code]?.[ax.key]).filter(v => v != null);
-    if (!vals.length) { CMP.selectedCodes.forEach(s => { (scores[s.code] = scores[s.code]||{})[ax.label] = 50; }); return; }
+    if (!vals.length) {
+      CMP.selectedCodes.forEach(s => { (_cmpRadarScores[s.code] = _cmpRadarScores[s.code]||{})[ax.label] = 50; });
+      return;
+    }
     const min = Math.min(...vals), max = Math.max(...vals);
     CMP.selectedCodes.forEach(s => {
       const v = latest[s.code]?.[ax.key];
-      if (v == null) { (scores[s.code] = scores[s.code]||{})[ax.label] = 0; return; }
+      if (v == null) { (_cmpRadarScores[s.code] = _cmpRadarScores[s.code]||{})[ax.label] = 0; return; }
       let pct = max === min ? 50 : (v - min) / (max - min) * 100;
-      if (!ax.higher) pct = 100 - pct;  // 낮을수록 좋은 지표는 반전
-      (scores[s.code] = scores[s.code]||{})[ax.label] = Math.round(pct);
+      if (!ax.higher) pct = 100 - pct;
+      (_cmpRadarScores[s.code] = _cmpRadarScores[s.code]||{})[ax.label] = Math.round(pct);
     });
   });
 
+  _cmpRadarColors = {};
   const datasets = CMP.selectedCodes.map((s, i) => {
     const color = CMP_COLORS[i % CMP_COLORS.length];
+    _cmpRadarColors[s.name] = color;
     return {
       label: s.name,
-      data: RADAR_AXES.map(ax => scores[s.code]?.[ax.label] ?? 0),
+      data: RADAR_AXES.map(ax => _cmpRadarScores[s.code]?.[ax.label] ?? 0),
       borderColor: color,
       backgroundColor: color + '33',
       borderWidth: 2,
@@ -1127,10 +1167,17 @@ function drawCmpRadar(stockDataMap) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'top', labels: { color: '#8b90a7', font: { size: 12 }, padding: 12, usePointStyle: true } },
+        legend: {
+          position: 'top',
+          labels: { color: '#8b90a7', font: { size: 12 }, padding: 12, usePointStyle: true },
+          onClick: (e, item) => {
+            const code = CMP.selectedCodes[item.datasetIndex]?.code;
+            if (code) highlightCmpRadar(code);
+          },
+        },
         tooltip: {
           backgroundColor: '#1a1d27', titleColor: '#e8eaf0', bodyColor: '#8b90a7',
-          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}점 (100점 만점)` }
+          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}점 (100점 만점)` },
         },
       },
       scales: {
@@ -1144,4 +1191,19 @@ function drawCmpRadar(stockDataMap) {
       },
     },
   });
+
+  // 종목 선택 버튼 렌더링
+  const btns = document.getElementById('cmp-radar-btns');
+  if (btns) {
+    btns.innerHTML = CMP.selectedCodes.map((s, i) => {
+      const color = CMP_COLORS[i % CMP_COLORS.length];
+      return `<button id="radar-btn-${s.code}"
+        onclick="highlightCmpRadar('${s.code}')"
+        style="font-size:12px;padding:4px 12px;border-radius:20px;cursor:pointer;
+               border:1px solid ${color};color:${color};background:${color}18;
+               transition:all .15s">
+        ${s.name}
+      </button>`;
+    }).join('');
+  }
 }
