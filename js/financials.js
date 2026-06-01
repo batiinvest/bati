@@ -1229,7 +1229,14 @@ async function _renderFinancialTab(body, code, name) {
       window._finDrawChart();
     };
 
-    let finChart = null;
+    let finChart  = null;
+    let finCharts = [];   // qcomp 모드의 4개 미니차트
+
+    const _destroyAll = () => {
+      if (finChart)  { finChart.destroy();  finChart  = null; }
+      finCharts.forEach(c => c?.destroy());
+      finCharts = [];
+    };
 
     window._finView  = 'quarter';
     window._finChart = 'revenue';
@@ -1250,11 +1257,84 @@ async function _renderFinancialTab(body, code, name) {
         const b = document.getElementById('btn-chart-'+t);
         if (b) b.classList.toggle('active', t === {revenue:'rev',gpm:'gpm',cf:'cf'}[window._finChart]);
       });
-      const rows = window._finGetRows();
+      if (!window.Chart) return;
+      _destroyAll();
+
+      // ── 분기비교: 4개 미니차트 ──────────────────────────────────────────
+      if (window._finView === 'qcomp') {
+        const wrap = document.getElementById('fin-chart-wrap');
+        if (!wrap) return;
+        const allRows = window._finGetRows();
+        const QUARTERS = ['Q1','Q2','Q3','Q4'];
+        const COLORS   = ['rgba(42,171,238,0.7)','rgba(45,206,137,0.7)','rgba(251,163,35,0.7)','rgba(245,54,92,0.7)'];
+
+        wrap.style.height = 'auto';
+        wrap.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          ${QUARTERS.map((q,i) => `
+            <div style="background:var(--bg3);border-radius:8px;padding:8px">
+              <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px">${q.replace('Q','')}분기</div>
+              <div style="position:relative;height:130px"><canvas id="fin-qc-${q}"></canvas></div>
+            </div>`).join('')}
+        </div>`;
+
+        QUARTERS.forEach((q, qi) => {
+          const qRows  = allRows.filter(r => r.quarter === q);
+          const canvas = document.getElementById(`fin-qc-${q}`);
+          if (!canvas || !qRows.length) return;
+          const labels = qRows.map(r => r.bsns_year + '년');
+          finCharts.push(new window.Chart(canvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+              labels,
+              datasets: [
+                {
+                  label: '매출액',
+                  data: qRows.map(r => fmtB(r.revenue)),
+                  backgroundColor: 'rgba(42,171,238,0.55)',
+                  borderRadius: 3, yAxisID: 'y',
+                },
+                {
+                  label: '영업이익',
+                  data: qRows.map(r => fmtB(r.operating_profit)),
+                  backgroundColor: COLORS[qi],
+                  borderRadius: 3, yAxisID: 'y',
+                },
+                {
+                  label: '영업이익률(%)',
+                  data: qRows.map(r => r.operating_margin?.toFixed(1) ?? null),
+                  type: 'line',
+                  borderColor: 'rgba(255,193,7,0.9)',
+                  backgroundColor: 'transparent',
+                  pointBackgroundColor: 'rgba(255,193,7,0.9)',
+                  tension: 0.3, borderWidth: 2, yAxisID: 'y2',
+                },
+              ],
+            },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: { backgroundColor: '#1a1d27', titleColor: '#f0f2f8', bodyColor: '#a8adc4' },
+              },
+              scales: {
+                x: { ticks: { color: '#6e7491', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                y: { ticks: { color: '#6e7491', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                y2: {
+                  ticks: { color: '#a8adc4', font: { size: 9 }, callback: v => v + '%' },
+                  grid: { drawOnChartArea: false }, position: 'right',
+                },
+              },
+            },
+          }));
+        });
+        return;
+      }
+
+      // ── 분기별 / 연간별: 기존 단일 차트 ────────────────────────────────
+      const rows   = window._finGetRows();
       const labels = rows.map(r => r.label);
       const canvas = document.getElementById('fin-chart-canvas');
-      if (!canvas || !window.Chart) return;
-      if (finChart) { finChart.destroy(); finChart = null; }
+      if (!canvas) return;
 
       let datasets, chartType;
 
@@ -1369,6 +1449,15 @@ async function _renderFinancialTab(body, code, name) {
         const b = document.getElementById('btn-'+t);
         if (b) b.classList.toggle('active', t === window._finView);
       });
+
+      // qcomp ↔ 일반 전환 시 차트 wrap 복원
+      const wrap = document.getElementById('fin-chart-wrap');
+      if (wrap && window._finView !== 'qcomp') {
+        if (!wrap.querySelector('#fin-chart-canvas')) {
+          wrap.style.height = window._finChartH + 'px';
+          wrap.innerHTML = '<canvas id="fin-chart-canvas"></canvas>';
+        }
+      }
 
       const rows = window._finGetRows();
       const area = document.getElementById('fin-table-area');
