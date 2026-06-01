@@ -56,7 +56,10 @@ async function loadUskrChart() {
   // ── loadIndTrendChart와 완전히 동일한 방식으로 날짜·데이터 확정 ──
   // Step1: 실제 거래일 목록을 refCode 기준으로 확정 (달력 기준 아님)
   const industryMap = window._industryMapCache || {};
-  const refCode = Object.keys(industryMap)[0];
+  // ※ 전체 맵의 첫 종목이 아닌, 선택 산업 내 첫 종목을 기준으로 사용
+  //   → 산업별 데이터 보유 기간이 달라도 선택 산업 기준으로 일관된 날짜 확정
+  const indCodes = Object.keys(industryMap).filter(k => industryMap[k] === ind);
+  const refCode  = indCodes[0] || Object.keys(industryMap)[0];
   if (!refCode) return;
 
   const { data: dateRows } = await sb.from('market_data')
