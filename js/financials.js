@@ -1203,20 +1203,10 @@ async function _renderFinancialTab(body, code, name) {
           </div>
         </div>
       </div>
-      <div id="fin-qcomp-sel" style="display:none;gap:6px;align-items:center;margin-bottom:12px">
-        <span style="font-size:11px;color:var(--text3);margin-right:2px">비교 분기:</span>
-        ${['Q1','Q2','Q3','Q4'].map(q => `
-          <button id="btn-qc-${q}" class="chip ${q==='Q1'?'active':''}"
-            onclick="window._finCompQ='${q}';
-              ['Q1','Q2','Q3','Q4'].forEach(x=>document.getElementById('btn-qc-'+x)?.classList.toggle('active',x==='${q}'));
-              window._finRender()">
-            ${q}
-          </button>`).join('')}
-      </div>
       <div id="fin-chart-wrap" style="position:relative;height:220px;margin-bottom:16px">
         <canvas id="fin-chart-canvas"></canvas>
       </div>
-      <div class="table-wrap"><table>
+      <div id="fin-table-area" class="table-wrap"><table>
         <thead><tr>
           <th>기간</th>
           <th style="text-align:right">매출액</th>
@@ -1249,11 +1239,8 @@ async function _renderFinancialTab(body, code, name) {
     window._finGetRows = () => {
       if (window._finView === 'annual') {
         return window._fins.filter(f => f.quarter === 'Q4').map(f => ({...f, label: f.bsns_year+'년'}));
-      } else if (window._finView === 'qcomp') {
-        // 분기비교: 선택된 분기만 연도별로 정렬
-        const q = window._finCompQ || 'Q1';
-        return window._fins.filter(f => f.quarter === q).map(f => ({...f, label: f.bsns_year+' '+f.quarter}));
       } else {
+        // quarter / qcomp 모두 전체 분기 반환 (qcomp는 render에서 피벗 처리)
         return window._fins.map(f => ({...f, label: f.bsns_year+' '+f.quarter}));
       }
     };
@@ -1383,24 +1370,76 @@ async function _renderFinancialTab(body, code, name) {
         if (b) b.classList.toggle('active', t === window._finView);
       });
 
-      // 분기비교 모드: 분기 선택 버튼 표시
-      const qsel = document.getElementById('fin-qcomp-sel');
-      if (qsel) qsel.style.display = window._finView === 'qcomp' ? 'flex' : 'none';
-
       const rows = window._finGetRows();
-      // 테이블은 최신 기간이 위로 (역순) — 차트는 _finDrawChart에서 원본 순서 유지
-      const tableRows = [...rows].reverse();
-      document.getElementById('fin-table-body').innerHTML = tableRows.map(f => `<tr>
-        <td style="font-size:12px;color:var(--text3);white-space:nowrap">${f.label}</td>
-        <td style="text-align:right;font-weight:600">${fmt(f.revenue)}</td>
-        <td style="text-align:right">${fmt(f.operating_profit)}</td>
-        <td style="text-align:right;color:${f.operating_margin>=0?'var(--red)':'var(--blue)'}">${pct(f.operating_margin)}</td>
-        <td style="text-align:right">${fmt(f.net_income)}</td>
-        <td style="text-align:right;color:${f.net_margin>=0?'var(--red)':'var(--blue)'}">${pct(f.net_margin)}</td>
-        <td style="text-align:right">${pct(f.roe)}</td>
-        <td style="text-align:right">${pct(f.debt_ratio)}</td>
-        <td style="text-align:right">${fmt(f.operating_cashflow)}</td>
-      </tr>`).join('');
+      const area = document.getElementById('fin-table-area');
+
+      if (window._finView === 'qcomp') {
+        // ── 분기비교: 지표 행 × 전체 분기 열 피벗 테이블 ────────────────
+        // 최신 분기가 오른쪽 (시간순 왼→오)
+        const cols = rows;   // 이미 시간 오름차순
+
+        const metrics = [
+          { label: '매출액',       fn: r => `<b>${fmt(r.revenue)}</b>` },
+          { label: '영업이익',     fn: r => fmt(r.operating_profit) },
+          { label: '영업이익률',   fn: r => `<span style="color:${r.operating_margin>=0?'var(--red)':'var(--blue)'}">${pct(r.operating_margin)}</span>` },
+          { label: '순이익',       fn: r => fmt(r.net_income) },
+          { label: '순이익률',     fn: r => `<span style="color:${r.net_margin>=0?'var(--red)':'var(--blue)'}">${pct(r.net_margin)}</span>` },
+          { label: 'ROE',          fn: r => pct(r.roe) },
+          { label: '부채비율',     fn: r => pct(r.debt_ratio) },
+          { label: '영업현금흐름', fn: r => fmt(r.operating_cashflow) },
+        ];
+
+        // 분기 헤더: 연도 변경 시 상단에 연도 표시
+        let prevYear = null;
+        const thCells = cols.map(r => {
+          const yr = r.bsns_year;
+          const yrLabel = yr !== prevYear ? `<div style="font-size:9px;color:var(--text3);margin-bottom:1px">${yr}</div>` : '';
+          prevYear = yr;
+          return `<th style="text-align:right;white-space:nowrap;min-width:52px">${yrLabel}${r.quarter}</th>`;
+        }).join('');
+
+        area.innerHTML = `<div style="overflow-x:auto"><table style="font-size:12px;width:100%">
+          <thead><tr>
+            <th style="text-align:left;position:sticky;left:0;background:var(--bg2);min-width:76px;z-index:1">지표</th>
+            ${thCells}
+          </tr></thead>
+          <tbody>
+            ${metrics.map(m => `<tr>
+              <td style="font-size:11px;color:var(--text3);position:sticky;left:0;background:var(--bg2)">${m.label}</td>
+              ${cols.map(r => `<td style="text-align:right;padding:5px 8px">${m.fn(r)}</td>`).join('')}
+            </tr>`).join('')}
+          </tbody>
+        </table></div>`;
+
+      } else {
+        // ── 분기별 / 연간별: 기간 행 × 지표 열 기존 테이블 ──────────────
+        const tableRows = [...rows].reverse();
+        area.innerHTML = `<table>
+          <thead><tr>
+            <th>기간</th>
+            <th style="text-align:right">매출액</th>
+            <th style="text-align:right">영업이익</th>
+            <th style="text-align:right">영업이익률</th>
+            <th style="text-align:right">순이익</th>
+            <th style="text-align:right">순이익률</th>
+            <th style="text-align:right">ROE</th>
+            <th style="text-align:right">부채비율</th>
+            <th style="text-align:right">영업현금흐름</th>
+          </tr></thead>
+          <tbody>${tableRows.map(f => `<tr>
+            <td style="font-size:12px;color:var(--text3);white-space:nowrap">${f.label}</td>
+            <td style="text-align:right;font-weight:600">${fmt(f.revenue)}</td>
+            <td style="text-align:right">${fmt(f.operating_profit)}</td>
+            <td style="text-align:right;color:${f.operating_margin>=0?'var(--red)':'var(--blue)'}">${pct(f.operating_margin)}</td>
+            <td style="text-align:right">${fmt(f.net_income)}</td>
+            <td style="text-align:right;color:${f.net_margin>=0?'var(--red)':'var(--blue)'}">${pct(f.net_margin)}</td>
+            <td style="text-align:right">${pct(f.roe)}</td>
+            <td style="text-align:right">${pct(f.debt_ratio)}</td>
+            <td style="text-align:right">${fmt(f.operating_cashflow)}</td>
+          </tr>`).join('')}</tbody>
+        </table>`;
+      }
+
       window._finDrawChart();
     };
 
