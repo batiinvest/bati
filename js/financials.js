@@ -1374,42 +1374,43 @@ async function _renderFinancialTab(body, code, name) {
       const area = document.getElementById('fin-table-area');
 
       if (window._finView === 'qcomp') {
-        // ── 분기비교: 지표 행 × 전체 분기 열 피벗 테이블 ────────────────
-        // 최신 분기가 오른쪽 (시간순 왼→오)
-        const cols = rows;   // 이미 시간 오름차순
-
+        // ── 분기비교: Q1/Q2/Q3/Q4 각각 연도별 YoY 비교 ─────────────────
         const metrics = [
           { label: '매출액',       fn: r => `<b>${fmt(r.revenue)}</b>` },
           { label: '영업이익',     fn: r => fmt(r.operating_profit) },
-          { label: '영업이익률',   fn: r => `<span style="color:${r.operating_margin>=0?'var(--red)':'var(--blue)'}">${pct(r.operating_margin)}</span>` },
+          { label: '영업이익률',   fn: r => `<span style="color:${(r.operating_margin??0)>=0?'var(--red)':'var(--blue)'}">${pct(r.operating_margin)}</span>` },
           { label: '순이익',       fn: r => fmt(r.net_income) },
-          { label: '순이익률',     fn: r => `<span style="color:${r.net_margin>=0?'var(--red)':'var(--blue)'}">${pct(r.net_margin)}</span>` },
+          { label: '순이익률',     fn: r => `<span style="color:${(r.net_margin??0)>=0?'var(--red)':'var(--blue)'}">${pct(r.net_margin)}</span>` },
           { label: 'ROE',          fn: r => pct(r.roe) },
           { label: '부채비율',     fn: r => pct(r.debt_ratio) },
           { label: '영업현금흐름', fn: r => fmt(r.operating_cashflow) },
         ];
 
-        // 분기 헤더: 연도 변경 시 상단에 연도 표시
-        let prevYear = null;
-        const thCells = cols.map(r => {
-          const yr = r.bsns_year;
-          const yrLabel = yr !== prevYear ? `<div style="font-size:9px;color:var(--text3);margin-bottom:1px">${yr}</div>` : '';
-          prevYear = yr;
-          return `<th style="text-align:right;white-space:nowrap;min-width:52px">${yrLabel}${r.quarter}</th>`;
-        }).join('');
+        const makeQTable = (q) => {
+          const qRows = rows.filter(r => r.quarter === q);
+          if (!qRows.length) return '';
+          const years = qRows.map(r => r.bsns_year);
+          return `
+            <div style="margin-bottom:20px">
+              <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px;padding:4px 0;border-bottom:1px solid var(--border)">
+                ${q.replace('Q','') + '분기'} 연도별 비교
+              </div>
+              <div style="overflow-x:auto"><table style="font-size:12px;width:100%">
+                <thead><tr>
+                  <th style="text-align:left;min-width:76px">지표</th>
+                  ${years.map(y => `<th style="text-align:right;min-width:60px">${y}년</th>`).join('')}
+                </tr></thead>
+                <tbody>
+                  ${metrics.map(m => `<tr>
+                    <td style="font-size:11px;color:var(--text3);padding:5px 4px">${m.label}</td>
+                    ${qRows.map(r => `<td style="text-align:right;padding:5px 8px">${m.fn(r)}</td>`).join('')}
+                  </tr>`).join('')}
+                </tbody>
+              </table></div>
+            </div>`;
+        };
 
-        area.innerHTML = `<div style="overflow-x:auto"><table style="font-size:12px;width:100%">
-          <thead><tr>
-            <th style="text-align:left;position:sticky;left:0;background:var(--bg2);min-width:76px;z-index:1">지표</th>
-            ${thCells}
-          </tr></thead>
-          <tbody>
-            ${metrics.map(m => `<tr>
-              <td style="font-size:11px;color:var(--text3);position:sticky;left:0;background:var(--bg2)">${m.label}</td>
-              ${cols.map(r => `<td style="text-align:right;padding:5px 8px">${m.fn(r)}</td>`).join('')}
-            </tr>`).join('')}
-          </tbody>
-        </table></div>`;
+        area.innerHTML = ['Q1','Q2','Q3','Q4'].map(makeQTable).join('');
 
       } else {
         // ── 분기별 / 연간별: 기간 행 × 지표 열 기존 테이블 ──────────────
