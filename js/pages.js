@@ -19,6 +19,7 @@ const PAGE_META = {
   watchlist:  { title: '투자노트',      fn: 'pWatchlist',   onLoad: '_initWatchlist' },
   screener:   { title: '종목 스크리너', fn: 'pScreener',    onLoad: null },
   financials: { title: '기업 분석',     fn: 'pFinancials',  onLoad: 'initFinancials' },
+  report:     { title: '분석 리포트',   fn: 'pReport',      onLoad: null },
   comparison: { title: '기업 비교 분석',fn: 'pComparison',  onLoad: 'initCmpPage' },
   stocks:     { title: '종목 관리',     fn: 'pStocks',      onLoad: 'loadStocks' },
   pro:        { title: '프로 채널',     fn: 'pPro',         onLoad: 'initPro' },
