@@ -212,7 +212,7 @@ function pInvestment() {
         <span class="card-title">${_ICO.coin}거래대금 상위</span>
         <span style="font-size:11px;color:var(--text3)">당일 거래대금 기준</span>
       </div>
-      <div id="inv-volume-body" style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--border)">
+      <div id="inv-volume-body" style="display:grid;grid-template-columns:repeat(2,1fr);gap:0;border-top:1px solid var(--border)">
         ${_skelList(3)}
       </div>
     </div>
@@ -742,7 +742,6 @@ function renderVolumeLeaders() {
     .map(r => ({ ...r, tv: (r.volume || 0) * (r.price || 0) }));
 
   const panels = [
-    { label: '전체',   color: '#22d3ee', rows: withTV },
     { label: '코스피', color: '#60a5fa', rows: withTV.filter(r => r.market === 'KOSPI') },
     { label: '코스닥', color: '#f59e0b', rows: withTV.filter(r => r.market === 'KOSDAQ') },
   ];
@@ -750,9 +749,9 @@ function renderVolumeLeaders() {
   el.innerHTML = panels.map((p, pi) => {
     const sorted = [...p.rows].sort((a, b) => b.tv - a.tv).slice(0, 10);
     if (!sorted.length) return `
-      <div style="border-right:${pi < 2 ? '1px solid var(--border)' : 'none'}">
-        <div style="padding:6px 10px;font-size:11px;font-weight:700;color:${p.color};
-          border-bottom:2px solid ${p.color}30;background:${p.color}08">${p.label}</div>
+      <div style="border-right:${pi === 0 ? '1px solid var(--border)' : 'none'}">
+        <div style="padding:8px 12px;font-size:12px;font-weight:700;color:${p.color};
+          border-bottom:2px solid ${p.color}50;letter-spacing:.5px">${p.label}</div>
         <div style="padding:1rem;text-align:center;color:var(--text3);font-size:11px">데이터 없음</div>
       </div>`;
 
@@ -764,23 +763,28 @@ function renderVolumeLeaders() {
       const tvStr = r.tv >= 1e11
         ? (r.tv / 1e11).toFixed(1) + '천억'
         : (r.tv / 1e8).toFixed(0) + '억';
-      const barW  = Math.round(r.tv / maxTV * 100);
+      const barPct = Math.round(r.tv / maxTV * 100);
       return `
-      <div style="display:flex;align-items:center;gap:5px;padding:4px 8px;
-        border-bottom:1px solid var(--border);position:relative;overflow:hidden">
-        <div style="position:absolute;left:0;top:0;bottom:0;
-          background:${p.color}18;width:${barW}%;pointer-events:none"></div>
-        <span style="min-width:14px;font-size:10px;color:var(--text3);font-weight:600">${i + 1}</span>
-        <span style="flex:1;font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.corp_name}</span>
-        <span style="font-size:11px;color:var(--text2);white-space:nowrap">${tvStr}</span>
-        <span style="min-width:38px;text-align:right;font-size:11px;font-weight:600;color:${cc}">${cs}</span>
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;
+        border-bottom:1px solid var(--border)">
+        <span style="min-width:16px;font-size:11px;color:var(--text3);font-weight:600">${i + 1}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px">${r.corp_name}</div>
+          <div style="height:3px;border-radius:2px;background:var(--border);overflow:hidden">
+            <div style="height:100%;width:${barPct}%;background:${p.color};border-radius:2px"></div>
+          </div>
+        </div>
+        <div style="text-align:right;white-space:nowrap">
+          <div style="font-size:12px;color:var(--text2)">${tvStr}</div>
+          <div style="font-size:11px;font-weight:600;color:${cc}">${cs}</div>
+        </div>
       </div>`;
     }).join('');
 
     return `
-    <div style="border-right:${pi < 2 ? '1px solid var(--border)' : 'none'}">
-      <div style="padding:6px 10px;font-size:11px;font-weight:700;color:${p.color};
-        border-bottom:2px solid ${p.color}40;background:${p.color}08">${p.label}</div>
+    <div style="border-right:${pi === 0 ? '1px solid var(--border)' : 'none'}">
+      <div style="padding:8px 12px;font-size:12px;font-weight:700;color:${p.color};
+        border-bottom:2px solid ${p.color}50;letter-spacing:.5px">${p.label}</div>
       ${rows}
     </div>`;
   }).join('');
