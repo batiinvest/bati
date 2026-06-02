@@ -208,20 +208,12 @@ function pInvestment() {
 
     <!-- 💰 거래대금 상위 -->
     <div class="card" style="margin-bottom:12px">
-      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+      <div class="card-header">
         <span class="card-title">${_ICO.coin}거래대금 상위</span>
         <span style="font-size:11px;color:var(--text3)">당일 거래대금 기준</span>
-        <div style="display:flex;gap:4px;margin-left:auto">
-          <button class="chip active" data-vl-tab="all"    onclick="switchVlTab('all')"
-            style="font-size:11px;padding:2px 8px">전체</button>
-          <button class="chip"        data-vl-tab="kospi"  onclick="switchVlTab('kospi')"
-            style="font-size:11px;padding:2px 8px">코스피</button>
-          <button class="chip"        data-vl-tab="kosdaq" onclick="switchVlTab('kosdaq')"
-            style="font-size:11px;padding:2px 8px">코스닥</button>
-        </div>
       </div>
-      <div id="inv-volume-body">
-        ${_skelList(10)}
+      <div id="inv-volume-body" style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--border)">
+        ${_skelList(3)}
       </div>
     </div>
 
@@ -733,65 +725,63 @@ async function loadInvestment() {
 }
 
 
-// ── 거래대금 상위 ──────────────────────────────────────────────────────────────
-let _vlTab = 'all';
-
-function switchVlTab(tab) {
-  _vlTab = tab;
-  document.querySelectorAll('[data-vl-tab]').forEach(b =>
-    b.classList.toggle('active', b.dataset.vlTab === tab));
-  renderVolumeLeaders();
-}
-
+// ── 거래대금 상위 (3-그리드) ───────────────────────────────────────────────────
 function renderVolumeLeaders() {
   const el = document.getElementById('inv-volume-body');
   if (!el) return;
 
   const allRows = window._allMarketRows || [];
   if (!allRows.length) {
-    el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text3);font-size:12px">데이터 없음</div>';
+    el.innerHTML = '<div style="grid-column:1/-1;padding:1rem;text-align:center;color:var(--text3);font-size:12px">데이터 없음</div>';
     return;
   }
 
-  // 시장 필터
-  let rows = allRows;
-  if (_vlTab === 'kospi')  rows = allRows.filter(r => r.market === 'KOSPI');
-  if (_vlTab === 'kosdaq') rows = allRows.filter(r => r.market === 'KOSDAQ');
-
-  // 거래대금 계산 (volume × price) + 정렬
-  const withTV = rows
+  // 거래대금 계산 헬퍼
+  const withTV = allRows
     .filter(r => r.volume && r.price && r.corp_name)
-    .map(r => ({ ...r, tv: (r.volume || 0) * (r.price || 0) }))
-    .sort((a, b) => b.tv - a.tv)
-    .slice(0, 15);
+    .map(r => ({ ...r, tv: (r.volume || 0) * (r.price || 0) }));
 
-  if (!withTV.length) {
-    el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text3);font-size:12px">거래 데이터 없음</div>';
-    return;
-  }
+  const panels = [
+    { label: '전체',   color: '#22d3ee', rows: withTV },
+    { label: '코스피', color: '#60a5fa', rows: withTV.filter(r => r.market === 'KOSPI') },
+    { label: '코스닥', color: '#f59e0b', rows: withTV.filter(r => r.market === 'KOSDAQ') },
+  ];
 
-  const maxTV = withTV[0].tv;
+  el.innerHTML = panels.map((p, pi) => {
+    const sorted = [...p.rows].sort((a, b) => b.tv - a.tv).slice(0, 10);
+    if (!sorted.length) return `
+      <div style="border-right:${pi < 2 ? '1px solid var(--border)' : 'none'}">
+        <div style="padding:6px 10px;font-size:11px;font-weight:700;color:${p.color};
+          border-bottom:2px solid ${p.color}30;background:${p.color}08">${p.label}</div>
+        <div style="padding:1rem;text-align:center;color:var(--text3);font-size:11px">데이터 없음</div>
+      </div>`;
 
-  el.innerHTML = withTV.map((r, i) => {
-    const c    = r.price_change_rate ?? 0;
-    const cc   = c > 0 ? 'var(--red)' : c < 0 ? 'var(--blue)' : 'var(--text3)';
-    const cs   = (c >= 0 ? '+' : '') + c.toFixed(1) + '%';
-    const tvStr = r.tv >= 1e11
-      ? (r.tv / 1e11).toFixed(1) + '천억'
-      : (r.tv / 1e8).toFixed(0) + '억';
-    const barW = Math.round(r.tv / maxTV * 100);
-    const mktTag = (r.market === 'KOSDAQ' && _vlTab === 'all')
-      ? '<span style="font-size:9px;color:var(--text3);margin-left:2px;font-weight:600">Q</span>' : '';
+    const maxTV = sorted[0].tv;
+    const rows = sorted.map((r, i) => {
+      const c     = r.price_change_rate ?? 0;
+      const cc    = c > 0 ? 'var(--red)' : c < 0 ? 'var(--blue)' : 'var(--text3)';
+      const cs    = (c >= 0 ? '+' : '') + c.toFixed(1) + '%';
+      const tvStr = r.tv >= 1e11
+        ? (r.tv / 1e11).toFixed(1) + '천억'
+        : (r.tv / 1e8).toFixed(0) + '억';
+      const barW  = Math.round(r.tv / maxTV * 100);
+      return `
+      <div style="display:flex;align-items:center;gap:5px;padding:4px 8px;
+        border-bottom:1px solid var(--border);position:relative;overflow:hidden">
+        <div style="position:absolute;left:0;top:0;bottom:0;
+          background:${p.color}18;width:${barW}%;pointer-events:none"></div>
+        <span style="min-width:14px;font-size:10px;color:var(--text3);font-weight:600">${i + 1}</span>
+        <span style="flex:1;font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.corp_name}</span>
+        <span style="font-size:11px;color:var(--text2);white-space:nowrap">${tvStr}</span>
+        <span style="min-width:38px;text-align:right;font-size:11px;font-weight:600;color:${cc}">${cs}</span>
+      </div>`;
+    }).join('');
 
     return `
-    <div style="display:flex;align-items:center;gap:8px;padding:5px 12px;
-      border-bottom:1px solid var(--border);position:relative;overflow:hidden">
-      <div style="position:absolute;left:0;top:0;bottom:0;
-        background:rgba(255,255,255,.022);width:${barW}%;pointer-events:none"></div>
-      <span style="min-width:18px;font-size:11px;color:var(--text3);font-weight:600">${i + 1}</span>
-      <span style="flex:1;font-size:12px;font-weight:500">${r.corp_name}${mktTag}</span>
-      <span style="font-size:12px;color:var(--text2);min-width:52px;text-align:right">${tvStr}</span>
-      <span style="min-width:48px;text-align:right;font-size:12px;font-weight:600;color:${cc}">${cs}</span>
+    <div style="border-right:${pi < 2 ? '1px solid var(--border)' : 'none'}">
+      <div style="padding:6px 10px;font-size:11px;font-weight:700;color:${p.color};
+        border-bottom:2px solid ${p.color}40;background:${p.color}08">${p.label}</div>
+      ${rows}
     </div>`;
   }).join('');
 }
