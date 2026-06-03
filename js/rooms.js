@@ -221,6 +221,20 @@ function autoGenIntro() {
     '',
   ].join('\n');
 
+  // ── 바티아카이브 ─────────────────────────────────────────────────────────
+  const archiveRoom = A.rooms.find(r =>
+    (r.chat_id || '').toLowerCase().includes('batiarchive') ||
+    (r.link    || '').toLowerCase().includes('batiarchive')
+  );
+  const archiveSection = [
+    '',
+    '📁 바티아카이브 (자료실)',
+    lnk('@batiarchive', archiveRoom?.link || 'https://t.me/batiarchive'),
+    '• KIND IR자료 PDF 전체 (전 상장사 공시)',
+    '• 증권사 리포트 PDF (산업분석·기업분석)',
+    '',
+  ].join('\n');
+
   // ── 산업별 섹션 ─────────────────────────────────────────────────────────
   const IND_EMOJI = {
     '바이오':'💊','뷰티':'💄','로봇':'🤖','2차전지':'🔋',
@@ -281,7 +295,7 @@ function autoGenIntro() {
     return lines.join('\n');
   }).join('\n');
 
-  const text = (header + mainSection + indSections).trim();
+  const text = (header + mainSection + archiveSection + indSections).trim();
 
   if (text.length > 4000) {
     const n = splitMessage(text).length;
