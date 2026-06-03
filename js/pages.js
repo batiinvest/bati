@@ -255,7 +255,7 @@ function pNotice() {
           🔄 새로 생성
         </button>
         <button class="btn btn-sm" onclick="clearNoticeContent()">🗑 지우기</button>
-        <span style="font-size:10px;color:var(--text3);align-self:center">수정 후 발송하면 자동 저장됩니다</span>
+        <span style="font-size:10px;color:var(--text3);align-self:center"><code>---</code> 줄을 기준으로 메시지가 분할 발송됩니다</span>
       </div>
       <textarea class="form-input" id="i-content" rows="20" style="font-size:12px;font-family:monospace"
         placeholder="직접 입력하거나 소개 글 생성 버튼을 누르세요"

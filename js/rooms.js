@@ -117,8 +117,10 @@ async function doNotice(content, target, btnId, progId) {
     targets = targets.filter(r => r.cat === target);
   }
 
-  const parts = splitMessage(content);
-  const splitInfo = parts.length > 1 ? ` (${parts.length}개 메시지로 자동 분할)` : '';
+  // --- 구분자로 수동 분할 후, 각 파트를 4096자 기준으로 추가 분할
+  const manualParts = content.split(/\n---\n/).map(s => s.trim()).filter(Boolean);
+  const parts = manualParts.flatMap(p => splitMessage(p));
+  const splitInfo = parts.length > 1 ? ` (${parts.length}개 메시지로 발송)` : '';
   if (!confirm(`${targets.length}개 채팅방에 발송?${splitInfo}\n형식: ${parseMode}`)) return;
 
   const btn = document.getElementById(btnId), prog = document.getElementById(progId);
@@ -132,7 +134,7 @@ async function doNotice(content, target, btnId, progId) {
           prog.innerHTML = `<span class="loading"></span>${i+1}/${targets.length} — ${targets[i].name} (${p+1}/${parts.length})`;
         }
         await tg('sendMessage', { chat_id: targets[i].chat_id, text: parts[p], parse_mode: parseMode });
-        if (p < parts.length - 1) await new Promise(r => setTimeout(r, 300));
+        if (p < parts.length - 1) await new Promise(r => setTimeout(r, 500));
       }
       ok++;
     } catch(e) {
@@ -308,18 +310,17 @@ function autoGenIntro(forceNew = false) {
     return lines.join('\n');
   }).join('\n');
 
-  const text = (header + mainSection + archiveSection + indSections).trim();
-
-  if (text.length > 4000) {
-    const n = splitMessage(text).length;
-    toast(`📨 ${text.length}자 — ${n}개 메시지로 자동 분할 발송됩니다.`, 'info');
-  }
+  // 메시지 1: 소개·규정·채널 안내 / 메시지 2: 산업별 채팅방 목록
+  const msg1 = (header + mainSection + archiveSection).trim();
+  const msg2Header = '📋 산업별 채팅방 목록\n';
+  const msg2 = (msg2Header + indSections).trim();
+  const text = msg1 + '\n---\n' + msg2;
 
   const ta = document.getElementById('i-content');
   if (ta) {
     ta.value = text;
     if (typeof prev === 'function') prev(text, 'i-prev');
-    toast(`소개 글 생성 완료 ✨ (${text.length}자)`, 'success');
+    toast(`소개 글 생성 완료 ✨ (메시지1: ${msg1.length}자 / 메시지2: ${msg2.length}자)`, 'success');
   }
 }
 
