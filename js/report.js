@@ -337,18 +337,21 @@ function rpRenderReport() {
   <!-- ⑦ 탭 (상세 데이터) ──────────────────────────────────────────── -->
   <div class="card" style="padding:0;overflow:hidden">
     <div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg2)">
-      ${['실적상세','재무상세','수급흐름','공시/뉴스'].map((t,i) => `
+      ${['재무제표','수급흐름','공시/뉴스'].map((t,i) => `
         <button onclick="rpSetTab(${i})" id="rp-tab-${i}"
           style="flex:1;padding:10px 4px;font-size:14px;font-weight:600;border:none;
             background:none;cursor:pointer;border-bottom:2px solid ${i===0?'var(--tg)':'transparent'};
             color:${i===0?'var(--tg)':'var(--text3)'};transition:all .2s">${t}</button>`).join('')}
     </div>
     <div id="rp-tab-body" style="padding:14px">
-      ${_rpTabEarnings(_rpData.fin)}
+      <div style="text-align:center;color:var(--text3);padding:40px"><span class="loading"></span></div>
     </div>
   </div>
 
   `;
+
+  // 재무제표 탭 자동 로드
+  rpSetTab(0);
 
   // 주가 배지 업데이트
   const badge = document.getElementById('rp-price-badge');
@@ -567,88 +570,27 @@ function _rpCatalystCard() {
 }
 
 // ── 탭 전환 ───────────────────────────────────────────────────────────────────
-function rpSetTab(idx) {
+async function rpSetTab(idx) {
   document.querySelectorAll('[id^="rp-tab-"]').forEach((b, i) => {
     b.style.borderBottomColor = i === idx ? 'var(--tg)' : 'transparent';
     b.style.color = i === idx ? 'var(--tg)' : 'var(--text3)';
   });
   const body = document.getElementById('rp-tab-body');
   if (!body) return;
+
+  // 재무제표(0) → financials.js의 _renderFinancialTab 재활용
+  if (idx === 0) {
+    body.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px"><span class="loading"></span></div>';
+    await _renderFinancialTab(body, _rpStock.code, _rpStock.name);
+    return;
+  }
+
   const fns = [
-    () => _rpTabEarnings(_rpData.fin),
-    () => _rpTabFinDetail(_rpData.fin),
+    null,
     () => _rpTabFlow(_rpData.price),
     () => _rpTabNews(),
   ];
   body.innerHTML = fns[idx]?.() || '';
-}
-
-function _rpTabEarnings(fin) {
-  if (!fin?.length) return `<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">재무 데이터 없음</div>`;
-  return `
-  <div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead>
-        <tr style="border-bottom:2px solid var(--border)">
-          <th style="padding:6px 10px;text-align:left;color:var(--text3);font-weight:600">기간</th>
-          <th style="padding:6px 10px;text-align:right;color:var(--text3);font-weight:600">매출액</th>
-          <th style="padding:6px 10px;text-align:right;color:var(--text3);font-weight:600">영업이익</th>
-          <th style="padding:6px 10px;text-align:right;color:var(--text3);font-weight:600">영업이익률</th>
-          <th style="padding:6px 10px;text-align:right;color:var(--text3);font-weight:600">순이익</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${fin.map((f, i) => {
-          const opm = f.revenue > 0 ? (f.operating_income / f.revenue * 100) : null;
-          const prevRev = fin[i+1]?.revenue;
-          const yoy = prevRev > 0 && f.revenue ? ((f.revenue - prevRev) / prevRev * 100) : null;
-          return `<tr style="border-bottom:1px solid var(--border)${i===0?';background:var(--bg3)':''}">
-            <td style="padding:7px 10px;font-weight:${i===0?700:400}">${f.period || '—'}</td>
-            <td style="padding:7px 10px;text-align:right">${f.revenue ? fmtCap(f.revenue) : '—'}
-              ${yoy != null ? `<span style="font-size:10px;color:${yoy>=0?'var(--red)':'var(--blue)'};margin-left:3px">${yoy>=0?'+':''}${yoy.toFixed(0)}%</span>` : ''}
-            </td>
-            <td style="padding:7px 10px;text-align:right;color:${(f.operating_income||0)>=0?'var(--red)':'var(--blue)'}">${f.operating_income != null ? fmtCap(f.operating_income) : '—'}</td>
-            <td style="padding:7px 10px;text-align:right">${opm != null ? opm.toFixed(1)+'%' : '—'}</td>
-            <td style="padding:7px 10px;text-align:right;color:${(f.net_income||0)>=0?'var(--red)':'var(--blue)'}">${f.net_income != null ? fmtCap(f.net_income) : '—'}</td>
-          </tr>`;
-        }).join('')}
-      </tbody>
-    </table>
-  </div>`;
-}
-
-function _rpTabFinDetail(fin) {
-  if (!fin?.length) return `<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">재무 데이터 없음</div>`;
-  return `
-  <div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead>
-        <tr style="border-bottom:2px solid var(--border)">
-          <th style="padding:6px 10px;text-align:left;color:var(--text3);font-weight:600">기간</th>
-          <th style="padding:6px 10px;text-align:right;color:var(--text3)">총자산</th>
-          <th style="padding:6px 10px;text-align:right;color:var(--text3)">자기자본</th>
-          <th style="padding:6px 10px;text-align:right;color:var(--text3)">부채비율</th>
-          <th style="padding:6px 10px;text-align:right;color:var(--text3)">ROE</th>
-          <th style="padding:6px 10px;text-align:right;color:var(--text3)">PER</th>
-          <th style="padding:6px 10px;text-align:right;color:var(--text3)">PBR</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${fin.map((f, i) => {
-          const dr = f.total_equity > 0 && f.total_debt != null ? (f.total_debt / f.total_equity * 100) : null;
-          return `<tr style="border-bottom:1px solid var(--border)${i===0?';background:var(--bg3)':''}">
-            <td style="padding:7px 10px;font-weight:${i===0?700:400}">${f.period||'—'}</td>
-            <td style="padding:7px 10px;text-align:right">${f.total_assets ? fmtCap(f.total_assets) : '—'}</td>
-            <td style="padding:7px 10px;text-align:right">${f.total_equity ? fmtCap(f.total_equity) : '—'}</td>
-            <td style="padding:7px 10px;text-align:right;color:${dr!=null&&dr>200?'var(--red)':''}">${dr != null ? dr.toFixed(0)+'%' : '—'}</td>
-            <td style="padding:7px 10px;text-align:right;color:${f.roe>10?'var(--tg)':''}">${f.roe != null ? f.roe.toFixed(1)+'%' : '—'}</td>
-            <td style="padding:7px 10px;text-align:right">${f.per != null ? f.per.toFixed(1)+'x' : '—'}</td>
-            <td style="padding:7px 10px;text-align:right">${f.pbr != null ? f.pbr.toFixed(2)+'x' : '—'}</td>
-          </tr>`;
-        }).join('')}
-      </tbody>
-    </table>
-  </div>`;
 }
 
 function _rpTabFlow(prices) {
