@@ -184,7 +184,7 @@ function clearNoticeContent() {
 function autoGenIntro(forceNew = false) {
   // 발송 후 저장된 수정본 있으면 불러오기 (--- 구분자 있는 새 형식만)
   const draft = localStorage.getItem('bati-intro-draft');
-  if (!forceNew && draft && draft.includes('\n---\n')) {
+  if (!forceNew && draft) {
     const ta = document.getElementById('i-content');
     if (ta) {
       ta.value = draft;
