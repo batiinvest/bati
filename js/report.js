@@ -133,11 +133,13 @@ function rpSelectStock(code, name) {
 // ── 리포트 로드 ───────────────────────────────────────────────────────────────
 async function rpLoadReport() {
   const inp = document.getElementById('rp-search');
-  if (!_rpStock && inp?.value) {
+  if (!_rpStock && inp?.value?.trim()) {
+    const q = inp.value.trim();
     const { data } = await sb.from('monitored_stocks')
       .select('stock_code,corp_name,market')
-      .or(`corp_name.ilike.%${inp.value}%,stock_code.eq.${inp.value}`)
-      .limit(1).single();
+      .or(`corp_name.ilike.%${q}%,stock_code.ilike.%${q}%`)
+      .limit(1)
+      .maybeSingle();
     if (data) _rpStock = { code: data.stock_code, name: data.corp_name };
   }
   if (!_rpStock) { toast('종목을 선택해주세요.', 'warn'); return; }
