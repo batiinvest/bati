@@ -1,5 +1,103 @@
 // bots.js — 봇 모니터링, 봇 설정
 
+// ── 공통 유틸 ──────────────────────────────────────────────────────────────
+
+/** app_config 에서 key 목록을 받아 { key: value } 맵으로 반환 */
+async function getConfigMap(keys) {
+  const { data } = await sb.from('app_config').select('key,value').in('key', keys);
+  const map = {};
+  (data || []).forEach(r => { map[r.key] = r.value; });
+  return map;
+}
+
+/** app_config 단일 키 upsert — admin 전용. 성공/실패 toast 처리 포함 */
+async function saveConfigKey(key, elId) {
+  if (!isAdmin()) { toast('admin만 수정 가능합니다.', 'error'); return; }
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const value = el.value.trim();
+  const { error } = await sb.from('app_config')
+    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  if (error) { toast('저장 실패: ' + error.message, 'error'); return; }
+  toast('저장 완료 — 봇 재로드 후 반영됩니다', 'success');
+}
+
+// ── 봇 설정 탭별 HTML 생성 함수 ────────────────────────────────────────────
+
+function _botDartTabHTML() {
+  return `
+    <div class="card" style="margin-bottom:1rem"><div class="card-header"><span class="card-title">알림 키워드</span></div><div class="card-body">
+      <div class="form-group">
+        <label class="form-label">AI 트리거 키워드 <span style="font-size:11px;color:var(--text3)">(쉼표로 구분)</span></label>
+        <textarea class="form-input" id="cfg-ai-kw" rows="3" placeholder="공급계약,임상,무상증자,..."></textarea>
+        <div class="form-hint">이 키워드가 공시 제목에 포함되면 Gemini AI 분석을 실행합니다.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">전체 중요 키워드 <span style="font-size:11px;color:var(--text3)">(쉼표로 구분)</span></label>
+        <textarea class="form-input" id="cfg-global-kw" rows="2" placeholder="거래정지,상장폐지,부도,..."></textarea>
+        <div class="form-hint">비보유 종목도 이 키워드가 있으면 무조건 알림 발송합니다.</div>
+      </div>
+      <button class="btn btn-primary" onclick="saveBotKeywords()">저장</button>
+    </div></div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:1rem;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
+      공시 제목에 키워드가 포함되면 해당 등급으로 분류됩니다. 쉼표로 구분하며 저장 후 봇 재로드 시 반영됩니다.<br>
+      <b style="color:var(--red)">긴급</b> → 메인+산업+기업 &nbsp;|&nbsp; <b style="color:var(--green)">중요</b> → 산업+기업 &nbsp;|&nbsp; <b style="color:var(--text2)">일반</b> → 산업+기업 &nbsp;|&nbsp; <b style="color:var(--text3)">잡공시</b> → 기업채널만
+    </div>
+    ${[
+      {id:'cfg-dart-urgent',  key:'dart_urgent',       color:'var(--red)',   title:'🚨 긴급 키워드',       sub:'메인 + 산업 + 기업채널', rows:3, placeholder:'거래정지,횡령,배임,상장폐지,불성실,공개매수,영업정지'},
+      {id:'cfg-dart-major',   key:'dart_major',        color:'var(--green)', title:'📈 중요 키워드',       sub:'산업 + 기업채널',         rows:4, placeholder:'공급계약,수주,잠정실적,무상증자,유상증자,최대주주변경,합병,분할,인수,전환사채,소송,특허,임상,사업보고서'},
+      {id:'cfg-dart-skip',    key:'dart_skip',         color:'var(--text3)', title:'📊 잡공시 키워드',     sub:'기업채널만 (산업/메인 발송 안 함)', rows:4, placeholder:'소유상황보고,기업설명회,IR개최,감사보고서,주주총회소집,의결권대리,증권발행실적,투자설명서,자기주식취득결과,자기주식처분결과'},
+      {id:'cfg-dart-title-filter', key:'dart_title_filter', color:'', title:'🔍 공시 제목 필터', sub:'제목에 포함 시 모든 채널 차단', rows:3, placeholder:'자기주식,증권발행실적,투자설명서,합병등종료보고...'},
+      {id:'cfg-dart-corp-filter',  key:'dart_corp_filter',  color:'', title:'🏢 기업명 부분 필터', sub:'기업명에 포함 시 차단', rows:3, placeholder:'홀딩스,지주,캐피탈,리츠...'},
+      {id:'cfg-dart-blacklist',    key:'dart_blacklist',    color:'', title:'🚫 기업 블랙리스트', sub:'정확한 기업명 일치 시 차단', rows:3, placeholder:'삼성전자,SK하이닉스,...'},
+    ].map(c => `
+    <div class="card" style="margin-bottom:.75rem">
+      <div class="card-header">
+        <span class="card-title" ${c.color?`style="color:${c.color}"`:''}>${c.title}</span>
+        <span style="font-size:11px;color:var(--text3)">${c.sub}</span>
+      </div>
+      <div class="card-body">
+        <textarea class="form-input" id="${c.id}" rows="${c.rows}" placeholder="${c.placeholder}"></textarea>
+        <div style="margin-top:.75rem">
+          <button class="btn btn-primary btn-sm" onclick="saveDartLevel('${c.key}','${c.id}')">저장</button>
+        </div>
+      </div>
+    </div>`).join('')}
+    <details style="margin-bottom:.75rem">
+      <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);list-style:none">
+        📋 공시 알림 규칙 요약 (클릭해서 펼치기)
+      </summary>
+      <div class="card" style="border-radius:0 0 var(--radius-sm) var(--radius-sm)">
+        <div class="card-body" style="font-size:12px;color:var(--text2);line-height:1.8">
+          <div style="margin-bottom:1rem">
+            <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">① 수신 대상</div>
+            <div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
+              <b>내 종목</b> (companies 테이블 is_monitored=true) <span style="color:var(--text3)">또는</span>
+              <b>전체 중요 키워드</b> 포함 공시만 수신<br>
+              <span style="color:var(--text3)">비상장 종목 · 블랙리스트 · 제목/기업명 필터는 수신 전 차단</span>
+            </div>
+          </div>
+          <div style="margin-bottom:1rem">
+            <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">② 등급 분류 우선순위</div>
+            <div style="display:grid;grid-template-columns:80px 1fr;gap:4px 12px;padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
+              <span style="color:var(--text3)">판정 순서</span><span style="color:var(--text3)">잡공시 → 긴급 → 중요 → 일반</span>
+              <span style="color:var(--red);font-weight:600">🚨 긴급</span><span>거래정지, 횡령, 배임, 상장폐지, 관리종목, 공개매수, 불성실공시, 영업정지</span>
+              <span style="color:var(--green);font-weight:600">📌 중요</span><span>공급계약, 수주, 잠정실적, 무/유상증자, 최대주주변경, 합병, CB/BW, 소송, 특허, 임상</span>
+              <span style="color:var(--text3)">🔇 잡공시</span><span>소유상황보고, 기업설명회, IR개최, 감사보고서, 주주총회, 의결권대리</span>
+              <span style="color:var(--text2)">📄 일반</span><span>위 3가지 외 모두</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">③ AI 심층 분석 (Gemini)</div>
+            <div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
+              <b>긴급 또는 중요</b> 등급 + <b>AI 키워드</b> 포함 시 자동 실행 → 기업채널에 후속 메시지 발송
+            </div>
+          </div>
+        </div>
+      </div>
+    </details>`;
+}
+
 // ── 봇 카드 공통 HTML (pBot / pBotConfig 양쪽에서 재사용) ──────────────────
 function _botCardsHTML() {
   const cards = [
@@ -128,147 +226,10 @@ function pBotConfig() {
   <!-- ① 현황 탭 (봇 모니터링 통합) -->
   <div id="botcfg-status">${_botCardsHTML()}</div>
 
-  <!-- ② 공시 설정 탭 (키워드 설정 + 공시 등급 통합) -->
-  <div id="botcfg-dart" style="display:none">
-    <div class="card" style="margin-bottom:1rem"><div class="card-header"><span class="card-title">알림 키워드</span></div><div class="card-body">
-      <div class="form-group">
-        <label class="form-label">AI 트리거 키워드 <span style="font-size:11px;color:var(--text3)">(쉼표로 구분)</span></label>
-        <textarea class="form-input" id="cfg-ai-kw" rows="3" placeholder="공급계약,임상,무상증자,..."></textarea>
-        <div class="form-hint">이 키워드가 공시 제목에 포함되면 Gemini AI 분석을 실행합니다.</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">전체 중요 키워드 <span style="font-size:11px;color:var(--text3)">(쉼표로 구분)</span></label>
-        <textarea class="form-input" id="cfg-global-kw" rows="2" placeholder="거래정지,상장폐지,부도,..."></textarea>
-        <div class="form-hint">비보유 종목도 이 키워드가 있으면 무조건 알림 발송합니다.</div>
-      </div>
-      <button class="btn btn-primary" onclick="saveBotKeywords()">저장</button>
-    </div></div>
+  <!-- ② 공시 설정 탭 -->
+  <div id="botcfg-dart" style="display:none">${_botDartTabHTML()}</div>
 
-    <div style="font-size:12px;color:var(--text2);margin-bottom:1rem;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
-      공시 제목에 키워드가 포함되면 해당 등급으로 분류됩니다. 쉼표로 구분하며 저장 후 봇 재로드 시 반영됩니다.<br>
-      <b style="color:var(--red)">긴급</b> → 메인+산업+기업 &nbsp;|&nbsp; <b style="color:var(--green)">중요</b> → 산업+기업 &nbsp;|&nbsp; <b style="color:var(--text2)">일반</b> → 산업+기업 &nbsp;|&nbsp; <b style="color:var(--text3)">잡공시</b> → 기업채널만
-    </div>
-
-    <div class="card" style="margin-bottom:.75rem">
-      <div class="card-header">
-        <span class="card-title" style="color:var(--red)">🚨 긴급 키워드</span>
-        <span style="font-size:11px;color:var(--text3)">메인 + 산업 + 기업채널</span>
-      </div>
-      <div class="card-body">
-        <textarea class="form-input" id="cfg-dart-urgent" rows="3"
-          placeholder="거래정지,횡령,배임,상장폐지,불성실,공개매수,영업정지"></textarea>
-        <div style="display:flex;gap:8px;margin-top:.75rem;align-items:center">
-          <button class="btn btn-primary btn-sm" onclick="saveDartLevel('dart_urgent','cfg-dart-urgent')">저장</button>
-          <span style="font-size:11px;color:var(--text3)">우선순위 가장 높음</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-bottom:.75rem">
-      <div class="card-header">
-        <span class="card-title" style="color:var(--green)">📈 중요 키워드</span>
-        <span style="font-size:11px;color:var(--text3)">산업 + 기업채널</span>
-      </div>
-      <div class="card-body">
-        <textarea class="form-input" id="cfg-dart-major" rows="4"
-          placeholder="공급계약,수주,잠정실적,무상증자,유상증자,최대주주변경,합병,분할,인수,전환사채,소송,특허,임상,사업보고서"></textarea>
-        <div style="margin-top:.75rem">
-          <button class="btn btn-primary btn-sm" onclick="saveDartLevel('dart_major','cfg-dart-major')">저장</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-bottom:.75rem">
-      <div class="card-header">
-        <span class="card-title" style="color:var(--text3)">📊 잡공시 키워드</span>
-        <span style="font-size:11px;color:var(--text3)">기업채널만 (산업/메인 발송 안 함)</span>
-      </div>
-      <div class="card-body">
-        <textarea class="form-input" id="cfg-dart-skip" rows="4"
-          placeholder="소유상황보고,기업설명회,IR개최,감사보고서,주주총회소집,의결권대리,증권발행실적,투자설명서,자기주식취득결과,자기주식처분결과"></textarea>
-        <div style="margin-top:.75rem">
-          <button class="btn btn-primary btn-sm" onclick="saveDartLevel('dart_skip','cfg-dart-skip')">저장</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-bottom:.75rem">
-      <div class="card-header">
-        <span class="card-title">🔍 공시 제목 필터 <span style="font-size:11px;font-weight:400;color:var(--text3)">— 제목에 포함 시 모든 채널 차단</span></span>
-      </div>
-      <div class="card-body">
-        <textarea class="form-input" id="cfg-dart-title-filter" rows="3"
-          placeholder="자기주식,증권발행실적,투자설명서,합병등종료보고..."></textarea>
-        <div style="margin-top:.75rem">
-          <button class="btn btn-primary btn-sm" onclick="saveDartLevel('dart_title_filter','cfg-dart-title-filter')">저장</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-bottom:.75rem">
-      <div class="card-header">
-        <span class="card-title">🏢 기업명 부분 필터 <span style="font-size:11px;font-weight:400;color:var(--text3)">— 기업명에 포함 시 차단</span></span>
-      </div>
-      <div class="card-body">
-        <textarea class="form-input" id="cfg-dart-corp-filter" rows="3"
-          placeholder="홀딩스,지주,캐피탈,리츠..."></textarea>
-        <div style="margin-top:.75rem">
-          <button class="btn btn-primary btn-sm" onclick="saveDartLevel('dart_corp_filter','cfg-dart-corp-filter')">저장</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-bottom:.75rem">
-      <div class="card-header">
-        <span class="card-title">🚫 기업 블랙리스트 <span style="font-size:11px;font-weight:400;color:var(--text3)">— 정확한 기업명 일치 시 차단</span></span>
-      </div>
-      <div class="card-body">
-        <textarea class="form-input" id="cfg-dart-blacklist" rows="3" placeholder="삼성전자,SK하이닉스,..."></textarea>
-        <div style="display:flex;gap:8px;align-items:center;margin-top:.75rem">
-          <button class="btn btn-primary btn-sm" onclick="saveDartLevel('dart_blacklist','cfg-dart-blacklist')">저장</button>
-          <span style="font-size:11px;color:var(--text3)">저장 후 봇 재로드 버튼을 눌러주세요.</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- 공시 알림 규칙 요약 (접어두기) -->
-    <details style="margin-bottom:.75rem">
-      <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);padding:10px 14px;
-        background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);list-style:none">
-        📋 공시 알림 규칙 요약 (클릭해서 펼치기)
-      </summary>
-      <div class="card" style="border-radius:0 0 var(--radius-sm) var(--radius-sm)">
-        <div class="card-body" style="font-size:12px;color:var(--text2);line-height:1.8">
-          <div style="margin-bottom:1rem">
-            <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">① 수신 대상</div>
-            <div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
-              <b>내 종목</b> (companies 테이블 is_monitored=true) <span style="color:var(--text3)">또는</span>
-              <b>전체 중요 키워드</b> 포함 공시만 수신<br>
-              <span style="color:var(--text3)">비상장 종목 · 블랙리스트 · 제목/기업명 필터는 수신 전 차단</span>
-            </div>
-          </div>
-          <div style="margin-bottom:1rem">
-            <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">② 등급 분류 우선순위</div>
-            <div style="display:grid;grid-template-columns:80px 1fr;gap:4px 12px;padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
-              <span style="color:var(--text3)">판정 순서</span><span style="color:var(--text3)">잡공시 → 긴급 → 중요 → 일반</span>
-              <span style="color:var(--red);font-weight:600">🚨 긴급</span><span>거래정지, 횡령, 배임, 상장폐지, 관리종목, 공개매수, 불성실공시, 영업정지</span>
-              <span style="color:var(--green);font-weight:600">📌 중요</span><span>공급계약, 수주, 잠정실적, 무/유상증자, 최대주주변경, 합병, CB/BW, 소송, 특허, 임상</span>
-              <span style="color:var(--text3)">🔇 잡공시</span><span>소유상황보고, 기업설명회, IR개최, 감사보고서, 주주총회, 의결권대리</span>
-              <span style="color:var(--text2)">📄 일반</span><span>위 3가지 외 모두</span>
-            </div>
-          </div>
-          <div>
-            <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">③ AI 심층 분석 (Gemini)</div>
-            <div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
-              <b>긴급 또는 중요</b> 등급 + <b>AI 키워드</b> 포함 시 자동 실행 → 기업채널에 후속 메시지 발송
-            </div>
-          </div>
-        </div>
-      </div>
-    </details>
-  </div>
-
-  <!-- ③ 뉴스 설정 탭 (뉴스 필터 + 산업별 검색어 통합) -->
+  <!-- ③ 뉴스 설정 탭 -->
   <div id="botcfg-news" style="display:none">
     <div class="card" style="margin-bottom:1rem">
       <div class="card-header">
@@ -634,9 +595,7 @@ async function loadSchedules() {
     { key:'schedule_sunday',         label:'일요일 리포트 (10:00)' },
     { key:'schedule_kind_ir',        label:'KIND IR자료 (09:05, 18:10)' },
   ];
-  const { data: cfgRows } = await sb.from('app_config').select('key,value').in('key', schedules.map(s => s.key));
-  const cfg = {};
-  (cfgRows || []).forEach(r => cfg[r.key] = r.value);
+  const cfg = await getConfigMap(schedules.map(s => s.key));
 
   const schedEl = document.getElementById('schedule-list');
   if (!schedEl) return;
@@ -655,9 +614,7 @@ async function loadSchedules() {
 
 async function loadDartLevel() {
   const keys = ['dart_urgent', 'dart_major', 'dart_skip', 'dart_blacklist', 'dart_title_filter', 'dart_corp_filter'];
-  const { data } = await sb.from('app_config').select('key,value').in('key', keys);
-  const map = {};
-  (data || []).forEach(r => map[r.key] = r.value);
+  const map = await getConfigMap(keys);
 
   const els = {
     'cfg-dart-urgent':       'dart_urgent',
@@ -673,21 +630,10 @@ async function loadDartLevel() {
   });
 }
 
-async function saveDartLevel(key, elId) {
-  if (!isAdmin()) { toast('admin만 수정 가능합니다.', 'error'); return; }
-  const el = document.getElementById(elId);
-  if (!el) return;
-  const value = el.value.trim();
-  const { error } = await sb.from('app_config')
-    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
-  if (error) { toast('저장 실패: ' + error.message, 'error'); return; }
-  toast('저장 완료 — 봇 재로드 후 반영됩니다', 'success');
-}
+const saveDartLevel = saveConfigKey;
 async function loadNewsFilter() {
   const keys = ['news_spam_patterns', 'news_meaningful_keywords'];
-  const { data } = await sb.from('app_config').select('key,value').in('key', keys);
-  const map = {};
-  (data || []).forEach(r => map[r.key] = r.value);
+  const map = await getConfigMap(keys);
 
   const spamEl = document.getElementById('cfg-spam-patterns');
   const kwEl   = document.getElementById('cfg-meaningful-kw');
@@ -695,16 +641,8 @@ async function loadNewsFilter() {
   if (kwEl   && map['news_meaningful_keywords']) kwEl.value   = map['news_meaningful_keywords'];
 }
 
-async function saveNewsFilter(key, elId, separator) {
-  if (!isAdmin()) { toast('admin만 수정 가능합니다.', 'error'); return; }
-  const el = document.getElementById(elId);
-  if (!el) return;
-  const value = el.value.trim();
-  const { error } = await sb.from('app_config')
-    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
-  if (error) { toast('저장 실패: ' + error.message, 'error'); return; }
-  toast('저장 완료 — 봇 재로드 후 반영됩니다', 'success');
-}
+// separator 파라미터는 UI에서 전달되나 실제로 사용되지 않음 — saveConfigKey와 동일 동작
+const saveNewsFilter = saveConfigKey;
 
 async function loadNewsTerms() {
   const el = document.getElementById('news-terms-list');
@@ -768,9 +706,7 @@ async function toggleSchedule(key, enabled) {
 async function loadAlertConfig() {
   const keys = ['alert_threshold_surge', 'alert_threshold_up', 'alert_threshold_down',
                 'admin_chat_id', 'report_chat_id', 'news_low_trust_sources'];
-  const { data } = await sb.from('app_config').select('key,value').in('key', keys);
-  const map = {};
-  (data || []).forEach(r => map[r.key] = r.value);
+  const map = await getConfigMap(keys);
 
   const set = (id, key, fallback) => {
     const el = document.getElementById(id);
@@ -812,20 +748,7 @@ async function saveAlertThresholds() {
   } catch(e) { toast('저장 실패: ' + e.message, 'error'); }
 }
 
-async function saveAlertConfig(key, elId) {
-  if (!isAdmin()) { toast('admin만 수정 가능합니다.', 'error'); return; }
-  const el = document.getElementById(elId);
-  if (!el) return;
-  const value = el.value.trim();
-  if (!value) { toast('값을 입력해주세요.', 'error'); return; }
-  try {
-    await sb.from('app_config').upsert(
-      { key, value, updated_at: new Date().toISOString() },
-      { onConflict: 'key' }
-    );
-    toast('저장 완료 — 봇 재로드 후 반영됩니다', 'success');
-  } catch(e) { toast('저장 실패: ' + e.message, 'error'); }
-}
+const saveAlertConfig = saveConfigKey;
 
 function pSettings() {
   if (!isAdmin()) return `<div style="padding:2rem;text-align:center;color:var(--text3);font-size:13px">admin만 설정 변경 가능합니다.</div>`;

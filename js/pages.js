@@ -138,8 +138,8 @@ function _renderRoomRow(r) {
   </tr>`;
 }
 
-// ── 필터 적용 후 목록만 업데이트 (draw() 전체 재렌더링 없음 → IME 버그 해결) ──
-function _filterAndRenderRooms() {
+/** 현재 A 상태 기준으로 채팅방 필터+정렬 결과 반환 */
+function _getFilteredRooms() {
   const q = A.q.trim().toLowerCase();
   let filtered = A.rooms.filter(r => {
     const cOk = A.cat === 'all' || r.cat === A.cat;
@@ -147,13 +147,17 @@ function _filterAndRenderRooms() {
     const qOk = !q || r.name.toLowerCase().includes(q) || (r.keywords||'').toLowerCase().includes(q);
     return cOk && sOk && qOk;
   });
-
-  // 멤버 수 정렬
   if (A.sortBy === 'members') {
     filtered = [...filtered].sort((a, b) =>
       A.sortDir === 'asc' ? (a.members||0) - (b.members||0) : (b.members||0) - (a.members||0)
     );
   }
+  return filtered;
+}
+
+// ── 필터 적용 후 목록만 업데이트 (draw() 전체 재렌더링 없음 → IME 버그 해결) ──
+function _filterAndRenderRooms() {
+  const filtered = _getFilteredRooms();
 
   const tbody = document.getElementById('room-tbody');
   const count = document.getElementById('room-count');
@@ -173,16 +177,7 @@ function _filterAndRenderRooms() {
 
 function pRooms() {
   const cats = [...new Set(A.rooms.map(r => r.cat))].sort();
-  const q = A.q.trim().toLowerCase();
-  let filtered = A.rooms.filter(r =>
-    (A.cat==='all'||r.cat===A.cat) && (A.status==='all'||r.status===A.status) &&
-    (!q || r.name.toLowerCase().includes(q) || (r.keywords||'').toLowerCase().includes(q))
-  );
-  if (A.sortBy === 'members') {
-    filtered = [...filtered].sort((a, b) =>
-      A.sortDir === 'asc' ? (a.members||0) - (b.members||0) : (b.members||0) - (a.members||0)
-    );
-  }
+  const filtered = _getFilteredRooms();
   return `
   <div class="filter-bar">
     <input class="search-box" id="room-search-input" placeholder="이름·키워드 검색..." value="${A.q}">
