@@ -321,12 +321,6 @@ function autoGenIntro(forceNew = false) {
         lines.push(row.map(r => lnk(r.name, r.link)).join('   '))
       );
     }
-    if (full.length) {
-      lines.push('[🔴 정원 마감]');
-      chunkLine(full).forEach(row =>
-        lines.push(row.map(r => lnk(r.name, r.link)).join('   '))
-      );
-    }
     if (open.length) {
       lines.push('[🟢 일반 입장 가능]');
       chunkLine(open).forEach(row =>
