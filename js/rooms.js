@@ -196,18 +196,18 @@ function autoGenIntro() {
   const header = [
     '안녕하세요, 바티입니다.',
     '',
-    '바티인베스트는 건전한 투자 토론과 정보 공유를 위한 커뮤니티입니다. 광고 없는 클린한 환경 유지를 위해 아래 규정을 준수해 주세요.',
+    '바티인베스트는 건전한 투자 토론과 정보 공유를 위한 커뮤니티입니다.',
+    '광고 없는 클린한 환경 유지를 위해 아래 규정을 준수해 주세요.',
     '',
     '✅ 입장 및 운영 안내',
     '①승인: 신청 후 1~2일 내 순차 승인 (정원 초과 시 대기 발생)',
     '②퇴장: 3일 이상 미접속(미활동), 광고/욕설/비매너 행위 시 즉시 퇴장',
-    `③우선입장: 후원자는 (${lnk(buymeUrl, buymeUrl)}) 대기없이 최우선 입장 안내`,
+    `③우선입장: 후원자 (${lnk(buymeUrl, buymeUrl)}) 는 대기없이 최우선 입장 안내`,
     '',
     '🔒 기타',
     '① 각 채팅방은 정원에 따라 비공개로 전환될 수 있습니다.',
     '',
-    '📬 신규 채팅방 개설 문의',
-    '종목/산업 관련 신규 채팅방 개설 요청: @BatiInvestment',
+    '📬 문의: @BatiInvestment',
     '',
   ].join('\n');
 
@@ -215,12 +215,14 @@ function autoGenIntro() {
   const mainRoom = A.rooms.find(r => r.room_type === 'industry' && (r.name || '').includes('바티인베스트'));
   const mainSection = [
     '',
-    '📊 종합 투자 채팅방',
+    '📊 바티인베스트 (종합 채팅방)',
     lnk('바티인베스트', mainRoom?.link || 'https://t.me/BatiInvestChat'),
-    '• 미국/국내 시황 요약',
-    '• 공시·뉴스 모니터링 (실시간)',
-    '• 증권사 리포트·52주 신고가 (장 마감 후)',
-    '• 산업별 상승·하락률 순위 (장 마감 후)',
+    '• 미국/국내 시황 요약 (매일 아침)',
+    '• 실시간 공시·뉴스 모니터링',
+    '• 급등 알림 — 5%↑ / 15%↑ 실시간',
+    '• AI 공시 분석 (긴급·중요 공시 자동)',
+    '• 증권사 리포트·신고가 (장 마감 후)',
+    '• 주도주 Top 50 (매일 장 마감 후)',
     '',
   ].join('\n');
 
@@ -233,7 +235,7 @@ function autoGenIntro() {
     '',
     '📁 바티아카이브 (자료실)',
     lnk('@batiarchive', archiveRoom?.link || 'https://t.me/batiarchive'),
-    '• KIND IR자료 PDF 전체 (전 상장사 공시)',
+    '• KIND IR자료 PDF (전 상장사, 실시간)',
     '• 증권사 리포트 PDF (산업분석·기업분석)',
     '',
   ].join('\n');
@@ -300,7 +302,23 @@ function autoGenIntro() {
 
   // 메시지 1: 소개·규정·채널 안내 / 메시지 2: 산업별 채팅방 목록
   const msg1 = (header + mainSection + archiveSection).trim();
-  const msg2Header = '📋 산업별 채팅방 목록\n';
+  const msg2Header = [
+    '📋 산업별 채팅방 목록',
+    '',
+    '🏭 산업 채팅방',
+    '• 해당 산업 공시 (긴급·중요)',
+    '• 해당 산업 뉴스',
+    '• 증권사 산업분석 리포트 PDF',
+    '',
+    '📌 종목 채팅방',
+    '• 해당 종목 공시 전체',
+    '• 해당 종목 뉴스',
+    '• 급등 알림 (5%↑ / 15%↑)',
+    '• KIND IR자료 PDF',
+    '• 증권사 기업분석 리포트 PDF',
+    '',
+    '···········',
+  ].join('\n');
   const msg2 = (msg2Header + indSections).trim();
   const text = msg1 + '\n---\n' + msg2;
 
