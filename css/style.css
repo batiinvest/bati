@@ -294,6 +294,10 @@ td:first-child { color:var(--text); }
 /* ── 숫자 컬럼 우측 정렬 ── */
 td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
 
+/* ── 기업 분석 테이블 헤더 고정 ── */
+#fin-table { position:relative; }
+#fin-table thead th { position:sticky; top:0; background:var(--bg2); z-index:2; box-shadow:0 1px 0 var(--border); }
+
 /* ── 탭 버튼 ── */
 .tab { font-size:13px; padding:9px 16px; font-weight:500; }
 .tab.active { font-weight:700; }

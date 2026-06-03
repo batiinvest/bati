@@ -1,6 +1,14 @@
 // financials.js — 기업 분석 (시장 현황/재무제표)
 // fmtCap, chgColor, chgStr, loadingHTML, emptyHTML, errorHTML, fetchAllPages → config.js 참조
 
+// 검색 debounce — 키스트로크마다 API 호출 방지
+let _finSearchTimer = null;
+function _finSearchDebounce() {
+  F.q = document.getElementById('fin-q')?.value ?? '';
+  clearTimeout(_finSearchTimer);
+  _finSearchTimer = setTimeout(() => loadFinancials(), 300);
+}
+
 /** 종목별 최신 분기 데이터 1건 추출 — { stock_code: row } 맵 반환 */
 function _pickLatestFin(rows) {
   const map = {};
@@ -31,7 +39,7 @@ function pFinancials() {
       <option value="monitored" ${F.scope==='monitored'?'selected':''}>모니터링 종목</option>
       <option value="all" ${F.scope==='all'?'selected':''}>전체</option>
     </select>
-    <input class="search-box" id="fin-q" placeholder="종목명 검색..." oninput="F.q=this.value;loadFinancials()" style="max-width:160px">
+    <input class="search-box" id="fin-q" placeholder="종목명 검색..." oninput="_finSearchDebounce()" style="max-width:160px">
     <select class="form-select" id="fin-ind" onchange="F.industry=this.value;loadFinancials()" style="width:120px;padding:6px 10px">
       ${industries.map(i=>`<option value="${i}" ${F.industry===i?'selected':''}>${i}</option>`).join('')}
     </select>
