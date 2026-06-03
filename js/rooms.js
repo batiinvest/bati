@@ -203,9 +203,7 @@ function autoGenIntro() {
     '①승인: 신청 후 1~2일 내 순차 승인 (정원 초과 시 대기 발생)',
     '②퇴장: 3일 이상 미접속(미활동), 광고/욕설/비매너 행위 시 즉시 퇴장',
     `③우선입장: 후원자 (${lnk(buymeUrl, buymeUrl)}) 는 대기없이 최우선 입장 안내`,
-    '',
-    '🔒 기타',
-    '① 각 채팅방은 정원에 따라 비공개로 전환될 수 있습니다.',
+    '④각 채팅방은 정원에 따라 비공개로 전환될 수 있습니다.',
     '',
     '📬 문의: @BatiInvestment',
     '',
@@ -215,13 +213,12 @@ function autoGenIntro() {
   const mainRoom = A.rooms.find(r => r.room_type === 'industry' && (r.name || '').includes('바티인베스트'));
   const mainSection = [
     '',
-    '📊 바티인베스트 (종합 채팅방)',
-    lnk('바티인베스트', mainRoom?.link || 'https://t.me/BatiInvestChat'),
+    `📊 ${lnk('바티인베스트', mainRoom?.link || 'https://t.me/BatiInvestChat')}`,
     '• 미국/국내 시황 요약 (매일 아침)',
     '• 실시간 공시·뉴스 모니터링',
     '• 급등 알림 — 5%↑ / 15%↑ 실시간',
     '• AI 공시 분석 (긴급·중요 공시 자동)',
-    '• 증권사 리포트·신고가 (장 마감 후)',
+    '• 52주 신고가 (장 마감 후)',
     '• 주도주 Top 50 (매일 장 마감 후)',
     '',
   ].join('\n');
@@ -233,10 +230,24 @@ function autoGenIntro() {
   );
   const archiveSection = [
     '',
-    '📁 바티아카이브 (자료실)',
-    lnk('@batiarchive', archiveRoom?.link || 'https://t.me/batiarchive'),
+    `📁 ${lnk('바티아카이브', archiveRoom?.link || 'https://t.me/batiarchive')} (자료실)`,
     '• KIND IR자료 PDF (전 상장사, 실시간)',
     '• 증권사 리포트 PDF (산업분석·기업분석)',
+    '',
+  ].join('\n');
+
+  // ── 채팅방별 알림 안내 ────────────────────────────────────────────────────
+  const channelGuide = [
+    '🏭 산업 채팅방',
+    '• 해당 산업 공시 (긴급·중요)',
+    '• 해당 산업 뉴스',
+    '• 증권사 산업분석 리포트 PDF',
+    '',
+    '📌 종목 채팅방',
+    '• 해당 종목 공시 전체',
+    '• 해당 종목 뉴스',
+    '• 시세 알림 (5%↑ / 15%↑)',
+    '• IR자료 및 증권사 리포트',
     '',
   ].join('\n');
 
@@ -301,24 +312,8 @@ function autoGenIntro() {
   }).join('\n');
 
   // 메시지 1: 소개·규정·채널 안내 / 메시지 2: 산업별 채팅방 목록
-  const msg1 = (header + mainSection + archiveSection).trim();
-  const msg2Header = [
-    '📋 산업별 채팅방 목록',
-    '',
-    '🏭 산업 채팅방',
-    '• 해당 산업 공시 (긴급·중요)',
-    '• 해당 산업 뉴스',
-    '• 증권사 산업분석 리포트 PDF',
-    '',
-    '📌 종목 채팅방',
-    '• 해당 종목 공시 전체',
-    '• 해당 종목 뉴스',
-    '• 급등 알림 (5%↑ / 15%↑)',
-    '• KIND IR자료 PDF',
-    '• 증권사 기업분석 리포트 PDF',
-    '',
-    '···········',
-  ].join('\n');
+  const msg1 = (header + mainSection + archiveSection + channelGuide).trim();
+  const msg2Header = '📋 산업별 채팅방 목록\n';
   const msg2 = (msg2Header + indSections).trim();
   const text = msg1 + '\n---\n' + msg2;
 
