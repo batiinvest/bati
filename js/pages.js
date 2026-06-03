@@ -31,7 +31,7 @@ const PAGE_META = {
 function _initWatchlist() { window._wlGroup = 'all'; loadWatchlist(); }
 
 function pOverview() {
-  const isFull = r => r.status === 'full' || (r.members || 0) >= (r.max_members || 1000);
+  const isFull = r => r.status === 'full' || r.status === 'paid' || (r.members || 0) >= (r.max_members || 1000);
 
   // 기업/산업 채팅방 분리
   const companyRooms  = A.rooms.filter(r => r.room_type !== 'industry');
@@ -128,12 +128,12 @@ function _renderRoomRow(r) {
         <div class="progress-fill" style="background:${barColor};width:${fill}%"></div>
       </div>
     </td>
-    <td><span class="badge ${r.status==='full'?'badge-full':'badge-open'}">${r.status==='full'?'정원 마감':'입장 가능'}</span></td>
+    <td><span class="badge ${r.status==='full'?'badge-full':r.status==='paid'?'badge-paid':'badge-open'}">${r.status==='full'?'정원 마감':r.status==='paid'?'🔒 유료':'일반 입장'}</span></td>
     <td><span style="font-size:11px;color:var(--text3);font-family:monospace">${String(r.chat_id).slice(0,22)}</span></td>
     <td><div style="display:flex;gap:5px">
       <button class="btn btn-sm" onclick="openDetail(${r.id})">상세</button>
       ${canEdit() ? `<button class="btn btn-sm" onclick="syncOne(${r.id})" title="동기화">↻</button>
-        <button class="btn btn-sm ${r.status==='full'?'btn-success':'btn-danger'}" onclick="toggleStatus(${r.id})">${r.status==='full'?'개방':'마감'}</button>` : ''}
+        <button class="btn btn-sm" onclick="toggleStatus(${r.id})" style="font-size:10px">${r.status==='full'?'→ 일반':r.status==='paid'?'→ 마감':'→ 유료'}</button>` : ''}
     </div></td>
   </tr>`;
 }
@@ -173,7 +173,9 @@ function pRooms() {
     <button class="chip ${A.status==='all'?'active':''}" data-status="all"
       onclick="A.status='all';_filterAndRenderRooms()">전체</button>
     <button class="chip ${A.status==='open'?'active':''}" data-status="open"
-      onclick="A.status='open';_filterAndRenderRooms()">입장 가능</button>
+      onclick="A.status='open';_filterAndRenderRooms()">일반 입장</button>
+    <button class="chip ${A.status==='paid'?'active':''}" data-status="paid"
+      onclick="A.status='paid';_filterAndRenderRooms()">🔒 유료 입장</button>
     <button class="chip ${A.status==='full'?'active':''}" data-status="full"
       onclick="A.status='full';_filterAndRenderRooms()">정원 마감</button>
     <span style="width:1px;height:14px;background:var(--border2);margin:0 2px"></span>

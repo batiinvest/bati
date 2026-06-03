@@ -27,9 +27,12 @@ async function addRoom() {
 async function toggleStatus(id) {
   if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
   const r = A.rooms.find(x => x.id === id); if (!r) return;
-  const s = r.status === 'full' ? 'open' : 'full';
+  // open → paid → full → open 순환
+  const next = { open: 'paid', paid: 'full', full: 'open' };
+  const label = { open: '일반 입장', paid: '유료 입장 대상', full: '정원 마감' };
+  const s = next[r.status] || 'open';
   await DB('rooms').update({ status: s }).eq('id', id);
-  r.status = s; draw(); toast(`${r.name} → ${s === 'full' ? '정원 마감' : '입장 가능'}`, 'info');
+  r.status = s; draw(); toast(`${r.name} → ${label[s]}`, 'info');
 }
 
 async function deleteRoom(id) {
@@ -280,7 +283,7 @@ function autoGenIntro(forceNew = false) {
   A.rooms.filter(r => r.room_type !== 'industry').forEach(r => {
     const cat = r.cat || '기타';
     if (!grouped[cat]) grouped[cat] = { full: [], open: [] };
-    const isFull = r.status === 'full' || (r.members || 0) >= (r.max_members || 1000);
+    const isFull = r.status === 'paid' || r.status === 'full' || (r.members || 0) >= (r.max_members || 1000);
     grouped[cat][isFull ? 'full' : 'open'].push(r);
   });
 
