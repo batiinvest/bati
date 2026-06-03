@@ -31,7 +31,8 @@ async function toggleStatus(id) {
   const next = { open: 'paid', paid: 'full', full: 'open' };
   const label = { open: '일반 입장', paid: '유료 입장 대상', full: '정원 마감' };
   const s = next[r.status] || 'open';
-  await DB('rooms').update({ status: s }).eq('id', id);
+  const { error } = await DB('rooms').update({ status: s }).eq('id', id);
+  if (error) { toast(`저장 실패: ${error.message}`, 'error'); return; }
   r.status = s; draw(); toast(`${r.name} → ${label[s]}`, 'info');
 }
 
