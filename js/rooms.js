@@ -227,9 +227,6 @@ function autoGenIntro(forceNew = false) {
     '',
     `📊 ${lnk('바티인베스트', mainRoom?.link || 'https://t.me/BatiInvestChat')}`,
     '• 미국/국내 시황 요약 (매일 아침)',
-    '• 실시간 공시·뉴스 모니터링',
-    '• 급등 알림 — 5%↑ / 15%↑ 실시간',
-    '• AI 공시 분석 (긴급·중요 공시 자동)',
     '• 52주 신고가 (장 마감 후)',
     '• 주도주 Top 50 (매일 장 마감 후)',
     '',
@@ -243,8 +240,7 @@ function autoGenIntro(forceNew = false) {
   const archiveSection = [
     '',
     `📁 ${lnk('바티아카이브', archiveRoom?.link || 'https://t.me/batiarchive')} (자료실)`,
-    '• KIND IR자료 PDF (전 상장사, 실시간)',
-    '• 증권사 리포트 PDF (산업분석·기업분석)',
+    '• IR자료 및 증권사 리포트 PDF (산업분석·기업분석)',
     '',
   ].join('\n');
 
@@ -252,14 +248,14 @@ function autoGenIntro(forceNew = false) {
   const channelGuide = [
     '',
     '🏭 산업 채팅방',
-    '• 해당 산업 공시 (긴급·중요)',
+    '• 해당 산업 공시',
     '• 해당 산업 뉴스',
-    '• 증권사 산업분석 리포트 PDF',
+    '• IR자료 및 증권사 리포트',
     '',
     '📌 종목 채팅방',
     '• 해당 종목 공시 전체',
     '• 해당 종목 뉴스',
-    '• 시세 알림 (5%↑ / 15%↑)',
+    '• 시세 알림',
     '• IR자료 및 증권사 리포트',
     '',
   ].join('\n');
