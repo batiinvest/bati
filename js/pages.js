@@ -141,17 +141,28 @@ function _renderRoomRow(r) {
 // ── 필터 적용 후 목록만 업데이트 (draw() 전체 재렌더링 없음 → IME 버그 해결) ──
 function _filterAndRenderRooms() {
   const q = A.q.trim().toLowerCase();
-  const filtered = A.rooms.filter(r => {
+  let filtered = A.rooms.filter(r => {
     const cOk = A.cat === 'all' || r.cat === A.cat;
     const sOk = A.status === 'all' || r.status === A.status;
     const qOk = !q || r.name.toLowerCase().includes(q) || (r.keywords||'').toLowerCase().includes(q);
     return cOk && sOk && qOk;
   });
 
+  // 멤버 수 정렬
+  if (A.sortBy === 'members') {
+    filtered = [...filtered].sort((a, b) =>
+      A.sortDir === 'asc' ? (a.members||0) - (b.members||0) : (b.members||0) - (a.members||0)
+    );
+  }
+
   const tbody = document.getElementById('room-tbody');
   const count = document.getElementById('room-count');
   if (tbody) tbody.innerHTML = filtered.map(_renderRoomRow).join('');
   if (count) count.textContent = `${filtered.length}개`;
+
+  // 멤버 수 컬럼 헤더 정렬 아이콘 업데이트
+  const th = document.getElementById('th-members');
+  if (th) th.textContent = '멤버 수 ' + (A.sortBy === 'members' ? (A.sortDir === 'asc' ? '▲' : '▼') : '↕');
 
   // 칩 active 상태 업데이트
   document.querySelectorAll('[data-status]').forEach(b =>
@@ -186,7 +197,7 @@ function pRooms() {
   </div>
   <div style="font-size:12px;color:var(--text3);margin-bottom:.75rem" id="room-count">${filtered.length}개</div>
   <div class="card"><div class="table-wrap"><table>
-    <thead><tr><th>채팅방</th><th>산업</th><th>멤버 수</th><th>상태</th><th>Chat ID</th><th>관리</th></tr></thead>
+    <thead><tr><th>채팅방</th><th>산업</th><th id="th-members" onclick="A.sortBy='members';A.sortDir=(A.sortDir==='desc'?'asc':'desc');_filterAndRenderRooms()" style="cursor:pointer;user-select:none">멤버 수 ↕</th><th>상태</th><th>Chat ID</th><th>관리</th></tr></thead>
     <tbody id="room-tbody">${filtered.map(_renderRoomRow).join('')}</tbody>
   </table></div></div>`;
 }
