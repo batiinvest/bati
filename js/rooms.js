@@ -215,7 +215,7 @@ function autoGenIntro(forceNew = false) {
     '①승인: 신청 후 1~2일 내 순차 승인 (정원 초과 시 대기 발생)',
     '②퇴장: 3일 이상 미접속(미활동), 광고/욕설/비매너 행위 시 즉시 퇴장',
     `③우선입장: ${lnk('후원자', buymeUrl)} 는 대기없이 최우선 입장 안내`,
-    '④각 채팅방은 정원에 따라 비공개로 전환될 수 있습니다.',
+    '④각 채팅방은 정원에 따라 비공개로 전환될 수 있음',
     '',
     '📬 문의: @BatiInvestment',
     '',
@@ -322,7 +322,7 @@ function autoGenIntro(forceNew = false) {
 
   // 메시지 1: 소개·규정·채널 안내 / 메시지 2: 산업별 채팅방 목록
   const msg1 = (header + mainSection + archiveSection + channelGuide).trim();
-  const msg2Header = '📋 산업별 채팅방 목록\n\n';
+  const msg2Header = '📋 산업별 채팅방 목록\n';
   const msg2 = (msg2Header + indSections).trim();
   const text = msg1 + '\n---\n' + msg2;
 
