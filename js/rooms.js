@@ -181,19 +181,7 @@ function clearNoticeContent() {
 }
 
 // ── 소개 글 전체 포맷 생성 (원본 소개 글 포맷) ──────────────────────────────
-function autoGenIntro(forceNew = false) {
-  // 저장된 수정본이 있으면 먼저 불러오기
-  const draft = localStorage.getItem('bati-intro-draft');
-  if (!forceNew && draft) {
-    const ta = document.getElementById('i-content');
-    if (ta) {
-      ta.value = draft;
-      if (typeof prev === 'function') prev(draft, 'i-prev');
-      toast(`마지막 수정본 불러옴 ✨ (${draft.length}자) — 새로 생성하려면 🔄 버튼 클릭`, 'info');
-    }
-    return;
-  }
-
+function autoGenIntro() {
   const parseMode = document.getElementById('i-parse-mode')?.value || 'HTML';
   const isHTML    = parseMode === 'HTML';
 
