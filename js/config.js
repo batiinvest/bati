@@ -67,7 +67,7 @@ const A = {
   rooms: [],
   config: {},     // app_config rows: { key: value }
   page: 'overview',
-  cat: 'all', status: 'all', q: '',
+  cat: 'all', status: 'all', q: '', sortBy: 'members', sortDir: 'desc',
   room: null,
 };
 
