@@ -209,12 +209,21 @@ function autoGenIntro(forceNew = false) {
     '안녕하세요, 바티입니다.',
     '',
     '바티인베스트는 건전한 투자 토론과 정보 공유를 위한 커뮤니티입니다.',
+    '공시, 뉴스, 시황, IR 자료, 증권사 리포트를 함께 공유하며',
+    '광고 없는 클린한 투자 커뮤니티를 지향합니다.',
     '',
     '✅ 입장 및 운영 안내',
-    '① 승인: 신청 후 1~2일 내 순차 승인됩니다. 정원 여유가 있는 채팅방에 한해 입장 가능합니다.',
-    `② 정원이 마감된 채팅방은 ${lnk('유료 입장 신청', buymeUrl)}을 통해 입장 가능합니다.`,
+    '① 일반 입장: 각 채팅방은 정원 여유가 있는 경우 무료 입장이 가능하며, 신청 후 1~2일 내 순차 승인됩니다.',
+    '② 유료 입장: 각 채팅방은 일반 입장 정원이 마감된 이후부터 유료 입장 방식으로 전환됩니다.',
     '③ 퇴장: 3일 이상 미접속(미활동), 광고·욕설·비매너 행위 시 즉시 퇴장될 수 있습니다.',
     '④ 비공개 전환: 각 채팅방은 정원 및 운영 상황에 따라 비공개로 전환될 수 있습니다.',
+    '',
+    '📌 유의사항',
+    '본 커뮤니티에서 제공되는 공시, 뉴스, 시황, 리포트, IR 자료는 투자 참고용 정보입니다.',
+    '특정 종목의 매수·매도 추천, 수익 보장, 손실 보전, 1:1 투자자문은 제공하지 않습니다.',
+    '모든 투자 판단과 책임은 투자자 본인에게 있습니다.',
+    '',
+    '📬 문의: @BatiInvestment',
     '',
   ].join('\n');
 
@@ -223,7 +232,7 @@ function autoGenIntro(forceNew = false) {
   const mainSection = [
     '',
     `📊 ${lnk('바티인베스트', mainRoom?.link || 'https://t.me/BatiInvestChat')}`,
-    '• 미국/국내 시황 요약 (매일 아침)',
+    '• 미국·국내 시황 요약 (매일 아침)',
     '• 마감 시황 · 산업별 등락률 순위 (장 마감 후)',
     '• 52주 신고가 (장 마감 후)',
     '',
@@ -237,7 +246,7 @@ function autoGenIntro(forceNew = false) {
   const archiveSection = [
     '',
     `📁 ${lnk('바티아카이브', archiveRoom?.link || 'https://t.me/batiarchive')} (자료실)`,
-    '• IR자료 및 증권사 리포트 (산업분석·기업분석)',
+    '• IR 자료 및 증권사 리포트 (산업분석·기업분석)',
     '',
   ].join('\n');
 
@@ -246,12 +255,12 @@ function autoGenIntro(forceNew = false) {
     '',
     '🏭 산업 채팅방',
     '• 섹터별 주요 공시·뉴스 실시간 제공',
-    '• IR자료 및 증권사 리포트',
+    '• IR 자료 및 증권사 리포트',
     '',
     '📌 종목 채팅방',
     '• 공시 및 뉴스 실시간 제공',
     '• 시세 알림',
-    '• IR자료 및 증권사 리포트',
+    '• IR 자료 및 증권사 리포트',
     '',
   ].join('\n');
 
@@ -301,13 +310,13 @@ function autoGenIntro(forceNew = false) {
     lines.push('···········');
 
     if (full.length) {
-      lines.push('[🔴정원 마감]');
+      lines.push('[🔒 유료 입장 대상]');
       chunkLine(full).forEach(row =>
         lines.push(row.map(r => lnk(r.name, r.link)).join('   '))
       );
     }
     if (open.length) {
-      lines.push('[🟢입장 가능]');
+      lines.push('[🟢 일반 입장 가능]');
       chunkLine(open).forEach(row =>
         lines.push(row.map(r => lnk(r.name, r.link)).join('   '))
       );
