@@ -227,8 +227,8 @@ function autoGenIntro(forceNew = false) {
     '',
     `📊 ${lnk('바티인베스트', mainRoom?.link || 'https://t.me/BatiInvestChat')}`,
     '• 미국/국내 시황 요약 (매일 아침)',
-    '• 52주 신고가 (장 마감 후)',
-    '• 주도주 Top 50 (매일 장 마감 후)',
+    '• 마감 시황 · 산업별 등락률 순위 (장 마감 후)',
+    '• 증권사 리포트 · 52주 신고가 (장 마감 후)',
     '',
   ].join('\n');
 
