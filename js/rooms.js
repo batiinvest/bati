@@ -118,7 +118,7 @@ async function doNotice(content, target, btnId, progId) {
   }
 
   // --- 구분자가 있으면 그것만 사용, 없으면 4096자 기준 자동 분할
-  const manualParts = content.split(/\n---\n/).map(s => s.trim()).filter(Boolean);
+  const manualParts = content.split(/\r?\n---\r?\n/).map(s => s.trim()).filter(Boolean);
   const parts = manualParts.length > 1 ? manualParts : splitMessage(content);
   const splitInfo = parts.length > 1 ? ` (${parts.length}개 메시지로 발송)` : '';
   if (!confirm(`${targets.length}개 채팅방에 발송?${splitInfo}\n형식: ${parseMode}`)) return;
