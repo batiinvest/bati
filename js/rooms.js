@@ -313,7 +313,7 @@ function autoGenIntro() {
 
   // 메시지 1: 소개·규정·채널 안내 / 메시지 2: 산업별 채팅방 목록
   const msg1 = (header + mainSection + archiveSection + channelGuide).trim();
-  const msg2Header = '📋 산업별 채팅방 목록\n';
+  const msg2Header = '📋 산업별 채팅방 목록\n\n';
   const msg2 = (msg2Header + indSections).trim();
   const text = msg1 + '\n---\n' + msg2;
 
