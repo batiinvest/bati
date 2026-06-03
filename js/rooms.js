@@ -282,9 +282,10 @@ function autoGenIntro(forceNew = false) {
   const grouped = {};
   A.rooms.filter(r => r.room_type !== 'industry').forEach(r => {
     const cat = r.cat || '기타';
-    if (!grouped[cat]) grouped[cat] = { full: [], open: [] };
-    const isFull = r.status === 'paid' || r.status === 'full' || (r.members || 0) >= (r.max_members || 1000);
-    grouped[cat][isFull ? 'full' : 'open'].push(r);
+    if (!grouped[cat]) grouped[cat] = { paid: [], full: [], open: [] };
+    if (r.status === 'paid') grouped[cat].paid.push(r);
+    else if (r.status === 'full' || (r.members || 0) >= (r.max_members || 1000)) grouped[cat].full.push(r);
+    else grouped[cat].open.push(r);
   });
 
   // 산업 순서 (고정 순서 우선, 나머지는 종목 수 내림차순)
@@ -305,6 +306,7 @@ function autoGenIntro(forceNew = false) {
     const emoji  = IND_EMOJI[cat] || '📌';
     const indR   = indRooms[cat];
     const cap    = indR?.max_members ?? 1000;
+    const paid   = (grouped[cat]?.paid  || []).sort((a,b) => a.name.localeCompare(b.name,'ko'));
     const full   = (grouped[cat]?.full  || []).sort((a,b) => a.name.localeCompare(b.name,'ko'));
     const open   = (grouped[cat]?.open  || []).sort((a,b) => a.name.localeCompare(b.name,'ko'));
     const lines  = ['', `${emoji} ${b(cat)} 종목 채팅방 (정원: ${cap.toLocaleString()}명)`];
@@ -312,8 +314,14 @@ function autoGenIntro(forceNew = false) {
     if (indR?.link) lines.push(` ➤ ${lnk(cat + ' 산업 채팅방 바로가기', indR.link)}`);
     lines.push('···········');
 
-    if (full.length) {
+    if (paid.length) {
       lines.push('[🔒 유료 입장 대상]');
+      chunkLine(paid).forEach(row =>
+        lines.push(row.map(r => lnk(r.name, r.link)).join('   '))
+      );
+    }
+    if (full.length) {
+      lines.push('[🔴 정원 마감]');
       chunkLine(full).forEach(row =>
         lines.push(row.map(r => lnk(r.name, r.link)).join('   '))
       );
