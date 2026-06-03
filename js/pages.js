@@ -268,16 +268,6 @@ function pNotice() {
 }
 
 async function loadNotices() {
-  // 저장된 수정본 있으면 자동으로 textarea에 불러오기
-  const draft = localStorage.getItem('bati-intro-draft');
-  if (draft) {
-    const ta = document.getElementById('i-content');
-    if (ta && !ta.value) {
-      ta.value = draft;
-      if (typeof prev === 'function') prev(draft, 'i-prev');
-    }
-  }
-
   const el = document.getElementById('notice-list'); if (!el) return;
   const { data, error } = await DB('notice_history').select('*').order('created_at',{ascending:false}).limit(30);
   if (error) { el.innerHTML=`<div style="padding:1rem;color:var(--red);font-size:13px">${error.message}</div>`; return; }
