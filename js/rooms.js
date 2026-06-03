@@ -1,4 +1,11 @@
 // rooms.js — 채팅방 CRUD, 공지 발송, 팀원 관리
+
+// 산업별 이모지 — autoGenIntro / autoGenNotice 공용
+const IND_EMOJI_MAP = {
+  '바이오':'💊','뷰티':'💄','로봇':'🤖','2차전지':'🔋',
+  '신재생':'☀️','소비재':'👗','테크':'💻','반도체':'💾',
+  '엔터':'🎤','조선':'🚢','우주':'🚀',
+};
 async function addRoom() {
   if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
   const name = document.getElementById('a-name').value.trim();
@@ -67,10 +74,8 @@ async function saveEdit(id) {
   if (error) { toast('수정 실패: ' + error.message, 'error'); return; }
   Object.assign(A.rooms.find(x => x.id === id), p);
   toast('수정 완료 — 봇에 반영 중...', 'success'); dtab('info', null);
-  // 채팅방 ID 변경이 봇에 즉시 반영되도록 자동 재로드
   try {
-    await sb.from('app_config')
-      .upsert({ key: 'reload_flag', value: String(Date.now()) }, { onConflict: 'key' });
+    await triggerBotReload();
     toast('✓ 봇 재로드 완료 — 1분 내 반영됩니다', 'success');
   } catch(e) {
     toast('봇 재로드 실패 — 수동으로 재로드 버튼을 눌러주세요', 'error');
@@ -271,11 +276,7 @@ function autoGenIntro(forceNew = false) {
   ].join('\n');
 
   // ── 산업별 섹션 ─────────────────────────────────────────────────────────
-  const IND_EMOJI = {
-    '바이오':'💊','뷰티':'💄','로봇':'🤖','2차전지':'🔋',
-    '신재생':'☀️','소비재':'👗','테크':'💻','반도체':'💾',
-    '엔터':'🎤','조선':'🚢','우주':'🚀',
-  };
+  const IND_EMOJI = IND_EMOJI_MAP;
 
   // 산업 채팅방 맵
   const indRooms = {};
@@ -377,11 +378,7 @@ function autoGenNotice() {
     grouped[r.cat][isFull ? 'full' : 'open'].push(r);
   });
 
-  const INDUSTRY_EMOJI = {
-    '바이오':'💊','반도체':'🔬','2차전지':'🔋','로봇':'🤖',
-    '조선':'🚢','우주':'🚀','신재생':'☀️','테크':'💻',
-    '엔터':'🎵','뷰티':'💄','소비재':'🛒',
-  };
+  const INDUSTRY_EMOJI = IND_EMOJI_MAP;
 
   const link = (r) => {
     if (!r.link) return r.name;

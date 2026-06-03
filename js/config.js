@@ -232,15 +232,20 @@ async function getLatestMarketDate() {
 // ══════════════════════════════════════════
 //  봇 재로드 요청 — stocks.js / bots.js 공용
 // ══════════════════════════════════════════
+// 봇 재로드 플래그 upsert — saveEdit, monApply 등 버튼 없는 호출에서도 사용
+async function triggerBotReload() {
+  const { error } = await sb.from('app_config')
+    .upsert({ key: 'reload_flag', value: String(Date.now()) }, { onConflict: 'key' });
+  if (error) throw error;
+}
+
 async function requestBotReload(btnId = 'reload-btn') {
   if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
   const btn = document.getElementById(btnId);
   const origHTML = btn?.innerHTML;
   if (btn) { btn.disabled = true; btn.textContent = '전송 중...'; }
   try {
-    const { error } = await sb.from('app_config')
-      .upsert({ key: 'reload_flag', value: String(Date.now()) }, { onConflict: 'key' });
-    if (error) throw error;
+    await triggerBotReload();
     toast('✓ 재로드 요청 전송 완료 — 봇이 1분 내 반영합니다', 'success');
   } catch(e) {
     toast('전송 실패: ' + e.message, 'error');

@@ -127,7 +127,12 @@ sb.auth.onAuthStateChange((event, session) => {
 // 페이지 로드 시 실행
 
 async function loadProfile() {
-  const { data } = await DB('app_users').select('*').eq('id', A.user.id).single();
+  const { data, error } = await DB('app_users').select('*').eq('id', A.user.id).single();
+  if (error) {
+    console.error('[loadProfile] 실패:', error.message);
+    toast('프로필 로드 실패 — 권한이 제한됩니다.', 'error');
+    return;
+  }
   A.profile = data;
 }
 
@@ -138,7 +143,12 @@ async function loadConfig() {
 
 async function loadRooms() {
   const { data, error } = await DB('rooms').select('*').order('cat').order('name');
-  if (!error) A.rooms = data;
+  if (error) {
+    console.error('[loadRooms] 실패:', error.message);
+    toast('채팅방 목록 로드 실패 — 새로고침 해주세요.', 'error');
+    return;
+  }
+  A.rooms = data || [];
 }
 
 function showDashboard() {
