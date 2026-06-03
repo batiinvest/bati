@@ -251,8 +251,9 @@ function pNotice() {
         <button class="btn btn-sm" onclick="autoGenIntro()" style="background:rgba(42,171,238,.12);border-color:rgba(42,171,238,.3);color:var(--tg)">
           📋 소개 글 생성
         </button>
-<button class="btn btn-sm" onclick="clearNoticeContent()">🗑 지우기</button>
-        <span style="font-size:10px;color:var(--text3);align-self:center"><code>---</code> 줄을 기준으로 메시지가 분할 발송됩니다</span>
+        <button class="btn btn-sm" onclick="autoGenIntro(true)" title="수정본 무시하고 채팅방 데이터로 새로 생성">🔄 새로 생성</button>
+        <button class="btn btn-sm" onclick="clearNoticeContent()">🗑 지우기</button>
+        <span style="font-size:10px;color:var(--text3);align-self:center"><code>---</code> 줄 기준으로 분할 발송</span>
       </div>
       <textarea class="form-input" id="i-content" rows="20" style="font-size:12px;font-family:monospace"
         placeholder="직접 입력하거나 소개 글 생성 버튼을 누르세요"
