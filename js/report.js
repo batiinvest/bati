@@ -100,22 +100,23 @@ async function rpSearchInput(q) {
   if (!q || q.length < 1) { dd.style.display = 'none'; return; }
 
   _rpSearchTimer = setTimeout(async () => {
-    const { data } = await sb.from('monitored_stocks')
-      .select('stock_code,corp_name,market')
-      .or(`corp_name.ilike.%${q}%,stock_code.ilike.%${q}%`)
+    const { data } = await sb.from('companies')
+      .select('code,name,industry')
+      .or(`name.ilike.%${q}%,code.ilike.%${q}%`)
+      .order('name')
       .limit(10);
 
     if (!data?.length) { dd.style.display = 'none'; return; }
 
     dd.innerHTML = data.map(r => `
-      <div onclick="rpSelectStock('${r.stock_code}','${r.corp_name}')"
+      <div onclick="rpSelectStock('${r.code}','${r.name}')"
         style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);
           display:flex;align-items:center;gap:8px"
         onmouseover="this.style.background='var(--bg3)'"
         onmouseout="this.style.background=''">
-        <span style="font-size:13px;font-weight:500">${r.corp_name}</span>
-        <span style="font-size:11px;color:var(--text3)">${r.stock_code}</span>
-        <span style="font-size:10px;color:var(--text3);margin-left:auto">${r.market||''}</span>
+        <span style="font-size:13px;font-weight:500">${r.name}</span>
+        <span style="font-size:11px;color:var(--text3)">${r.code}</span>
+        <span style="font-size:10px;color:var(--text3);margin-left:auto">${r.industry||''}</span>
       </div>`).join('');
     dd.style.display = 'block';
   }, 200);
@@ -135,12 +136,12 @@ async function rpLoadReport() {
   const inp = document.getElementById('rp-search');
   if (!_rpStock && inp?.value?.trim()) {
     const q = inp.value.trim();
-    const { data } = await sb.from('monitored_stocks')
-      .select('stock_code,corp_name,market')
-      .or(`corp_name.ilike.%${q}%,stock_code.ilike.%${q}%`)
+    const { data } = await sb.from('companies')
+      .select('code,name')
+      .or(`name.ilike.%${q}%,code.ilike.%${q}%`)
       .limit(1)
       .maybeSingle();
-    if (data) _rpStock = { code: data.stock_code, name: data.corp_name };
+    if (data) _rpStock = { code: data.code, name: data.name };
   }
   if (!_rpStock) { toast('종목을 선택해주세요.', 'warn'); return; }
 
