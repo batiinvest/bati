@@ -141,6 +141,7 @@ async function doNotice(content, target, btnId, progId) {
     await new Promise(r => setTimeout(r, 400));
   }
   await DB('notice_history').insert([{ target, content, sent_count: targets.length, ok_count: ok, sent_by: A.user.id }]);
+  localStorage.setItem('bati-intro-draft', content);
   prog.innerHTML = `✓ ${ok}/${targets.length} 완료${splitInfo} — DB 저장됨`;
   btn.disabled = false;
   toast(`발송 완료: ${ok}/${targets.length}${splitInfo}`, 'success');
@@ -178,7 +179,19 @@ function clearNoticeContent() {
 }
 
 // ── 소개 글 전체 포맷 생성 (원본 소개 글 포맷) ──────────────────────────────
-function autoGenIntro() {
+function autoGenIntro(forceNew = false) {
+  // 저장된 수정본이 있으면 먼저 불러오기
+  const draft = localStorage.getItem('bati-intro-draft');
+  if (!forceNew && draft) {
+    const ta = document.getElementById('i-content');
+    if (ta) {
+      ta.value = draft;
+      if (typeof prev === 'function') prev(draft, 'i-prev');
+      toast(`마지막 수정본 불러옴 ✨ (${draft.length}자) — 새로 생성하려면 🔄 버튼 클릭`, 'info');
+    }
+    return;
+  }
+
   const parseMode = document.getElementById('i-parse-mode')?.value || 'HTML';
   const isHTML    = parseMode === 'HTML';
 
