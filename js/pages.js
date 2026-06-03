@@ -173,11 +173,16 @@ function _filterAndRenderRooms() {
 
 function pRooms() {
   const cats = [...new Set(A.rooms.map(r => r.cat))].sort();
-  const filtered = A.rooms.filter(r => {
-    const q = A.q.trim().toLowerCase();
-    return (A.cat==='all'||r.cat===A.cat) && (A.status==='all'||r.status===A.status) &&
-           (!q || r.name.toLowerCase().includes(q) || (r.keywords||'').toLowerCase().includes(q));
-  });
+  const q = A.q.trim().toLowerCase();
+  let filtered = A.rooms.filter(r =>
+    (A.cat==='all'||r.cat===A.cat) && (A.status==='all'||r.status===A.status) &&
+    (!q || r.name.toLowerCase().includes(q) || (r.keywords||'').toLowerCase().includes(q))
+  );
+  if (A.sortBy === 'members') {
+    filtered = [...filtered].sort((a, b) =>
+      A.sortDir === 'asc' ? (a.members||0) - (b.members||0) : (b.members||0) - (a.members||0)
+    );
+  }
   return `
   <div class="filter-bar">
     <input class="search-box" id="room-search-input" placeholder="이름·키워드 검색..." value="${A.q}">

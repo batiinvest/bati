@@ -33,7 +33,9 @@ async function toggleStatus(id) {
   const s = next[r.status] || 'open';
   const { error } = await DB('rooms').update({ status: s }).eq('id', id);
   if (error) { toast(`저장 실패: ${error.message}`, 'error'); return; }
-  r.status = s; draw(); toast(`${r.name} → ${label[s]}`, 'info');
+  r.status = s;
+  if (typeof _filterAndRenderRooms === 'function') _filterAndRenderRooms(); else draw();
+  toast(`${r.name} → ${label[s]}`, 'info');
 }
 
 async function deleteRoom(id) {
