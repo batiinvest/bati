@@ -8,7 +8,7 @@
  * onLoad: draw() 후 추가로 실행할 초기화 함수명 (문자열 or null)
  */
 const PAGE_META = {
-  overview:   { title: '채팅방 현황',   fn: 'pOverview',    onLoad: null },
+  overview:   { title: '채널 대시보드', fn: 'pOverview',    onLoad: null },
   rooms:      { title: '채팅방 관리',   fn: 'pRooms',       onLoad: null },
   notice:     { title: '공지 발송',     fn: 'pNotice',      onLoad: 'loadNotices' },
   logs:       { title: '동기화 로그',   fn: 'pLogs',        onLoad: 'loadLogs' },

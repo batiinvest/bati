@@ -166,6 +166,7 @@ function showDashboard() {
   if (!isAdmin()) {
     document.getElementById('nav-settings').classList.add('disabled');
     document.getElementById('nav-team').classList.add('disabled');
+    document.getElementById('nav-botconfig').classList.add('disabled');
   }
   // viewer는 오늘의 시황 외 모든 메뉴 잠금
   if (isViewer()) {
