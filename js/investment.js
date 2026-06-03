@@ -246,7 +246,7 @@ function pInvestment() {
         <span class="card-title">${_ICO.flow}기관/외국인 수급</span>
         <span style="font-size:11px;color:var(--text3)">장중 집계 기준 (09:35·11:25·13:25·14:35)</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--border)">
+      <div class="flow-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--border)">
         <div>
           <div style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--text2);background:var(--bg2);border-bottom:1px solid var(--border)">
             ${_ICO.shuffle}동시매수 <span style="font-size:10px;color:var(--text3);font-weight:400">외국인+기관</span>
