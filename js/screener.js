@@ -30,7 +30,10 @@ function pScreener() {
         </div>
         <div style="border-top:1px solid var(--border);padding-top:.75rem">
           <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:.75rem">밸류에이션</div>
-          ${[['sc-per-min','sc-per-max','PER'],['sc-pbr-min','sc-pbr-max','PBR']].map(([a,b,l])=>`
+          ${[
+            ['sc-per-min','sc-per-max','PER','저평가 기준: 0~15'],
+            ['sc-pbr-min','sc-pbr-max','PBR','순자산 대비: 0~1 저평가'],
+          ].map(([a,b,l,hint])=>`
             <div style="margin-bottom:.75rem">
               <div style="font-size:12px;color:var(--text2);margin-bottom:4px">${l}</div>
               <div style="display:flex;gap:6px;align-items:center">
@@ -38,11 +41,16 @@ function pScreener() {
                 <span style="color:var(--text3);font-size:12px">~</span>
                 <input type="number" class="form-input" id="${b}" placeholder="최대" style="width:70px;padding:4px 8px;font-size:12px">
               </div>
+              <div class="form-hint">${hint}</div>
             </div>`).join('')}
         </div>
         <div style="border-top:1px solid var(--border);padding-top:.75rem">
           <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:.75rem">수익성</div>
-          ${[['sc-margin-min','sc-margin-max','영업이익률(%)'],['sc-roe-min','sc-roe-max','ROE(%)'],['sc-roa-min','sc-roa-max','ROA(%)']].map(([a,b,l])=>`
+          ${[
+            ['sc-margin-min','sc-margin-max','영업이익률(%)','우량: 10% 이상'],
+            ['sc-roe-min','sc-roe-max','ROE(%)','우량: 15% 이상'],
+            ['sc-roa-min','sc-roa-max','ROA(%)','우량: 5% 이상'],
+          ].map(([a,b,l,hint])=>`
             <div style="margin-bottom:.75rem">
               <div style="font-size:12px;color:var(--text2);margin-bottom:4px">${l}</div>
               <div style="display:flex;gap:6px;align-items:center">
@@ -50,11 +58,15 @@ function pScreener() {
                 <span style="color:var(--text3);font-size:12px">~</span>
                 <input type="number" class="form-input" id="${b}" placeholder="최대" style="width:70px;padding:4px 8px;font-size:12px">
               </div>
+              <div class="form-hint">${hint}</div>
             </div>`).join('')}
         </div>
         <div style="border-top:1px solid var(--border);padding-top:.75rem">
           <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:.75rem">재무건전성</div>
-          ${[['sc-debt-min','sc-debt-max','부채비율(%)'],['sc-cr-min','sc-cr-max','유동비율(%)']].map(([a,b,l])=>`
+          ${[
+            ['sc-debt-min','sc-debt-max','부채비율(%)','안정: 100% 이하'],
+            ['sc-cr-min','sc-cr-max','유동비율(%)','안정: 150% 이상'],
+          ].map(([a,b,l,hint])=>`
             <div style="margin-bottom:.75rem">
               <div style="font-size:12px;color:var(--text2);margin-bottom:4px">${l}</div>
               <div style="display:flex;gap:6px;align-items:center">
@@ -62,6 +74,7 @@ function pScreener() {
                 <span style="color:var(--text3);font-size:12px">~</span>
                 <input type="number" class="form-input" id="${b}" placeholder="최대" style="width:70px;padding:4px 8px;font-size:12px">
               </div>
+              <div class="form-hint">${hint}</div>
             </div>`).join('')}
         </div>
         <div style="border-top:1px solid var(--border);padding-top:.75rem">
