@@ -159,7 +159,7 @@ async function rpLoadReport() {
 
   // 병렬 데이터 로드
   try {
-    const [priceRes, finRes, watchRes, dartRes, analystRes] = await Promise.all([
+    const [priceRes, finRes, watchRes, dartRes, analystRes, segRes] = await Promise.all([
       sb.from('market_data').select('price,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low,per,pbr')
         .eq('stock_code', _rpStock.code).order('base_date', { ascending: false }).limit(60),
       sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,debt_ratio,roe,roa,operating_margin,net_margin')
@@ -171,6 +171,10 @@ async function rpLoadReport() {
       sb.from('analyst_opinions').select('firm_name,opinion,target_price,gap_rate,opinion_date')
         .eq('stock_code', _rpStock.code).in('opinion_code',['1','2'])
         .order('opinion_date', { ascending: false }).limit(6),
+      sb.from('dart_segment_revenue')
+        .select('bsns_year,quarter,segment_type,category,revenue,revenue_ratio')
+        .eq('stock_code', _rpStock.code).eq('segment_type','product')
+        .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
     ]);
 
     _rpData = {
@@ -179,6 +183,7 @@ async function rpLoadReport() {
       watch:    watchRes.data   || null,
       dart:     dartRes.data    || null,
       analyst:  analystRes.data || [],
+      segment:  segRes.data     || [],
     };
     rpRenderReport();
   } catch (e) {
@@ -345,8 +350,11 @@ function rpRenderReport() {
     </div>
   </div>
 
-  <!-- ③ 실적 트렌드 (전체 너비) ─────────────────────────────────── -->
-  ${_rpEarningsCard(_rpData.fin)}
+  <!-- ③ 실적 트렌드 (좌: 전체, 우: 제품별) ──────────────────────── -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    ${_rpEarningsCard(_rpData.fin)}
+    ${_rpSegmentCard(_rpData.segment)}
+  </div>
 
   <!-- ④ 밸류에이션 + 재무 건전성 (같은 행) ──────────────────────── -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -571,6 +579,119 @@ function _rpSignal(type, val) {
     weak:   { color:'#ef4444', bg:'#ef444418', icon:'●', label:'주의' },
   };
   return { ...map[grade], grade };
+}
+
+// ── 제품/사업부별 매출 트렌드 카드 ────────────────────────────────────────────
+function _rpSegmentCard(rows) {
+  if (!rows?.length) return `
+    <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:14px;font-weight:700;color:var(--text1)">📦 제품·사업부별 매출</div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;
+        color:var(--text2);font-size:12px;padding:20px;text-align:center">
+        DART 파일을 업로드하면<br>제품별 매출 데이터가 표시됩니다
+      </div>
+    </div>`;
+
+  // 기간 목록 (순서 유지, 최대 6개)
+  const periodSet = [];
+  const seen = new Set();
+  for (const r of rows) {
+    const key = `${r.bsns_year}.${r.quarter}`;
+    if (!seen.has(key)) { seen.add(key); periodSet.push({ key, bsns_year: r.bsns_year, quarter: r.quarter }); }
+  }
+  const periods = periodSet.slice(-6);
+
+  // 세그먼트 목록 (합계 제외)
+  const segNames = [...new Set(rows.filter(r => r.category !== '합계').map(r => r.category))];
+
+  // 팔레트
+  const COLORS = ['#2AABEE','#4ade80','#f59e0b','#f87171','#a78bfa','#34d399','#fb923c','#60a5fa'];
+
+  // 기간별 세그먼트 데이터 맵
+  const dataMap = {};
+  for (const r of rows) {
+    const key = `${r.bsns_year}.${r.quarter}`;
+    if (!dataMap[key]) dataMap[key] = {};
+    dataMap[key][r.category] = { revenue: r.revenue, ratio: r.revenue_ratio };
+  }
+
+  // 최신 기간 비율 (파이 차트 대용 바)
+  const latestKey = periods[periods.length - 1]?.key;
+  const latestData = latestKey ? dataMap[latestKey] : {};
+  const latestTotal = Object.values(latestData).reduce((s, v) => s + (v.revenue || 0), 0);
+
+  // 추이 차트: 세그먼트별 꺾은선 대신 누적 바
+  const CHART_H = 90;
+  const periodTotals = periods.map(p => {
+    const d = dataMap[p.key] || {};
+    return segNames.reduce((s, n) => s + (d[n]?.revenue || 0), 0);
+  });
+  const maxTotal = Math.max(...periodTotals, 1);
+
+  return `<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">
+    <div style="font-size:14px;font-weight:700;color:var(--text1)">📦 제품·사업부별 매출</div>
+
+    <!-- 누적 바 차트 -->
+    <div>
+      <div style="display:flex;align-items:flex-end;gap:5px;height:${CHART_H}px">
+        ${periods.map((p, pi) => {
+          const d = dataMap[p.key] || {};
+          const total = periodTotals[pi];
+          const barH = maxTotal > 0 ? Math.max(4, Math.round(total / maxTotal * CHART_H)) : 4;
+          // 누적 세그먼트 조각
+          const segs = segNames.map((name, si) => {
+            const rev = d[name]?.revenue || 0;
+            const ratio = total > 0 ? (rev / total * 100) : 0;
+            return { name, rev, ratio, color: COLORS[si % COLORS.length] };
+          }).filter(s => s.rev > 0);
+          return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;height:${CHART_H}px">
+            <!-- 총액 라벨 -->
+            <div style="font-size:9px;font-weight:600;color:var(--text2);text-align:center;margin-bottom:2px;
+              white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmtCap(total*1e6)}</div>
+            <!-- 누적 바 -->
+            <div style="height:${barH}px;border-radius:3px 3px 0 0;overflow:hidden;display:flex;flex-direction:column-reverse">
+              ${segs.map(s => `<div style="flex:${s.ratio};background:${s.color};min-height:2px"
+                title="${s.name} ${fmtCap(s.rev*1e6)} (${s.ratio.toFixed(1)}%)"></div>`).join('')}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      <!-- 기간 라벨 -->
+      <div style="display:flex;gap:5px;margin-top:5px">
+        ${periods.map(p => `
+          <div style="flex:1;min-width:0;text-align:center">
+            <div style="font-size:10px;font-weight:600;color:var(--text2)">${p.bsns_year}</div>
+            <div style="font-size:10px;color:var(--text2)">${p.quarter}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- 최신 분기 세그먼트 비율 -->
+    <div style="border-top:1px solid var(--border);padding-top:10px">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:7px">
+        최신 (${latestKey?.replace('.',' ')}) 구성
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        ${segNames.filter(n => latestData[n]?.revenue).map((name, si) => {
+          const { revenue, ratio } = latestData[name] || {};
+          const pct = ratio ?? (latestTotal > 0 ? revenue / latestTotal * 100 : 0);
+          const color = COLORS[si % COLORS.length];
+          return `<div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+              <span style="font-size:12px;color:var(--text1);font-weight:500">${name}</span>
+              <div style="display:flex;gap:8px;align-items:center">
+                <span style="font-size:11px;color:var(--text2)">${fmtCap(revenue*1e6)}</span>
+                <span style="font-size:12px;font-weight:700;color:${color}">${pct.toFixed(1)}%</span>
+              </div>
+            </div>
+            <div style="height:4px;border-radius:2px;background:var(--bg3);overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;transition:width .4s"></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  </div>`;
 }
 
 function _rpValuationCard(latestF, latest) {
