@@ -310,7 +310,7 @@ async function loadMarketData(el) {
         if (!c || c === '00') return '—';
         return `<span style="color:var(--yellow)">${{'01':'주의','02':'경고','03':'위험예고'}[c]||c}</span>`;
       };
-      const buyClr = v => v > 0 ? 'var(--red)' : v < 0 ? 'var(--blue)' : 'var(--text3)';
+      const buyClr = v => v > 0 ? 'var(--green)' : v < 0 ? 'var(--red)' : 'var(--text3)';
       const buyFmt = v => v != null ? (v>0?'+':'')+v.toLocaleString() : '—';
       // 52주 프로그레스바
       const w52pct = (r.w52_high && r.w52_low && r.price && r.w52_high > r.w52_low)
@@ -438,11 +438,13 @@ async function loadFinancialData(el) {
       _sortBtn('fcf','FCF','C'),
     ],
     rowTemplate: r => {
-      const opC  = (r.operating_profit||0) > 0 ? 'var(--red)' : (r.operating_profit||0) < 0 ? 'var(--blue)' : '';
-      const niC  = (r.net_income||0)       > 0 ? 'var(--red)' : (r.net_income||0)       < 0 ? 'var(--blue)' : '';
-      const fcfC   = (r.fcf||0)              > 0 ? 'var(--red)' : (r.fcf||0)              < 0 ? 'var(--blue)' : '';
-      const ocfC   = (r.operating_cashflow||0)>0 ? 'var(--red)' : 'var(--blue)';
-      const ebitdaC= (r.ebitda||0)           > 0 ? 'var(--red)' : (r.ebitda||0)           < 0 ? 'var(--blue)' : '';
+      // 재무 손익 색상: 이익=초록, 손실=빨강 (주가 등락 색상과 구분)
+      const _finC = v => v > 0 ? 'var(--green)' : v < 0 ? 'var(--red)' : '';
+      const opC    = _finC(r.operating_profit||0);
+      const niC    = _finC(r.net_income||0);
+      const fcfC   = _finC(r.fcf||0);
+      const ocfC   = _finC(r.operating_cashflow||0);
+      const ebitdaC= _finC(r.ebitda||0);
       return `<tr>
         <td style="font-weight:500;cursor:pointer;color:var(--tg);white-space:nowrap"
           onclick="openStockDetail('${r.stock_code}','${r.corp_name}','financial')">${r.corp_name}</td>
@@ -759,7 +761,7 @@ async function _sdOverview(body, code, name) {
         <!-- 최근 실적 -->
         ${_sec(`최근 실적 (${latestFin.bsns_year||'—'} ${latestFin.quarter||'—'})`, `
           ${_row2('매출액', _cap(latestFin.revenue))}
-          ${_row2('영업이익', _cap(latestFin.operating_profit), (latestFin.operating_profit||0)>0?'var(--red)':'var(--blue)')}
+          ${_row2('영업이익', _cap(latestFin.operating_profit), (latestFin.operating_profit||0)>0?'var(--green)':(latestFin.operating_profit||0)<0?'var(--red)':'')}
           ${_row2('영업이익률', _pct(latestFin.operating_margin), (latestFin.operating_margin||0)>=10?'var(--green)':'var(--text1)')}
           ${_row2('순이익', _cap(latestFin.net_income), (latestFin.net_income||0)>0?'var(--red)':'var(--blue)')}
           ${_row2('FCF', _cap(latestFin.fcf), (latestFin.fcf||0)>0?'var(--green)':'var(--red)')}

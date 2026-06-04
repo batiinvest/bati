@@ -296,7 +296,7 @@ async function loadWatchlist() {
           <div style="background:var(--bg2);border-radius:8px;padding:8px 10px">
             <div style="font-size:10px;color:var(--text3);margin-bottom:2px">평균매수가</div>
             <div style="font-size:13px;font-weight:600">${w.avg_price.toLocaleString()}원 ${w.quantity?'× '+w.quantity.toLocaleString()+'주':''}</div>
-            ${evalRate != null ? `<div style="font-size:11px;color:${evalRate>0?'var(--green)':'var(--red)'}">${evalRate>0?'+':''}${evalRate.toFixed(2)}% ${evalProfit!=null?'('+fmtEok(evalProfit*100)+')':''}</div>` : ''}
+            ${evalRate != null ? `<div style="font-size:11px;color:${evalRate>0?'var(--green)':'var(--red)'}">${evalRate>0?'+':''}${evalRate.toFixed(2)}% ${evalProfit!=null?'('+fmtEok(evalProfit/1e8)+')':''}</div>` : ''}
           </div>` : ''}
           ${w.per ? `
           <div style="background:var(--bg2);border-radius:8px;padding:8px 10px">

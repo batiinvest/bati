@@ -736,10 +736,10 @@ function renderVolumeLeaders() {
     return;
   }
 
-  // 거래대금 계산 헬퍼
+  // 거래대금 — trading_value 컬럼 우선 사용, 없으면 volume × price 근사
   const withTV = allRows
-    .filter(r => r.volume && r.price && r.corp_name)
-    .map(r => ({ ...r, tv: (r.volume || 0) * (r.price || 0) }));
+    .filter(r => r.corp_name && (r.trading_value || (r.volume && r.price)))
+    .map(r => ({ ...r, tv: r.trading_value || (r.volume * r.price) }));
 
   const panels = [
     { label: '코스피', color: '#60a5fa', rows: withTV.filter(r => r.market === 'KOSPI') },

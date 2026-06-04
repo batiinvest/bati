@@ -155,10 +155,10 @@ async function rpLoadReport() {
   // 병렬 데이터 로드
   try {
     const [priceRes, finRes, watchRes] = await Promise.all([
-      sb.from('market_data').select('price,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate')
+      sb.from('market_data').select('price,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low')
         .eq('stock_code', _rpStock.code).order('base_date', { ascending: false }).limit(60),
-      sb.from('financials').select('period,revenue,operating_income,net_income,total_assets,total_equity,total_debt,per,pbr,roe,roa')
-        .eq('stock_code', _rpStock.code).order('period', { ascending: false }).limit(8),
+      sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,total_debt,per,pbr,roe,roa')
+        .eq('stock_code', _rpStock.code).order('bsns_year', { ascending: false }).order('quarter', { ascending: false }).limit(8),
       sb.from('watchlist').select('note,target_price,opinion,buy_price,created_at')
         .eq('stock_code', _rpStock.code).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
@@ -191,10 +191,9 @@ function rpRenderReport() {
   const chgColor = chg > 0 ? 'var(--red)' : chg < 0 ? 'var(--blue)' : 'var(--text3)';
   const chgStr   = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
 
-  // 52주 고/저
-  const recentPrices = prices.map(r => r.price).filter(Boolean);
-  const high52 = recentPrices.length ? Math.max(...recentPrices) : 0;
-  const low52  = recentPrices.length ? Math.min(...recentPrices) : 0;
+  // 52주 고/저 — DB w52_high/w52_low 컬럼 사용 (최신 기준)
+  const high52 = latest.w52_high || 0;
+  const low52  = latest.w52_low  || 0;
   const pos52  = high52 > low52 ? Math.round((price - low52) / (high52 - low52) * 100) : 50;
 
   // 목표주가 (투자노트에서)
@@ -399,18 +398,18 @@ function _rpEarningsCard(fin) {
 
   const items = [...fin].reverse().slice(-6);
   const maxRev = Math.max(...items.map(f => f.revenue || 0));
-  const maxOp  = Math.max(...items.map(f => Math.abs(f.operating_income || 0)));
+  const maxOp  = Math.max(...items.map(f => Math.abs(f.operating_profit || 0)));
 
   return `<div class="card" style="padding:16px">
     <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text2)">📊 실적 트렌드</div>
     <div style="display:flex;gap:3px;align-items:flex-end;height:80px;margin-bottom:8px">
       ${items.map(f => {
         const rev  = f.revenue || 0;
-        const op   = f.operating_income || 0;
+        const op   = f.operating_profit || 0;
         const revH = maxRev > 0 ? Math.round(rev / maxRev * 72) : 4;
         const opH  = maxOp  > 0 ? Math.round(Math.abs(op) / maxOp * 72) : 4;
         const opC  = op >= 0 ? 'var(--tg)' : 'var(--red)';
-        const period = (f.period || '').replace(/(\d{4})-?(\d{2})?/, '$1' + (f.period?.includes('Q') || f.period?.includes('q') ? '' : '연간'));
+        const period = f.bsns_year ? `${f.bsns_year} ${f.quarter || ''}`.trim() : '—';
         return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:1px">
           <div style="display:flex;gap:1px;align-items:flex-end;height:72px">
             <div style="width:45%;background:var(--blue)40;border-radius:2px 2px 0 0;height:${revH}px;transition:height .4s" title="매출 ${fmtCap(rev)}"></div>
@@ -427,7 +426,7 @@ function _rpEarningsCard(fin) {
     <!-- 최근 YoY -->
     ${fin.length >= 2 && fin[0].revenue && fin[1].revenue ? (() => {
       const yoy = (fin[0].revenue - fin[1].revenue) / fin[1].revenue * 100;
-      const opYoy = fin[1].operating_income ? (fin[0].operating_income - fin[1].operating_income) / Math.abs(fin[1].operating_income) * 100 : null;
+      const opYoy = fin[1].operating_profit ? (fin[0].operating_profit - fin[1].operating_profit) / Math.abs(fin[1].operating_profit) * 100 : null;
       return `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);
         display:flex;gap:16px;flex-wrap:wrap">
         <div>
@@ -440,7 +439,7 @@ function _rpEarningsCard(fin) {
         </div>` : ''}
         <div>
           <div style="font-size:10px;color:var(--text3)">영업이익률</div>
-          <div style="font-size:13px;font-weight:700;color:var(--text1)">${fin[0].revenue > 0 ? ((fin[0].operating_income||0)/fin[0].revenue*100).toFixed(1) : '—'}%</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text1)">${fin[0].revenue > 0 ? ((fin[0].operating_profit||0)/fin[0].revenue*100).toFixed(1) : '—'}%</div>
         </div>
       </div>`;
     })() : ''}
@@ -475,7 +474,7 @@ function _rpValuationCard(f, fin) {
         ${[...fin].reverse().filter(f => f.per > 0 && f.per < 200).slice(-6).map(f => {
           const h = Math.min(28, Math.round(f.per * 28 / 60));
           return `<div style="flex:1;background:var(--tg)60;border-radius:2px 2px 0 0;
-            height:${h}px" title="PER ${f.per?.toFixed(1)}x (${f.period})"></div>`;
+            height:${h}px" title="PER ${f.per?.toFixed(1)}x (${f.bsns_year} ${f.quarter||''})"></div>`;
         }).join('')}
       </div>
     </div>` : ''}
