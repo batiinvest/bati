@@ -301,11 +301,11 @@ function rpRenderReport() {
   </div>
 
   <!-- ② 투자 의견 + 핵심 논거 ──────────────────────────────────────── -->
-  <div style="display:grid;grid-template-columns:minmax(300px,400px) 1fr;gap:12px">
+  <div style="display:grid;grid-template-columns:440px 1fr;gap:12px">
 
     <!-- 투자 의견 카드 (좌: 내 의견 / 우: 증권사 목록) -->
     <div class="card" style="padding:16px">
-      <div style="display:grid;grid-template-columns:160px 1fr;gap:14px;height:100%">
+      <div style="display:grid;grid-template-columns:150px 1fr;gap:12px;height:100%">
 
         <!-- 좌: 내 의견 -->
         <div style="display:flex;flex-direction:column;gap:10px;border-right:1px solid var(--border);padding-right:14px">
