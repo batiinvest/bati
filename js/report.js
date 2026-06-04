@@ -303,32 +303,36 @@ function rpRenderReport() {
   <!-- ② 투자 의견 + 핵심 논거 ──────────────────────────────────────── -->
   <div style="display:grid;grid-template-columns:minmax(300px,400px) 1fr;gap:12px">
 
-    <!-- 투자 의견 카드 -->
-    <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">
+    <!-- 투자 의견 카드 (좌: 내 의견 / 우: 증권사 목록) -->
+    <div class="card" style="padding:16px">
+      <div style="display:grid;grid-template-columns:160px 1fr;gap:14px;height:100%">
 
-      <!-- 내 의견 행 -->
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;
-          letter-spacing:.8px;white-space:nowrap">내 의견</div>
-        ${_rpOpinionBadgeInline(opinion)}
-        ${targetP ? `
-          <div style="display:flex;align-items:baseline;gap:6px;flex:1;min-width:0;justify-content:flex-end">
-            <span style="font-size:18px;font-weight:800">${fmtNum(targetP)}<span style="font-size:11px">원</span></span>
-            ${upside != null ? `<span style="font-size:13px;font-weight:700;white-space:nowrap;
-              color:${upside > 0 ? 'var(--red)' : 'var(--blue)'}">
-              ${upside > 0 ? '▲' : '▼'} ${Math.abs(upside).toFixed(1)}%</span>` : ''}
-          </div>` :
-          `<span style="font-size:11px;color:var(--text2);flex:1;text-align:right">
-            <a onclick="go('watchlist')" style="color:var(--tg);cursor:pointer">목표주가 설정 →</a>
-          </span>`}
+        <!-- 좌: 내 의견 -->
+        <div style="display:flex;flex-direction:column;gap:10px;border-right:1px solid var(--border);padding-right:14px">
+          <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px">내 투자 의견</div>
+          ${_rpOpinionBadge(opinion)}
+          ${targetP ? `
+            <div style="text-align:center">
+              <div style="font-size:12px;color:var(--text2)">목표주가</div>
+              <div style="font-size:20px;font-weight:700;margin:2px 0">${fmtNum(targetP)}<span style="font-size:11px">원</span></div>
+              ${upside != null ? `
+              <div style="font-size:13px;font-weight:700;color:${upside > 0 ? 'var(--red)' : 'var(--blue)'}">
+                ${upside > 0 ? '▲' : '▼'} ${Math.abs(upside).toFixed(1)}% ${upside > 0 ? '상승여력' : '하락위험'}
+              </div>` : ''}
+            </div>` :
+            `<div style="text-align:center;padding:8px;border-radius:var(--radius-sm);background:var(--bg3);
+              color:var(--text2);font-size:12px;line-height:1.5">
+              투자노트에서<br>목표주가 설정
+            </div>`}
+          <a onclick="go('watchlist')" style="font-size:12px;text-align:center;color:var(--tg);cursor:pointer;margin-top:auto">
+            투자노트 편집 →
+          </a>
+        </div>
+
+        <!-- 우: 증권사 목표주가 (세로 목록) -->
+        ${_rpAnalystList(_rpData.analyst || [], price)}
+
       </div>
-
-      <!-- 증권사 목표주가 그리드 -->
-      ${_rpAnalystGrid(_rpData.analyst || [], price)}
-
-      <a onclick="go('watchlist')" style="font-size:12px;color:var(--tg);cursor:pointer;text-align:right">
-        투자노트 편집 →
-      </a>
     </div>
 
     <!-- 핵심 투자 논거 -->
@@ -425,6 +429,53 @@ function _rpOpinionBadgeInline(opinion) {
   const lbl = label[key] || (opinion || '—');
   return `<span style="font-size:12px;font-weight:800;color:${col};padding:3px 10px;
     border-radius:100px;background:${col}20;border:1px solid ${col}50">${lbl}</span>`;
+}
+
+// 증권사 목표주가 세로 목록 (카드 우측 배치용)
+function _rpAnalystList(analysts, currentPrice) {
+  const opMap = { '매수':'BUY','적극매수':'BUY','중립':'HOLD','보유':'HOLD','매도':'SELL' };
+  const colMap = { BUY:'#22c55e', HOLD:'#f59e0b', SELL:'#ef4444' };
+
+  if (!analysts?.length) return `
+    <div style="display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:12px">
+      증권사 의견 없음
+    </div>`;
+
+  const seen = new Set();
+  const items = analysts.filter(a => { if (seen.has(a.firm_name)) return false; seen.add(a.firm_name); return true; });
+  const tps   = items.filter(a => a.target_price > 0).map(a => a.target_price);
+  const avgTp = tps.length ? Math.round(tps.reduce((s,v)=>s+v,0)/tps.length) : null;
+  const avgGap = avgTp && currentPrice ? ((avgTp - currentPrice) / currentPrice * 100) : null;
+
+  return `<div style="display:flex;flex-direction:column;gap:0;min-width:0">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <span style="font-size:11px;font-weight:700;color:var(--text2)">증권사 목표주가</span>
+      ${avgTp ? `<span style="font-size:11px;color:var(--text2)">
+        평균 <b style="color:var(--text1)">${fmtNum(avgTp)}원</b>
+        ${avgGap != null ? `<span style="font-weight:700;color:${avgGap>0?'var(--red)':'var(--blue)'}">
+          ${avgGap>0?'▲':'▼'}${Math.abs(avgGap).toFixed(1)}%</span>` : ''}
+      </span>` : ''}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:5px;overflow-y:auto;max-height:160px">
+      ${items.map(a => {
+        const op   = opMap[a.opinion] || a.opinion || '—';
+        const col  = colMap[op] || 'var(--text2)';
+        const tp   = a.target_price ? fmtNum(a.target_price)+'원' : '—';
+        const gap  = a.gap_rate;
+        const gCol = gap > 0 ? 'var(--red)' : gap < 0 ? 'var(--blue)' : 'var(--text2)';
+        const gStr = gap != null ? (gap>=0?'+':'')+gap.toFixed(1)+'%' : '';
+        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;
+          border-radius:var(--radius-sm);background:var(--bg3)">
+          <span style="font-size:11px;font-weight:800;color:${col};min-width:32px">${op}</span>
+          <span style="flex:1;font-size:12px;color:var(--text2);overflow:hidden;
+            text-overflow:ellipsis;white-space:nowrap">${a.firm_name||''}</span>
+          <span style="font-size:13px;font-weight:700;color:var(--text1);white-space:nowrap">${tp}</span>
+          ${gStr ? `<span style="font-size:12px;font-weight:700;color:${gCol};
+            white-space:nowrap;min-width:44px;text-align:right">${gStr}</span>` : ''}
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
 }
 
 // 증권사 목표주가 가로 그리드
