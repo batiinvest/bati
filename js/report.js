@@ -15,6 +15,7 @@ function pReport() {
     <!-- 종목 검색 헤더 -->
     <div style="padding:12px 16px;border-bottom:1px solid var(--border);
       background:var(--bg2);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <input type="file" id="rp-dart-file" accept=".md" style="display:none" onchange="rpUploadDart(this)">
       <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:200px">
         <div style="position:relative;flex:1;max-width:320px">
           <input id="rp-search" type="text" placeholder="종목명 또는 코드 입력 (예: 삼성전자, 005930)"
@@ -33,6 +34,10 @@ function pReport() {
         </div>
         <button onclick="rpLoadReport()" class="btn-primary"
           style="padding:7px 14px;font-size:12px;white-space:nowrap">분석 리포트</button>
+        <button onclick="document.getElementById('rp-dart-file').click()"
+          style="padding:7px 12px;font-size:12px;white-space:nowrap;border:1px solid var(--border);
+            border-radius:var(--radius-sm);background:var(--bg3);color:var(--text2);cursor:pointer"
+          title="사업보고서 MD 파일 업로드">DART 업로드</button>
       </div>
       ${_rpStock ? `
       <div style="display:flex;align-items:center;gap:6px">
@@ -154,19 +159,22 @@ async function rpLoadReport() {
 
   // 병렬 데이터 로드
   try {
-    const [priceRes, finRes, watchRes] = await Promise.all([
+    const [priceRes, finRes, watchRes, dartRes] = await Promise.all([
       sb.from('market_data').select('price,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low')
         .eq('stock_code', _rpStock.code).order('base_date', { ascending: false }).limit(60),
       sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,total_debt,per,pbr,roe,roa')
         .eq('stock_code', _rpStock.code).order('bsns_year', { ascending: false }).order('quarter', { ascending: false }).limit(8),
       sb.from('watchlist').select('note,target_price,opinion,buy_price,created_at')
         .eq('stock_code', _rpStock.code).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      sb.from('dart_reports').select('report_type,receive_date,summary')
+        .eq('stock_code', _rpStock.code).order('receive_date', { ascending: false }).limit(1).maybeSingle(),
     ]);
 
     _rpData = {
       price:   priceRes.data  || [],
       fin:     finRes.data    || [],
       watch:   watchRes.data  || null,
+      dart:    dartRes.data   || null,
     };
     rpRenderReport();
   } catch (e) {
@@ -281,18 +289,26 @@ function rpRenderReport() {
           ${watch?.note ? `
             <div id="rp-bull-points" style="font-size:14px;color:var(--text2);line-height:1.7">
               ${_rpFormatNote(watch.note)}
-            </div>` : `
-            <div style="display:flex;flex-direction:column;gap:6px" id="rp-bull-points">
-              ${[
-                '핵심 투자포인트를 투자노트에 작성해주세요',
-                '예) HBM 수주 확대로 데이터센터 모멘텀 강화',
-                '예) 하반기 ASP 상승 + 원가 하락 → 마진 개선'
-              ].map((t,i) => `
-              <div style="display:flex;align-items:flex-start;gap:8px">
-                <span style="color:#4ade80;font-weight:700;font-size:14px;margin-top:1px">•</span>
-                <span style="font-size:14px;color:${i===0?'var(--text3)':'var(--border)'}">${t}</span>
-              </div>`).join('')}
-            </div>`}
+            </div>` : (() => {
+              const dartPts = _rpData.dart?.summary?.investment_points || [];
+              if (dartPts.length) return `
+                <div style="display:flex;flex-direction:column;gap:5px" id="rp-bull-points">
+                  ${dartPts.slice(0,4).map(t => `
+                  <div style="display:flex;align-items:flex-start;gap:8px">
+                    <span style="color:#4ade80;font-weight:700;font-size:14px;margin-top:1px">•</span>
+                    <span style="font-size:13px;color:var(--text2);line-height:1.5">${t}</span>
+                  </div>`).join('')}
+                  <div style="font-size:11px;color:var(--text3);margin-top:2px">DART 분석 기반 자동 추출</div>
+                </div>`;
+              return `<div style="display:flex;flex-direction:column;gap:6px" id="rp-bull-points">
+                ${['핵심 투자포인트를 투자노트에 작성해주세요','예) HBM 수주 확대로 데이터센터 모멘텀 강화','예) 하반기 ASP 상승 + 원가 하락 → 마진 개선']
+                  .map((t,i) => `
+                  <div style="display:flex;align-items:flex-start;gap:8px">
+                    <span style="color:#4ade80;font-weight:700;font-size:14px;margin-top:1px">•</span>
+                    <span style="font-size:14px;color:${i===0?'var(--text3)':'var(--border)'}">${t}</span>
+                  </div>`).join('')}
+              </div>`;
+            })()}
         </div>
 
         <!-- Bear case -->
@@ -301,17 +317,25 @@ function rpRenderReport() {
             <span style="width:6px;height:6px;border-radius:50%;background:#f87171;display:inline-block"></span>
             주요 리스크 (Bear Case)
           </div>
-          <div style="display:flex;flex-direction:column;gap:6px">
-            ${[
-              '투자노트에 리스크 요인을 추가하세요',
-              '예) 미중 무역분쟁 재확대 시 수출 타격',
-              '예) 경쟁사 공격적 증설로 공급과잉 우려'
-            ].map((t,i) => `
-            <div style="display:flex;align-items:flex-start;gap:8px">
-              <span style="color:#f87171;font-weight:700;font-size:14px;margin-top:1px">•</span>
-              <span style="font-size:14px;color:${i===0?'var(--text3)':'var(--border)'}">${t}</span>
-            </div>`).join('')}
-          </div>
+          ${(() => {
+            const dartRisks = _rpData.dart?.summary?.risk_points || [];
+            if (dartRisks.length) return `
+              <div style="display:flex;flex-direction:column;gap:5px">
+                ${dartRisks.slice(0,4).map(t => `
+                <div style="display:flex;align-items:flex-start;gap:8px">
+                  <span style="color:#f87171;font-weight:700;font-size:14px;margin-top:1px">•</span>
+                  <span style="font-size:13px;color:var(--text2);line-height:1.5">${t}</span>
+                </div>`).join('')}
+              </div>`;
+            return `<div style="display:flex;flex-direction:column;gap:6px">
+              ${['투자노트에 리스크 요인을 추가하세요','예) 미중 무역분쟁 재확대 시 수출 타격','예) 경쟁사 공격적 증설로 공급과잉 우려']
+                .map((t,i) => `
+                <div style="display:flex;align-items:flex-start;gap:8px">
+                  <span style="color:#f87171;font-weight:700;font-size:14px;margin-top:1px">•</span>
+                  <span style="font-size:14px;color:${i===0?'var(--text3)':'var(--border)'}">${t}</span>
+                </div>`).join('')}
+            </div>`;
+          })()}
         </div>
 
       </div>
@@ -336,7 +360,7 @@ function rpRenderReport() {
   <!-- ⑦ 탭 (상세 데이터) ──────────────────────────────────────────── -->
   <div class="card" style="padding:0;overflow:hidden">
     <div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg2)">
-      ${['재무제표','수급흐름','공시/뉴스'].map((t,i) => `
+      ${['재무제표','수급흐름','공시/뉴스','DART 분석'].map((t,i) => `
         <button onclick="rpSetTab(${i})" id="rp-tab-${i}"
           style="flex:1;padding:10px 4px;font-size:14px;font-weight:600;border:none;
             background:none;cursor:pointer;border-bottom:2px solid ${i===0?'var(--tg)':'transparent'};
@@ -588,6 +612,7 @@ async function rpSetTab(idx) {
     null,
     () => _rpTabFlow(_rpData.price),
     () => _rpTabNews(),
+    () => _rpTabDart(_rpData.dart),
   ];
   body.innerHTML = fns[idx]?.() || '';
 }
@@ -618,6 +643,186 @@ function _rpTabNews() {
   return `<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">
     공시/뉴스 연동 예정 — 공시 탭 또는 기업 분석 페이지에서 확인 가능
   </div>`;
+}
+
+// ── DART 탭 렌더 ─────────────────────────────────────────────────────────────
+function _rpTabDart(dart) {
+  if (!dart) return `
+    <div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">
+      <div style="margin-bottom:12px;font-size:20px">📄</div>
+      <div style="font-weight:600;margin-bottom:6px">DART 분석 리포트 없음</div>
+      <div style="font-size:12px;margin-bottom:16px">사업보고서 분석 MD 파일을 업로드하면 여기에 표시됩니다</div>
+      <button onclick="document.getElementById('rp-dart-file').click()"
+        style="padding:8px 18px;border:1px solid var(--tg);border-radius:var(--radius-sm);
+          background:none;color:var(--tg);font-size:13px;cursor:pointer">DART 업로드</button>
+    </div>`;
+
+  const s = dart.summary || {};
+  const pts  = s.investment_points || [];
+  const risks = s.risk_points || [];
+  const reviews = s.review_points || [];
+
+  const chip = (label, val, color) => val != null ? `
+    <div style="padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:3px">${label}</div>
+      <div style="font-size:14px;font-weight:700;color:${color||'var(--text1)'}">${val}</div>
+    </div>` : '';
+
+  return `
+  <div style="display:flex;flex-direction:column;gap:14px">
+
+    <!-- 문서 개요 -->
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:10px;
+      border-bottom:1px solid var(--border)">
+      <span style="font-size:12px;padding:3px 10px;border-radius:100px;background:var(--tg)20;
+        color:var(--tg);font-weight:600">${dart.report_type || '분기/사업보고서'}</span>
+      <span style="font-size:12px;color:var(--text3)">접수 ${dart.receive_date || ''}</span>
+      <button onclick="document.getElementById('rp-dart-file').click()"
+        style="margin-left:auto;padding:4px 10px;font-size:11px;border:1px solid var(--border);
+          border-radius:var(--radius-sm);background:var(--bg3);color:var(--text3);cursor:pointer">
+        최신 업로드
+      </button>
+    </div>
+
+    <!-- 핵심 지표 -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">
+      ${chip('희석 리스크', s.dilution_ratio != null ? s.dilution_ratio.toFixed(2) + '%' : null,
+        s.dilution_ratio > 5 ? 'var(--red)' : '#4ade80')}
+      ${chip('보호예수 비율', s.lockup_ratio ? s.lockup_ratio.toFixed(1) + '%' : null)}
+      ${chip('보호예수 해제일', s.lockup_end)}
+      ${chip('최대주주+특관 지분', s.related_party_ratio ? s.related_party_ratio.toFixed(1) + '%' : null,
+        s.related_party_ratio > 50 ? '#4ade80' : s.related_party_ratio > 30 ? 'var(--text1)' : 'var(--red)')}
+    </div>
+
+    <!-- 투자판단 요약 -->
+    ${pts.length ? `
+    <div>
+      <div style="font-size:12px;font-weight:700;color:#4ade80;margin-bottom:8px">투자판단 요약</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${pts.map(t => `
+        <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;
+          background:var(--bg3);border-radius:var(--radius-sm);border-left:2px solid #4ade8060">
+          <span style="font-size:12px;color:var(--text2);line-height:1.6">${t}</span>
+        </div>`).join('')}
+      </div>
+    </div>` : ''}
+
+    <!-- 리스크 요약 -->
+    ${risks.length ? `
+    <div>
+      <div style="font-size:12px;font-weight:700;color:#f87171;margin-bottom:8px">리스크 요약</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${risks.map(t => `
+        <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;
+          background:var(--bg3);border-radius:var(--radius-sm);border-left:2px solid #f8717160">
+          <span style="font-size:12px;color:var(--text2);line-height:1.6">${t}</span>
+        </div>`).join('')}
+      </div>
+    </div>` : ''}
+
+    <!-- 검토의견 -->
+    ${reviews.length ? `
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:8px">검토의견</div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        ${reviews.map(t => `
+        <div style="font-size:12px;color:var(--text2);line-height:1.6;padding:6px 10px;
+          background:var(--bg3);border-radius:var(--radius-sm)">${t}</div>`).join('')}
+      </div>
+    </div>` : ''}
+
+  </div>`;
+}
+
+// ── DART MD 파서 ─────────────────────────────────────────────────────────────
+function _rpParseMd(text) {
+  const lines = text.split('\n');
+
+  function tableVal(sectionKeyword, key) {
+    const si = lines.findIndex(l => l.includes(sectionKeyword));
+    if (si < 0) return null;
+    for (let i = si; i < Math.min(si + 40, lines.length); i++) {
+      const m = lines[i].match(/\|\s*(.+?)\s*\|\s*(.+?)\s*\|/);
+      if (m && m[1].trim() === key) return m[2].trim();
+    }
+    return null;
+  }
+
+  function lineVal(keyword) {
+    const l = lines.find(l => l.match(new RegExp(`[-*]\\s*${keyword}[:：]`)));
+    return l ? l.replace(new RegExp(`.*${keyword}[:：]\\s*`), '').trim() : null;
+  }
+
+  function allTagged(tag) {
+    return lines
+      .filter(l => l.match(new RegExp(`^[-*]\\s*${tag}[:：]`)))
+      .map(l => l.replace(new RegExp(`^[-*]\\s*${tag}[:：]\\s*`), '').trim())
+      .filter(Boolean);
+  }
+
+  const stockCode  = tableVal('문서 개요', '종목코드') || '';
+  const stockName  = tableVal('문서 개요', '회사명') || '';
+  const reportType = tableVal('문서 개요', '원문 기준') || '';
+  const receiveDate = tableVal('문서 개요', '접수일') || '';
+
+  const dilutionRatioRaw = lineVal('전체 잠재 물량');
+  const dilutionRatio = dilutionRatioRaw ? parseFloat(dilutionRatioRaw.match(/([\d.]+)%/)?.[1] ?? '0') : 0;
+
+  const lockupRaw = lineVal('보호예수 물량');
+  const lockupRatio = lockupRaw ? parseFloat(lockupRaw.match(/([\d.]+)%/)?.[1] ?? '0') : 0;
+  const lockupEnd = lineVal('주요 반환예정일');
+
+  const majorRaw = lineVal('최대주주 및 특수관계인 지분');
+  const relatedPartyRatio = majorRaw ? parseFloat(majorRaw.match(/([\d.]+)%/)?.[1] ?? '0') : 0;
+
+  return {
+    stock_code:   stockCode,
+    stock_name:   stockName,
+    report_type:  reportType,
+    receive_date: receiveDate,
+    summary: {
+      dilution_ratio:     dilutionRatio,
+      lockup_ratio:       lockupRatio,
+      lockup_end:         lockupEnd,
+      related_party_ratio: relatedPartyRatio,
+      investment_points:  allTagged('투자판단'),
+      risk_points:        allTagged('리스크'),
+      review_points:      allTagged('검토의견'),
+    },
+  };
+}
+
+// ── DART 업로드 ───────────────────────────────────────────────────────────────
+async function rpUploadDart(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+
+  let text;
+  try { text = await file.text(); } catch(e) { toast('파일 읽기 실패', 'error'); return; }
+
+  let parsed;
+  try { parsed = _rpParseMd(text); } catch(e) { toast('MD 파싱 실패: ' + e.message, 'error'); return; }
+
+  if (!parsed.stock_code) { toast('종목코드를 파싱할 수 없습니다 (문서 개요 섹션 확인)', 'warn'); return; }
+
+  toast('저장 중...', 'info');
+  const { error } = await sb.from('dart_reports').upsert({
+    stock_code:   parsed.stock_code,
+    stock_name:   parsed.stock_name,
+    report_type:  parsed.report_type,
+    receive_date: parsed.receive_date,
+    raw_md:       text,
+    summary:      parsed.summary,
+  }, { onConflict: 'stock_code,report_type' });
+
+  if (error) { toast('저장 실패: ' + error.message, 'error'); return; }
+  toast(`${parsed.stock_name}(${parsed.stock_code}) DART 리포트 저장 완료`, 'success');
+  input.value = '';
+
+  if (_rpStock?.code === parsed.stock_code) {
+    _rpData.dart = { report_type: parsed.report_type, receive_date: parsed.receive_date, summary: parsed.summary };
+    rpRenderReport();
+  }
 }
 
 // ── fmtNum 호환 헬퍼 ──────────────────────────────────────────────────────────
