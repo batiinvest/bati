@@ -601,11 +601,22 @@ function _rpSegmentCard(rows) {
   }
   const periods = periodSet.slice(-6);
 
-  // 세그먼트 목록 (합계 제외)
-  const segNames = [...new Set(rows.filter(r => r.category !== '합계').map(r => r.category))];
+  // 세그먼트 목록: 최신 분기 매출 기준 내림차순 정렬
+  const _allSegs = [...new Set(rows.filter(r => r.category !== '합계').map(r => r.category))];
+  const _latestKeyTmp = periodSet.length ? periodSet[periodSet.length - 1].key : '';
+  const _latestDataTmp = {};
+  for (const r of rows) {
+    const k = `${r.bsns_year}.${r.quarter}`;
+    if (!_latestDataTmp[k]) _latestDataTmp[k] = {};
+    _latestDataTmp[k][r.category] = { revenue: r.revenue, ratio: r.revenue_ratio };
+  }
+  const segNames = _allSegs.sort((a, b) =>
+    ((_latestDataTmp[_latestKeyTmp]?.[b]?.revenue) || 0) -
+    ((_latestDataTmp[_latestKeyTmp]?.[a]?.revenue) || 0)
+  );
 
-  // 팔레트
-  const COLORS = ['#2AABEE','#4ade80','#f59e0b','#f87171','#a78bfa','#34d399','#fb923c','#60a5fa'];
+  // 팔레트: 1위(강조 청록) → 2위(초록) → 3위(주황) → 4위(보라) → ...
+  const COLORS = ['#2AABEE','#4ade80','#fb923c','#a78bfa','#f59e0b','#34d399','#f87171','#60a5fa'];
 
   // 기간별 세그먼트 데이터 맵
   const dataMap = {};
@@ -639,17 +650,18 @@ function _rpSegmentCard(rows) {
           const total = periodTotals[pi];
           const barH = maxTotal > 0 ? Math.max(4, Math.round(total / maxTotal * CHART_H)) : 4;
           // 누적 세그먼트 조각
+          // 1위를 바닥에 고정: 내림차순 정렬된 segNames 그대로 → column-reverse 제거, 순서 반전
           const segs = segNames.map((name, si) => {
             const rev = d[name]?.revenue || 0;
             const ratio = total > 0 ? (rev / total * 100) : 0;
             return { name, rev, ratio, color: COLORS[si % COLORS.length] };
-          }).filter(s => s.rev > 0);
+          }).filter(s => s.rev > 0).reverse(); // reverse → 1위가 맨 아래(flex-direction:column)
           return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;height:${CHART_H}px">
             <!-- 총액 라벨 -->
             <div style="font-size:9px;font-weight:600;color:var(--text2);text-align:center;margin-bottom:2px;
               white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmtCap(total*1e6)}</div>
-            <!-- 누적 바 -->
-            <div style="height:${barH}px;border-radius:3px 3px 0 0;overflow:hidden;display:flex;flex-direction:column-reverse">
+            <!-- 누적 바 (1위 바닥 고정) -->
+            <div style="height:${barH}px;border-radius:3px 3px 0 0;overflow:hidden;display:flex;flex-direction:column">
               ${segs.map(s => `<div style="flex:${s.ratio};background:${s.color};min-height:2px"
                 title="${s.name} ${fmtCap(s.rev*1e6)} (${s.ratio.toFixed(1)}%)"></div>`).join('')}
             </div>
@@ -671,21 +683,31 @@ function _rpSegmentCard(rows) {
       <div style="font-size:11px;color:var(--text2);margin-bottom:7px">
         최신 (${latestKey?.replace('.',' ')}) 구성
       </div>
-      <div style="display:flex;flex-direction:column;gap:5px">
+      <div style="display:flex;flex-direction:column;gap:6px">
         ${segNames.filter(n => latestData[n]?.revenue).map((name, si) => {
           const { revenue, ratio } = latestData[name] || {};
           const pct = ratio ?? (latestTotal > 0 ? revenue / latestTotal * 100 : 0);
           const color = COLORS[si % COLORS.length];
-          return `<div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-              <span style="font-size:12px;color:var(--text1);font-weight:500">${name}</span>
-              <div style="display:flex;gap:8px;align-items:center">
-                <span style="font-size:11px;color:var(--text2)">${fmtCap(revenue*1e6)}</span>
-                <span style="font-size:12px;font-weight:700;color:${color}">${pct.toFixed(1)}%</span>
-              </div>
+          const isTop = si === 0;
+          return `<div style="padding:${isTop?'8px 10px':'5px 10px'};border-radius:var(--radius-sm);
+            background:${isTop ? color+'18' : 'transparent'};
+            border:1px solid ${isTop ? color+'50' : 'transparent'}">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <!-- 순위 배지 -->
+              <span style="font-size:10px;font-weight:800;color:${color};min-width:16px;
+                background:${color}25;border-radius:3px;padding:1px 4px;text-align:center">${si+1}</span>
+              <!-- 색상 도트 -->
+              <span style="width:8px;height:8px;border-radius:50%;background:${color};
+                flex-shrink:0;display:inline-block"></span>
+              <span style="font-size:${isTop?'13px':'12px'};color:var(--text1);
+                font-weight:${isTop?700:500};flex:1;min-width:0;
+                overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
+              <span style="font-size:${isTop?'13px':'12px'};color:var(--text2);white-space:nowrap">${fmtCap(revenue*1e6)}</span>
+              <span style="font-size:${isTop?'14px':'12px'};font-weight:800;color:${color};
+                min-width:42px;text-align:right">${pct.toFixed(1)}%</span>
             </div>
-            <div style="height:4px;border-radius:2px;background:var(--bg3);overflow:hidden">
-              <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;transition:width .4s"></div>
+            <div style="height:${isTop?5:3}px;border-radius:3px;background:var(--bg3);overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width .5s"></div>
             </div>
           </div>`;
         }).join('')}
