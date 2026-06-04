@@ -160,10 +160,10 @@ async function rpLoadReport() {
   // 병렬 데이터 로드
   try {
     const [priceRes, finRes, watchRes, dartRes] = await Promise.all([
-      sb.from('market_data').select('price,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low')
+      sb.from('market_data').select('price,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low,per,pbr')
         .eq('stock_code', _rpStock.code).order('base_date', { ascending: false }).limit(60),
-      sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,total_debt,per,pbr,roe,roa')
-        .eq('stock_code', _rpStock.code).order('bsns_year', { ascending: false }).order('quarter', { ascending: false }).limit(8),
+      sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,debt_ratio,roe,roa,operating_margin,net_margin')
+        .eq('stock_code', _rpStock.code).eq('fs_div','CFS').order('bsns_year', { ascending: false }).order('quarter', { ascending: false }).limit(8),
       sb.from('watchlist').select('note,target_price,opinion,buy_price,created_at')
         .eq('stock_code', _rpStock.code).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       sb.from('dart_reports').select('report_type,receive_date,summary')
@@ -256,8 +256,8 @@ function rpRenderReport() {
         <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px">
           <span style="font-size:26px;font-weight:800">${_rpStock.name}</span>
           <span style="font-size:15px;color:var(--text3)">${_rpStock.code}</span>
-          ${latestF.per  ? `<span style="font-size:13px;padding:2px 9px;border-radius:100px;background:var(--bg3);color:var(--text2)">PER ${latestF.per?.toFixed(1)}x</span>` : ''}
-          ${latestF.pbr  ? `<span style="font-size:13px;padding:2px 9px;border-radius:100px;background:var(--bg3);color:var(--text2)">PBR ${latestF.pbr?.toFixed(2)}x</span>` : ''}
+          ${latest.per  ? `<span style="font-size:13px;padding:2px 9px;border-radius:100px;background:var(--bg3);color:var(--text2)">PER ${latest.per?.toFixed(1)}x</span>` : ''}
+          ${latest.pbr  ? `<span style="font-size:13px;padding:2px 9px;border-radius:100px;background:var(--bg3);color:var(--text2)">PBR ${latest.pbr?.toFixed(2)}x</span>` : ''}
         </div>
         <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
           <span style="font-size:34px;font-weight:700">${price ? fmtNum(price) + '원' : '—'}</span>
@@ -343,7 +343,7 @@ function rpRenderReport() {
   <!-- ③ 실적 트렌드 + 밸류에이션 ──────────────────────────────────── -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
     ${_rpEarningsCard(_rpData.fin)}
-    ${_rpValuationCard(latestF, _rpData.fin)}
+    ${_rpValuationCard(latestF, latest, _rpData.fin)}
   </div>
 
   <!-- ④ 재무 건전성 지표 ───────────────────────────────────────────── -->
@@ -476,12 +476,13 @@ function _rpEarningsCard(fin) {
   </div>`;
 }
 
-function _rpValuationCard(f, fin) {
+function _rpValuationCard(latestF, latest, fin) {
+  // PER/PBR → market_data, ROE/ROA → financials
   const metrics = [
-    { label: 'PER',  val: f.per,  unit: 'x',  desc: '주가수익비율' },
-    { label: 'PBR',  val: f.pbr,  unit: 'x',  desc: '주가순자산비율' },
-    { label: 'ROE',  val: f.roe,  unit: '%', desc: '자기자본이익률' },
-    { label: 'ROA',  val: f.roa,  unit: '%', desc: '총자산이익률' },
+    { label: 'PER',  val: latest?.per,    unit: 'x',  desc: '주가수익비율' },
+    { label: 'PBR',  val: latest?.pbr,    unit: 'x',  desc: '주가순자산비율' },
+    { label: 'ROE',  val: latestF?.roe,   unit: '%',  desc: '자기자본이익률' },
+    { label: 'ROA',  val: latestF?.roa,   unit: '%',  desc: '총자산이익률' },
   ];
 
   return `<div class="card" style="padding:16px">
@@ -512,14 +513,12 @@ function _rpValuationCard(f, fin) {
 }
 
 function _rpFinHealthCard(f) {
-  const debtRatio = f.total_equity > 0 && f.total_debt != null
-    ? (f.total_debt / f.total_equity * 100) : null;
-
   const kpis = [
-    { label: '부채비율',   val: debtRatio,   unit: '%', good: v => v < 100, fmt: v => v.toFixed(0) },
+    { label: '부채비율',   val: f.debt_ratio,   unit: '%', good: v => v < 100, fmt: v => v.toFixed(0) },
     { label: '자기자본',   val: f.total_equity, unit: '', good: () => true, fmt: v => fmtCap(v) },
     { label: '총자산',     val: f.total_assets, unit: '', good: () => true, fmt: v => fmtCap(v) },
-    { label: 'ROE',        val: f.roe,    unit: '%', good: v => v > 10,  fmt: v => v.toFixed(1) },
+    { label: 'ROE',        val: f.roe,          unit: '%', good: v => v > 10,  fmt: v => v.toFixed(1) },
+    { label: '영업이익률', val: f.operating_margin, unit: '%', good: v => v > 5, fmt: v => v.toFixed(1) },
   ].filter(k => k.val != null);
 
   return `<div class="card" style="padding:16px">
@@ -1149,8 +1148,8 @@ async function rpUploadDart(input) {
       const [priceRes, finRes, watchRes] = await Promise.all([
         sb.from('market_data').select('price,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low')
           .eq('stock_code', parsed.stock_code).order('base_date', { ascending: false }).limit(60),
-        sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,total_debt,per,pbr,roe,roa')
-          .eq('stock_code', parsed.stock_code).order('bsns_year', { ascending: false }).order('quarter', { ascending: false }).limit(8),
+        sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,debt_ratio,roe,roa,operating_margin,net_margin')
+          .eq('stock_code', parsed.stock_code).eq('fs_div','CFS').order('bsns_year', { ascending: false }).order('quarter', { ascending: false }).limit(8),
         sb.from('watchlist').select('note,target_price,opinion,buy_price,created_at')
           .eq('stock_code', parsed.stock_code).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       ]);
