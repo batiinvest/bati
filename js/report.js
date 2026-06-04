@@ -456,7 +456,7 @@ function _rpAnalystList(analysts, currentPrice) {
           ${avgGap>0?'▲':'▼'}${Math.abs(avgGap).toFixed(1)}%</span>` : ''}
       </span>` : ''}
     </div>
-    <div style="display:flex;flex-direction:column;gap:5px;overflow-y:auto;max-height:160px">
+    <div style="display:flex;flex-direction:column;gap:4px;overflow-y:auto;max-height:160px">
       ${items.map(a => {
         const op   = opMap[a.opinion] || a.opinion || '—';
         const col  = colMap[op] || 'var(--text2)';
@@ -464,14 +464,16 @@ function _rpAnalystList(analysts, currentPrice) {
         const gap  = a.gap_rate;
         const gCol = gap > 0 ? 'var(--red)' : gap < 0 ? 'var(--blue)' : 'var(--text2)';
         const gStr = gap != null ? (gap>=0?'+':'')+gap.toFixed(1)+'%' : '';
-        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;
+        return `<div style="display:grid;grid-template-columns:36px 1fr auto auto;
+          align-items:center;gap:6px;padding:5px 8px;
           border-radius:var(--radius-sm);background:var(--bg3)">
-          <span style="font-size:11px;font-weight:800;color:${col};min-width:32px">${op}</span>
-          <span style="flex:1;font-size:12px;color:var(--text2);overflow:hidden;
+          <span style="font-size:11px;font-weight:800;color:${col}">${op}</span>
+          <span style="font-size:12px;color:var(--text2);overflow:hidden;
             text-overflow:ellipsis;white-space:nowrap">${a.firm_name||''}</span>
-          <span style="font-size:13px;font-weight:700;color:var(--text1);white-space:nowrap">${tp}</span>
-          ${gStr ? `<span style="font-size:12px;font-weight:700;color:${gCol};
-            white-space:nowrap;min-width:44px;text-align:right">${gStr}</span>` : ''}
+          <span style="font-size:13px;font-weight:700;color:var(--text1);
+            white-space:nowrap;text-align:right">${tp}</span>
+          <span style="font-size:12px;font-weight:700;color:${gCol};
+            white-space:nowrap;text-align:right;min-width:44px">${gStr}</span>
         </div>`;
       }).join('')}
     </div>
