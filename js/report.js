@@ -1031,6 +1031,168 @@ function _mdDeepParse(md) {
   };
 }
 
+// ── 사업 섹션 파서 (4-1 ~ 4-5) ───────────────────────────────────────────────
+function _rpParseBusinessSections(md, stockCode) {
+  const lines = md.split('\n');
+
+  // "25.1Q" → {bsns_year:2025, quarter:'Q1'}
+  const parsePeriod = s => {
+    const m = s.trim().match(/^(\d{2})\.(\d)Q$/);
+    return m ? { bsns_year: 2000 + parseInt(m[1]), quarter: 'Q' + m[2] } : null;
+  };
+
+  // "3,596 (42%)" → {amount:3596, ratio:42.00} / "3,596" → {amount:3596, ratio:null}
+  const parseAmtRatio = s => {
+    const str = (s||'').trim();
+    if (!str || str === '-') return { amount: null, ratio: null };
+    const rm = str.match(/\((\d+\.?\d*)%\)/);
+    const ratio = rm ? parseFloat(rm[1]) : null;
+    const n = parseInt(str.replace(/\(.*?\)/,'').replace(/,/g,'').replace(/-/g,'').trim());
+    const neg = /^-/.test(str.replace(/\(.*?\)/,'').trim());
+    const amount = isNaN(n) ? null : (neg ? -n : n);
+    return { amount, ratio };
+  };
+
+  // "8,222,688" or "27%" or "-" → {value, isPct}
+  const parseNumOrPct = s => {
+    const str = (s||'').trim();
+    if (!str || str === '-') return { value: null, isPct: false };
+    const pm = str.match(/^(\d+\.?\d*)%$/);
+    if (pm) return { value: parseFloat(pm[1]), isPct: true };
+    const n = parseInt(str.replace(/,/g,''));
+    return { value: isNaN(n) ? null : n, isPct: false };
+  };
+
+  // 특정 h3 섹션의 테이블 행 추출
+  const getSectionTable = h3 => {
+    const si = lines.findIndex(l => l.startsWith('### ') && l.includes(h3));
+    if (si < 0) return [];
+    const ei = lines.findIndex((l,i) => i > si && /^#{2,3} /.test(l));
+    return lines.slice(si, ei > 0 ? ei : lines.length)
+      .filter(l => /^\|/.test(l) && !/^\|[-:\s|]+$/.test(l));
+  };
+
+  const parseRow = r => r.split('|').slice(1,-1).map(c => c.trim());
+
+  const result = { segmentRevenue: [], rawMaterial: [], production: [] };
+
+  // ── 4-1. 매출(제품별) ────────────────────────────────────────────────────
+  const t41 = getSectionTable('4-1');
+  if (t41.length >= 2) {
+    const periods = parseRow(t41[0]).slice(1).map(parsePeriod);
+    for (const row of t41.slice(1)) {
+      const cols = parseRow(row);
+      const seg = cols[0];
+      if (!seg || seg === '합계') continue;
+      cols.slice(1).forEach((v, pi) => {
+        if (!periods[pi]) return;
+        const { amount, ratio } = parseAmtRatio(v);
+        if (amount == null) return;
+        result.segmentRevenue.push({
+          stock_code: stockCode, ...periods[pi],
+          segment_type: 'product', category: seg, subcategory: '',
+          revenue: amount, revenue_ratio: ratio,
+        });
+      });
+    }
+  }
+
+  // ── 4-2. 매출(국내/해외) ─────────────────────────────────────────────────
+  const t42 = getSectionTable('4-2');
+  if (t42.length >= 2) {
+    const periods = parseRow(t42[0]).slice(2).map(parsePeriod);
+    for (const row of t42.slice(1)) {
+      const cols = parseRow(row);
+      const category = cols[0], sub = cols[1];
+      if (!category || category === '합계' || sub === '합계') continue;
+      cols.slice(2).forEach((v, pi) => {
+        if (!periods[pi]) return;
+        const str = v.replace(/,/g,'').trim();
+        if (!str || str === '-') return;
+        const n = parseInt(str);
+        if (isNaN(n)) return;
+        result.segmentRevenue.push({
+          stock_code: stockCode, ...periods[pi],
+          segment_type: 'region', category, subcategory: sub||'',
+          revenue: n, revenue_ratio: null,
+        });
+      });
+    }
+  }
+
+  // ── 4-3. 원재료 ──────────────────────────────────────────────────────────
+  const t43 = getSectionTable('4-3');
+  if (t43.length >= 2) {
+    const periods = parseRow(t43[0]).slice(2).map(parsePeriod);
+    for (const row of t43.slice(1)) {
+      const cols = parseRow(row);
+      const pname = cols[0], mname = cols[1];
+      if (!mname || pname === '합계') continue;
+      cols.slice(2).forEach((v, pi) => {
+        if (!periods[pi]) return;
+        const n = parseInt(v.replace(/,/g,'').trim());
+        if (isNaN(n)) return;
+        result.rawMaterial.push({
+          stock_code: stockCode, ...periods[pi],
+          data_type: 'usage', product_name: pname||'', material_name: mname,
+          origin: '', amount: n,
+        });
+      });
+    }
+  }
+
+  // ── 4-4. 원재료 가격변동추이 ─────────────────────────────────────────────
+  const t44 = getSectionTable('4-4');
+  if (t44.length >= 2) {
+    const periods = parseRow(t44[0]).slice(2).map(parsePeriod);
+    for (const row of t44.slice(1)) {
+      const cols = parseRow(row);
+      const mname = cols[0], origin = cols[1];
+      if (!mname) continue;
+      cols.slice(2).forEach((v, pi) => {
+        if (!periods[pi]) return;
+        const n = parseInt(v.replace(/,/g,'').trim());
+        if (isNaN(n)) return;
+        result.rawMaterial.push({
+          stock_code: stockCode, ...periods[pi],
+          data_type: 'price', product_name: '', material_name: mname,
+          origin: origin||'', amount: n,
+        });
+      });
+    }
+  }
+
+  // ── 4-5. 생산능력 및 생산실적 ─────────────────────────────────────────────
+  const t45 = getSectionTable('4-5');
+  if (t45.length >= 2) {
+    const periods = parseRow(t45[0]).slice(1).map(parsePeriod);
+    const metricMap = { '생산능력':'capacity', '생산실적':'actual', '가동률':'utilization_rate' };
+    const temp = {};
+    for (const row of t45.slice(1)) {
+      const cols = parseRow(row);
+      const [factory, metricKr] = cols[0].split('/').map(s => s.trim());
+      const metricEn = metricMap[metricKr];
+      if (!factory || !metricEn) continue;
+      cols.slice(1).forEach((v, pi) => {
+        if (!periods[pi]) return;
+        const p = periods[pi];
+        const key = `${stockCode}_${p.bsns_year}_${p.quarter}_${factory}`;
+        if (!temp[key]) temp[key] = {
+          stock_code: stockCode, ...p, factory_name: factory,
+          capacity: null, actual: null, utilization_rate: null,
+        };
+        const { value } = parseNumOrPct(v);
+        if (value != null) temp[key][metricEn] = value;
+      });
+    }
+    result.production = Object.values(temp).filter(r =>
+      r.capacity != null || r.actual != null || r.utilization_rate != null
+    );
+  }
+
+  return result;
+}
+
 // ── 금액 포맷 (억/조) ─────────────────────────────────────────────────────────
 function _fmtBillions(won) {
   if (won == null) return '—';
@@ -1227,7 +1389,26 @@ async function rpUploadDart(input) {
   }, { onConflict: 'stock_code,report_type' });
 
   if (error) { toast('저장 실패: ' + error.message, 'error'); return; }
-  toast(`${parsed.stock_name}(${parsed.stock_code}) DART 리포트 저장 완료`, 'success');
+
+  // 4-1 ~ 4-5 사업 섹션 파싱 & 저장
+  try {
+    const biz = _rpParseBusinessSections(text, parsed.stock_code);
+    const saves = [];
+    if (biz.segmentRevenue.length)
+      saves.push(sb.from('dart_segment_revenue').upsert(biz.segmentRevenue,
+        { onConflict: 'stock_code,bsns_year,quarter,segment_type,category,subcategory' }));
+    if (biz.rawMaterial.length)
+      saves.push(sb.from('dart_raw_material').upsert(biz.rawMaterial,
+        { onConflict: 'stock_code,bsns_year,quarter,data_type,product_name,material_name,origin' }));
+    if (biz.production.length)
+      saves.push(sb.from('dart_production').upsert(biz.production,
+        { onConflict: 'stock_code,bsns_year,quarter,factory_name' }));
+    await Promise.all(saves);
+    const counts = `세그먼트 ${biz.segmentRevenue.length}건 / 원재료 ${biz.rawMaterial.length}건 / 생산 ${biz.production.length}건`;
+    toast(`${parsed.stock_name} DART 저장 완료 (${counts})`, 'success');
+  } catch(e) {
+    toast(`DART 기본 저장 완료, 사업 섹션 저장 실패: ${e.message}`, 'warn');
+  }
   input.value = '';
 
   const dartPayload = { report_type: parsed.report_type, receive_date: parsed.receive_date, summary: parsed.summary };
