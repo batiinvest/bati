@@ -819,9 +819,38 @@ async function rpUploadDart(input) {
   toast(`${parsed.stock_name}(${parsed.stock_code}) DART 리포트 저장 완료`, 'success');
   input.value = '';
 
+  const dartPayload = { report_type: parsed.report_type, receive_date: parsed.receive_date, summary: parsed.summary };
+
   if (_rpStock?.code === parsed.stock_code) {
-    _rpData.dart = { report_type: parsed.report_type, receive_date: parsed.receive_date, summary: parsed.summary };
+    // 같은 종목 선택 중 → 데이터 갱신 후 DART 탭으로 이동
+    _rpData.dart = dartPayload;
     rpRenderReport();
+    setTimeout(() => rpSetTab(3), 50);
+  } else {
+    // 종목 미선택이거나 다른 종목 → 해당 종목 리포트 로드 후 DART 탭
+    _rpStock = { code: parsed.stock_code, name: parsed.stock_name };
+    const el = document.getElementById('content');
+    if (el) el.innerHTML = pReport();
+    const body = document.getElementById('rp-body');
+    if (body) body.innerHTML = _rpSkeleton();
+    try {
+      const [priceRes, finRes, watchRes] = await Promise.all([
+        sb.from('market_data').select('price,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low')
+          .eq('stock_code', parsed.stock_code).order('base_date', { ascending: false }).limit(60),
+        sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,total_debt,per,pbr,roe,roa')
+          .eq('stock_code', parsed.stock_code).order('bsns_year', { ascending: false }).order('quarter', { ascending: false }).limit(8),
+        sb.from('watchlist').select('note,target_price,opinion,buy_price,created_at')
+          .eq('stock_code', parsed.stock_code).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      ]);
+      _rpData = { price: priceRes.data || [], fin: finRes.data || [], watch: watchRes.data || null, dart: dartPayload };
+      rpRenderReport();
+      setTimeout(() => rpSetTab(3), 50);
+    } catch(e) {
+      // DB 데이터 없어도 DART는 보여주기
+      _rpData = { price: [], fin: [], watch: null, dart: dartPayload };
+      rpRenderReport();
+      setTimeout(() => rpSetTab(3), 50);
+    }
   }
 }
 
