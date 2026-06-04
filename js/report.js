@@ -301,27 +301,32 @@ function rpRenderReport() {
   </div>
 
   <!-- ② 투자 의견 + 핵심 논거 ──────────────────────────────────────── -->
-  <div style="display:grid;grid-template-columns:200px 1fr;gap:12px">
+  <div style="display:grid;grid-template-columns:minmax(300px,400px) 1fr;gap:12px">
 
     <!-- 투자 의견 카드 -->
-    <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px">
-      <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px">내 투자 의견</div>
-      ${_rpOpinionBadge(opinion)}
-      ${targetP ? `
-        <div style="text-align:center;margin-top:4px">
-          <div style="font-size:12px;color:var(--text2)">목표주가</div>
-          <div style="font-size:20px;font-weight:700;margin:2px 0">${fmtNum(targetP)}<span style="font-size:12px">원</span></div>
-          ${upside != null ? `
-          <div style="font-size:13px;font-weight:700;color:${upside > 0 ? 'var(--red)' : 'var(--blue)'}">
-            ${upside > 0 ? '▲' : '▼'} ${Math.abs(upside).toFixed(1)}% ${upside > 0 ? '상승여력' : '하락위험'}
-          </div>` : ''}
-        </div>` :
-        `<div style="text-align:center;padding:8px;border-radius:var(--radius-sm);background:var(--bg3);
-          color:var(--text2);font-size:12px;line-height:1.5">
-          투자노트에서<br>목표주가 설정
-        </div>`}
-      ${_rpAnalystMini(_rpData.analyst || [], price)}
-      <a onclick="go('watchlist')" style="font-size:12px;text-align:center;color:var(--tg);cursor:pointer">
+    <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">
+
+      <!-- 내 의견 행 -->
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;
+          letter-spacing:.8px;white-space:nowrap">내 의견</div>
+        ${_rpOpinionBadgeInline(opinion)}
+        ${targetP ? `
+          <div style="display:flex;align-items:baseline;gap:6px;flex:1;min-width:0;justify-content:flex-end">
+            <span style="font-size:18px;font-weight:800">${fmtNum(targetP)}<span style="font-size:11px">원</span></span>
+            ${upside != null ? `<span style="font-size:13px;font-weight:700;white-space:nowrap;
+              color:${upside > 0 ? 'var(--red)' : 'var(--blue)'}">
+              ${upside > 0 ? '▲' : '▼'} ${Math.abs(upside).toFixed(1)}%</span>` : ''}
+          </div>` :
+          `<span style="font-size:11px;color:var(--text2);flex:1;text-align:right">
+            <a onclick="go('watchlist')" style="color:var(--tg);cursor:pointer">목표주가 설정 →</a>
+          </span>`}
+      </div>
+
+      <!-- 증권사 목표주가 그리드 -->
+      ${_rpAnalystGrid(_rpData.analyst || [], price)}
+
+      <a onclick="go('watchlist')" style="font-size:12px;color:var(--tg);cursor:pointer;text-align:right">
         투자노트 편집 →
       </a>
     </div>
@@ -407,26 +412,69 @@ function rpRenderReport() {
 
 // ── 서브 컴포넌트 ─────────────────────────────────────────────────────────────
 
-function _rpAnalystMini(analysts, currentPrice) {
-  if (!analysts?.length) return '';
+// 인라인 배지 (가로 레이아웃용 — 작고 컴팩트)
+function _rpOpinionBadgeInline(opinion) {
+  const map = {
+    'buy':'#22c55e','적극매수':'#22c55e','매수':'#22c55e',
+    'hold':'#f59e0b','보유':'#f59e0b','중립':'#f59e0b',
+    'sell':'#ef4444','매도':'#ef4444',
+  };
+  const label = { 'buy':'BUY','매수':'BUY','적극매수':'BUY','hold':'HOLD','보유':'HOLD','중립':'HOLD','sell':'SELL','매도':'SELL' };
+  const key = opinion?.toLowerCase();
+  const col = map[key] || 'var(--text3)';
+  const lbl = label[key] || (opinion || '—');
+  return `<span style="font-size:12px;font-weight:800;color:${col};padding:3px 10px;
+    border-radius:100px;background:${col}20;border:1px solid ${col}50">${lbl}</span>`;
+}
+
+// 증권사 목표주가 가로 그리드
+function _rpAnalystGrid(analysts, currentPrice) {
   const opMap = { '매수':'BUY','적극매수':'BUY','중립':'HOLD','보유':'HOLD','매도':'SELL' };
   const colMap = { BUY:'#22c55e', HOLD:'#f59e0b', SELL:'#ef4444' };
+
+  if (!analysts?.length) return `
+    <div style="border-top:1px solid var(--border);padding-top:10px">
+      <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px">증권사 목표주가</div>
+      <div style="font-size:12px;color:var(--text2);padding:8px 0">등록된 증권사 의견이 없습니다</div>
+    </div>`;
+
+  // 증권사별 최신 1건만
+  const seen = new Set();
+  const latest = analysts.filter(a => { if (seen.has(a.firm_name)) return false; seen.add(a.firm_name); return true; });
+
+  // 평균 목표주가
+  const tps = latest.filter(a => a.target_price > 0).map(a => a.target_price);
+  const avgTp = tps.length ? Math.round(tps.reduce((s,v) => s+v, 0) / tps.length) : null;
+  const avgGap = avgTp && currentPrice ? ((avgTp - currentPrice) / currentPrice * 100) : null;
+
   return `
     <div style="border-top:1px solid var(--border);padding-top:10px">
-      <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:7px">증권사 의견</div>
-      <div style="display:flex;flex-direction:column;gap:5px">
-        ${analysts.slice(0,4).map(a => {
-          const op   = opMap[a.opinion] || a.opinion || '—';
-          const col  = colMap[op] || 'var(--text2)';
-          const tp   = a.target_price ? fmtNum(a.target_price)+'원' : '—';
-          const gap  = a.gap_rate != null ? (a.gap_rate >= 0 ? '+' : '') + a.gap_rate.toFixed(1)+'%' : '';
-          const gCol = a.gap_rate > 0 ? 'var(--red)' : a.gap_rate < 0 ? 'var(--blue)' : 'var(--text2)';
-          const dt   = a.opinion_date ? a.opinion_date.slice(0,10) : '';
-          return `<div style="display:flex;align-items:center;gap:6px;font-size:11px">
-            <span style="color:${col};font-weight:700;min-width:28px">${op}</span>
-            <span style="flex:1;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.firm_name||''}</span>
-            <span style="color:var(--text1);font-weight:600">${tp}</span>
-            ${gap ? `<span style="color:${gCol};font-weight:600">${gap}</span>` : ''}
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:11px;font-weight:700;color:var(--text2)">증권사 목표주가</span>
+        ${avgTp ? `<span style="font-size:11px;color:var(--text2)">
+          평균 <b style="color:var(--text1)">${fmtNum(avgTp)}원</b>
+          ${avgGap != null ? `<span style="margin-left:4px;font-weight:700;
+            color:${avgGap>0?'var(--red)':'var(--blue)'}">${avgGap>0?'▲':'▼'}${Math.abs(avgGap).toFixed(1)}%</span>` : ''}
+        </span>` : ''}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:6px">
+        ${latest.map(a => {
+          const op  = opMap[a.opinion] || a.opinion || '—';
+          const col = colMap[op] || 'var(--text2)';
+          const tp  = a.target_price ? fmtNum(a.target_price) : '—';
+          const gap = a.gap_rate;
+          const gCol = gap > 0 ? 'var(--red)' : gap < 0 ? 'var(--blue)' : 'var(--text2)';
+          const gStr = gap != null ? (gap >= 0 ? '▲+' : '▼') + Math.abs(gap).toFixed(1) + '%' : '';
+          const dt  = a.opinion_date ? a.opinion_date.slice(2,10).replace(/-/g,'.') : '';
+          return `<div style="padding:8px 6px;border-radius:var(--radius-sm);background:var(--bg3);
+            border:1px solid ${col}30;text-align:center">
+            <div style="font-size:10px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;
+              white-space:nowrap;margin-bottom:4px">${a.firm_name||''}</div>
+            <div style="font-size:11px;font-weight:800;color:${col};margin-bottom:3px">${op}</div>
+            <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:2px">${tp}</div>
+            ${tp !== '—' ? `<div style="font-size:10px;color:var(--text2);margin-bottom:1px">원</div>` : ''}
+            ${gStr ? `<div style="font-size:11px;font-weight:700;color:${gCol}">${gStr}</div>` : ''}
+            <div style="font-size:9px;color:var(--text2);margin-top:3px;opacity:.7">${dt}</div>
           </div>`;
         }).join('')}
       </div>
