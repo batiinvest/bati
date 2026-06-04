@@ -631,13 +631,35 @@ function _rpSegmentCard(rows) {
   const latestData = latestKey ? dataMap[latestKey] : {};
   const latestTotal = Object.values(latestData).reduce((s, v) => s + (v.revenue || 0), 0);
 
-  // 추이 차트: 세그먼트별 꺾은선 대신 누적 바
-  const CHART_H = 90;
+  // 추이 차트 (높이 160px)
+  const CHART_H = 160;
   const periodTotals = periods.map(p => {
     const d = dataMap[p.key] || {};
     return segNames.reduce((s, n) => s + (d[n]?.revenue || 0), 0);
   });
   const maxTotal = Math.max(...periodTotals, 1);
+
+  // 스파크라인 SVG (세그먼트별 추이)
+  const sparkline = (segName, color) => {
+    const vals = periods.map(p => (dataMap[p.key]?.[segName]?.revenue) || 0);
+    if (vals.every(v => v === 0)) return '';
+    const max = Math.max(...vals, 1);
+    const W = 52, H = 20;
+    const pts = vals.map((v, i) => {
+      const x = vals.length > 1 ? (i / (vals.length - 1)) * W : W / 2;
+      const y = H - 2 - Math.round((v / max) * (H - 4));
+      return x.toFixed(1) + ',' + y;
+    }).join(' ');
+    const lastX = vals.length > 1 ? W : W / 2;
+    const lastY = H - 2 - Math.round((vals[vals.length - 1] / max) * (H - 4));
+    return `<svg width="${W}" height="${H}" style="flex-shrink:0;overflow:visible">`
+      + `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" opacity=".85"/>`
+      + `<circle cx="${lastX}" cy="${lastY}" r="2.5" fill="${color}"/>`
+      + `</svg>`;
+  };
+
+  // QoQ (최신 vs 직전)
+  const prevKey = periods.length >= 2 ? periods[periods.length - 2].key : null;
 
   return `<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">
     <div style="font-size:14px;font-weight:700;color:var(--text1)">📦 제품·사업부별 매출</div>
@@ -649,39 +671,39 @@ function _rpSegmentCard(rows) {
           const d = dataMap[p.key] || {};
           const total = periodTotals[pi];
           const barH = maxTotal > 0 ? Math.max(4, Math.round(total / maxTotal * CHART_H)) : 4;
-          // 누적 세그먼트 조각
-          // 1위를 바닥에 고정: 내림차순 정렬된 segNames 그대로 → column-reverse 제거, 순서 반전
+          const isLatest = pi === periods.length - 1;
           const segs = segNames.map((name, si) => {
             const rev = d[name]?.revenue || 0;
             const ratio = total > 0 ? (rev / total * 100) : 0;
             return { name, rev, ratio, color: COLORS[si % COLORS.length] };
-          }).filter(s => s.rev > 0).reverse(); // reverse → 1위가 맨 아래(flex-direction:column)
+          }).filter(s => s.rev > 0).reverse();
           return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;height:${CHART_H}px">
-            <!-- 총액 라벨 -->
-            <div style="font-size:9px;font-weight:600;color:var(--text2);text-align:center;margin-bottom:2px;
+            <div style="font-size:10px;font-weight:600;color:var(--text2);text-align:center;margin-bottom:3px;
               white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmtCap(total*1e6)}</div>
-            <!-- 누적 바 (1위 바닥 고정) -->
-            <div style="height:${barH}px;border-radius:3px 3px 0 0;overflow:hidden;display:flex;flex-direction:column">
+            <div style="height:${barH}px;border-radius:3px 3px 0 0;overflow:hidden;display:flex;flex-direction:column;
+              ${isLatest ? 'box-shadow:0 0 0 2px rgba(255,255,255,.25)' : ''}">
               ${segs.map(s => `<div style="flex:${s.ratio};background:${s.color};min-height:2px"
-                title="${s.name} ${fmtCap(s.rev*1e6)} (${s.ratio.toFixed(1)}%)"></div>`).join('')}
+                title="${s.name}: ${fmtCap(s.rev*1e6)} (${s.ratio.toFixed(1)}%)"></div>`).join('')}
             </div>
           </div>`;
         }).join('')}
       </div>
       <!-- 기간 라벨 -->
       <div style="display:flex;gap:5px;margin-top:5px">
-        ${periods.map(p => `
+        ${periods.map((p, pi) => `
           <div style="flex:1;min-width:0;text-align:center">
-            <div style="font-size:10px;font-weight:600;color:var(--text2)">${p.bsns_year}</div>
-            <div style="font-size:10px;color:var(--text2)">${p.quarter}</div>
+            <div style="font-size:10px;font-weight:${pi===periods.length-1?700:500};
+              color:${pi===periods.length-1?'var(--text1)':'var(--text2)'}">${p.bsns_year}</div>
+            <div style="font-size:10px;color:${pi===periods.length-1?'var(--tg)':'var(--text2)'}">${p.quarter}</div>
           </div>`).join('')}
       </div>
     </div>
 
-    <!-- 최신 분기 세그먼트 비율 -->
+    <!-- 세그먼트별 추세 목록 -->
     <div style="border-top:1px solid var(--border);padding-top:10px">
-      <div style="font-size:11px;color:var(--text2);margin-bottom:7px">
-        최신 (${latestKey?.replace('.',' ')}) 구성
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:11px;color:var(--text2)">최신 (${latestKey?.replace('.',' ')}) 구성</span>
+        <span style="font-size:10px;color:var(--text2)">스파크라인 &nbsp;·&nbsp; QoQ</span>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">
         ${segNames.filter(n => latestData[n]?.revenue).map((name, si) => {
@@ -689,32 +711,36 @@ function _rpSegmentCard(rows) {
           const pct = ratio ?? (latestTotal > 0 ? revenue / latestTotal * 100 : 0);
           const color = COLORS[si % COLORS.length];
           const isTop = si === 0;
-          return `<div style="padding:${isTop?'8px 10px':'5px 10px'};border-radius:var(--radius-sm);
-            background:${isTop ? color+'18' : 'transparent'};
-            border:1px solid ${isTop ? color+'50' : 'transparent'}">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-              <!-- 순위 배지 -->
-              <span style="font-size:10px;font-weight:800;color:${color};min-width:16px;
-                background:${color}25;border-radius:3px;padding:1px 4px;text-align:center">${si+1}</span>
-              <!-- 색상 도트 -->
-              <span style="width:8px;height:8px;border-radius:50%;background:${color};
-                flex-shrink:0;display:inline-block"></span>
-              <span style="font-size:${isTop?'13px':'12px'};color:var(--text1);
-                font-weight:${isTop?700:500};flex:1;min-width:0;
-                overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
-              <span style="font-size:${isTop?'13px':'12px'};color:var(--text2);white-space:nowrap">${fmtCap(revenue*1e6)}</span>
-              <span style="font-size:${isTop?'14px':'12px'};font-weight:800;color:${color};
-                min-width:42px;text-align:right">${pct.toFixed(1)}%</span>
+          const prevRev = prevKey ? (dataMap[prevKey]?.[name]?.revenue ?? null) : null;
+          const qoq = prevRev != null && prevRev > 0 ? ((revenue - prevRev) / prevRev * 100) : null;
+          const trendIcon  = qoq == null ? '—' : qoq > 3 ? '▲' : qoq < -3 ? '▼' : '→';
+          const trendColor = qoq == null ? 'var(--text2)' : qoq > 0 ? '#f87171' : qoq < 0 ? '#60a5fa' : 'var(--text2)';
+          const qoqStr = qoq == null ? '' : (qoq >= 0 ? '+' : '') + qoq.toFixed(1) + '%';
+          return `<div style="padding:7px 10px;border-radius:var(--radius-sm);
+            background:${isTop ? color+'14' : 'var(--bg3)'};
+            border:1px solid ${isTop ? color+'40' : 'transparent'}">
+            <div style="display:flex;align-items:center;gap:7px">
+              <span style="font-size:10px;font-weight:800;color:${color};min-width:18px;text-align:center;
+                background:${color}22;border-radius:3px;padding:1px 4px">${si+1}</span>
+              <span style="font-size:${isTop?'13px':'12px'};font-weight:${isTop?700:500};color:var(--text1);
+                flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
+              ${sparkline(name, color)}
+              <span style="font-size:12px;color:var(--text2);white-space:nowrap">${fmtCap(revenue*1e6)}</span>
+              <span style="font-size:${isTop?'13px':'12px'};font-weight:700;color:${color};
+                min-width:38px;text-align:right">${pct.toFixed(1)}%</span>
+              <span style="font-size:12px;font-weight:700;color:${trendColor};
+                min-width:56px;text-align:right;white-space:nowrap">${trendIcon} ${qoqStr}</span>
             </div>
-            <div style="height:${isTop?5:3}px;border-radius:3px;background:var(--bg3);overflow:hidden">
-              <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width .5s"></div>
+            <div style="height:3px;border-radius:2px;background:${color}22;overflow:hidden;margin-top:5px">
+              <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;transition:width .5s"></div>
             </div>
           </div>`;
         }).join('')}
       </div>
     </div>
-  </div>`;
-}
+  </div>`;}
+
+
 
 function _rpValuationCard(latestF, latest) {
   const metrics = [
