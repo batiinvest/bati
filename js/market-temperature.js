@@ -166,12 +166,64 @@ function _calcTemperature() {
 }
 
 
+// ── 점수 저장 / 조회 (app_config) ───────────────────────────────────────────
+async function _saveTempScore(dateStr, score) {
+  try {
+    await sb.from('app_config')
+      .upsert({ key: `market_temp_${dateStr}`, value: String(score) }, { onConflict: 'key' });
+  } catch (e) {
+    console.warn('[온도계] 점수 저장 실패:', e);
+  }
+}
+
+async function _loadPrevTempScore(dateStr) {
+  // dateStr 기준 직전 영업일 점수 조회 (최근 7일 내 가장 최신 키)
+  try {
+    const { data } = await sb.from('app_config')
+      .select('key,value')
+      .like('key', 'market_temp_%')
+      .lt('key', `market_temp_${dateStr}`)
+      .order('key', { ascending: false })
+      .limit(1);
+    if (data && data.length > 0) {
+      const val = parseInt(data[0].value, 10);
+      const prevDate = data[0].key.replace('market_temp_', '');
+      return isNaN(val) ? null : { score: val, date: prevDate };
+    }
+  } catch (e) {
+    console.warn('[온도계] 이전 점수 조회 실패:', e);
+  }
+  return null;
+}
+
+
 // ── 렌더링 ────────────────────────────────────────────────────────────────────
-function renderMarketTemperature() {
+async function renderMarketTemperature() {
   const el = document.getElementById('market-temp-body');
   if (!el) return;
 
-  const t = _calcTemperature();
+  const t       = _calcTemperature();
+  const m       = window._macroData || {};
+  const today   = m.base_date || new Date().toISOString().slice(0, 10);
+
+  // 오늘 점수 저장 + 전일 점수 조회 (병렬)
+  const [, prev] = await Promise.all([
+    _saveTempScore(today, t.score),
+    _loadPrevTempScore(today),
+  ]);
+
+  // 전일 대비 변화 뱃지
+  let diffBadge = '';
+  if (prev !== null) {
+    const diff     = t.score - prev.score;
+    const diffAbs  = Math.abs(diff);
+    const diffSign = diff > 0 ? '▲' : diff < 0 ? '▼' : '─';
+    const diffColor = diff > 0 ? 'var(--green)' : diff < 0 ? 'var(--red)' : 'var(--text3)';
+    const diffStr  = diff === 0 ? '전일 동일' : `전일比 ${diffSign} ${diffAbs}`;
+    diffBadge = `<span style="font-size:11px;font-weight:600;color:${diffColor};
+      margin-left:6px">${diffStr}</span>
+      <span style="font-size:10px;color:var(--text3);margin-left:4px">(전일 ${prev.score}점)</span>`;
+  }
 
   el.innerHTML = `
   <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
@@ -186,8 +238,9 @@ function renderMarketTemperature() {
     <!-- 게이지 + 등급 -->
     <div style="flex:1">
       <div style="font-size:14px;font-weight:700;color:${t.gradeColor};
-        margin-bottom:7px;display:flex;align-items:center;gap:6px">
+        margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         ${t.gradeEmoji} ${t.gradeTxt}
+        ${diffBadge}
       </div>
       <div class="temp-gauge-bar">
         <div class="temp-gauge-fill" style="width:${t.score}%"></div>
@@ -228,8 +281,5 @@ function renderMarketTemperature() {
 
   // 날짜 표시
   const dateEl = document.getElementById('market-temp-date');
-  if (dateEl) {
-    const m = window._macroData || {};
-    dateEl.textContent = m.base_date ? `${m.base_date} 기준` : '';
-  }
+  if (dateEl) dateEl.textContent = today ? `${today} 기준` : '';
 }
