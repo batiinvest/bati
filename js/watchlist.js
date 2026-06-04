@@ -290,7 +290,9 @@ async function loadWatchlist() {
             <div style="font-size:10px;color:var(--text3);margin-bottom:2px">관심가격</div>
             <div style="font-size:13px;font-weight:600">${w.watch_price.toLocaleString()}원</div>
             ${(cap && w.watch_price) ? `<div style="font-size:10px;color:var(--text3)">시총 ≈ ${fmtEok(w.watch_price * Math.round(cap / (price||1)))}</div>` : ''}
-            ${gapWatch != null ? `<div style="font-size:11px;color:${gapWatch<0?'var(--green)':'var(--text3)'}">${gapWatch<0?'✅ 관심가 도달':'현재가 -'+Math.abs(gapWatch).toFixed(1)+'%'}</div>` : ''}
+            ${gapWatch != null ? `<div style="font-size:11px;color:${gapWatch<=0?'var(--green)':'var(--text3)'}">
+              ${gapWatch <= 0 ? '✅ 매수 구간 (현재 ≤ 관심가)' : '관심가까지 +' + Math.abs(gapWatch).toFixed(1) + '%'}
+            </div>` : ''}
           </div>` : ''}
           ${w.avg_price ? `
           <div style="background:var(--bg2);border-radius:8px;padding:8px 10px">
@@ -302,7 +304,7 @@ async function loadWatchlist() {
           <div style="background:var(--bg2);border-radius:8px;padding:8px 10px">
             <div style="font-size:10px;color:var(--text3);margin-bottom:2px">PER / 업계평균</div>
             <div style="font-size:13px;font-weight:600">${mkt.per?.toFixed(1)||'—'} / ${w.peer_per?.toFixed(1)||'—'}</div>
-            ${(mkt.per && w.peer_per) ? `<div style="font-size:11px;color:${mkt.per<w.peer_per?'var(--green)':'var(--red)'}">${mkt.per<w.peer_per?'업계 저평가':'업계 고평가'}</div>` : ''}
+            ${(mkt.per && w.peer_per) ? `<div style="font-size:11px;color:${mkt.per<w.peer_per?'var(--green)':'var(--red)'}">${mkt.per<w.peer_per?'저평가 (PER 기준)':'고평가 (PER 기준)'}</div>` : ''}
           </div>` : ''}
         </div>
 

@@ -1141,7 +1141,7 @@ async function _renderFinancialTab(body, code, name) {
     body.innerHTML = `
       <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
         <button id="btn-quarter" class="chip active" onclick="window._finView='quarter';window._finRender()">분기별</button>
-        <button id="btn-annual"  class="chip"        onclick="window._finView='annual'; window._finRender()">연간별</button>
+        <button id="btn-annual"  class="chip"        onclick="window._finView='annual'; window._finRender()">연간별 <span style="font-size:10px;color:var(--text3)">(Q4 누적)</span></button>
         <button id="btn-qcomp"   class="chip"        onclick="window._finView='qcomp';  window._finRender()">분기비교</button>
         <div style="display:flex;gap:4px;margin-left:auto;align-items:center">
           <button id="btn-chart-rev"  class="chip active" onclick="window._finChart='revenue'; window._finDrawChart()">매출·영업이익</button>

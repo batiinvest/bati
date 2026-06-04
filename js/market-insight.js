@@ -31,9 +31,9 @@
 // ── 미국 ETF → KR 산업 레이블 ──────────────────────────────────────────────
 const USKR_LABELS = {
   '반도체': 'SOXX·SMH',  '바이오': 'IBB·XBI',   '로봇': 'BOTZ·ROBO',
-  '우주':   'ARKX·UFO',  '2차전지':'LIT·BATT',   '소비재':'XLY·ONLN',
-  '엔터':   'XLC·PEJ',   '조선':   'BOAT·SEA',   '테크':  'VGT·XLK',
-  '뷰티':   'RTH·ONLN',  '신재생': 'ICLN·QCLN',
+  '우주':   'ARKX·UFO',  '2차전지':'LIT·BATT',   '소비재':'XLY·XLP',
+  '엔터':   'XLC·PEJ',   '조선':   'SEA·XLI',    '테크':  'VGT·XLK',
+  '뷰티':   'XLP·KXI',   '신재생': 'ICLN·QCLN',
 };
 
 // ── 장세 판단 임계값 ─────────────────────────────────────────────────────────

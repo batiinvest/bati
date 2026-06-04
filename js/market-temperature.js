@@ -58,7 +58,7 @@ function _calcTemperature() {
     pts: krPts, max: 20,
   });
 
-  // ③ 외국인 수급 방향 (max 20)
+  // ③ 외국인 수급 방향 (max 20) — foreign_net_buy 단위: 주(株)
   const frgnTotal = rows.reduce((s, r) => s + (r.foreign_net_buy ?? 0), 0);
   let frgnPts;
   if      (frgnTotal >  5000) frgnPts = 20;
@@ -70,9 +70,7 @@ function _calcTemperature() {
   else                        frgnPts = 0;
   score += frgnPts;
   const fab  = Math.abs(frgnTotal);
-  const fStr = (frgnTotal >= 0 ? '+' : '-') +
-               (fab >= 1e6 ? (fab / 1e6).toFixed(1) + '조'
-                           : Math.round(fab / 100) + '억');
+  const fStr = (frgnTotal >= 0 ? '+' : '') + frgnTotal.toLocaleString() + '주';
   parts.push({ label: `외국인 ${fStr}`, pts: frgnPts, max: 20 });
 
   // ④ 산업 모멘텀 (max 15)
@@ -82,12 +80,13 @@ function _calcTemperature() {
   score += indPts;
   parts.push({ label: `산업 상승 ${upInds}/${inds.length}`, pts: indPts, max: 15 });
 
-  // ⑤ 시장 활성도 — 1% 이상 등락 종목 비율 (max 15)
-  const active   = rows.filter(r => Math.abs(r.price_change_rate ?? 0) >= 1.0).length;
-  const actRatio = rows.length > 0 ? active / rows.length : 0;
-  const actPts   = Math.min(Math.round(actRatio * 2.0 * 15), 15);
+  // ⑤ 시장 활성도 — 상승 종목 비율 기준 (방향 반영, max 15)
+  const riseCount = rows.filter(r => (r.price_change_rate ?? 0) > 0).length;
+  const fallCount = rows.filter(r => (r.price_change_rate ?? 0) < 0).length;
+  const riseRatio = rows.length > 0 ? riseCount / rows.length : 0;
+  const actPts    = Math.min(Math.round(riseRatio * 2.0 * 15), 15);
   score += actPts;
-  parts.push({ label: `변동 종목 ${active}개`, pts: actPts, max: 15 });
+  parts.push({ label: `상승 ${riseCount} / 하락 ${fallCount}`, pts: actPts, max: 15 });
 
   // 등급 결정
   let gradeTxt, gradeColor, gradeEmoji, strategy;

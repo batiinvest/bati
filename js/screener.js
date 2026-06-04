@@ -224,9 +224,18 @@ async function runScreener() {
   const pct = v => v != null ? v.toFixed(1) + '%' : '—';
   const num = v => v != null ? v.toFixed(1) : '—';
 
+  // 재무 기준 분기 표시 (최다 등장 분기 기준)
+  const finPeriodSample = Object.values(finMap)[0];
+  const finPeriodLabel  = finPeriodSample
+    ? `재무 기준: ${finPeriodSample.bsns_year} ${finPeriodSample.quarter || ''}`
+    : '';
+
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
-      <span style="font-size:13px;font-weight:600">${combined.length}개 종목</span>
+      <div>
+        <span style="font-size:13px;font-weight:600">${combined.length}개 종목</span>
+        ${finPeriodLabel ? `<span style="font-size:11px;color:var(--text3);margin-left:8px">${finPeriodLabel}</span>` : ''}
+      </div>
       <button class="btn btn-sm" onclick="exportScreener()">CSV 다운로드</button>
     </div>
     <div class="table-wrap"><table>
