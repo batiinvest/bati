@@ -460,20 +460,21 @@ function _rpAnalystList(analysts, currentPrice) {
       ${items.map(a => {
         const op   = opMap[a.opinion] || a.opinion || '—';
         const col  = colMap[op] || 'var(--text2)';
-        const tp   = a.target_price ? fmtNum(a.target_price)+'원' : '—';
+        // 가격: 만원 단위로 압축 (480,000 → 48만)
+        const tp   = a.target_price ? Math.round(a.target_price/10000)+'만원' : '—';
         const gap  = a.gap_rate;
         const gCol = gap > 0 ? 'var(--red)' : gap < 0 ? 'var(--blue)' : 'var(--text2)';
         const gStr = gap != null ? (gap>=0?'+':'')+gap.toFixed(1)+'%' : '';
-        return `<div style="display:grid;grid-template-columns:36px 1fr auto auto;
-          align-items:center;gap:6px;padding:5px 8px;
+        return `<div style="display:grid;grid-template-columns:34px 1fr 42px 44px;
+          align-items:center;gap:5px;padding:5px 8px;
           border-radius:var(--radius-sm);background:var(--bg3)">
           <span style="font-size:11px;font-weight:800;color:${col}">${op}</span>
-          <span style="font-size:12px;color:var(--text2);overflow:hidden;
+          <span style="font-size:12px;color:var(--text1);min-width:0;overflow:hidden;
             text-overflow:ellipsis;white-space:nowrap">${a.firm_name||''}</span>
-          <span style="font-size:13px;font-weight:700;color:var(--text1);
-            white-space:nowrap;text-align:right">${tp}</span>
+          <span style="font-size:12px;font-weight:700;color:var(--text1);
+            text-align:right;white-space:nowrap">${tp}</span>
           <span style="font-size:12px;font-weight:700;color:${gCol};
-            white-space:nowrap;text-align:right;min-width:44px">${gStr}</span>
+            text-align:right;white-space:nowrap">${gStr}</span>
         </div>`;
       }).join('')}
     </div>
