@@ -209,6 +209,44 @@ function rpRenderReport() {
   const upside  = targetP && price ? ((targetP - price) / price * 100) : null;
   const opinion = watch?.opinion || null;
 
+  // Bull / Bear HTML — 템플릿 리터럴 밖에서 미리 계산
+  const dartPts  = _rpData.dart?.summary?.investment_points || [];
+  const dartRisks = _rpData.dart?.summary?.risk_points || [];
+
+  const bullHTML = watch?.note
+    ? `<div id="rp-bull-points" style="font-size:14px;color:var(--text2);line-height:1.7">${_rpFormatNote(watch.note)}</div>`
+    : dartPts.length
+      ? `<div style="display:flex;flex-direction:column;gap:5px" id="rp-bull-points">
+          ${dartPts.slice(0,4).map(t => `<div style="display:flex;align-items:flex-start;gap:8px">
+            <span style="color:#4ade80;font-weight:700;font-size:14px;margin-top:1px">•</span>
+            <span style="font-size:13px;color:var(--text2);line-height:1.5">${t}</span>
+          </div>`).join('')}
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">DART 분석 기반 자동 추출</div>
+        </div>`
+      : `<div style="display:flex;flex-direction:column;gap:6px" id="rp-bull-points">
+          ${['핵심 투자포인트를 투자노트에 작성해주세요','예) HBM 수주 확대로 데이터센터 모멘텀 강화','예) 하반기 ASP 상승 + 원가 하락 → 마진 개선']
+            .map((t,i) => `<div style="display:flex;align-items:flex-start;gap:8px">
+              <span style="color:#4ade80;font-weight:700;font-size:14px;margin-top:1px">•</span>
+              <span style="font-size:14px;color:${i===0?'var(--text3)':'var(--border)'}">${t}</span>
+            </div>`).join('')}
+        </div>`;
+
+  const bearHTML = dartRisks.length
+    ? `<div style="display:flex;flex-direction:column;gap:5px">
+        ${dartRisks.slice(0,4).map(t => `<div style="display:flex;align-items:flex-start;gap:8px">
+          <span style="color:#f87171;font-weight:700;font-size:14px;margin-top:1px">•</span>
+          <span style="font-size:13px;color:var(--text2);line-height:1.5">${t}</span>
+        </div>`).join('')}
+      </div>`
+    : `<div style="display:flex;flex-direction:column;gap:6px">
+        ${['투자노트에 리스크 요인을 추가하세요','예) 미중 무역분쟁 재확대 시 수출 타격','예) 경쟁사 공격적 증설로 공급과잉 우려']
+          .map((t,i) => `<div style="display:flex;align-items:flex-start;gap:8px">
+            <span style="color:#f87171;font-weight:700;font-size:14px;margin-top:1px">•</span>
+            <span style="font-size:14px;color:${i===0?'var(--text3)':'var(--border)'}">${t}</span>
+          </div>`).join('')}
+      </div>`;
+
+  try {
   body.innerHTML = `
 
   <!-- ① 종목 헤더 ──────────────────────────────────────────────────── -->
@@ -286,29 +324,7 @@ function rpRenderReport() {
             <span style="width:6px;height:6px;border-radius:50%;background:#4ade80;display:inline-block"></span>
             핵심 투자포인트 (Bull Case)
           </div>
-          ${watch?.note ? `
-            <div id="rp-bull-points" style="font-size:14px;color:var(--text2);line-height:1.7">
-              ${_rpFormatNote(watch.note)}
-            </div>` : (() => {
-              const dartPts = _rpData.dart?.summary?.investment_points || [];
-              if (dartPts.length) return `
-                <div style="display:flex;flex-direction:column;gap:5px" id="rp-bull-points">
-                  ${dartPts.slice(0,4).map(t => `
-                  <div style="display:flex;align-items:flex-start;gap:8px">
-                    <span style="color:#4ade80;font-weight:700;font-size:14px;margin-top:1px">•</span>
-                    <span style="font-size:13px;color:var(--text2);line-height:1.5">${t}</span>
-                  </div>`).join('')}
-                  <div style="font-size:11px;color:var(--text3);margin-top:2px">DART 분석 기반 자동 추출</div>
-                </div>`;
-              return `<div style="display:flex;flex-direction:column;gap:6px" id="rp-bull-points">
-                ${['핵심 투자포인트를 투자노트에 작성해주세요','예) HBM 수주 확대로 데이터센터 모멘텀 강화','예) 하반기 ASP 상승 + 원가 하락 → 마진 개선']
-                  .map((t,i) => `
-                  <div style="display:flex;align-items:flex-start;gap:8px">
-                    <span style="color:#4ade80;font-weight:700;font-size:14px;margin-top:1px">•</span>
-                    <span style="font-size:14px;color:${i===0?'var(--text3)':'var(--border)'}">${t}</span>
-                  </div>`).join('')}
-              </div>`;
-            })()}
+          ${bullHTML}
         </div>
 
         <!-- Bear case -->
@@ -317,25 +333,7 @@ function rpRenderReport() {
             <span style="width:6px;height:6px;border-radius:50%;background:#f87171;display:inline-block"></span>
             주요 리스크 (Bear Case)
           </div>
-          ${(() => {
-            const dartRisks = _rpData.dart?.summary?.risk_points || [];
-            if (dartRisks.length) return `
-              <div style="display:flex;flex-direction:column;gap:5px">
-                ${dartRisks.slice(0,4).map(t => `
-                <div style="display:flex;align-items:flex-start;gap:8px">
-                  <span style="color:#f87171;font-weight:700;font-size:14px;margin-top:1px">•</span>
-                  <span style="font-size:13px;color:var(--text2);line-height:1.5">${t}</span>
-                </div>`).join('')}
-              </div>`;
-            return `<div style="display:flex;flex-direction:column;gap:6px">
-              ${['투자노트에 리스크 요인을 추가하세요','예) 미중 무역분쟁 재확대 시 수출 타격','예) 경쟁사 공격적 증설로 공급과잉 우려']
-                .map((t,i) => `
-                <div style="display:flex;align-items:flex-start;gap:8px">
-                  <span style="color:#f87171;font-weight:700;font-size:14px;margin-top:1px">•</span>
-                  <span style="font-size:14px;color:${i===0?'var(--text3)':'var(--border)'}">${t}</span>
-                </div>`).join('')}
-            </div>`;
-          })()}
+          ${bearHTML}
         </div>
 
       </div>
@@ -372,6 +370,14 @@ function rpRenderReport() {
   </div>
 
   `;
+  } catch(err) {
+    console.error('[rpRenderReport] 렌더 에러:', err);
+    body.innerHTML = `<div style="padding:20px;color:var(--red);font-size:13px">
+      렌더 오류: ${err.message}<br>
+      <small style="color:var(--text3)">콘솔에서 상세 확인</small>
+    </div>`;
+    return;
+  }
 
   // 재무제표 탭 자동 로드
   rpSetTab(0);
