@@ -608,11 +608,16 @@ async function rpSetTab(idx) {
     return;
   }
 
+  if (idx === 3) {
+    body.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px"><span class="loading"></span> DART 리포트 로딩 중...</div>';
+    await _rpLoadAndRenderDart(body);
+    return;
+  }
+
   const fns = [
     null,
     () => _rpTabFlow(_rpData.price),
     () => _rpTabNews(),
-    () => _rpTabDart(_rpData.dart),
   ];
   body.innerHTML = fns[idx]?.() || '';
 }
@@ -645,38 +650,46 @@ function _rpTabNews() {
   </div>`;
 }
 
-// ── DART 탭 렌더 ─────────────────────────────────────────────────────────────
-function _rpTabDart(dart) {
-  if (!dart) return `
-    <div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">
-      <div style="margin-bottom:12px;font-size:20px">📄</div>
-      <div style="font-weight:600;margin-bottom:6px">DART 분석 리포트 없음</div>
-      <div style="font-size:12px;margin-bottom:16px">사업보고서 분석 MD 파일을 업로드하면 여기에 표시됩니다</div>
-      <button onclick="document.getElementById('rp-dart-file').click()"
-        style="padding:8px 18px;border:1px solid var(--tg);border-radius:var(--radius-sm);
-          background:none;color:var(--tg);font-size:13px;cursor:pointer">DART 업로드</button>
-    </div>`;
+// ── DART 탭: lazy fetch + 리포트 렌더 ────────────────────────────────────────
+async function _rpLoadAndRenderDart(body) {
+  if (!_rpStock) return;
 
-  const s = dart.summary || {};
-  const pts  = s.investment_points || [];
-  const risks = s.risk_points || [];
-  const reviews = s.review_points || [];
+  // raw_md lazy fetch
+  const { data, error } = await sb.from('dart_reports')
+    .select('report_type,receive_date,raw_md,summary')
+    .eq('stock_code', _rpStock.code)
+    .order('receive_date', { ascending: false })
+    .limit(1).maybeSingle();
 
+  if (error || !data) {
+    body.innerHTML = `
+      <div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">
+        <div style="margin-bottom:12px;font-size:20px">📄</div>
+        <div style="font-weight:600;margin-bottom:6px">DART 분석 리포트 없음</div>
+        <div style="font-size:12px;margin-bottom:16px">사업보고서 분석 MD 파일을 업로드하면 여기에 표시됩니다</div>
+        <button onclick="document.getElementById('rp-dart-file').click()"
+          style="padding:8px 18px;border:1px solid var(--tg);border-radius:var(--radius-sm);
+            background:none;color:var(--tg);font-size:13px;cursor:pointer">DART 업로드</button>
+      </div>`;
+    return;
+  }
+
+  const s = data.summary || {};
   const chip = (label, val, color) => val != null ? `
     <div style="padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
       <div style="font-size:10px;color:var(--text3);margin-bottom:3px">${label}</div>
-      <div style="font-size:14px;font-weight:700;color:${color||'var(--text1)'}">${val}</div>
+      <div style="font-size:13px;font-weight:700;color:${color||'var(--text1)'}">${val}</div>
     </div>` : '';
 
-  return `
-  <div style="display:flex;flex-direction:column;gap:14px">
+  body.innerHTML = `
+  <div style="display:flex;flex-direction:column;gap:16px">
 
-    <!-- 문서 개요 -->
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:10px;
-      border-bottom:1px solid var(--border)">
-      <span style="font-size:12px;padding:3px 10px;border-radius:100px;background:var(--tg)20;
-        color:var(--tg);font-weight:600">${dart.report_type || '분기/사업보고서'}</span>
-      <span style="font-size:12px;color:var(--text3)">접수 ${dart.receive_date || ''}</span>
+    <!-- 리포트 헤더 -->
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+      padding-bottom:12px;border-bottom:1px solid var(--border)">
+      <span style="font-size:12px;padding:3px 10px;border-radius:100px;
+        background:var(--tg)20;color:var(--tg);font-weight:600">${data.report_type || '분기/사업보고서'}</span>
+      <span style="font-size:12px;color:var(--text3)">접수 ${data.receive_date || ''}</span>
       <button onclick="document.getElementById('rp-dart-file').click()"
         style="margin-left:auto;padding:4px 10px;font-size:11px;border:1px solid var(--border);
           border-radius:var(--radius-sm);background:var(--bg3);color:var(--text3);cursor:pointer">
@@ -684,54 +697,160 @@ function _rpTabDart(dart) {
       </button>
     </div>
 
-    <!-- 핵심 지표 -->
+    <!-- 핵심 지표 칩 -->
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">
-      ${chip('희석 리스크', s.dilution_ratio != null ? s.dilution_ratio.toFixed(2) + '%' : null,
-        s.dilution_ratio > 5 ? 'var(--red)' : '#4ade80')}
-      ${chip('보호예수 비율', s.lockup_ratio ? s.lockup_ratio.toFixed(1) + '%' : null)}
+      ${chip('주식 희석률', s.dilution_ratio != null ? s.dilution_ratio.toFixed(2)+'%' : null,
+        (s.dilution_ratio||0) > 5 ? 'var(--red)' : '#4ade80')}
+      ${chip('보호예수 비율', s.lockup_ratio ? s.lockup_ratio.toFixed(1)+'%' : null)}
       ${chip('보호예수 해제일', s.lockup_end)}
-      ${chip('최대주주+특관 지분', s.related_party_ratio ? s.related_party_ratio.toFixed(1) + '%' : null,
-        s.related_party_ratio > 50 ? '#4ade80' : s.related_party_ratio > 30 ? 'var(--text1)' : 'var(--red)')}
+      ${chip('최대주주+특관 지분', s.related_party_ratio ? s.related_party_ratio.toFixed(1)+'%' : null,
+        (s.related_party_ratio||0) >= 30 ? '#4ade80' : 'var(--red)')}
     </div>
 
-    <!-- 투자판단 요약 -->
-    ${pts.length ? `
-    <div>
-      <div style="font-size:12px;font-weight:700;color:#4ade80;margin-bottom:8px">투자판단 요약</div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        ${pts.map(t => `
-        <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;
-          background:var(--bg3);border-radius:var(--radius-sm);border-left:2px solid #4ade8060">
-          <span style="font-size:12px;color:var(--text2);line-height:1.6">${t}</span>
-        </div>`).join('')}
-      </div>
-    </div>` : ''}
-
-    <!-- 리스크 요약 -->
-    ${risks.length ? `
-    <div>
-      <div style="font-size:12px;font-weight:700;color:#f87171;margin-bottom:8px">리스크 요약</div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        ${risks.map(t => `
-        <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;
-          background:var(--bg3);border-radius:var(--radius-sm);border-left:2px solid #f8717160">
-          <span style="font-size:12px;color:var(--text2);line-height:1.6">${t}</span>
-        </div>`).join('')}
-      </div>
-    </div>` : ''}
-
-    <!-- 검토의견 -->
-    ${reviews.length ? `
-    <div>
-      <div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:8px">검토의견</div>
-      <div style="display:flex;flex-direction:column;gap:5px">
-        ${reviews.map(t => `
-        <div style="font-size:12px;color:var(--text2);line-height:1.6;padding:6px 10px;
-          background:var(--bg3);border-radius:var(--radius-sm)">${t}</div>`).join('')}
-      </div>
-    </div>` : ''}
+    <!-- MD 리포트 본문 -->
+    <div id="dart-report-body">
+      ${data.raw_md ? _mdToReport(data.raw_md) : '<div style="color:var(--text3);padding:20px;text-align:center">원문 없음</div>'}
+    </div>
 
   </div>`;
+}
+
+// ── MD → 리포트 HTML 변환 ──────────────────────────────────────────────────────
+function _mdToReport(md) {
+  const lines = md.split('\n');
+  let html = '';
+  let i = 0;
+  let sectionOpen = false;
+  let sectionIdx = 0;
+
+  const escHtml = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  // 인라인 마크다운 처리 (볼드, 코드)
+  const inline = s => escHtml(s)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`(.+?)`/g, '<code style="background:var(--bg3);padding:1px 4px;border-radius:3px;font-size:11px">$1</code>');
+
+  // 투자판단/리스크/검토의견 키워드에 색상
+  const colorTag = text => {
+    if (/^투자판단[:：]/.test(text)) return `<span style="color:#4ade80;font-weight:600">${inline(text)}</span>`;
+    if (/^리스크[:：]/.test(text))   return `<span style="color:#f87171;font-weight:600">${inline(text)}</span>`;
+    if (/^검토의견[:：]/.test(text)) return `<span style="color:#60a5fa;font-weight:600">${inline(text)}</span>`;
+    if (/^중요도[:：]/.test(text))   return `<span style="color:#f59e0b;font-weight:600">${inline(text)}</span>`;
+    return inline(text);
+  };
+
+  while (i < lines.length) {
+    const raw = lines[i];
+    const line = raw.trimEnd();
+
+    // H1
+    if (/^# /.test(line)) {
+      i++; continue; // 제목은 헤더 칩에 있으므로 스킵
+    }
+
+    // H2 → 접이식 섹션
+    if (/^## /.test(line)) {
+      if (sectionOpen) html += '</div></div>';
+      sectionIdx++;
+      const title = line.replace(/^## /, '').trim();
+      const sid = `dart-sec-${sectionIdx}`;
+      html += `
+        <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:2px">
+          <div onclick="var b=document.getElementById('${sid}');var a=this.querySelector('.dart-arrow');
+            b.style.display=b.style.display==='none'?'block':'none';a.style.transform=b.style.display==='none'?'rotate(0deg)':'rotate(90deg)';"
+            style="padding:10px 14px;background:var(--bg2);cursor:pointer;display:flex;align-items:center;gap:8px;
+              font-size:14px;font-weight:700;color:var(--text1);user-select:none">
+            <span class="dart-arrow" style="font-size:10px;color:var(--text3);transition:transform .2s;transform:rotate(90deg)">▶</span>
+            ${escHtml(title)}
+          </div>
+          <div id="${sid}" style="display:block;padding:12px 14px;display:flex;flex-direction:column;gap:8px">`;
+      sectionOpen = true;
+      i++; continue;
+    }
+
+    // H3
+    if (/^### /.test(line)) {
+      const title = line.replace(/^### /, '').trim();
+      html += `<div style="font-size:13px;font-weight:700;color:var(--tg);margin-top:8px;margin-bottom:4px;
+        padding-bottom:4px;border-bottom:1px solid var(--border)20">${escHtml(title)}</div>`;
+      i++; continue;
+    }
+
+    // H4
+    if (/^#### /.test(line)) {
+      const title = line.replace(/^#### /, '').trim();
+      html += `<div style="font-size:12px;font-weight:700;color:var(--text2);margin-top:6px">${escHtml(title)}</div>`;
+      i++; continue;
+    }
+
+    // H5
+    if (/^##### /.test(line)) {
+      const title = line.replace(/^##### /, '').trim();
+      html += `<div style="font-size:12px;font-weight:600;color:var(--text3);margin-top:4px">${escHtml(title)}</div>`;
+      i++; continue;
+    }
+
+    // 구분선 ---
+    if (/^---+$/.test(line.trim())) {
+      i++; continue; // 섹션 구분은 H2/H3로 처리하므로 스킵
+    }
+
+    // 테이블 감지 (현재 + 다음 줄이 | 포함)
+    if (/^\|/.test(line)) {
+      // 테이블 수집
+      const tableLines = [];
+      while (i < lines.length && /^\|/.test(lines[i].trimEnd())) {
+        tableLines.push(lines[i].trimEnd());
+        i++;
+      }
+      // 헤더 구분선(|---|) 제거
+      const rows = tableLines.filter(l => !/^\|[-:\s|]+$/.test(l));
+      if (!rows.length) continue;
+
+      const parseRow = r => r.split('|').slice(1,-1).map(c => c.trim());
+      const header = parseRow(rows[0]);
+      const body   = rows.slice(1);
+
+      html += `<div style="overflow-x:auto;margin:4px 0">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="background:var(--bg3)">
+              ${header.map(h => `<th style="padding:6px 10px;text-align:left;font-weight:600;
+                color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap">${inline(h)}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${body.map((r,ri) => `
+            <tr style="background:${ri%2===0?'transparent':'var(--bg3)20'}">
+              ${parseRow(r).map(c => `<td style="padding:5px 10px;color:var(--text2);
+                border-bottom:1px solid var(--border)10;line-height:1.5">${inline(c)}</td>`).join('')}
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+      continue;
+    }
+
+    // 리스트 항목 (- 또는 *)
+    if (/^[-*] /.test(line)) {
+      const text = line.replace(/^[-*] /, '').trim();
+      html += `<div style="display:flex;align-items:flex-start;gap:6px;padding:2px 0">
+        <span style="color:var(--text3);font-size:10px;margin-top:4px;flex-shrink:0">◦</span>
+        <span style="font-size:13px;color:var(--text2);line-height:1.6">${colorTag(text)}</span>
+      </div>`;
+      i++; continue;
+    }
+
+    // 빈 줄
+    if (!line.trim()) { i++; continue; }
+
+    // 일반 텍스트
+    html += `<div style="font-size:13px;color:var(--text2);line-height:1.6">${inline(line.trim())}</div>`;
+    i++;
+  }
+
+  if (sectionOpen) html += '</div></div>';
+  return html;
 }
 
 // ── DART MD 파서 ─────────────────────────────────────────────────────────────
