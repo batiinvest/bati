@@ -159,7 +159,7 @@ async function rpLoadReport() {
 
   // 병렬 데이터 로드
   try {
-    const [priceRes, finRes, watchRes, dartRes] = await Promise.all([
+    const [priceRes, finRes, watchRes, dartRes, analystRes] = await Promise.all([
       sb.from('market_data').select('price,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low,per,pbr')
         .eq('stock_code', _rpStock.code).order('base_date', { ascending: false }).limit(60),
       sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,debt_ratio,roe,roa,operating_margin,net_margin')
@@ -168,13 +168,17 @@ async function rpLoadReport() {
         .eq('stock_code', _rpStock.code).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       sb.from('dart_reports').select('report_type,receive_date,summary')
         .eq('stock_code', _rpStock.code).order('receive_date', { ascending: false }).limit(1).maybeSingle(),
+      sb.from('analyst_opinions').select('firm_name,opinion,target_price,gap_rate,opinion_date')
+        .eq('stock_code', _rpStock.code).in('opinion_code',['1','2'])
+        .order('opinion_date', { ascending: false }).limit(6),
     ]);
 
     _rpData = {
-      price:   priceRes.data  || [],
-      fin:     finRes.data    || [],
-      watch:   watchRes.data  || null,
-      dart:    dartRes.data   || null,
+      price:    priceRes.data   || [],
+      fin:      finRes.data     || [],
+      watch:    watchRes.data   || null,
+      dart:     dartRes.data    || null,
+      analyst:  analystRes.data || [],
     };
     rpRenderReport();
   } catch (e) {
@@ -255,7 +259,7 @@ function rpRenderReport() {
       <div style="flex:1;min-width:200px">
         <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px">
           <span style="font-size:26px;font-weight:800">${_rpStock.name}</span>
-          <span style="font-size:15px;color:var(--text3)">${_rpStock.code}</span>
+          <span style="font-size:15px;color:var(--text2)">${_rpStock.code}</span>
           ${latest.per  ? `<span style="font-size:13px;padding:2px 9px;border-radius:100px;background:var(--bg3);color:var(--text2)">PER ${latest.per?.toFixed(1)}x</span>` : ''}
           ${latest.pbr  ? `<span style="font-size:13px;padding:2px 9px;border-radius:100px;background:var(--bg3);color:var(--text2)">PBR ${latest.pbr?.toFixed(2)}x</span>` : ''}
         </div>
@@ -264,23 +268,23 @@ function rpRenderReport() {
           <span style="font-size:20px;font-weight:600;color:${chgColor}">${chgStr}</span>
         </div>
         <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap">
-          ${mktCap ? `<span style="font-size:14px;color:var(--text3)">시총 <b style="color:var(--text1)">${fmtCap(mktCap)}</b></span>` : ''}
-          ${fr != null ? `<span style="font-size:14px;color:var(--text3)">외국인 <b style="color:var(--text1)">${fr.toFixed(1)}%</b></span>` : ''}
-          ${latestF.roe ? `<span style="font-size:14px;color:var(--text3)">ROE <b style="color:var(--text1)">${latestF.roe?.toFixed(1)}%</b></span>` : ''}
+          ${mktCap ? `<span style="font-size:14px;color:var(--text2)">시총 <b style="color:var(--text1)">${fmtCap(mktCap)}</b></span>` : ''}
+          ${fr != null ? `<span style="font-size:14px;color:var(--text2)">외국인 <b style="color:var(--text1)">${fr.toFixed(1)}%</b></span>` : ''}
+          ${latestF.roe ? `<span style="font-size:14px;color:var(--text2)">ROE <b style="color:var(--text1)">${latestF.roe?.toFixed(1)}%</b></span>` : ''}
         </div>
       </div>
 
       <!-- 52주 가격 위치 -->
       ${high52 > 0 ? `
       <div style="min-width:160px">
-        <div style="font-size:12px;color:var(--text3);margin-bottom:6px;text-align:center">52주 가격 위치</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px;text-align:center">52주 가격 위치</div>
         <div style="height:6px;border-radius:3px;background:var(--border);position:relative;margin:0 4px">
           <div style="position:absolute;left:0;top:0;height:100%;width:${pos52}%;
             background:linear-gradient(90deg,var(--blue),var(--tg));border-radius:3px;transition:width .4s"></div>
           <div style="position:absolute;top:-4px;left:calc(${pos52}% - 7px);width:14px;height:14px;
             border-radius:50%;background:white;border:2px solid var(--tg);box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>
         </div>
-        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:12px;color:var(--text3)">
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:12px;color:var(--text2)">
           <span>저 ${fmtNum(low52)}</span>
           <span style="font-weight:600;color:var(--text1)">${pos52}%</span>
           <span>고 ${fmtNum(high52)}</span>
@@ -294,7 +298,7 @@ function rpRenderReport() {
 
     <!-- 투자 의견 카드 -->
     <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px">
-      <div style="font-size:13px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px">투자 의견</div>
+      <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px">내 투자 의견</div>
       ${_rpOpinionBadge(opinion)}
       ${targetP ? `
         <div style="text-align:center;margin-top:4px">
@@ -306,10 +310,11 @@ function rpRenderReport() {
           </div>` : ''}
         </div>` :
         `<div style="text-align:center;padding:8px;border-radius:var(--radius-sm);background:var(--bg3);
-          color:var(--text3);font-size:13px;line-height:1.5">
+          color:var(--text2);font-size:12px;line-height:1.5">
           투자노트에서<br>목표주가 설정
         </div>`}
-      <a onclick="go('watchlist')" style="font-size:13px;text-align:center;color:var(--tg);cursor:pointer">
+      ${_rpAnalystMini(_rpData.analyst || [], price)}
+      <a onclick="go('watchlist')" style="font-size:12px;text-align:center;color:var(--tg);cursor:pointer">
         투자노트 편집 →
       </a>
     </div>
@@ -340,14 +345,14 @@ function rpRenderReport() {
     </div>
   </div>
 
-  <!-- ③ 실적 트렌드 + 밸류에이션 ──────────────────────────────────── -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-    ${_rpEarningsCard(_rpData.fin)}
-    ${_rpValuationCard(latestF, latest, _rpData.fin)}
-  </div>
+  <!-- ③ 실적 트렌드 (전체 너비) ─────────────────────────────────── -->
+  ${_rpEarningsCard(_rpData.fin)}
 
-  <!-- ④ 재무 건전성 지표 ───────────────────────────────────────────── -->
-  ${_rpFinHealthCard(latestF)}
+  <!-- ④ 밸류에이션 + 재무 건전성 (같은 행) ──────────────────────── -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    ${_rpValuationCard(latestF, latest)}
+    ${_rpFinHealthCard(latestF)}
+  </div>
 
   <!-- ⑤ 수급 요약 ────────────────────────────────────────────────── -->
   ${_rpFlowCard(latest)}
@@ -391,6 +396,32 @@ function rpRenderReport() {
 }
 
 // ── 서브 컴포넌트 ─────────────────────────────────────────────────────────────
+
+function _rpAnalystMini(analysts, currentPrice) {
+  if (!analysts?.length) return '';
+  const opMap = { '매수':'BUY','적극매수':'BUY','중립':'HOLD','보유':'HOLD','매도':'SELL' };
+  const colMap = { BUY:'#22c55e', HOLD:'#f59e0b', SELL:'#ef4444' };
+  return `
+    <div style="border-top:1px solid var(--border);padding-top:10px">
+      <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:7px">증권사 의견</div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        ${analysts.slice(0,4).map(a => {
+          const op   = opMap[a.opinion] || a.opinion || '—';
+          const col  = colMap[op] || 'var(--text2)';
+          const tp   = a.target_price ? fmtNum(a.target_price)+'원' : '—';
+          const gap  = a.gap_rate != null ? (a.gap_rate >= 0 ? '+' : '') + a.gap_rate.toFixed(1)+'%' : '';
+          const gCol = a.gap_rate > 0 ? 'var(--red)' : a.gap_rate < 0 ? 'var(--blue)' : 'var(--text2)';
+          const dt   = a.opinion_date ? a.opinion_date.slice(0,10) : '';
+          return `<div style="display:flex;align-items:center;gap:6px;font-size:11px">
+            <span style="color:${col};font-weight:700;min-width:28px">${op}</span>
+            <span style="flex:1;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.firm_name||''}</span>
+            <span style="color:var(--text1);font-weight:600">${tp}</span>
+            ${gap ? `<span style="color:${gCol};font-weight:600">${gap}</span>` : ''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
 
 function _rpOpinionBadge(opinion) {
   const map = {
@@ -443,18 +474,25 @@ function _rpEarningsCard(fin) {
     <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text2)">📊 실적 트렌드</div>
 
     <!-- 바 차트 -->
-    <div style="display:flex;align-items:flex-end;gap:6px;height:${CHART_H}px;padding-bottom:0">
+    <div style="display:flex;align-items:flex-end;gap:6px;height:${CHART_H + 36}px;padding-bottom:0">
       ${items.map(f => {
         const rev  = f.revenue || 0;
         const op   = f.operating_profit || 0;
-        const revH = maxRev > 0 ? Math.max(4, Math.round(rev / maxRev * (CHART_H - 4))) : 4;
-        const opH  = maxOp  > 0 ? Math.max(4, Math.round(Math.abs(op) / maxOp * (CHART_H - 4))) : 4;
-        const opC  = op >= 0 ? 'var(--tg)' : 'var(--red)';
-        return `<div style="flex:1;min-width:0;display:flex;gap:2px;align-items:flex-end;height:${CHART_H}px">
-          <div style="flex:1;min-width:0;background:#4a9eff55;border-radius:3px 3px 0 0;height:${revH}px"
-            title="매출 ${fmtCap(rev)}"></div>
-          <div style="flex:1;min-width:0;background:${opC};opacity:.85;border-radius:3px 3px 0 0;height:${opH}px"
-            title="영업이익 ${fmtCap(Math.abs(op))}"></div>
+        const revH = maxRev > 0 ? Math.max(4, Math.round(rev / maxRev * CHART_H)) : 4;
+        const opH  = maxOp  > 0 ? Math.max(4, Math.round(Math.abs(op) / maxOp * CHART_H)) : 4;
+        const opC  = op >= 0 ? '#2AABEE' : '#f5365c';
+        const margin = rev > 0 ? (op / rev * 100).toFixed(1) : null;
+        return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;height:${CHART_H + 36}px">
+          <!-- 값 라벨 -->
+          <div style="text-align:center;margin-bottom:3px">
+            <div style="font-size:10px;font-weight:600;color:#4a9eff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmtCap(rev)}</div>
+            <div style="font-size:10px;color:${opC};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${op >= 0 ? '' : '▼'}${fmtCap(Math.abs(op))}</div>
+          </div>
+          <!-- 바 -->
+          <div style="display:flex;gap:2px;align-items:flex-end;height:${CHART_H}px">
+            <div style="flex:1;min-width:0;background:#4a9eff44;border-radius:3px 3px 0 0;height:${revH}px"></div>
+            <div style="flex:1;min-width:0;background:${opC};opacity:.8;border-radius:3px 3px 0 0;height:${opH}px"></div>
+          </div>
         </div>`;
       }).join('')}
     </div>
@@ -509,64 +547,93 @@ function _rpEarningsCard(fin) {
   </div>`;
 }
 
-function _rpValuationCard(latestF, latest, fin) {
-  // PER/PBR → market_data, ROE/ROA → financials
+// ── 신호등 헬퍼 ──────────────────────────────────────────────────────────────
+// 반환: { color, bg, icon, grade } — 강(녹)/중(황)/약(적)
+function _rpSignal(type, val) {
+  if (val == null) return null;
+  const rules = {
+    // 낮을수록 좋음
+    per:      val < 10  ? 'strong' : val < 20  ? 'mid' : 'weak',
+    pbr:      val < 1   ? 'strong' : val < 2.5 ? 'mid' : 'weak',
+    debt:     val < 50  ? 'strong' : val < 100 ? 'mid' : 'weak',
+    // 높을수록 좋음
+    roe:      val > 20  ? 'strong' : val > 10  ? 'mid' : 'weak',
+    roa:      val > 10  ? 'strong' : val > 5   ? 'mid' : 'weak',
+    opm:      val > 15  ? 'strong' : val > 5   ? 'mid' : 'weak',
+    npm:      val > 10  ? 'strong' : val > 3   ? 'mid' : 'weak',
+    equity:   'mid',  // 절대값은 신호등 없음
+    assets:   'mid',
+  };
+  const grade = rules[type] || 'mid';
+  const map = {
+    strong: { color:'#22c55e', bg:'#22c55e18', icon:'●', label:'양호' },
+    mid:    { color:'#f59e0b', bg:'#f59e0b18', icon:'●', label:'보통' },
+    weak:   { color:'#ef4444', bg:'#ef444418', icon:'●', label:'주의' },
+  };
+  return { ...map[grade], grade };
+}
+
+function _rpValuationCard(latestF, latest) {
   const metrics = [
-    { label: 'PER',  val: latest?.per,    unit: 'x',  desc: '주가수익비율' },
-    { label: 'PBR',  val: latest?.pbr,    unit: 'x',  desc: '주가순자산비율' },
-    { label: 'ROE',  val: latestF?.roe,   unit: '%',  desc: '자기자본이익률' },
-    { label: 'ROA',  val: latestF?.roa,   unit: '%',  desc: '총자산이익률' },
+    { key:'per',  label:'PER',  desc:'주가수익비율',  val: latest?.per,    unit:'x',  fmt: v => v.toFixed(1) },
+    { key:'pbr',  label:'PBR',  desc:'주가순자산비율', val: latest?.pbr,    unit:'x',  fmt: v => v.toFixed(2) },
+    { key:'roe',  label:'ROE',  desc:'자기자본이익률', val: latestF?.roe,   unit:'%',  fmt: v => v.toFixed(1) },
+    { key:'roa',  label:'ROA',  desc:'총자산이익률',  val: latestF?.roa,   unit:'%',  fmt: v => v.toFixed(1) },
   ];
 
   return `<div class="card" style="padding:16px">
-    <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text2)">💎 밸류에이션 & 수익성</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      ${metrics.map(m => `
-      <div style="padding:10px;background:var(--bg3);border-radius:var(--radius-sm)">
-        <div style="font-size:12px;color:var(--text2);margin-bottom:3px">${m.desc}</div>
-        <div style="font-size:20px;font-weight:700;color:var(--text1)">
-          ${m.val != null ? m.val.toFixed(m.unit==='x'?1:2) + m.unit : '—'}
-        </div>
-        <div style="font-size:12px;font-weight:700;color:var(--text2)">${m.label}</div>
-      </div>`).join('')}
+    <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text1)">💎 밸류에이션 & 수익성</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      ${metrics.map(m => {
+        const sig = _rpSignal(m.key, m.val);
+        return `<div style="padding:10px 12px;background:${sig?.bg||'var(--bg3)'};border-radius:var(--radius-sm);
+          border:1px solid ${sig?.color||'var(--border)'}30">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:12px;color:var(--text2)">${m.desc}</span>
+            ${sig ? `<span style="font-size:9px;color:${sig.color};font-weight:700">${sig.label}</span>` : ''}
+          </div>
+          <div style="font-size:20px;font-weight:800;color:var(--text1)">
+            ${m.val != null ? m.fmt(m.val) + m.unit : '<span style="color:var(--text2)">—</span>'}
+          </div>
+          <div style="font-size:11px;font-weight:700;color:var(--text2);margin-top:2px">${m.label}</div>
+        </div>`;
+      }).join('')}
     </div>
-    <!-- PER 히스토리 미니 -->
-    ${fin?.length >= 2 ? `
-    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">PER 추이</div>
-      <div style="display:flex;gap:4px;align-items:flex-end;height:32px">
-        ${[...fin].reverse().filter(f => f.per > 0 && f.per < 200).slice(-6).map(f => {
-          const h = Math.min(28, Math.round(f.per * 28 / 60));
-          return `<div style="flex:1;background:var(--tg)60;border-radius:2px 2px 0 0;
-            height:${h}px" title="PER ${f.per?.toFixed(1)}x (${f.bsns_year} ${f.quarter||''})"></div>`;
-        }).join('')}
-      </div>
-    </div>` : ''}
   </div>`;
 }
 
 function _rpFinHealthCard(f) {
   const kpis = [
-    { label: '부채비율',   val: f.debt_ratio,   unit: '%', good: v => v < 100, fmt: v => v.toFixed(0) },
-    { label: '자기자본',   val: f.total_equity, unit: '', good: () => true, fmt: v => fmtCap(v) },
-    { label: '총자산',     val: f.total_assets, unit: '', good: () => true, fmt: v => fmtCap(v) },
-    { label: 'ROE',        val: f.roe,          unit: '%', good: v => v > 10,  fmt: v => v.toFixed(1) },
-    { label: '영업이익률', val: f.operating_margin, unit: '%', good: v => v > 5, fmt: v => v.toFixed(1) },
+    { key:'debt',   label:'부채비율',   val: f.debt_ratio,       unit:'%',  fmt: v => v.toFixed(0),  note:'< 50% 양호' },
+    { key:'opm',    label:'영업이익률', val: f.operating_margin, unit:'%',  fmt: v => v.toFixed(1),  note:'> 15% 양호' },
+    { key:'npm',    label:'순이익률',   val: f.net_margin,       unit:'%',  fmt: v => v.toFixed(1),  note:'> 10% 양호' },
+    { key:'equity', label:'자기자본',   val: f.total_equity,     unit:'',   fmt: v => fmtCap(v),     note:'' },
+    { key:'assets', label:'총자산',     val: f.total_assets,     unit:'',   fmt: v => fmtCap(v),     note:'' },
   ].filter(k => k.val != null);
 
+  if (!kpis.length) return `<div class="card" style="padding:16px">
+    <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text1)">🏦 재무 건전성</div>
+    <div style="color:var(--text2);font-size:12px;text-align:center;padding:12px">재무 데이터 없음</div>
+  </div>`;
+
   return `<div class="card" style="padding:16px">
-    <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text2)">🏦 재무 건전성</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px">
+    <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text1)">🏦 재무 건전성</div>
+    <div style="display:flex;flex-direction:column;gap:7px">
       ${kpis.map(k => {
-        const good = k.good(k.val);
+        const sig = _rpSignal(k.key, k.val);
         const disp = k.fmt(k.val) + k.unit;
-        return `<div style="padding:10px 12px;border-radius:var(--radius-sm);
-          background:var(--bg3);border-left:3px solid ${good?'var(--tg)':'var(--red)'}">
-          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">${k.label}</div>
-          <div style="font-size:15px;font-weight:700">${disp}</div>
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;
+          background:${sig?.bg||'var(--bg3)'};border-radius:var(--radius-sm);
+          border-left:3px solid ${sig?.color||'var(--border)'}">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;color:var(--text2)">${k.label}${k.note ? ` <span style="font-size:10px;color:var(--text2);opacity:.7">${k.note}</span>` : ''}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            ${sig ? `<span style="font-size:9px;color:${sig.color};font-weight:700;white-space:nowrap">${sig.label}</span>` : ''}
+            <div style="font-size:15px;font-weight:800;color:var(--text1);white-space:nowrap">${disp}</div>
+          </div>
         </div>`;
       }).join('')}
-      ${kpis.length === 0 ? `<div style="color:var(--text3);font-size:12px;grid-column:1/-1;text-align:center;padding:12px">재무 데이터 없음</div>` : ''}
     </div>
   </div>`;
 }
