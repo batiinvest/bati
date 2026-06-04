@@ -150,7 +150,7 @@ a:hover { text-decoration:underline; }
 .form-input::placeholder { color:var(--text3); }
 .form-select { width:100%; padding:8px 12px; font-size:13px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg3); color:var(--text); font-family:inherit; }
 .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-.form-hint { font-size:11px; color:var(--text3); margin-top:4px; }
+.form-hint { font-size:11px; color:var(--text2); margin-top:4px; }
 textarea.form-input { resize:vertical; min-height:100px; }
 
 /* ── Tabs ── */
