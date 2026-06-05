@@ -656,6 +656,84 @@ function _rpEarningsCard(fin) {
         <div style="font-size:14px;font-weight:700;color:var(--text1)">${fmtCap(fin[0].revenue||0)}</div>
       </div>
     </div>` : ''}
+
+    <!-- 실적 수치 테이블 -->
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
+        <thead>
+          <tr style="background:var(--bg3)">
+            <th style="padding:6px 8px;text-align:left;color:var(--text2);font-weight:600;
+              border-bottom:1px solid var(--border);width:80px">항목</th>
+            ${items.map(f => `
+              <th style="padding:6px 8px;text-align:right;color:var(--text2);font-weight:600;
+                border-bottom:1px solid var(--border)">
+                <div>${f.bsns_year||''}</div>
+                <div style="color:var(--tg);font-weight:700">${f.quarter||''}</div>
+              </th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 매출 -->
+          <tr>
+            <td style="padding:6px 8px;color:var(--text2);border-bottom:1px solid var(--border)10;
+              display:flex;align-items:center;gap:5px">
+              <span style="width:8px;height:8px;border-radius:2px;background:#4a9eff55;flex-shrink:0"></span>매출
+            </td>
+            ${items.map(f => `
+              <td style="padding:6px 8px;text-align:right;color:var(--text1);font-weight:600;
+                border-bottom:1px solid var(--border)10">
+                ${fmtCap(f.revenue||0)}
+              </td>`).join('')}
+          </tr>
+          <!-- 영업이익 -->
+          <tr>
+            <td style="padding:6px 8px;color:var(--text2);border-bottom:1px solid var(--border)10;
+              display:flex;align-items:center;gap:5px">
+              <span style="width:8px;height:8px;border-radius:2px;background:#2AABEE;flex-shrink:0"></span>영업이익
+            </td>
+            ${items.map(f => {
+              const op = f.operating_profit || 0;
+              const col = op >= 0 ? 'var(--text1)' : 'var(--blue)';
+              return `<td style="padding:6px 8px;text-align:right;color:${col};font-weight:600;
+                border-bottom:1px solid var(--border)10">
+                ${op < 0 ? '▼' : ''}${fmtCap(Math.abs(op))}
+              </td>`;
+            }).join('')}
+          </tr>
+          <!-- 순이익 -->
+          ${items.some(f => f.net_income != null) ? `
+          <tr>
+            <td style="padding:6px 8px;color:var(--text2);border-bottom:1px solid var(--border)10;
+              display:flex;align-items:center;gap:5px">
+              <span style="width:8px;height:8px;border-radius:2px;background:#a78bfa;flex-shrink:0"></span>순이익
+            </td>
+            ${items.map(f => {
+              const ni = f.net_income;
+              if (ni == null) return `<td style="padding:6px 8px;text-align:right;color:var(--text2);
+                border-bottom:1px solid var(--border)10">—</td>`;
+              const col = ni >= 0 ? 'var(--text1)' : 'var(--blue)';
+              return `<td style="padding:6px 8px;text-align:right;color:${col};font-weight:600;
+                border-bottom:1px solid var(--border)10">
+                ${ni < 0 ? '▼' : ''}${fmtCap(Math.abs(ni))}
+              </td>`;
+            }).join('')}
+          </tr>` : ''}
+          <!-- 영업이익률 -->
+          <tr>
+            <td style="padding:6px 8px;color:var(--text2);display:flex;align-items:center;gap:5px">
+              <span style="width:8px;height:8px;border-radius:2px;background:var(--border);flex-shrink:0"></span>영업이익률
+            </td>
+            ${items.map(f => {
+              const m = f.revenue > 0 ? (f.operating_profit||0) / f.revenue * 100 : null;
+              const col = m == null ? 'var(--text2)' : m >= 10 ? '#4ade80' : m >= 0 ? 'var(--text1)' : 'var(--blue)';
+              return `<td style="padding:6px 8px;text-align:right;color:${col};font-weight:600">
+                ${m != null ? m.toFixed(1)+'%' : '—'}
+              </td>`;
+            }).join('')}
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>`;
 }
 
