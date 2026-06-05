@@ -582,25 +582,38 @@ function _rpEarningsCard(fin) {
   const opMargin = fin[0]?.revenue > 0
     ? (fin[0].operating_profit || 0) / fin[0].revenue * 100 : null;
 
-  return `<div class="card" style="padding:16px">
-    <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text2)">📊 실적 트렌드</div>
+  // 핵심 KPI chips 생성
+  const chip = (label, value, color) => value != null ? `
+    <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;
+      border-radius:100px;background:${color}18;border:1px solid ${color}40;white-space:nowrap">
+      <span style="font-size:11px;color:var(--text2)">${label}</span>
+      <span style="font-size:12px;font-weight:700;color:${color}">${value}</span>
+    </span>` : '';
 
-    <!-- 바 차트 -->
-    <div style="display:flex;align-items:flex-end;gap:6px;height:${CHART_H + 36}px;padding-bottom:0">
+  return `<div class="card" style="padding:16px">
+
+    <!-- ① 타이틀 + KPI chips -->
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+      <span style="font-size:14px;font-weight:700;color:var(--text1);white-space:nowrap">📊 실적 트렌드</span>
+      ${chip('매출 YoY', yoy != null ? (yoy>=0?'+':'')+yoy.toFixed(1)+'%' : null, yoy>=0?'var(--red)':'var(--blue)')}
+      ${chip('영업이익 YoY', opYoy != null ? (opYoy>=0?'+':'')+opYoy.toFixed(1)+'%' : null, opYoy>=0?'var(--red)':'var(--blue)')}
+      ${chip('영업이익률', opMargin != null ? opMargin.toFixed(1)+'%' : null, opMargin >= 15 ? '#4ade80' : opMargin >= 5 ? 'var(--text2)' : 'var(--red)')}
+      ${chip('최근 매출', fmtCap(fin[0].revenue||0), 'var(--text2)')}
+    </div>
+
+    <!-- ② 바 차트 -->
+    <div style="display:flex;align-items:flex-end;gap:6px;height:${CHART_H + 36}px">
       ${items.map(f => {
         const rev  = f.revenue || 0;
         const op   = f.operating_profit || 0;
         const revH = maxRev > 0 ? Math.max(4, Math.round(rev / maxRev * CHART_H)) : 4;
         const opH  = maxOp  > 0 ? Math.max(4, Math.round(Math.abs(op) / maxOp * CHART_H)) : 4;
         const opC  = op >= 0 ? '#2AABEE' : '#f5365c';
-        const margin = rev > 0 ? (op / rev * 100).toFixed(1) : null;
         return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;height:${CHART_H + 36}px">
-          <!-- 값 라벨 -->
           <div style="text-align:center;margin-bottom:3px">
             <div style="font-size:10px;font-weight:600;color:#4a9eff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmtCap(rev)}</div>
-            <div style="font-size:10px;color:${opC};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${op >= 0 ? '' : '▼'}${fmtCap(Math.abs(op))}</div>
+            <div style="font-size:10px;color:${opC};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${op < 0 ? '▼' : ''}${fmtCap(Math.abs(op))}</div>
           </div>
-          <!-- 바 -->
           <div style="display:flex;gap:2px;align-items:flex-end;height:${CHART_H}px">
             <div style="flex:1;min-width:0;background:#4a9eff44;border-radius:3px 3px 0 0;height:${revH}px"></div>
             <div style="flex:1;min-width:0;background:${opC};opacity:.8;border-radius:3px 3px 0 0;height:${opH}px"></div>
@@ -611,51 +624,22 @@ function _rpEarningsCard(fin) {
 
     <!-- 기간 라벨 -->
     <div style="display:flex;gap:6px;margin-top:6px">
-      ${items.map(f => {
-        const period = f.bsns_year ? `${f.bsns_year}\n${f.quarter||''}` : '—';
-        const [yr, q] = period.split('\n');
-        return `<div style="flex:1;min-width:0;text-align:center">
-          <div style="font-size:11px;font-weight:600;color:var(--text2)">${yr}</div>
-          <div style="font-size:12px;color:var(--text2)">${q}</div>
-        </div>`;
-      }).join('')}
+      ${items.map(f => `
+        <div style="flex:1;min-width:0;text-align:center">
+          <div style="font-size:11px;font-weight:600;color:var(--text2)">${f.bsns_year||''}</div>
+          <div style="font-size:12px;color:var(--text2)">${f.quarter||''}</div>
+        </div>`).join('')}
     </div>
 
     <!-- 범례 -->
-    <div style="display:flex;gap:12px;font-size:12px;color:var(--text2);margin-top:10px">
+    <div style="display:flex;gap:12px;font-size:11px;color:var(--text2);margin-top:8px">
       <span style="display:flex;align-items:center;gap:4px">
-        <span style="width:10px;height:10px;background:#4a9eff55;border-radius:2px;display:inline-block"></span>매출
+        <span style="width:9px;height:9px;background:#4a9eff55;border-radius:2px;display:inline-block"></span>매출
       </span>
       <span style="display:flex;align-items:center;gap:4px">
-        <span style="width:10px;height:10px;background:var(--tg);border-radius:2px;display:inline-block"></span>영업이익
+        <span style="width:9px;height:9px;background:#2AABEE;border-radius:2px;display:inline-block"></span>영업이익
       </span>
     </div>
-
-    <!-- YoY 요약 -->
-    ${yoy !== null ? `
-    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);
-      display:flex;gap:20px;flex-wrap:wrap">
-      <div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:2px">매출 YoY</div>
-        <div style="font-size:14px;font-weight:700;color:${yoy>=0?'var(--red)':'var(--blue)'}">
-          ${yoy>=0?'+':''}${yoy.toFixed(1)}%
-        </div>
-      </div>
-      ${opYoy !== null ? `<div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:2px">영업이익 YoY</div>
-        <div style="font-size:14px;font-weight:700;color:${opYoy>=0?'var(--red)':'var(--blue)'}">
-          ${opYoy>=0?'+':''}${opYoy.toFixed(1)}%
-        </div>
-      </div>` : ''}
-      ${opMargin !== null ? `<div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:2px">영업이익률</div>
-        <div style="font-size:14px;font-weight:700;color:var(--text1)">${opMargin.toFixed(1)}%</div>
-      </div>` : ''}
-      <div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:2px">최근 매출</div>
-        <div style="font-size:14px;font-weight:700;color:var(--text1)">${fmtCap(fin[0].revenue||0)}</div>
-      </div>
-    </div>` : ''}
 
     <!-- 실적 수치 테이블 -->
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);overflow-x:auto">
