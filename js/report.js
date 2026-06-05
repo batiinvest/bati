@@ -447,7 +447,7 @@ function _rpAnalystList(analysts, currentPrice) {
   const avgTp = tps.length ? Math.round(tps.reduce((s,v)=>s+v,0)/tps.length) : null;
   const avgGap = avgTp && currentPrice ? ((avgTp - currentPrice) / currentPrice * 100) : null;
 
-  return `<div style="display:flex;flex-direction:column;gap:0;min-width:0">
+  return `<div style="display:flex;flex-direction:column;gap:0;min-width:0;height:100%">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <span style="font-size:11px;font-weight:700;color:var(--text2)">증권사 목표주가</span>
       ${avgTp ? `<span style="font-size:11px;color:var(--text2)">
@@ -456,7 +456,7 @@ function _rpAnalystList(analysts, currentPrice) {
           ${avgGap>0?'▲':'▼'}${Math.abs(avgGap).toFixed(1)}%</span>` : ''}
       </span>` : ''}
     </div>
-    <div style="display:flex;flex-direction:column;gap:4px;overflow-y:auto;max-height:160px">
+    <div style="display:flex;flex-direction:column;gap:4px;overflow-y:auto;flex:1">
       ${items.map(a => {
         const op   = opMap[a.opinion] || a.opinion || '—';
         const col  = colMap[op] || 'var(--text2)';
