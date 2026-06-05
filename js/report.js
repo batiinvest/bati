@@ -265,7 +265,7 @@ function rpRenderReport() {
     <div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap">
 
       <!-- 좌: 종목 기본 정보 -->
-      <div style="flex:1;min-width:200px">
+      <div style="min-width:0;flex-shrink:0">
         <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px">
           <span style="font-size:26px;font-weight:800">${_rpStock.name}</span>
           <span style="font-size:15px;color:var(--text2)">${_rpStock.code}</span>
