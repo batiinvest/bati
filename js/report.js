@@ -281,6 +281,22 @@ function rpRenderReport() {
           ${fr != null ? `<span style="font-size:14px;color:var(--text2)">외국인 <b style="color:var(--text1)">${fr.toFixed(1)}%</b></span>` : ''}
           ${latestF.roe ? `<span style="font-size:14px;color:var(--text2)">ROE <b style="color:var(--text1)">${latestF.roe?.toFixed(1)}%</b></span>` : ''}
         </div>
+        <!-- 52주 가격 위치 (시총 아래) -->
+        ${high52 > 0 ? `
+        <div style="margin-top:10px;width:200px">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:5px">52주 가격 위치</div>
+          <div style="height:5px;border-radius:3px;background:var(--border);position:relative;margin:0 2px">
+            <div style="position:absolute;left:0;top:0;height:100%;width:${pos52}%;
+              background:linear-gradient(90deg,var(--blue),var(--tg));border-radius:3px"></div>
+            <div style="position:absolute;top:-4px;left:calc(${pos52}% - 6px);width:12px;height:12px;
+              border-radius:50%;background:white;border:2px solid var(--tg);box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--text2)">
+            <span>저 ${fmtNum(low52)}</span>
+            <span style="font-weight:700;color:var(--tg)">${pos52}%</span>
+            <span>고 ${fmtNum(high52)}</span>
+          </div>
+        </div>` : ''}
       </div>
 
       <!-- 중: 내 투자의견 + 증권사 목록 -->
@@ -313,22 +329,28 @@ function rpRenderReport() {
 
       </div>
 
-      <!-- 우: 52주 가격 위치 -->
-      ${high52 > 0 ? `
-      <div style="min-width:160px">
-        <div style="font-size:12px;color:var(--text2);margin-bottom:6px;text-align:center">52주 가격 위치</div>
-        <div style="height:6px;border-radius:3px;background:var(--border);position:relative;margin:0 4px">
-          <div style="position:absolute;left:0;top:0;height:100%;width:${pos52}%;
-            background:linear-gradient(90deg,var(--blue),var(--tg));border-radius:3px;transition:width .4s"></div>
-          <div style="position:absolute;top:-4px;left:calc(${pos52}% - 7px);width:14px;height:14px;
-            border-radius:50%;background:white;border:2px solid var(--tg);box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:12px;color:var(--text2)">
-          <span>저 ${fmtNum(low52)}</span>
-          <span style="font-weight:600;color:var(--text1)">${pos52}%</span>
-          <span>고 ${fmtNum(high52)}</span>
-        </div>
-      </div>` : ''}
+      <!-- 우: 투자 참고 지표 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:200px;align-content:start">
+        ${(() => {
+          const tv  = latest.trading_value;
+          const vol = latest.volume;
+          const fromHigh = high52 > 0 && price ? ((price - high52) / high52 * 100) : null;
+          const fromLow  = low52  > 0 && price ? ((price - low52)  / low52  * 100) : null;
+          const kpi = (label, val, color) => val != null ? `
+            <div style="padding:8px 10px;background:var(--bg3);border-radius:var(--radius-sm)">
+              <div style="font-size:11px;color:var(--text2);margin-bottom:3px">${label}</div>
+              <div style="font-size:14px;font-weight:700;color:${color||'var(--text1)'}">${val}</div>
+            </div>` : '';
+          return [
+            kpi('거래대금', tv ? fmtCap(tv) : null),
+            kpi('거래량',   vol ? fmtNum(vol) : null),
+            kpi('고점 대비', fromHigh != null ? fromHigh.toFixed(1)+'%' : null,
+              fromHigh >= -5 ? '#f87171' : fromHigh >= -20 ? '#f59e0b' : '#4ade80'),
+            kpi('저점 대비', fromLow != null ? '+'+fromLow.toFixed(1)+'%' : null,
+              fromLow >= 50 ? '#f87171' : fromLow >= 20 ? '#f59e0b' : '#4ade80'),
+          ].join('');
+        })()}
+      </div>
     </div>
   </div>
 
