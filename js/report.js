@@ -280,6 +280,8 @@ function rpRenderReport() {
           ${mktCap ? `<span style="font-size:14px;color:var(--text2)">시총 <b style="color:var(--text1)">${fmtCap(mktCap)}</b></span>` : ''}
           ${fr != null ? `<span style="font-size:14px;color:var(--text2)">외국인 <b style="color:var(--text1)">${fr.toFixed(1)}%</b></span>` : ''}
           ${latestF.roe ? `<span style="font-size:14px;color:var(--text2)">ROE <b style="color:var(--text1)">${latestF.roe?.toFixed(1)}%</b></span>` : ''}
+          ${latest.trading_value ? `<span style="font-size:14px;color:var(--text2)">거래대금 <b style="color:var(--text1)">${fmtCap(latest.trading_value)}</b></span>` : ''}
+          ${latest.volume ? `<span style="font-size:14px;color:var(--text2)">거래량 <b style="color:var(--text1)">${fmtNum(latest.volume)}</b></span>` : ''}
         </div>
         <!-- 52주 가격 위치 (시총 아래) -->
         ${high52 > 0 ? `
@@ -329,28 +331,47 @@ function rpRenderReport() {
 
       </div>
 
-      <!-- 우: 투자 참고 지표 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:200px;align-content:start">
-        ${(() => {
-          const tv  = latest.trading_value;
-          const vol = latest.volume;
-          const fromHigh = high52 > 0 && price ? ((price - high52) / high52 * 100) : null;
-          const fromLow  = low52  > 0 && price ? ((price - low52)  / low52  * 100) : null;
-          const kpi = (label, val, color) => val != null ? `
-            <div style="padding:8px 10px;background:var(--bg3);border-radius:var(--radius-sm)">
-              <div style="font-size:11px;color:var(--text2);margin-bottom:3px">${label}</div>
-              <div style="font-size:14px;font-weight:700;color:${color||'var(--text1)'}">${val}</div>
-            </div>` : '';
-          return [
-            kpi('거래대금', tv ? fmtCap(tv) : null),
-            kpi('거래량',   vol ? fmtNum(vol) : null),
-            kpi('고점 대비', fromHigh != null ? fromHigh.toFixed(1)+'%' : null,
-              fromHigh >= -5 ? '#f87171' : fromHigh >= -20 ? '#f59e0b' : '#4ade80'),
-            kpi('저점 대비', fromLow != null ? '+'+fromLow.toFixed(1)+'%' : null,
-              fromLow >= 50 ? '#f87171' : fromLow >= 20 ? '#f59e0b' : '#4ade80'),
-          ].join('');
-        })()}
-      </div>
+      <!-- 우: 주가 미니 차트 -->
+      ${(() => {
+        const pts = [...prices].reverse().slice(0, 30).filter(r => r.price > 0);
+        if (!pts.length) return '';
+        const W = 220, H = 70;
+        const pxVals = pts.map(r => r.price);
+        const minP = Math.min(...pxVals);
+        const maxP = Math.max(...pxVals);
+        const range = maxP - minP || 1;
+        const coords = pxVals.map((v, i) => {
+          const x = (i / (pxVals.length - 1)) * W;
+          const y = H - 4 - Math.round((v - minP) / range * (H - 8));
+          return `${x.toFixed(1)},${y}`;
+        }).join(' ');
+        const firstP = pxVals[0], lastP = pxVals[pxVals.length - 1];
+        const lineColor = lastP >= firstP ? '#f87171' : '#60a5fa';
+        const lastX = W, lastY = H - 4 - Math.round((lastP - minP) / range * (H - 8));
+        // 채우기 경로
+        const fillPath = `M0,${H} L${coords.split(' ').map(c => c).join(' L')} L${W},${H} Z`;
+        return `<div style="min-width:${W}px">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:5px">
+            주가 추이 <span style="font-size:10px">(최근 ${pts.length}일)</span>
+          </div>
+          <svg width="${W}" height="${H}" style="display:block;overflow:visible">
+            <defs>
+              <linearGradient id="hdr-fill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.25"/>
+                <stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="${fillPath}" fill="url(#hdr-fill)"/>
+            <polyline points="${coords}" fill="none" stroke="${lineColor}"
+              stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+            <circle cx="${lastX}" cy="${lastY}" r="3" fill="${lineColor}"/>
+          </svg>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:2px">
+            <span>${pts[0]?.base_date?.slice(2,10)||''}</span>
+            <span>${pts[pts.length-1]?.base_date?.slice(2,10)||''}</span>
+          </div>
+        </div>`;
+      })()}
     </div>
   </div>
 
