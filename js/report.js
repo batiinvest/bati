@@ -164,7 +164,7 @@ async function rpLoadReport() {
     const [priceRes, finRes, watchRes, dartRes, analystRes, segRes] = await Promise.all([
       sb.from('market_data').select('price,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low,per,pbr,base_date')
         .eq('stock_code', _rpStock.code).order('base_date', { ascending: false }).limit(500),
-      sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,debt_ratio,roe,roa,operating_margin,net_margin')
+      sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,debt_ratio,roe,roa,operating_margin,net_margin,ebitda,fcf,da')
         .eq('stock_code', _rpStock.code).eq('fs_div','CFS').order('bsns_year', { ascending: false }).order('quarter', { ascending: false }).limit(8),
       sb.from('watchlist').select('note,target_price,opinion,buy_price,created_at')
         .eq('stock_code', _rpStock.code).order('created_at', { ascending: false }).limit(1).maybeSingle(),
@@ -910,6 +910,68 @@ function _rpEarningsCard(fin) {
   </div>`;
 }
 
+// ── 종합 투자 판단 (펀드매니저 관점) ─────────────────────────────────────────
+function _rpSynthesis(latestF, latest, fin) {
+  const per = latest?.per, pbr = latest?.pbr;
+  const roe = latestF?.roe, roa = latestF?.roa;
+  const opm = latestF?.operating_margin, npm = latestF?.net_margin;
+  const debt = latestF?.debt_ratio;
+  const prev = fin?.[1];
+
+  // QoQ 추세
+  const roeTrend = roe != null && prev?.roe != null ? roe - prev.roe : null;
+  const opmTrend = opm != null && prev?.operating_margin != null ? opm - prev.operating_margin : null;
+
+  const signals = [];
+
+  // 퀄리티 프리미엄 — 고PER + 고ROE (비싸지만 근거 있는 프리미엄)
+  if (per != null && per > 20 && roe != null && roe > 15 && opm != null && opm > 10)
+    signals.push({ type:'good', icon:'💎',
+      msg: `PER ${per?.toFixed(1)}x + ROE ${roe?.toFixed(1)}% — 퀄리티 프리미엄. 높은 수익성이 고평가를 정당화 (PEG 관점 추가 확인 권장)` });
+
+  // Value Trap 경고 — 수익성 대비 고평가
+  if (per > 15 && roe != null && roe < 5)
+    signals.push({ type:'warn', icon:'⚠️',
+      msg: `PER ${per?.toFixed(1)}x 대비 ROE ${roe?.toFixed(1)}% — 수익성 대비 고평가, 가치함정(Value Trap) 주의` });
+
+  // 저평가 가치주
+  if (per != null && per < 10 && pbr != null && pbr < 1)
+    signals.push({ type:'good', icon:'✅',
+      msg: `PER ${per?.toFixed(1)}x · PBR ${pbr?.toFixed(2)}x — 저평가 가치주 구간` });
+
+  // 고수익 우량주
+  if (roe != null && roe > 20 && opm != null && opm > 15)
+    signals.push({ type:'good', icon:'✅',
+      msg: `ROE ${roe?.toFixed(1)}% · 영업이익률 ${opm?.toFixed(1)}% — 고수익성 우량주` });
+
+  // 자본배분 여력 — 저부채 + 고마진 = 추가 투자/환원 여력
+  if (debt != null && debt < 60 && opm != null && opm > 15 && npm != null && npm > 10)
+    signals.push({ type:'good', icon:'🏗️',
+      msg: `부채비율 ${debt?.toFixed(0)}% · 순이익률 ${npm?.toFixed(1)}% — 저부채+고마진, 자본배분 여력 충분 (배당·자사주·M&A 잠재력)` });
+
+  // 부채 과다
+  if (debt != null && debt > 200)
+    signals.push({ type:'bad', icon:'🔴',
+      msg: `부채비율 ${debt?.toFixed(0)}% — 레버리지 과다, 금리 위험 노출` });
+
+  // ROE 추세
+  if (roeTrend != null && Math.abs(roeTrend) >= 1.5)
+    signals.push({
+      type: roeTrend > 0 ? 'good' : 'warn', icon: roeTrend > 0 ? '📈' : '📉',
+      msg: `ROE ${roeTrend > 0 ? '개선' : '악화'} (${roeTrend > 0 ? '+' : ''}${roeTrend.toFixed(1)}%p QoQ) — 수익성 ${roeTrend > 0 ? '회복 신호' : '훼손 주의'}` });
+
+  // 영업이익률 추세
+  if (opmTrend != null && Math.abs(opmTrend) >= 2)
+    signals.push({
+      type: opmTrend > 0 ? 'good' : 'warn', icon: opmTrend > 0 ? '📈' : '📉',
+      msg: `영업이익률 ${opmTrend > 0 ? '상승' : '하락'} (${opmTrend > 0 ? '+' : ''}${opmTrend.toFixed(1)}%p QoQ)` });
+
+  if (!signals.length)
+    signals.push({ type:'neutral', icon:'ℹ️', msg: '특이 신호 없음 — 추가 정성 분석 필요' });
+
+  return signals;
+}
+
 // ── 신호등 헬퍼 ──────────────────────────────────────────────────────────────
 // 반환: { color, bg, icon, grade } — 강(녹)/중(황)/약(적)
 function _rpSignal(type, val) {
@@ -1128,14 +1190,76 @@ function rpSegFilter(name) {
 }
 
 function _rpValuationCard(latestF, latest) {
-  const ps = _rpData.peerStats || null;
+  const ps     = _rpData.peerStats || null;
+  const fin    = _rpData.fin || [];
+  const prev   = fin[1] || {};
+  const prices = _rpData.price || [];
 
+  // QoQ 추세 화살표
+  const trend = (cur, old) => {
+    if (cur == null || old == null) return '';
+    const d = cur - old;
+    if (Math.abs(d) < 0.1) return `<span style="font-size:10px;color:var(--text2)"> →</span>`;
+    return d > 0
+      ? `<span style="font-size:10px;color:#f87171"> ▲${d.toFixed(1)}</span>`
+      : `<span style="font-size:10px;color:#60a5fa"> ▼${Math.abs(d).toFixed(1)}</span>`;
+  };
+
+  // PER/PBR 역사적 추세 (시장 데이터 기준)
+  const prevMkt = prices[1] || {};
   const metrics = [
-    { key:'per', label:'PER', desc:'주가수익비율',   val: latest?.per,   peer: ps?.per, unit:'x', fmt: v=>v.toFixed(1), lowerBetter:true  },
-    { key:'pbr', label:'PBR', desc:'주가순자산비율', val: latest?.pbr,   peer: ps?.pbr, unit:'x', fmt: v=>v.toFixed(2), lowerBetter:true  },
-    { key:'roe', label:'ROE', desc:'자기자본이익률', val: latestF?.roe,  peer: ps?.roe, unit:'%', fmt: v=>v.toFixed(1), lowerBetter:false },
-    { key:'roa', label:'ROA', desc:'총자산이익률',  val: latestF?.roa,  peer: ps?.roa, unit:'%', fmt: v=>v.toFixed(1), lowerBetter:false },
+    { key:'per', label:'PER', desc:'주가수익비율',   val: latest?.per,   peer: ps?.per, unit:'x', fmt: v=>v.toFixed(1), lowerBetter:true,  prevVal: prevMkt?.per },
+    { key:'pbr', label:'PBR', desc:'주가순자산비율', val: latest?.pbr,   peer: ps?.pbr, unit:'x', fmt: v=>v.toFixed(2), lowerBetter:true,  prevVal: prevMkt?.pbr },
+    { key:'roe', label:'ROE', desc:'자기자본이익률', val: latestF?.roe,  peer: ps?.roe, unit:'%', fmt: v=>v.toFixed(1), lowerBetter:false, prevVal: prev?.roe },
+    { key:'roa', label:'ROA', desc:'총자산이익률',  val: latestF?.roa,  peer: ps?.roa, unit:'%', fmt: v=>v.toFixed(1), lowerBetter:false, prevVal: prev?.roa },
   ];
+
+  // ── PER 역사적 밴드 미니 차트 ──
+  const _perSparkline = () => {
+    const perHistory = prices.filter(p => p.per != null && p.per > 0 && p.per < 200).map(p => p.per);
+    if (perHistory.length < 10) return '';
+    const curPer = latest?.per;
+    if (curPer == null) return '';
+    const mn = Math.min(...perHistory), mx = Math.max(...perHistory);
+    const avg = perHistory.reduce((s,v) => s+v, 0) / perHistory.length;
+    const range = mx - mn || 1;
+    const W = 200, H = 32, pts = perHistory.slice(0, 120).reverse(); // 최신 120개, 오래된 순
+    const xs = pts.map((_, i) => (i / (pts.length - 1)) * W);
+    const ys = pts.map(v => H - ((v - mn) / range) * H);
+    const path = xs.map((x,i) => `${i===0?'M':'L'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
+    const avgY = (H - ((avg - mn) / range) * H).toFixed(1);
+    const curY = (H - ((curPer - mn) / range) * H).toFixed(1);
+    const pctPos = ((curPer - mn) / range * 100).toFixed(0);
+    const bandColor = curPer > avg * 1.3 ? '#f87171' : curPer < avg * 0.8 ? '#4ade80' : '#f59e0b';
+    return `<div style="margin-bottom:10px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:11px;font-weight:700;color:var(--text2)">PER 히스토리 밴드 (최근 ${pts.length}거래일)</span>
+        <div style="display:flex;gap:10px;font-size:10px;color:var(--text2)">
+          <span>최저 <b style="color:#4ade80">${mn.toFixed(1)}x</b></span>
+          <span>평균 <b style="color:#f59e0b">${avg.toFixed(1)}x</b></span>
+          <span>최고 <b style="color:#f87171">${mx.toFixed(1)}x</b></span>
+        </div>
+      </div>
+      <div style="position:relative">
+        <svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="display:block;height:32px">
+          <!-- 평균선 -->
+          <line x1="0" y1="${avgY}" x2="${W}" y2="${avgY}" stroke="#f59e0b" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
+          <!-- PER 라인 -->
+          <path d="${path}" fill="none" stroke="var(--border)" stroke-width="1.2" opacity="0.7"/>
+          <!-- 현재값 마커 -->
+          <circle cx="${xs[xs.length-1].toFixed(1)}" cy="${curY}" r="3" fill="${bandColor}" stroke="var(--bg3)" stroke-width="1.5"/>
+        </svg>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:3px">
+          <span>← ${pts.length}거래일 전</span>
+          <span style="color:${bandColor};font-weight:700">현재 ${curPer.toFixed(1)}x (역사적 하위 ${pctPos}%)</span>
+          <span>현재 →</span>
+        </div>
+      </div>
+    </div>`;
+  };
+
+  // 종합 판단
+  const synthesis = _rpSynthesis(latestF, latest, fin);
 
   // peer 대비 평가: lowerBetter → 낮을수록 저평가 / 높을수록 고평가
   const peerJudge = (val, peer, lowerBetter) => {
@@ -1160,10 +1284,27 @@ function _rpValuationCard(latestF, latest) {
     : `<div style="font-size:11px;color:var(--text2);opacity:.6">업종 비교 로딩 중...</div>`;
 
   return `<div id="rp-val-card" class="card" style="padding:16px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:6px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
       <span style="font-size:14px;font-weight:700;color:var(--text1)">💎 밸류에이션 & 수익성</span>
       ${peerHeader}
     </div>
+
+    <!-- 종합 투자 판단 -->
+    <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px;
+      padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);
+      border-left:3px solid var(--tg)">
+      <div style="font-size:10px;font-weight:700;color:var(--tg);letter-spacing:.6px;margin-bottom:2px">
+        펀드매니저 종합 판단
+      </div>
+      ${synthesis.map(s => {
+        const col = s.type==='good'?'#4ade80' : s.type==='bad'?'#f87171' : s.type==='warn'?'#f59e0b' : 'var(--text2)';
+        return `<div style="font-size:12px;color:${col};line-height:1.5">${s.icon} ${s.msg}</div>`;
+      }).join('')}
+    </div>
+
+    <!-- PER 역사적 밴드 -->
+    ${_perSparkline()}
+
     <div style="display:flex;flex-direction:column;gap:8px">
       ${metrics.map(m => {
         const sig   = _rpSignal(m.key, m.val);
@@ -1181,7 +1322,7 @@ function _rpValuationCard(latestF, latest) {
           <!-- 1줄: 지표 + 현재값 + 화살표 + 중앙값 + 판단 배지 -->
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
             <span style="font-size:12px;font-weight:700;color:var(--text2);min-width:28px">${m.label}</span>
-            <span style="font-size:20px;font-weight:800;color:var(--text1)">${m.val != null ? m.fmt(m.val)+m.unit : '—'}</span>
+            <span style="font-size:20px;font-weight:800;color:var(--text1)">${m.val != null ? m.fmt(m.val)+m.unit : '—'}</span>${trend(m.val, m.prevVal)}
             ${m.peer != null ? `
               <span style="font-size:12px;color:var(--text2)">vs</span>
               <div>
@@ -1229,38 +1370,94 @@ function _rpValuationCard(latestF, latest) {
 }
 
 function _rpFinHealthCard(f) {
-  const kpis = [
-    { key:'debt',   label:'부채비율',   val: f.debt_ratio,       unit:'%',  fmt: v => v.toFixed(0),  note:'< 50% 양호' },
-    { key:'opm',    label:'영업이익률', val: f.operating_margin, unit:'%',  fmt: v => v.toFixed(1),  note:'> 15% 양호' },
-    { key:'npm',    label:'순이익률',   val: f.net_margin,       unit:'%',  fmt: v => v.toFixed(1),  note:'> 10% 양호' },
-    { key:'equity', label:'자기자본',   val: f.total_equity,     unit:'',   fmt: v => fmtCap(v),     note:'' },
-    { key:'assets', label:'총자산',     val: f.total_assets,     unit:'',   fmt: v => fmtCap(v),     note:'' },
+  const fin  = _rpData.fin || [];
+  const prev = fin[1] || {};
+  const ps   = _rpData.peerStats || null;
+
+  const trend = (cur, old) => {
+    if (cur == null || old == null) return '';
+    const d = cur - old;
+    if (Math.abs(d) < 0.1) return '';
+    return d > 0
+      ? `<span style="font-size:10px;color:#f87171">▲${d.toFixed(1)}</span>`
+      : `<span style="font-size:10px;color:#60a5fa">▼${Math.abs(d).toFixed(1)}</span>`;
+  };
+
+  // 이자보상배율 근사 (영업이익 / 금융비용 — 금융비용 없으면 skip)
+  const icr = null; // 별도 데이터 필요
+
+  // EBITDA/FCF (financials에서)
+  const ebitda = f.ebitda;
+  const fcf    = f.fcf;
+  const mktCap = _rpData.price?.[0]?.market_cap;
+  const fcfYield = fcf != null && mktCap > 0 ? (fcf / mktCap * 100) : null;
+
+  const rows = [
+    { key:'debt', label:'부채비율',   val: f.debt_ratio,       prev: prev?.debt_ratio,       unit:'%',  fmt: v=>v.toFixed(0),
+      hint: f.debt_ratio > 200 ? '레버리지 과다' : f.debt_ratio > 100 ? '보통 수준' : '안정적' },
+    { key:'opm',  label:'영업이익률', val: f.operating_margin, prev: prev?.operating_margin,  unit:'%',  fmt: v=>v.toFixed(1),
+      hint: f.operating_margin > 20 ? '고마진 사업' : f.operating_margin > 10 ? '양호' : '마진 압박' },
+    { key:'npm',  label:'순이익률',   val: f.net_margin,       prev: prev?.net_margin,        unit:'%',  fmt: v=>v.toFixed(1),
+      hint: null },
+    ...(fcfYield != null ? [{ key:'fcf', label:'FCF 수익률', val: fcfYield, prev: null, unit:'%', fmt: v=>v.toFixed(1),
+      hint: fcfYield > 5 ? '현금창출 우수' : fcfYield > 2 ? '양호' : '현금창출 부족' }] : []),
+    ...(ebitda != null ? [{ key:'ebitda', label:'EBITDA', val: ebitda, prev: null, unit:'', fmt: v=>fmtCap(v),
+      hint: null }] : []),
+    { key:'equity', label:'자기자본', val: f.total_equity, prev: null, unit:'', fmt: v=>fmtCap(v), hint:null },
   ].filter(k => k.val != null);
 
-  if (!kpis.length) return `<div class="card" style="padding:16px">
+  if (!rows.length) return `<div class="card" style="padding:16px">
     <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text1)">🏦 재무 건전성</div>
     <div style="color:var(--text2);font-size:12px;text-align:center;padding:12px">재무 데이터 없음</div>
   </div>`;
 
+  // 재무 → 투자 연결 스토리
+  const _finStory = () => {
+    const debt = f.debt_ratio, opm = f.operating_margin, npm = f.net_margin;
+    const stories = [];
+    if (debt != null && opm != null && debt < 60 && opm > 15)
+      stories.push({ icon:'🏗️', color:'#4ade80',
+        text:`저부채(${debt.toFixed(0)}%) + 고마진(${opm.toFixed(1)}%) → 자본배분 여력: 추가 투자·배당·자사주 소각 가능` });
+    if (debt != null && debt > 150 && opm != null && opm < 10)
+      stories.push({ icon:'⚠️', color:'#f87171',
+        text:`고부채(${debt.toFixed(0)}%) + 저마진(${opm.toFixed(1)}%) → 이자비용 부담 구간, 금리 상승 시 실적 훼손 위험` });
+    if (npm != null && opm != null && opm - npm > 10)
+      stories.push({ icon:'🔍', color:'#f59e0b',
+        text:`영업이익률(${opm.toFixed(1)}%) vs 순이익률(${npm.toFixed(1)}%) 괴리 ${(opm-npm).toFixed(1)}%p — 금융비용·세금 구조 점검 필요` });
+    if (!stories.length) return '';
+    return `<div style="display:flex;flex-direction:column;gap:4px;margin-top:10px;
+      padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);
+      border-left:3px solid var(--border)">
+      <div style="font-size:10px;font-weight:700;color:var(--text2);letter-spacing:.5px;margin-bottom:2px">투자 연결 시사점</div>
+      ${stories.map(s => `<div style="font-size:11px;color:${s.color};line-height:1.5">${s.icon} ${s.text}</div>`).join('')}
+    </div>`;
+  };
+
   return `<div class="card" style="padding:16px">
     <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text1)">🏦 재무 건전성</div>
-    <div style="display:flex;flex-direction:column;gap:7px">
-      ${kpis.map(k => {
-        const sig = _rpSignal(k.key, k.val);
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${rows.map(k => {
+        const sig  = _rpSignal(k.key, k.val);
         const disp = k.fmt(k.val) + k.unit;
-        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;
-          background:${sig?.bg||'var(--bg3)'};border-radius:var(--radius-sm);
-          border-left:3px solid ${sig?.color||'var(--border)'}">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:12px;color:var(--text2)">${k.label}${k.note ? ` <span style="font-size:10px;color:var(--text2);opacity:.7">${k.note}</span>` : ''}</div>
+        return `<div style="display:flex;align-items:center;gap:10px;padding:7px 12px;
+          border-radius:var(--radius-sm);border-left:3px solid ${sig?.color||'var(--border)'};
+          background:var(--bg3)">
+          <div style="min-width:64px">
+            <div style="font-size:12px;color:var(--text2)">${k.label}</div>
           </div>
-          <div style="display:flex;align-items:center;gap:6px">
-            ${sig ? `<span style="font-size:9px;color:${sig.color};font-weight:700;white-space:nowrap">${sig.label}</span>` : ''}
-            <div style="font-size:15px;font-weight:800;color:var(--text1);white-space:nowrap">${disp}</div>
+          <div style="flex:1;min-width:0">
+            ${k.hint ? `<div style="font-size:10px;color:${sig?.color||'var(--text2)'}">${k.hint}</div>` : ''}
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;white-space:nowrap">
+            ${trend(k.val, k.prev)}
+            ${sig ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;
+              background:${sig.color}20;color:${sig.color};font-weight:700">${sig.label}</span>` : ''}
+            <span style="font-size:15px;font-weight:800;color:var(--text1)">${disp}</span>
           </div>
         </div>`;
       }).join('')}
     </div>
+    ${_finStory()}
   </div>`;
 }
 
