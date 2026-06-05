@@ -262,7 +262,9 @@ function rpRenderReport() {
 
   <!-- ① 종목 헤더 ──────────────────────────────────────────────────── -->
   <div class="card" style="padding:16px 20px">
-    <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+    <div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap">
+
+      <!-- 좌: 종목 기본 정보 -->
       <div style="flex:1;min-width:200px">
         <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px">
           <span style="font-size:26px;font-weight:800">${_rpStock.name}</span>
@@ -281,7 +283,55 @@ function rpRenderReport() {
         </div>
       </div>
 
-      <!-- 52주 가격 위치 -->
+      <!-- 중: 투자의견 + 목표주가 + 증권사 컨센서스 -->
+      <div style="display:flex;flex-direction:column;gap:10px;min-width:180px;padding:0 8px;
+        border-left:1px solid var(--border);border-right:1px solid var(--border)">
+        <!-- 내 의견 + 목표주가 -->
+        <div style="display:flex;align-items:center;gap:10px">
+          ${_rpOpinionBadgeInline(opinion)}
+          ${targetP ? `
+            <div>
+              <div style="font-size:11px;color:var(--text2)">내 목표주가</div>
+              <div style="display:flex;align-items:baseline;gap:5px">
+                <span style="font-size:16px;font-weight:800">${fmtNum(targetP)}원</span>
+                ${upside != null ? `<span style="font-size:13px;font-weight:700;
+                  color:${upside>0?'var(--red)':'var(--blue)'}">
+                  ${upside>0?'▲':'▼'}${Math.abs(upside).toFixed(1)}%</span>` : ''}
+              </div>
+            </div>` :
+            `<span style="font-size:12px;color:var(--text2)">목표주가 미설정</span>`}
+        </div>
+        <!-- 증권사 컨센서스 -->
+        ${(() => {
+          const analysts = _rpData.analyst || [];
+          if (!analysts.length) return '';
+          const opMap = {'매수':'BUY','적극매수':'BUY','중립':'HOLD','보유':'HOLD','매도':'SELL'};
+          const ops = analysts.map(a => opMap[a.opinion] || a.opinion);
+          const buyN  = ops.filter(o => o==='BUY').length;
+          const holdN = ops.filter(o => o==='HOLD').length;
+          const sellN = ops.filter(o => o==='SELL').length;
+          const tps = analysts.filter(a => a.target_price>0).map(a => a.target_price);
+          const avgTp = tps.length ? Math.round(tps.reduce((s,v)=>s+v,0)/tps.length) : null;
+          const avgGap = avgTp && price ? ((avgTp-price)/price*100) : null;
+          return `<div style="border-top:1px solid var(--border);padding-top:8px">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:5px">
+              증권사 컨센서스 <span style="color:var(--text2)">(${analysts.length}개사)</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              ${buyN  ? `<span style="font-size:12px;font-weight:700;color:#22c55e">BUY ${buyN}</span>` : ''}
+              ${holdN ? `<span style="font-size:12px;font-weight:700;color:#f59e0b">HOLD ${holdN}</span>` : ''}
+              ${sellN ? `<span style="font-size:12px;font-weight:700;color:#ef4444">SELL ${sellN}</span>` : ''}
+              ${avgTp ? `<span style="font-size:12px;color:var(--text2);margin-left:auto">
+                평균 <b style="color:var(--text1)">${Math.round(avgTp/10000)}만</b>
+                ${avgGap!=null?`<span style="font-weight:700;color:${avgGap>0?'var(--red)':'var(--blue)'}">
+                  ${avgGap>0?'▲':'▼'}${Math.abs(avgGap).toFixed(1)}%</span>`:''}
+              </span>` : ''}
+            </div>
+          </div>`;
+        })()}
+      </div>
+
+      <!-- 우: 52주 가격 위치 -->
       ${high52 > 0 ? `
       <div style="min-width:160px">
         <div style="font-size:12px;color:var(--text2);margin-bottom:6px;text-align:center">52주 가격 위치</div>
