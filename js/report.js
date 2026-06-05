@@ -364,10 +364,10 @@ function rpRenderReport() {
         const minXPct = n > 1 ? (minIdx / (n-1)) * 100 : 50;
         const maxXPct = n > 1 ? (maxIdx / (n-1)) * 100 : 50;
 
-        // 기간 등락률
-        const periodRet = firstP > 0 ? ((lastP - firstP) / firstP * 100) : null;
+        // 저점 대비 현재가 수익률
+        const periodRet = minP > 0 ? ((lastP - minP) / minP * 100) : null;
         const retCol = periodRet == null ? 'var(--text2)' : periodRet >= 0 ? '#f87171' : '#60a5fa';
-        const retStr = periodRet != null ? (periodRet>=0?'+':'')+periodRet.toFixed(1)+'%' : '';
+        const retStr = periodRet != null ? '저점 대비 '+(periodRet>=0?'+':'')+periodRet.toFixed(1)+'%' : '';
 
         // 라벨 left 위치 (가장자리 overflow 방지)
         const clampPct = p => Math.min(Math.max(p, 5), 90);
