@@ -350,48 +350,83 @@ function rpRenderReport() {
         const lastX = W, lastY = H - 4 - Math.round((lastP - minP) / range * (H - 8));
         const fillPath = `M0,${H} L${coords.split(' ').join(' L')} L${W},${H} Z`;
 
-        // 저점·고점 인덱스
         const minIdx = pxVals.indexOf(minP);
         const maxIdx = pxVals.indexOf(maxP);
-        // 기간 등락률 (첫날→마지막날)
+        const n = pxVals.length;
+
+        // SVG 내 좌표
+        const minX  = n > 1 ? (minIdx / (n-1)) * W : W/2;
+        const minY  = H - 4; // 저점은 항상 바닥
+        const maxX  = n > 1 ? (maxIdx / (n-1)) * W : W/2;
+        const maxY  = 4;     // 고점은 항상 꼭대기
+
+        // 라벨 위치 (% 기준, 오버레이용)
+        const minXPct = n > 1 ? (minIdx / (n-1)) * 100 : 50;
+        const maxXPct = n > 1 ? (maxIdx / (n-1)) * 100 : 50;
+
+        // 기간 등락률
         const periodRet = firstP > 0 ? ((lastP - firstP) / firstP * 100) : null;
         const retCol = periodRet == null ? 'var(--text2)' : periodRet >= 0 ? '#f87171' : '#60a5fa';
         const retStr = periodRet != null ? (periodRet>=0?'+':'')+periodRet.toFixed(1)+'%' : '';
 
+        // 라벨 left 위치 (가장자리 overflow 방지)
+        const clampPct = p => Math.min(Math.max(p, 5), 90);
+
         return `<div style="flex:1;min-width:160px;display:flex;flex-direction:column;gap:0">
+          <!-- 헤더: 기간 + 등락률 -->
           <div style="font-size:11px;color:var(--text2);margin-bottom:5px;display:flex;align-items:center;gap:8px">
             <span>주가 추이</span>
-            <span style="font-size:10px;color:var(--text2)">(${pts[0]?.base_date?.slice(0,7)||''} ~ ${pts[pts.length-1]?.base_date?.slice(0,7)||''})</span>
-            ${periodRet != null ? `<span style="font-size:12px;font-weight:700;color:${retCol};margin-left:auto">${retStr}</span>` : ''}
+            <span style="font-size:10px">(${pts[0]?.base_date?.slice(0,7)||''} ~ ${pts[pts.length-1]?.base_date?.slice(0,7)||''})</span>
+            ${retStr ? `<span style="font-size:12px;font-weight:700;color:${retCol};margin-left:auto">${retStr}</span>` : ''}
           </div>
-          <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
-            style="width:100%;flex:1;min-height:60px;display:block">
-            <defs>
-              <linearGradient id="hdr-fill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.3"/>
-                <stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/>
-              </linearGradient>
-            </defs>
-            <path d="${fillPath}" fill="url(#hdr-fill)"/>
-            <polyline points="${coords}" fill="none" stroke="${lineColor}"
-              stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
-              vector-effect="non-scaling-stroke"/>
-            <circle cx="${lastX}" cy="${lastY}" r="4" fill="${lineColor}"
-              vector-effect="non-scaling-stroke"/>
-          </svg>
-          <!-- 저점 / 고점 / 현재가 + 등락률 요약 행 -->
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:5px;gap:4px">
-            <div style="font-size:10px">
-              <div style="color:var(--text2)">저점</div>
-              <div style="font-weight:700;color:#60a5fa">${fmtNum(minP)}원</div>
+
+          <!-- SVG + 오버레이 라벨 -->
+          <div style="position:relative;flex:1;min-height:80px">
+            <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
+              style="width:100%;height:100%;display:block">
+              <defs>
+                <linearGradient id="hdr-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <path d="${fillPath}" fill="url(#hdr-fill)"/>
+              <polyline points="${coords}" fill="none" stroke="${lineColor}"
+                stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
+                vector-effect="non-scaling-stroke"/>
+              <!-- 저점 마커 -->
+              <circle cx="${minX}" cy="${minY}" r="4" fill="#60a5fa"
+                vector-effect="non-scaling-stroke"/>
+              <!-- 고점 마커 -->
+              <circle cx="${maxX}" cy="${maxY}" r="4" fill="#f87171"
+                vector-effect="non-scaling-stroke"/>
+              <!-- 현재가 마커 -->
+              <circle cx="${lastX}" cy="${lastY}" r="4" fill="${lineColor}"
+                vector-effect="non-scaling-stroke"/>
+            </svg>
+
+            <!-- 저점 라벨 (하단) -->
+            <div style="position:absolute;left:${clampPct(minXPct)}%;bottom:0;
+              transform:translateX(-50%);text-align:center;pointer-events:none">
+              <div style="font-size:9px;color:#60a5fa;font-weight:700;
+                background:var(--bg2);padding:1px 3px;border-radius:3px;white-space:nowrap;
+                border:1px solid #60a5fa40">▼ ${fmtNum(minP)}</div>
             </div>
-            <div style="font-size:10px;text-align:center">
-              <div style="color:var(--text2)">현재</div>
-              <div style="font-weight:700;color:${lineColor}">${fmtNum(lastP)}원</div>
+
+            <!-- 고점 라벨 (상단) -->
+            <div style="position:absolute;left:${clampPct(maxXPct)}%;top:0;
+              transform:translateX(-50%);text-align:center;pointer-events:none">
+              <div style="font-size:9px;color:#f87171;font-weight:700;
+                background:var(--bg2);padding:1px 3px;border-radius:3px;white-space:nowrap;
+                border:1px solid #f8717140">▲ ${fmtNum(maxP)}</div>
             </div>
-            <div style="font-size:10px;text-align:right">
-              <div style="color:var(--text2)">고점</div>
-              <div style="font-weight:700;color:#f87171">${fmtNum(maxP)}원</div>
+
+            <!-- 현재가 라벨 (우측) -->
+            <div style="position:absolute;right:0;top:50%;transform:translateY(-50%);
+              pointer-events:none">
+              <div style="font-size:9px;color:${lineColor};font-weight:700;
+                background:var(--bg2);padding:1px 4px;border-radius:3px;white-space:nowrap;
+                border:1px solid ${lineColor}40">${fmtNum(lastP)}</div>
             </div>
           </div>
         </div>`;
