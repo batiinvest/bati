@@ -602,22 +602,18 @@ function _rpEarningsCard(fin) {
     </div>
 
     <!-- ② 바 차트 -->
-    <div style="display:flex;align-items:flex-end;gap:6px;height:${CHART_H + 36}px">
+    <div style="display:flex;align-items:flex-end;gap:6px;height:${CHART_H}px">
       ${items.map(f => {
         const rev  = f.revenue || 0;
         const op   = f.operating_profit || 0;
         const revH = maxRev > 0 ? Math.max(4, Math.round(rev / maxRev * CHART_H)) : 4;
         const opH  = maxOp  > 0 ? Math.max(4, Math.round(Math.abs(op) / maxOp * CHART_H)) : 4;
         const opC  = op >= 0 ? '#2AABEE' : '#f5365c';
-        return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;height:${CHART_H + 36}px">
-          <div style="text-align:center;margin-bottom:3px">
-            <div style="font-size:10px;font-weight:600;color:#4a9eff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmtCap(rev)}</div>
-            <div style="font-size:10px;color:${opC};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${op < 0 ? '▼' : ''}${fmtCap(Math.abs(op))}</div>
-          </div>
-          <div style="display:flex;gap:2px;align-items:flex-end;height:${CHART_H}px">
-            <div style="flex:1;min-width:0;background:#4a9eff44;border-radius:3px 3px 0 0;height:${revH}px"></div>
-            <div style="flex:1;min-width:0;background:${opC};opacity:.8;border-radius:3px 3px 0 0;height:${opH}px"></div>
-          </div>
+        return `<div style="flex:1;min-width:0;display:flex;gap:2px;align-items:flex-end;height:${CHART_H}px">
+          <div style="flex:1;min-width:0;background:#4a9eff44;border-radius:3px 3px 0 0;height:${revH}px"
+            title="매출 ${fmtCap(rev)}"></div>
+          <div style="flex:1;min-width:0;background:${opC};opacity:.8;border-radius:3px 3px 0 0;height:${opH}px"
+            title="영업이익 ${op<0?'▼':''}${fmtCap(Math.abs(op))}"></div>
         </div>`;
       }).join('')}
     </div>
