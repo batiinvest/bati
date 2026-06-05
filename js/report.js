@@ -447,15 +447,25 @@ function rpRenderReport() {
         const retCol = periodRet == null ? 'var(--text2)' : periodRet >= 0 ? '#f87171' : '#60a5fa';
         const retStr = periodRet != null ? '저점 대비 '+(periodRet>=0?'+':'')+periodRet.toFixed(1)+'%' : '';
 
+        // X축 날짜 눈금 (최대 5개 균등 분배)
+        const tickCount = Math.min(5, n);
+        const ticks = Array.from({ length: tickCount }, (_, i) => {
+          const idx = Math.round(i / (tickCount - 1) * (n - 1));
+          return { idx, xPct: (idx / (n - 1)) * 100, date: pts[idx]?.base_date || '' };
+        });
+
+        // 저점/고점 날짜
+        const minDate = pts[minIdx]?.base_date?.slice(2, 10) || '';
+        const maxDate = pts[maxIdx]?.base_date?.slice(2, 10) || '';
+
         return `<div style="flex:1;min-width:160px;display:flex;flex-direction:column;gap:0">
-          <!-- 헤더: 기간 + 등락률 -->
-          <div style="font-size:11px;color:var(--text2);margin-bottom:4px;display:flex;align-items:center;gap:8px">
-            <span>주가 추이</span>
-            <span style="font-size:10px">(${pts[0]?.base_date?.slice(0,7)||''} ~ ${pts[pts.length-1]?.base_date?.slice(0,7)||''})</span>
-            ${retStr ? `<span style="font-size:12px;font-weight:700;color:${retCol};margin-left:auto">${retStr}</span>` : ''}
+          <!-- 헤더: 타이틀 + 저점대비 등락률 -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:12px;font-weight:700;color:var(--text1)">주가 추이</span>
+            ${retStr ? `<span style="font-size:12px;font-weight:700;color:${retCol}">${retStr}</span>` : ''}
           </div>
 
-          <!-- SVG + 오버레이 라벨 -->
+          <!-- SVG 차트 -->
           <div style="position:relative;flex:1;min-height:90px">
             <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
               style="width:100%;height:100%;display:block">
@@ -469,43 +479,52 @@ function rpRenderReport() {
               <polyline points="${coordsPad}" fill="none" stroke="${lineColor}"
                 stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
                 vector-effect="non-scaling-stroke"/>
-              <!-- 저점 마커 -->
-              <circle cx="${minX}" cy="${minYc}" r="4" fill="#60a5fa"
-                vector-effect="non-scaling-stroke"/>
-              <!-- 고점 마커 -->
-              <circle cx="${maxX}" cy="${maxYc}" r="4" fill="#f87171"
-                vector-effect="non-scaling-stroke"/>
-              <!-- 현재가 마커 -->
+              <circle cx="${minX}" cy="${minYc}" r="4" fill="#60a5fa" vector-effect="non-scaling-stroke"/>
+              <circle cx="${maxX}" cy="${maxYc}" r="4" fill="#f87171" vector-effect="non-scaling-stroke"/>
               <circle cx="${lastXc}" cy="${lastYc}" r="5" fill="white"
-                stroke="${lineColor}" stroke-width="2"
-                vector-effect="non-scaling-stroke"/>
+                stroke="${lineColor}" stroke-width="2" vector-effect="non-scaling-stroke"/>
             </svg>
 
-            <!-- 고점 라벨: 마커 바로 위 -->
+            <!-- 고점 라벨 (가격 + 날짜) -->
             <div style="position:absolute;top:0;left:${maxLabelLeft};right:${maxLabelRight};
               pointer-events:none;white-space:nowrap">
-              <span style="font-size:9px;color:#f87171;font-weight:700;
-                background:var(--bg2);padding:1px 4px;border-radius:3px;
-                border:1px solid #f8717150">▲ ${fmtNum(maxP)}</span>
+              <div style="font-size:10px;color:#f87171;font-weight:700;
+                background:var(--bg2);padding:2px 5px;border-radius:3px;
+                border:1px solid #f8717150;line-height:1.4">
+                ▲ ${fmtNum(maxP)}<br>
+                <span style="font-weight:400;font-size:9px">${maxDate}</span>
+              </div>
             </div>
 
-            <!-- 저점 라벨: 마커 바로 아래 -->
-            <div style="position:absolute;bottom:0;left:${minLabelLeft};right:${minLabelRight};
+            <!-- 저점 라벨 (가격 + 날짜) -->
+            <div style="position:absolute;bottom:18px;left:${minLabelLeft};right:${minLabelRight};
               pointer-events:none;white-space:nowrap">
-              <span style="font-size:9px;color:#60a5fa;font-weight:700;
-                background:var(--bg2);padding:1px 4px;border-radius:3px;
-                border:1px solid #60a5fa50">▼ ${fmtNum(minP)}</span>
+              <div style="font-size:10px;color:#60a5fa;font-weight:700;
+                background:var(--bg2);padding:2px 5px;border-radius:3px;
+                border:1px solid #60a5fa50;line-height:1.4">
+                ▼ ${fmtNum(minP)}<br>
+                <span style="font-weight:400;font-size:9px">${minDate}</span>
+              </div>
             </div>
 
-            <!-- 현재가 라벨: 고점과 겹치지 않을 때만 표시 -->
+            <!-- 현재가 라벨 -->
             ${showCurrentLabel ? `
             <div style="position:absolute;right:2px;
-              top:calc(${((lastYc/H)*100).toFixed(1)}% - 9px);
-              pointer-events:none">
-              <span style="font-size:9px;color:${lineColor};font-weight:700;
-                background:var(--bg2);padding:1px 4px;border-radius:3px;
-                border:1px solid ${lineColor}50">${fmtNum(lastP)}</span>
+              top:calc(${((lastYc/H)*100).toFixed(1)}% - 10px);pointer-events:none">
+              <div style="font-size:10px;color:${lineColor};font-weight:700;
+                background:var(--bg2);padding:2px 5px;border-radius:3px;
+                border:1px solid ${lineColor}50;white-space:nowrap">${fmtNum(lastP)}</div>
             </div>` : ''}
+          </div>
+
+          <!-- X축 날짜 눈금 -->
+          <div style="position:relative;height:16px;margin-top:2px">
+            ${ticks.map(t => `
+              <div style="position:absolute;left:${t.xPct.toFixed(1)}%;
+                transform:translateX(-50%);text-align:center;white-space:nowrap">
+                <div style="width:1px;height:3px;background:var(--border);margin:0 auto 1px"></div>
+                <div style="font-size:9px;color:var(--text2)">${t.date.slice(0,7)}</div>
+              </div>`).join('')}
           </div>
         </div>`;
       })()}
