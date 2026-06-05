@@ -400,8 +400,9 @@ function rpRenderReport() {
               <!-- 고점 마커 -->
               <circle cx="${maxX}" cy="${maxY}" r="4" fill="#f87171"
                 vector-effect="non-scaling-stroke"/>
-              <!-- 현재가 마커 -->
-              <circle cx="${lastX}" cy="${lastY}" r="4" fill="${lineColor}"
+              <!-- 현재가 마커 (흰색 테두리 원) -->
+              <circle cx="${lastX}" cy="${lastY}" r="5" fill="white"
+                stroke="${lineColor}" stroke-width="2"
                 vector-effect="non-scaling-stroke"/>
             </svg>
 
