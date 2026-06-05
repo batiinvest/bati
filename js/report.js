@@ -414,8 +414,6 @@ function rpRenderReport() {
     ${_rpFinHealthCard(latestF)}
   </div>
 
-  <!-- ⑤ 수급 요약 ────────────────────────────────────────────────── -->
-  ${_rpFlowCard(latest)}
 
   <!-- ⑥ 카탈리스트 타임라인 ──────────────────────────────────────── -->
   ${_rpCatalystCard()}
