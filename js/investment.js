@@ -217,45 +217,56 @@ function pInvestment() {
       </div>
     </div>
 
-    <!-- 🏆 주도주 탐색기 -->
+    <!-- 🏆 주도주 탐색기 + 성과 검증 (2열) -->
     <div class="card" style="margin-bottom:12px">
+
+      <!-- 카드 헤더 -->
       <div class="card-header" style="flex-wrap:wrap;gap:6px">
         <span class="card-title">${_ICO.rocket}주도주 탐색기</span>
-        <span style="font-size:11px;color:var(--text3)" id="ls-date"></span>
-        <div style="display:flex;gap:4px;margin-left:auto;align-items:center">
-          <button class="chip active" data-ls-tab="all"    onclick="switchLsTab('all')"
-            style="font-size:11px;padding:2px 8px">전체</button>
-          <button class="chip"        data-ls-tab="kospi"  onclick="switchLsTab('kospi')"
-            style="font-size:11px;padding:2px 8px">코스피</button>
-          <button class="chip"        data-ls-tab="kosdaq" onclick="switchLsTab('kosdaq')"
-            style="font-size:11px;padding:2px 8px">코스닥</button>
-          <button id="ls-refresh-btn" onclick="refreshLeadingStocks()"
-            style="font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid var(--border);
-                   background:transparent;color:var(--text3);cursor:pointer;line-height:1.6"
-            title="데이터 새로고침">${_ICO.refresh}</button>
-        </div>
+        <button id="ls-refresh-btn" onclick="refreshLeadingStocks()"
+          style="font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid var(--border);
+                 background:transparent;color:var(--text3);cursor:pointer;line-height:1.6"
+          title="데이터 새로고침">${_ICO.refresh}</button>
       </div>
-      <div id="ls-body">
-        ${_skelList(10)}
-      </div>
-    </div>
 
-    <!-- 📈 주도주 백테스트 -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header" style="flex-wrap:wrap;gap:6px">
-        <span class="card-title">📈 주도주 성과 검증</span>
-        <span style="font-size:11px;color:var(--text3)">과거 주도주를 샀다면?</span>
-        <div style="display:flex;gap:4px;margin-left:auto">
-          <button class="chip active" data-bt-period="1w"  onclick="switchBtPeriod('1w')"
-            style="font-size:11px;padding:2px 8px">1주전</button>
-          <button class="chip"        data-bt-period="1m"  onclick="switchBtPeriod('1m')"
-            style="font-size:11px;padding:2px 8px">1개월전</button>
-          <button class="chip"        data-bt-period="3m"  onclick="switchBtPeriod('3m')"
-            style="font-size:11px;padding:2px 8px">3개월전</button>
+      <!-- 2열 그리드 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;min-height:0">
+
+        <!-- 왼쪽: 현재 주도주 -->
+        <div style="border-right:1px solid var(--border)">
+          <div style="padding:6px 12px;border-bottom:1px solid var(--border);
+            display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:600;color:var(--text2)">현재 주도주</span>
+            <span style="font-size:11px;color:var(--text3)" id="ls-date"></span>
+            <div style="display:flex;gap:3px;margin-left:auto">
+              <button class="chip active" data-ls-tab="all"    onclick="switchLsTab('all')"
+                style="font-size:10px;padding:1px 7px">전체</button>
+              <button class="chip"        data-ls-tab="kospi"  onclick="switchLsTab('kospi')"
+                style="font-size:10px;padding:1px 7px">코스피</button>
+              <button class="chip"        data-ls-tab="kosdaq" onclick="switchLsTab('kosdaq')"
+                style="font-size:10px;padding:1px 7px">코스닥</button>
+            </div>
+          </div>
+          <div id="ls-body">${_skelList(10)}</div>
         </div>
-      </div>
-      <div id="ls-bt-body" style="padding:8px">
-        ${_skelList(5)}
+
+        <!-- 오른쪽: 과거 주도주 수익률 -->
+        <div>
+          <div style="padding:6px 12px;border-bottom:1px solid var(--border);
+            display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:600;color:var(--text2)">과거 주도주 수익률</span>
+            <div style="display:flex;gap:3px;margin-left:auto">
+              <button class="chip active" data-bt-period="1w"  onclick="switchBtPeriod('1w')"
+                style="font-size:10px;padding:1px 7px">1주전</button>
+              <button class="chip"        data-bt-period="1m"  onclick="switchBtPeriod('1m')"
+                style="font-size:10px;padding:1px 7px">1개월전</button>
+              <button class="chip"        data-bt-period="3m"  onclick="switchBtPeriod('3m')"
+                style="font-size:10px;padding:1px 7px">3개월전</button>
+            </div>
+          </div>
+          <div id="ls-bt-body" style="padding:8px">${_skelList(5)}</div>
+        </div>
+
       </div>
     </div>
 
