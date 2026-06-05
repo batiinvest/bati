@@ -349,9 +349,20 @@ function rpRenderReport() {
         const lineColor = lastP >= firstP ? '#f87171' : '#60a5fa';
         const lastX = W, lastY = H - 4 - Math.round((lastP - minP) / range * (H - 8));
         const fillPath = `M0,${H} L${coords.split(' ').join(' L')} L${W},${H} Z`;
-        return `<div style="flex:1;min-width:160px;display:flex;flex-direction:column">
-          <div style="font-size:11px;color:var(--text2);margin-bottom:5px">
-            주가 추이 <span style="font-size:10px">(최근 ${pts.length}일)</span>
+
+        // 저점·고점 인덱스
+        const minIdx = pxVals.indexOf(minP);
+        const maxIdx = pxVals.indexOf(maxP);
+        // 기간 등락률 (첫날→마지막날)
+        const periodRet = firstP > 0 ? ((lastP - firstP) / firstP * 100) : null;
+        const retCol = periodRet == null ? 'var(--text2)' : periodRet >= 0 ? '#f87171' : '#60a5fa';
+        const retStr = periodRet != null ? (periodRet>=0?'+':'')+periodRet.toFixed(1)+'%' : '';
+
+        return `<div style="flex:1;min-width:160px;display:flex;flex-direction:column;gap:0">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:5px;display:flex;align-items:center;gap:8px">
+            <span>주가 추이</span>
+            <span style="font-size:10px;color:var(--text2)">(${pts[0]?.base_date?.slice(0,7)||''} ~ ${pts[pts.length-1]?.base_date?.slice(0,7)||''})</span>
+            ${periodRet != null ? `<span style="font-size:12px;font-weight:700;color:${retCol};margin-left:auto">${retStr}</span>` : ''}
           </div>
           <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
             style="width:100%;flex:1;min-height:60px;display:block">
@@ -368,9 +379,20 @@ function rpRenderReport() {
             <circle cx="${lastX}" cy="${lastY}" r="4" fill="${lineColor}"
               vector-effect="non-scaling-stroke"/>
           </svg>
-          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:3px">
-            <span>${pts[0]?.base_date?.slice(2,10)||''}</span>
-            <span>${pts[pts.length-1]?.base_date?.slice(2,10)||''}</span>
+          <!-- 저점 / 고점 / 현재가 + 등락률 요약 행 -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:5px;gap:4px">
+            <div style="font-size:10px">
+              <div style="color:var(--text2)">저점</div>
+              <div style="font-weight:700;color:#60a5fa">${fmtNum(minP)}원</div>
+            </div>
+            <div style="font-size:10px;text-align:center">
+              <div style="color:var(--text2)">현재</div>
+              <div style="font-weight:700;color:${lineColor}">${fmtNum(lastP)}원</div>
+            </div>
+            <div style="font-size:10px;text-align:right">
+              <div style="color:var(--text2)">고점</div>
+              <div style="font-weight:700;color:#f87171">${fmtNum(maxP)}원</div>
+            </div>
           </div>
         </div>`;
       })()}
