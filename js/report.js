@@ -162,8 +162,8 @@ async function rpLoadReport() {
   // 병렬 데이터 로드
   try {
     const [priceRes, finRes, watchRes, dartRes, analystRes, segRes] = await Promise.all([
-      sb.from('market_data').select('price,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low,per,pbr')
-        .eq('stock_code', _rpStock.code).order('base_date', { ascending: false }).limit(60),
+      sb.from('market_data').select('price,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low,per,pbr,base_date')
+        .eq('stock_code', _rpStock.code).order('base_date', { ascending: false }).limit(500),
       sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,debt_ratio,roe,roa,operating_margin,net_margin')
         .eq('stock_code', _rpStock.code).eq('fs_div','CFS').order('bsns_year', { ascending: false }).order('quarter', { ascending: false }).limit(8),
       sb.from('watchlist').select('note,target_price,opinion,buy_price,created_at')
@@ -333,7 +333,7 @@ function rpRenderReport() {
 
       <!-- 우: 주가 미니 차트 -->
       ${(() => {
-        const pts = [...prices].reverse().slice(0, 30).filter(r => r.price > 0);
+        const pts = [...prices].reverse().filter(r => r.price > 0);
         if (!pts.length) return '';
         const W = 220, H = 70;
         const pxVals = pts.map(r => r.price);
