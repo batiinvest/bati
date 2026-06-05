@@ -333,7 +333,7 @@ async function loadLeadingBacktest() {
       const ep = entryMap[s.stock_code];
       const cr = currMap[s.stock_code];
       const ret = (ep && cr?.price) ? (cr.price / ep - 1) * 100 : null;
-      return { ...s, entry_price: ep, curr_price: cr?.price, ret };
+      return { ...s, entry_price: ep, curr_price: cr?.price, ret, entry_date: entryDate };
     }).filter(r => r.ret !== null);
 
     const avgRet  = results.length ? results.reduce((a, r) => a + r.ret, 0) / results.length : null;
@@ -398,7 +398,9 @@ function _renderBacktest(el, { entryDate, latestDate, results, avgRet, winRate, 
         <span style="font-size:10px;color:var(--text3);min-width:16px">#${r.rank}</span>
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.corp_name}</div>
-          <div style="font-size:10px;color:var(--text3)">${r.entry_price?.toLocaleString()}원 → ${r.curr_price?.toLocaleString()}원</div>
+          <div style="font-size:10px;color:var(--text3)">
+            선정일 ${r.entry_date} &nbsp;${r.entry_price?.toLocaleString()}원 → ${r.curr_price?.toLocaleString()}원
+          </div>
         </div>
         <div style="text-align:right;min-width:60px">
           <div style="font-size:13px;font-weight:700;color:${retColor}">${retStr}</div>
