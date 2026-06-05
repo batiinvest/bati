@@ -255,6 +255,7 @@ function pInvestment() {
           <div style="padding:6px 12px;border-bottom:1px solid var(--border);
             display:flex;align-items:center;gap:6px;flex-wrap:wrap">
             <span style="font-size:12px;font-weight:600;color:var(--text2)">과거 주도주 수익률</span>
+            <span id="ls-bt-date" style="font-size:11px;color:var(--text3)"></span>
             <div style="display:flex;gap:3px;margin-left:auto">
               <button class="chip active" data-bt-period="1w"  onclick="switchBtPeriod('1w')"
                 style="font-size:10px;padding:1px 7px">1주전</button>

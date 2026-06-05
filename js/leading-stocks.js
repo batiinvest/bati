@@ -281,6 +281,10 @@ async function loadLeadingBacktest() {
     // offsetDays번째 거래일 날짜 선택
     const entryDate = entryDateRows[Math.min(offsetDays - 1, entryDateRows.length - 1)].base_date;
 
+    // 헤더에 선정일 표시
+    const btDateEl = document.getElementById('ls-bt-date');
+    if (btDateEl) btDateEl.textContent = `선정일 ${entryDate}`;
+
     // 3. 진입일 Top 10 주도주 조회
     const { data: entryStocks } = await sb.from('leading_stocks')
       .select('stock_code,corp_name,industry,total_score,rank')
@@ -378,8 +382,7 @@ function _renderBacktest(el, { entryDate, latestDate, results, avgRet, winRate, 
 
   <!-- 기준일 표시 -->
   <div style="font-size:11px;color:var(--text3);margin-bottom:8px;padding:0 2px">
-    진입일 <b style="color:var(--text2)">${entryDate}</b> →
-    현재 <b style="color:var(--text2)">${latestDate}</b>
+    → 현재 <b style="color:var(--text2)">${latestDate}</b>
     ${bmkReturn != null ? `| 코스피 ${fmtRet(bmkReturn, 11)}` : ''}
   </div>
 
