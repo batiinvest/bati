@@ -239,3 +239,188 @@ window.refreshLeadingStocks = async function() {
     if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
   }
 };
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  주도주 백테스트 — 과거 주도주를 샀다면 지금 수익은?
+// ══════════════════════════════════════════════════════════════════════════════
+
+let _lsBtPeriod = '1w';  // 선택된 기간
+
+// ── 백테스트 렌더링 진입점 ────────────────────────────────────────────────────
+async function loadLeadingBacktest() {
+  const el = document.getElementById('ls-bt-body');
+  if (!el) return;
+
+  el.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:12px">
+    <span class="loading"></span> 수익률 계산 중...</div>`;
+
+  try {
+    // 1. 현재 기준 최신 날짜 조회
+    const { data: latestRow } = await sb.from('market_data')
+      .select('base_date').order('base_date', { ascending: false }).limit(1).maybeSingle();
+    if (!latestRow) { el.innerHTML = _lsBtEmpty('시장 데이터 없음'); return; }
+    const latestDate = latestRow.base_date;
+
+    // 2. 기간에 따른 진입일 계산 (거래일 기준 nearest)
+    const periodMap = { '1w': 5, '1m': 20, '3m': 60 };
+    const offsetDays = periodMap[_lsBtPeriod] || 5;
+
+    // 진입일: leading_stocks에서 latestDate 기준 offsetDays 이전 가장 가까운 날짜
+    const { data: entryDateRows } = await sb.from('leading_stocks')
+      .select('base_date')
+      .lt('base_date', latestDate)
+      .order('base_date', { ascending: false })
+      .limit(offsetDays + 5);  // 여유 조회
+
+    if (!entryDateRows || entryDateRows.length < offsetDays) {
+      el.innerHTML = _lsBtEmpty(`${_lsBtLabel()} 전 데이터 없음 — 더 많은 기간이 누적되면 표시됩니다`);
+      return;
+    }
+
+    // offsetDays번째 거래일 날짜 선택
+    const entryDate = entryDateRows[Math.min(offsetDays - 1, entryDateRows.length - 1)].base_date;
+
+    // 3. 진입일 Top 10 주도주 조회
+    const { data: entryStocks } = await sb.from('leading_stocks')
+      .select('stock_code,corp_name,industry,total_score,rank')
+      .eq('base_date', entryDate)
+      .order('rank', { ascending: true })
+      .limit(10);
+
+    if (!entryStocks || !entryStocks.length) {
+      el.innerHTML = _lsBtEmpty(`${entryDate} 주도주 데이터 없음`);
+      return;
+    }
+
+    const codes = entryStocks.map(s => s.stock_code);
+
+    // 4. 진입일 가격 조회
+    const { data: entryPrices } = await sb.from('market_data')
+      .select('stock_code,price')
+      .eq('base_date', entryDate)
+      .in('stock_code', codes);
+
+    // 5. 현재 가격 조회
+    const { data: currPrices } = await sb.from('market_data')
+      .select('stock_code,price,price_change_rate')
+      .eq('base_date', latestDate)
+      .in('stock_code', codes);
+
+    // 6. 코스피 벤치마크 수익률 (시장 전체 평균으로 근사)
+    const { data: mktEntry } = await sb.from('market_data')
+      .select('stock_code,price').eq('base_date', entryDate).eq('market', 'KOSPI');
+    const { data: mktLatest } = await sb.from('market_data')
+      .select('stock_code,price').eq('base_date', latestDate).eq('market', 'KOSPI');
+
+    const mktEntryMap  = Object.fromEntries((mktEntry  || []).map(r => [r.stock_code, r.price]));
+    const mktLatestMap = Object.fromEntries((mktLatest || []).map(r => [r.stock_code, r.price]));
+    const bmkReturns = Object.keys(mktEntryMap)
+      .filter(c => mktLatestMap[c] && mktEntryMap[c])
+      .map(c => (mktLatestMap[c] / mktEntryMap[c] - 1) * 100);
+    const bmkReturn = bmkReturns.length
+      ? bmkReturns.reduce((a, b) => a + b, 0) / bmkReturns.length : null;
+
+    // 7. 결과 계산
+    const entryMap = Object.fromEntries((entryPrices || []).map(r => [r.stock_code, r.price]));
+    const currMap  = Object.fromEntries((currPrices  || []).map(r => [r.stock_code, r]));
+
+    const results = entryStocks.map(s => {
+      const ep = entryMap[s.stock_code];
+      const cr = currMap[s.stock_code];
+      const ret = (ep && cr?.price) ? (cr.price / ep - 1) * 100 : null;
+      return { ...s, entry_price: ep, curr_price: cr?.price, ret };
+    }).filter(r => r.ret !== null);
+
+    const avgRet  = results.length ? results.reduce((a, r) => a + r.ret, 0) / results.length : null;
+    const winRate = results.length ? results.filter(r => r.ret > 0).length / results.length * 100 : null;
+    const excess  = (avgRet !== null && bmkReturn !== null) ? avgRet - bmkReturn : null;
+
+    _renderBacktest(el, { entryDate, latestDate, results, avgRet, winRate, bmkReturn, excess });
+
+  } catch(e) {
+    console.error('[Backtest]', e);
+    el.innerHTML = _lsBtEmpty('조회 실패: ' + e.message);
+  }
+}
+
+// ── 백테스트 결과 렌더링 ──────────────────────────────────────────────────────
+function _renderBacktest(el, { entryDate, latestDate, results, avgRet, winRate, bmkReturn, excess }) {
+  const fmtRet = (v, size = 13) => v == null ? '—'
+    : `<span style="font-size:${size}px;font-weight:700;color:${v >= 0 ? 'var(--red)' : 'var(--blue)'}">
+        ${v >= 0 ? '+' : ''}${v.toFixed(2)}%</span>`;
+
+  const excessColor = excess == null ? 'var(--text3)'
+    : excess > 0 ? 'var(--green)' : 'var(--red)';
+  const excessStr = excess == null ? '—'
+    : `${excess >= 0 ? '+' : ''}${excess.toFixed(2)}%p`;
+
+  const winStr = winRate == null ? '—' : `${winRate.toFixed(0)}%`;
+  const winColor = winRate == null ? 'var(--text3)'
+    : winRate >= 60 ? 'var(--green)' : winRate >= 40 ? 'var(--yellow)' : 'var(--red)';
+
+  el.innerHTML = `
+  <!-- 요약 카드 -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+    <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:10px;text-align:center">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px">평균 수익률</div>
+      <div>${fmtRet(avgRet, 18)}</div>
+    </div>
+    <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:10px;text-align:center">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px">성공률 (양수)</div>
+      <div style="font-size:18px;font-weight:700;color:${winColor}">${winStr}</div>
+    </div>
+    <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:10px;text-align:center">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px">코스피 대비</div>
+      <div style="font-size:18px;font-weight:700;color:${excessColor}">${excessStr}</div>
+    </div>
+  </div>
+
+  <!-- 기준일 표시 -->
+  <div style="font-size:11px;color:var(--text3);margin-bottom:8px;padding:0 2px">
+    진입일 <b style="color:var(--text2)">${entryDate}</b> →
+    현재 <b style="color:var(--text2)">${latestDate}</b>
+    ${bmkReturn != null ? `| 코스피 ${fmtRet(bmkReturn, 11)}` : ''}
+  </div>
+
+  <!-- 종목별 결과 -->
+  <div style="display:flex;flex-direction:column;gap:2px">
+    ${results.map(r => {
+      const retColor = r.ret >= 0 ? 'var(--red)' : 'var(--blue)';
+      const retStr   = `${r.ret >= 0 ? '+' : ''}${r.ret.toFixed(2)}%`;
+      const barW     = Math.min(Math.abs(r.ret) * 3, 100);
+      return `
+      <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;
+        border-radius:var(--radius-sm);background:${r.ret > 0 ? 'rgba(245,54,92,.05)' : r.ret < 0 ? 'rgba(74,158,255,.05)' : 'transparent'}">
+        <span style="font-size:10px;color:var(--text3);min-width:16px">#${r.rank}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.corp_name}</div>
+          <div style="font-size:10px;color:var(--text3)">${r.entry_price?.toLocaleString()}원 → ${r.curr_price?.toLocaleString()}원</div>
+        </div>
+        <div style="text-align:right;min-width:60px">
+          <div style="font-size:13px;font-weight:700;color:${retColor}">${retStr}</div>
+          <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.08);margin-top:3px;overflow:hidden">
+            <div style="height:100%;width:${barW}%;background:${retColor};border-radius:2px;
+              ${r.ret < 0 ? 'margin-left:auto' : ''}"></div>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+// ── 기간 전환 ─────────────────────────────────────────────────────────────────
+window.switchBtPeriod = function(period) {
+  _lsBtPeriod = period;
+  document.querySelectorAll('[data-bt-period]').forEach(b =>
+    b.classList.toggle('active', b.dataset.btPeriod === period));
+  loadLeadingBacktest();
+};
+
+function _lsBtLabel() {
+  return { '1w': '1주', '1m': '1개월', '3m': '3개월' }[_lsBtPeriod] || '';
+}
+
+function _lsBtEmpty(msg) {
+  return `<div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:12px">${msg}</div>`;
+}

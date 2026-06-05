@@ -240,6 +240,25 @@ function pInvestment() {
       </div>
     </div>
 
+    <!-- 📈 주도주 백테스트 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+        <span class="card-title">📈 주도주 성과 검증</span>
+        <span style="font-size:11px;color:var(--text3)">과거 주도주를 샀다면?</span>
+        <div style="display:flex;gap:4px;margin-left:auto">
+          <button class="chip active" data-bt-period="1w"  onclick="switchBtPeriod('1w')"
+            style="font-size:11px;padding:2px 8px">1주전</button>
+          <button class="chip"        data-bt-period="1m"  onclick="switchBtPeriod('1m')"
+            style="font-size:11px;padding:2px 8px">1개월전</button>
+          <button class="chip"        data-bt-period="3m"  onclick="switchBtPeriod('3m')"
+            style="font-size:11px;padding:2px 8px">3개월전</button>
+        </div>
+      </div>
+      <div id="ls-bt-body" style="padding:8px">
+        ${_skelList(5)}
+      </div>
+    </div>
+
     <!-- 💰 기관/외국인 수급 -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="display:flex;align-items:center;gap:8px">
@@ -654,8 +673,9 @@ async function loadInvestment() {
   renderMarketTemperature();
   renderVolumeLeaders();
 
-  // Phase 2 — 주도주 탐색기 + 섹터 수급 트렌드 + 산업 강도 매트릭스
+  // Phase 2 — 주도주 탐색기 + 백테스트 + 섹터 수급 트렌드 + 산업 강도 매트릭스
   loadLeadingStocks();
+  loadLeadingBacktest();
   loadSectorFlow();
   loadIndustryMatrix();
 
