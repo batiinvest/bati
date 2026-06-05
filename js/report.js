@@ -1155,52 +1155,53 @@ function _rpValuationCard(latestF, latest) {
               ? (1 - m.val / (m.peer * 2)) * 100        // 낮을수록 왼쪽 = 좋음
               : (m.val / (m.peer * 2)) * 100))           // 높을수록 오른쪽 = 좋음
           : null;
-        return `<div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);
-          border-left:3px solid ${judge?.color || sig?.color || 'var(--border)'}">
-          <!-- 상단: 지표명 + 현재값 vs 업종중앙값 + 판단 -->
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:${barPct!=null?'8px':'0'}">
-            <div style="min-width:36px">
-              <div style="font-size:11px;color:var(--text2);margin-bottom:1px">${m.label}</div>
-              <div style="font-size:11px;color:var(--text2)">현재</div>
-            </div>
-            <div style="font-size:22px;font-weight:800;color:var(--text1);min-width:60px">
-              ${m.val != null ? m.fmt(m.val)+m.unit : '<span style="color:var(--text2);font-size:14px">—</span>'}
-            </div>
+        const jColor = judge?.color || sig?.color || 'var(--border)';
+        return `<div style="padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);
+          border-left:3px solid ${jColor}">
+
+          <!-- 1줄: 지표 + 현재값 + 화살표 + 중앙값 + 판단 배지 -->
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span style="font-size:12px;font-weight:700;color:var(--text2);min-width:28px">${m.label}</span>
+            <span style="font-size:20px;font-weight:800;color:var(--text1)">${m.val != null ? m.fmt(m.val)+m.unit : '—'}</span>
             ${m.peer != null ? `
-            <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0">
-              <div style="font-size:16px;color:var(--text2)">vs</div>
+              <span style="font-size:12px;color:var(--text2)">vs</span>
               <div>
-                <div style="font-size:10px;color:var(--text2);margin-bottom:1px">업종 중앙값</div>
-                <div style="font-size:18px;font-weight:700;color:var(--text2)">${m.fmt(m.peer)}${m.unit}</div>
+                <div style="font-size:10px;color:var(--text2)">업종 중앙</div>
+                <div style="font-size:15px;font-weight:700;color:var(--text2)">${m.fmt(m.peer)}${m.unit}</div>
               </div>
               ${judge ? `
-              <div style="margin-left:auto;text-align:right">
-                <div style="font-size:10px;color:var(--text2);margin-bottom:1px">${m.desc}</div>
-                <div style="font-size:12px;font-weight:700;color:${judge.color}">${judge.label}</div>
-                <div style="font-size:11px;font-weight:700;color:${judge.color}">${judge.diffStr}</div>
-              </div>` : ''}
-            </div>` : `
-            <div style="flex:1;min-width:0">
-              <div style="font-size:11px;color:var(--text2)">${m.desc}</div>
-              ${sig ? `<div style="font-size:11px;color:${sig.color};font-weight:700">${sig.label}</div>` : ''}
-            </div>`}
+              <span style="margin-left:auto;font-size:11px;font-weight:700;
+                padding:3px 8px;border-radius:100px;
+                background:${judge.color}20;color:${judge.color};
+                border:1px solid ${judge.color}40;white-space:nowrap">
+                ${judge.diffStr}&nbsp;${judge.label.replace('업종 대비 ','')}
+              </span>` : ''}` : `
+              <span style="flex:1;font-size:11px;color:var(--text2)">${m.desc}</span>
+              ${sig ? `<span style="font-size:11px;font-weight:700;color:${sig.color}">${sig.label}</span>` : ''}`}
           </div>
-          <!-- 포지션 바 -->
+
+          <!-- 2줄: 포지션 바 -->
           ${barPct != null ? `
-          <div style="height:5px;border-radius:3px;background:var(--border);position:relative">
-            <div style="position:absolute;left:50%;top:-2px;width:2px;height:9px;
-              background:var(--text2);opacity:.4;border-radius:1px"></div>
-            <div style="position:absolute;top:0;height:100%;border-radius:3px;
-              background:${judge?.color||'var(--tg)'};opacity:.7;
-              left:${Math.min(barPct,50)}%;width:${Math.abs(barPct-50)}%"></div>
-            <div style="position:absolute;top:-3px;left:calc(${barPct}% - 5px);
-              width:10px;height:11px;border-radius:2px;
-              background:${judge?.color||'var(--tg)'}"></div>
+          <div style="position:relative;height:4px;border-radius:2px;background:var(--border)">
+            <!-- 중앙값 기준선 -->
+            <div style="position:absolute;left:50%;top:-3px;bottom:-3px;width:1.5px;
+              background:var(--text2);opacity:.5;border-radius:1px"></div>
+            <!-- 채움 바 -->
+            <div style="position:absolute;top:0;height:100%;border-radius:2px;
+              background:${jColor};opacity:.6;
+              left:${Math.min(barPct,50).toFixed(1)}%;
+              width:${Math.abs(barPct-50).toFixed(1)}%"></div>
+            <!-- 현재 위치 마커 -->
+            <div style="position:absolute;top:50%;left:${barPct.toFixed(1)}%;
+              transform:translate(-50%,-50%);width:10px;height:10px;
+              border-radius:50%;background:${jColor};
+              border:2px solid var(--bg3)"></div>
           </div>
-          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:2px">
-            <span>${m.lowerBetter?'저평가':'저수익'}</span>
-            <span>↑ 업종 중앙값</span>
-            <span>${m.lowerBetter?'고평가':'고수익'}</span>
+          <div style="display:flex;justify-content:space-between;font-size:10px;
+            color:var(--text2);margin-top:3px">
+            <span>${m.lowerBetter ? '◀ 저평가' : '◀ 저수익'}</span>
+            <span style="opacity:.6">│ 업종 중앙</span>
+            <span>${m.lowerBetter ? '고평가 ▶' : '고수익 ▶'}</span>
           </div>` : ''}
         </div>`;
       }).join('')}
