@@ -283,52 +283,34 @@ function rpRenderReport() {
         </div>
       </div>
 
-      <!-- 중: 투자의견 + 목표주가 + 증권사 컨센서스 -->
-      <div style="display:flex;flex-direction:column;gap:10px;min-width:180px;padding:0 8px;
-        border-left:1px solid var(--border);border-right:1px solid var(--border)">
-        <!-- 내 의견 + 목표주가 -->
-        <div style="display:flex;align-items:center;gap:10px">
-          ${_rpOpinionBadgeInline(opinion)}
+      <!-- 중: 내 투자의견 + 증권사 목록 -->
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;min-width:340px;
+        padding:0 16px;border-left:1px solid var(--border);border-right:1px solid var(--border)">
+
+        <!-- 내 의견 -->
+        <div style="display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--border);padding-right:12px">
+          <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px">내 투자 의견</div>
+          ${_rpOpinionBadge(opinion)}
           ${targetP ? `
-            <div>
-              <div style="font-size:11px;color:var(--text2)">내 목표주가</div>
-              <div style="display:flex;align-items:baseline;gap:5px">
-                <span style="font-size:16px;font-weight:800">${fmtNum(targetP)}원</span>
-                ${upside != null ? `<span style="font-size:13px;font-weight:700;
-                  color:${upside>0?'var(--red)':'var(--blue)'}">
-                  ${upside>0?'▲':'▼'}${Math.abs(upside).toFixed(1)}%</span>` : ''}
-              </div>
+            <div style="text-align:center">
+              <div style="font-size:11px;color:var(--text2)">목표주가</div>
+              <div style="font-size:17px;font-weight:800;margin:2px 0">${fmtNum(targetP)}<span style="font-size:11px">원</span></div>
+              ${upside != null ? `
+              <div style="font-size:13px;font-weight:700;color:${upside>0?'var(--red)':'var(--blue)'}">
+                ${upside>0?'▲':'▼'} ${Math.abs(upside).toFixed(1)}% ${upside>0?'상승여력':'하락위험'}
+              </div>` : ''}
             </div>` :
-            `<span style="font-size:12px;color:var(--text2)">목표주가 미설정</span>`}
+            `<div style="text-align:center;padding:6px;border-radius:var(--radius-sm);background:var(--bg3);
+              color:var(--text2);font-size:11px;line-height:1.5">
+              투자노트에서<br>목표주가 설정
+            </div>`}
+          <a onclick="go('watchlist')" style="font-size:11px;text-align:center;color:var(--tg);
+            cursor:pointer;margin-top:auto">투자노트 편집 →</a>
         </div>
-        <!-- 증권사 컨센서스 -->
-        ${(() => {
-          const analysts = _rpData.analyst || [];
-          if (!analysts.length) return '';
-          const opMap = {'매수':'BUY','적극매수':'BUY','중립':'HOLD','보유':'HOLD','매도':'SELL'};
-          const ops = analysts.map(a => opMap[a.opinion] || a.opinion);
-          const buyN  = ops.filter(o => o==='BUY').length;
-          const holdN = ops.filter(o => o==='HOLD').length;
-          const sellN = ops.filter(o => o==='SELL').length;
-          const tps = analysts.filter(a => a.target_price>0).map(a => a.target_price);
-          const avgTp = tps.length ? Math.round(tps.reduce((s,v)=>s+v,0)/tps.length) : null;
-          const avgGap = avgTp && price ? ((avgTp-price)/price*100) : null;
-          return `<div style="border-top:1px solid var(--border);padding-top:8px">
-            <div style="font-size:11px;color:var(--text2);margin-bottom:5px">
-              증권사 컨센서스 <span style="color:var(--text2)">(${analysts.length}개사)</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              ${buyN  ? `<span style="font-size:12px;font-weight:700;color:#22c55e">BUY ${buyN}</span>` : ''}
-              ${holdN ? `<span style="font-size:12px;font-weight:700;color:#f59e0b">HOLD ${holdN}</span>` : ''}
-              ${sellN ? `<span style="font-size:12px;font-weight:700;color:#ef4444">SELL ${sellN}</span>` : ''}
-              ${avgTp ? `<span style="font-size:12px;color:var(--text2);margin-left:auto">
-                평균 <b style="color:var(--text1)">${Math.round(avgTp/10000)}만</b>
-                ${avgGap!=null?`<span style="font-weight:700;color:${avgGap>0?'var(--red)':'var(--blue)'}">
-                  ${avgGap>0?'▲':'▼'}${Math.abs(avgGap).toFixed(1)}%</span>`:''}
-              </span>` : ''}
-            </div>
-          </div>`;
-        })()}
+
+        <!-- 증권사 목록 -->
+        ${_rpAnalystList(_rpData.analyst || [], price)}
+
       </div>
 
       <!-- 우: 52주 가격 위치 -->
@@ -350,44 +332,9 @@ function rpRenderReport() {
     </div>
   </div>
 
-  <!-- ② 투자 의견 + 핵심 논거 ──────────────────────────────────────── -->
-  <div style="display:grid;grid-template-columns:440px 1fr;gap:12px">
-
-    <!-- 투자 의견 카드 (좌: 내 의견 / 우: 증권사 목록) -->
-    <div class="card" style="padding:16px">
-      <div style="display:grid;grid-template-columns:150px 1fr;gap:12px;height:100%">
-
-        <!-- 좌: 내 의견 -->
-        <div style="display:flex;flex-direction:column;gap:10px;border-right:1px solid var(--border);padding-right:14px">
-          <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px">내 투자 의견</div>
-          ${_rpOpinionBadge(opinion)}
-          ${targetP ? `
-            <div style="text-align:center">
-              <div style="font-size:12px;color:var(--text2)">목표주가</div>
-              <div style="font-size:20px;font-weight:700;margin:2px 0">${fmtNum(targetP)}<span style="font-size:11px">원</span></div>
-              ${upside != null ? `
-              <div style="font-size:13px;font-weight:700;color:${upside > 0 ? 'var(--red)' : 'var(--blue)'}">
-                ${upside > 0 ? '▲' : '▼'} ${Math.abs(upside).toFixed(1)}% ${upside > 0 ? '상승여력' : '하락위험'}
-              </div>` : ''}
-            </div>` :
-            `<div style="text-align:center;padding:8px;border-radius:var(--radius-sm);background:var(--bg3);
-              color:var(--text2);font-size:12px;line-height:1.5">
-              투자노트에서<br>목표주가 설정
-            </div>`}
-          <a onclick="go('watchlist')" style="font-size:12px;text-align:center;color:var(--tg);cursor:pointer;margin-top:auto">
-            투자노트 편집 →
-          </a>
-        </div>
-
-        <!-- 우: 증권사 목표주가 (세로 목록) -->
-        ${_rpAnalystList(_rpData.analyst || [], price)}
-
-      </div>
-    </div>
-
-    <!-- 핵심 투자 논거 -->
-    <div class="card" style="padding:16px">
-      <div style="display:grid;grid-template-rows:1fr 1fr;gap:12px;height:100%">
+  <!-- ② 핵심 투자 논거 (전체 너비) ──────────────────────────────── -->
+  <div class="card" style="padding:16px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
 
         <!-- Bull case -->
         <div>
@@ -407,7 +354,6 @@ function rpRenderReport() {
           ${bearHTML}
         </div>
 
-      </div>
     </div>
   </div>
 
