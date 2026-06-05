@@ -302,7 +302,7 @@ function rpRenderReport() {
       </div>
 
       <!-- 중: 내 투자의견 + 증권사 목록 -->
-      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;min-width:340px;
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;min-width:460px;
         padding:0 16px;border-left:1px solid var(--border);border-right:1px solid var(--border)">
 
         <!-- 내 의견 -->
@@ -348,25 +348,27 @@ function rpRenderReport() {
         const firstP = pxVals[0], lastP = pxVals[pxVals.length - 1];
         const lineColor = lastP >= firstP ? '#f87171' : '#60a5fa';
         const lastX = W, lastY = H - 4 - Math.round((lastP - minP) / range * (H - 8));
-        // 채우기 경로
-        const fillPath = `M0,${H} L${coords.split(' ').map(c => c).join(' L')} L${W},${H} Z`;
-        return `<div style="min-width:${W}px">
+        const fillPath = `M0,${H} L${coords.split(' ').join(' L')} L${W},${H} Z`;
+        return `<div style="flex:1;min-width:160px;display:flex;flex-direction:column">
           <div style="font-size:11px;color:var(--text2);margin-bottom:5px">
             주가 추이 <span style="font-size:10px">(최근 ${pts.length}일)</span>
           </div>
-          <svg width="${W}" height="${H}" style="display:block;overflow:visible">
+          <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
+            style="width:100%;flex:1;min-height:60px;display:block">
             <defs>
               <linearGradient id="hdr-fill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.25"/>
+                <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.3"/>
                 <stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/>
               </linearGradient>
             </defs>
             <path d="${fillPath}" fill="url(#hdr-fill)"/>
             <polyline points="${coords}" fill="none" stroke="${lineColor}"
-              stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
-            <circle cx="${lastX}" cy="${lastY}" r="3" fill="${lineColor}"/>
+              stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
+              vector-effect="non-scaling-stroke"/>
+            <circle cx="${lastX}" cy="${lastY}" r="4" fill="${lineColor}"
+              vector-effect="non-scaling-stroke"/>
           </svg>
-          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:2px">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:3px">
             <span>${pts[0]?.base_date?.slice(2,10)||''}</span>
             <span>${pts[pts.length-1]?.base_date?.slice(2,10)||''}</span>
           </div>
