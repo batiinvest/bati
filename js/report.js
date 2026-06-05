@@ -188,9 +188,68 @@ async function rpLoadReport() {
       segment:  segRes.data     || [],
     };
     rpRenderReport();
+    // peer 비교 데이터 비동기 로드 (렌더 후)
+    _rpLoadPeerStats().catch(() => {});
   } catch (e) {
     if (body) body.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--red);font-size:13px">데이터 로드 실패: ${e.message}</div>`;
   }
+}
+
+// ── 동종업체 밸류에이션 비교 (비동기) ────────────────────────────────────────
+async function _rpLoadPeerStats() {
+  if (!_rpStock) return;
+
+  // 1. 현재 종목 industry 조회
+  const { data: comp } = await sb.from('companies')
+    .select('industry').eq('code', _rpStock.code).maybeSingle();
+  if (!comp?.industry) return;
+
+  // 2. 같은 industry 종목 코드 조회 (본인 제외, 최대 50개)
+  const { data: peerList } = await sb.from('companies')
+    .select('code').eq('industry', comp.industry).neq('code', _rpStock.code).limit(50);
+  if (!peerList?.length) return;
+
+  const codes = peerList.map(p => p.code);
+
+  // 3. 최신 PER/PBR (market_data) + ROE/ROA/영업이익률 (financials) 병렬 조회
+  const [mktRes, finRes] = await Promise.all([
+    sb.from('market_data').select('stock_code,per,pbr')
+      .in('stock_code', codes).order('base_date', { ascending: false }),
+    sb.from('financials').select('stock_code,roe,roa,operating_margin')
+      .in('stock_code', codes).eq('fs_div','CFS')
+      .order('bsns_year', { ascending: false }).order('quarter', { ascending: false }),
+  ]);
+
+  // 4. 종목별 최신 1건만 추출
+  const latestMkt = {}, latestFin = {};
+  for (const r of (mktRes.data || [])) {
+    if (!latestMkt[r.stock_code]) latestMkt[r.stock_code] = r;
+  }
+  for (const r of (finRes.data || [])) {
+    if (!latestFin[r.stock_code]) latestFin[r.stock_code] = r;
+  }
+
+  // 5. 중앙값 계산
+  const median = arr => {
+    const s = arr.filter(v => v != null && v > 0 && isFinite(v)).sort((a,b) => a-b);
+    if (!s.length) return null;
+    const m = Math.floor(s.length / 2);
+    return s.length % 2 === 0 ? (s[m-1] + s[m]) / 2 : s[m];
+  };
+
+  _rpData.peerStats = {
+    industry: comp.industry,
+    count: peerList.length,
+    per: median(Object.values(latestMkt).map(r => r.per)),
+    pbr: median(Object.values(latestMkt).map(r => r.pbr)),
+    roe: median(Object.values(latestFin).map(r => r.roe)),
+    roa: median(Object.values(latestFin).map(r => r.roa)),
+    opm: median(Object.values(latestFin).map(r => r.operating_margin)),
+  };
+
+  // 6. 밸류에이션 카드만 재렌더
+  const el = document.getElementById('rp-val-card');
+  if (el) el.outerHTML = _rpValuationCard(_rpData.fin?.[0] || {}, _rpData.price?.[0] || {});
 }
 
 // ── 리포트 렌더링 ─────────────────────────────────────────────────────────────
@@ -1050,28 +1109,92 @@ function rpSegFilter(name) {
 }
 
 function _rpValuationCard(latestF, latest) {
+  const ps = _rpData.peerStats || null;
+
   const metrics = [
-    { key:'per',  label:'PER',  desc:'주가수익비율',  val: latest?.per,    unit:'x',  fmt: v => v.toFixed(1) },
-    { key:'pbr',  label:'PBR',  desc:'주가순자산비율', val: latest?.pbr,    unit:'x',  fmt: v => v.toFixed(2) },
-    { key:'roe',  label:'ROE',  desc:'자기자본이익률', val: latestF?.roe,   unit:'%',  fmt: v => v.toFixed(1) },
-    { key:'roa',  label:'ROA',  desc:'총자산이익률',  val: latestF?.roa,   unit:'%',  fmt: v => v.toFixed(1) },
+    { key:'per', label:'PER', desc:'주가수익비율',   val: latest?.per,   peer: ps?.per, unit:'x', fmt: v=>v.toFixed(1), lowerBetter:true  },
+    { key:'pbr', label:'PBR', desc:'주가순자산비율', val: latest?.pbr,   peer: ps?.pbr, unit:'x', fmt: v=>v.toFixed(2), lowerBetter:true  },
+    { key:'roe', label:'ROE', desc:'자기자본이익률', val: latestF?.roe,  peer: ps?.roe, unit:'%', fmt: v=>v.toFixed(1), lowerBetter:false },
+    { key:'roa', label:'ROA', desc:'총자산이익률',  val: latestF?.roa,  peer: ps?.roa, unit:'%', fmt: v=>v.toFixed(1), lowerBetter:false },
   ];
 
-  return `<div class="card" style="padding:16px">
-    <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text1)">💎 밸류에이션 & 수익성</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+  // peer 대비 평가: lowerBetter → 낮을수록 저평가 / 높을수록 고평가
+  const peerJudge = (val, peer, lowerBetter) => {
+    if (val == null || peer == null) return null;
+    const diff = (val - peer) / peer * 100;
+    const isGood = lowerBetter ? diff < -15 : diff > 15;
+    const isBad  = lowerBetter ? diff > 15  : diff < -15;
+    return {
+      diff,
+      color: isGood ? '#4ade80' : isBad ? '#f87171' : '#f59e0b',
+      label: isGood ? '업종 대비 유리' : isBad ? '업종 대비 불리' : '업종 수준',
+      diffStr: (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%',
+    };
+  };
+
+  const peerHeader = ps
+    ? `<div style="font-size:11px;color:var(--text2)">
+        ${ps.industry} 동종 ${ps.count}개사 중앙값 비교
+        <span style="color:var(--text2);margin-left:4px">|</span>
+        <span style="color:var(--text2);margin-left:4px">🟢 유리 🟡 중립 🔴 불리</span>
+      </div>`
+    : `<div style="font-size:11px;color:var(--text2);opacity:.6">업종 비교 로딩 중...</div>`;
+
+  return `<div id="rp-val-card" class="card" style="padding:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:6px">
+      <span style="font-size:14px;font-weight:700;color:var(--text1)">💎 밸류에이션 & 수익성</span>
+      ${peerHeader}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
       ${metrics.map(m => {
-        const sig = _rpSignal(m.key, m.val);
-        return `<div style="padding:10px 12px;background:${sig?.bg||'var(--bg3)'};border-radius:var(--radius-sm);
-          border:1px solid ${sig?.color||'var(--border)'}30">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-            <span style="font-size:12px;color:var(--text2)">${m.desc}</span>
-            ${sig ? `<span style="font-size:9px;color:${sig.color};font-weight:700">${sig.label}</span>` : ''}
+        const sig   = _rpSignal(m.key, m.val);
+        const judge = peerJudge(m.val, m.peer, m.lowerBetter);
+        // 포지션 바: 업종 내 상대 위치 (0~100%)
+        const barPct = m.val != null && m.peer != null
+          ? Math.min(100, Math.max(0, m.lowerBetter
+              ? (1 - m.val / (m.peer * 2)) * 100        // 낮을수록 왼쪽 = 좋음
+              : (m.val / (m.peer * 2)) * 100))           // 높을수록 오른쪽 = 좋음
+          : null;
+        return `<div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);
+          border-left:3px solid ${judge?.color || sig?.color || 'var(--border)'}">
+          <div style="display:flex;align-items:center;gap:8px">
+            <!-- 지표명 + 현재값 -->
+            <div style="min-width:50px">
+              <div style="font-size:11px;color:var(--text2)">${m.label}</div>
+              <div style="font-size:18px;font-weight:800;color:var(--text1);line-height:1.2">
+                ${m.val != null ? m.fmt(m.val)+m.unit : '<span style="color:var(--text2);font-size:14px">—</span>'}
+              </div>
+            </div>
+            <!-- 업종 비교 바 -->
+            ${barPct != null ? `
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-bottom:3px">
+                <span>${m.desc}</span>
+                <span>업종 중앙 ${m.fmt(m.peer)}${m.unit}</span>
+              </div>
+              <div style="height:6px;border-radius:3px;background:var(--border);position:relative">
+                <!-- 중앙값 기준선 -->
+                <div style="position:absolute;left:50%;top:-2px;width:2px;height:10px;
+                  background:var(--text2);opacity:.5;border-radius:1px"></div>
+                <!-- 현재 위치 -->
+                <div style="position:absolute;top:0;height:100%;border-radius:3px;
+                  background:${judge?.color||'var(--tg)'};
+                  left:${Math.min(barPct,50)}%;width:${Math.abs(barPct-50)}%;
+                  ${barPct < 50 ? '' : ''}"></div>
+                <div style="position:absolute;top:-3px;left:calc(${barPct}% - 5px);
+                  width:10px;height:12px;border-radius:2px;
+                  background:${judge?.color||'var(--tg)'}"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:10px;margin-top:2px">
+                <span style="color:var(--text2)">${m.lowerBetter?'저평가':'저수익'}</span>
+                ${judge ? `<span style="font-weight:700;color:${judge.color}">${judge.label} ${judge.diffStr}</span>` : ''}
+                <span style="color:var(--text2)">${m.lowerBetter?'고평가':'고수익'}</span>
+              </div>
+            </div>` : `<div style="flex:1;min-width:0">
+              <div style="font-size:11px;color:var(--text2)">${m.desc}</div>
+              ${sig ? `<div style="font-size:11px;color:${sig.color};font-weight:700;margin-top:2px">${sig.label}</div>` : ''}
+            </div>`}
           </div>
-          <div style="font-size:20px;font-weight:800;color:var(--text1)">
-            ${m.val != null ? m.fmt(m.val) + m.unit : '<span style="color:var(--text2)">—</span>'}
-          </div>
-          <div style="font-size:11px;font-weight:700;color:var(--text2);margin-top:2px">${m.label}</div>
         </div>`;
       }).join('')}
     </div>
