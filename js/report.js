@@ -347,41 +347,57 @@ function rpRenderReport() {
         }).join(' ');
         const firstP = pxVals[0], lastP = pxVals[pxVals.length - 1];
         const lineColor = lastP >= firstP ? '#f87171' : '#60a5fa';
-        const lastX = W, lastY = H - 4 - Math.round((lastP - minP) / range * (H - 8));
-        const fillPath = `M0,${H} L${coords.split(' ').join(' L')} L${W},${H} Z`;
+        const n = pxVals.length;
+        // 차트 내부 상하 패딩 (라벨 공간 확보)
+        const PAD = 22;
+        const getY = v => PAD + Math.round((1 - (v - minP) / range) * (H - PAD*2));
+
+        // 좌표 재계산 (패딩 적용)
+        const coordsPad = pxVals.map((v, i) => {
+          const x = n > 1 ? (i / (n-1)) * W : W/2;
+          return `${x.toFixed(1)},${getY(v)}`;
+        }).join(' ');
+        const fillPathPad = `M0,${H} L${coordsPad.split(' ').join(' L')} L${W},${H} Z`;
 
         const minIdx = pxVals.indexOf(minP);
         const maxIdx = pxVals.indexOf(maxP);
-        const n = pxVals.length;
-
-        // SVG 내 좌표
         const minX  = n > 1 ? (minIdx / (n-1)) * W : W/2;
-        const minY  = H - 4; // 저점은 항상 바닥
         const maxX  = n > 1 ? (maxIdx / (n-1)) * W : W/2;
-        const maxY  = 4;     // 고점은 항상 꼭대기
+        const lastXc = n > 1 ? W : W/2;
+        const minYc = getY(minP);
+        const maxYc = getY(maxP);
+        const lastYc = getY(lastP);
 
-        // 라벨 위치 (% 기준, 오버레이용)
+        // 오버레이 라벨 X% (가장자리 보정)
         const minXPct = n > 1 ? (minIdx / (n-1)) * 100 : 50;
         const maxXPct = n > 1 ? (maxIdx / (n-1)) * 100 : 50;
+        // 고점 라벨: 우측 치우치면 왼쪽 정렬
+        const maxLabelAlign = maxXPct > 70 ? 'right' : maxXPct < 30 ? 'left' : 'center';
+        const maxLabelLeft  = maxLabelAlign === 'right'  ? 'auto' : `${Math.max(maxXPct,3)}%`;
+        const maxLabelRight = maxLabelAlign === 'right'  ? `${Math.max(100-maxXPct,3)}%` : 'auto';
+        // 저점 라벨: 우측 치우치면 왼쪽 정렬
+        const minLabelAlign = minXPct > 70 ? 'right' : minXPct < 30 ? 'left' : 'center';
+        const minLabelLeft  = minLabelAlign === 'right'  ? 'auto' : `${Math.max(minXPct,3)}%`;
+        const minLabelRight = minLabelAlign === 'right'  ? `${Math.max(100-minXPct,3)}%` : 'auto';
+
+        // 현재가가 고점과 X상 가까우면(15% 이내) 현재가 라벨 숨김 (겹침 방지)
+        const showCurrentLabel = Math.abs(100 - maxXPct) > 12;
 
         // 저점 대비 현재가 수익률
         const periodRet = minP > 0 ? ((lastP - minP) / minP * 100) : null;
         const retCol = periodRet == null ? 'var(--text2)' : periodRet >= 0 ? '#f87171' : '#60a5fa';
         const retStr = periodRet != null ? '저점 대비 '+(periodRet>=0?'+':'')+periodRet.toFixed(1)+'%' : '';
 
-        // 라벨 left 위치 (가장자리 overflow 방지)
-        const clampPct = p => Math.min(Math.max(p, 5), 90);
-
         return `<div style="flex:1;min-width:160px;display:flex;flex-direction:column;gap:0">
           <!-- 헤더: 기간 + 등락률 -->
-          <div style="font-size:11px;color:var(--text2);margin-bottom:5px;display:flex;align-items:center;gap:8px">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:4px;display:flex;align-items:center;gap:8px">
             <span>주가 추이</span>
             <span style="font-size:10px">(${pts[0]?.base_date?.slice(0,7)||''} ~ ${pts[pts.length-1]?.base_date?.slice(0,7)||''})</span>
             ${retStr ? `<span style="font-size:12px;font-weight:700;color:${retCol};margin-left:auto">${retStr}</span>` : ''}
           </div>
 
           <!-- SVG + 오버레이 라벨 -->
-          <div style="position:relative;flex:1;min-height:80px">
+          <div style="position:relative;flex:1;min-height:90px">
             <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
               style="width:100%;height:100%;display:block">
               <defs>
@@ -390,45 +406,47 @@ function rpRenderReport() {
                   <stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/>
                 </linearGradient>
               </defs>
-              <path d="${fillPath}" fill="url(#hdr-fill)"/>
-              <polyline points="${coords}" fill="none" stroke="${lineColor}"
+              <path d="${fillPathPad}" fill="url(#hdr-fill)"/>
+              <polyline points="${coordsPad}" fill="none" stroke="${lineColor}"
                 stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
                 vector-effect="non-scaling-stroke"/>
               <!-- 저점 마커 -->
-              <circle cx="${minX}" cy="${minY}" r="4" fill="#60a5fa"
+              <circle cx="${minX}" cy="${minYc}" r="4" fill="#60a5fa"
                 vector-effect="non-scaling-stroke"/>
               <!-- 고점 마커 -->
-              <circle cx="${maxX}" cy="${maxY}" r="4" fill="#f87171"
+              <circle cx="${maxX}" cy="${maxYc}" r="4" fill="#f87171"
                 vector-effect="non-scaling-stroke"/>
-              <!-- 현재가 마커 (흰색 테두리 원) -->
-              <circle cx="${lastX}" cy="${lastY}" r="5" fill="white"
+              <!-- 현재가 마커 -->
+              <circle cx="${lastXc}" cy="${lastYc}" r="5" fill="white"
                 stroke="${lineColor}" stroke-width="2"
                 vector-effect="non-scaling-stroke"/>
             </svg>
 
-            <!-- 저점 라벨 (하단) -->
-            <div style="position:absolute;left:${clampPct(minXPct)}%;bottom:0;
-              transform:translateX(-50%);text-align:center;pointer-events:none">
-              <div style="font-size:9px;color:#60a5fa;font-weight:700;
-                background:var(--bg2);padding:1px 3px;border-radius:3px;white-space:nowrap;
-                border:1px solid #60a5fa40">▼ ${fmtNum(minP)}</div>
+            <!-- 고점 라벨: 마커 바로 위 -->
+            <div style="position:absolute;top:0;left:${maxLabelLeft};right:${maxLabelRight};
+              pointer-events:none;white-space:nowrap">
+              <span style="font-size:9px;color:#f87171;font-weight:700;
+                background:var(--bg2);padding:1px 4px;border-radius:3px;
+                border:1px solid #f8717150">▲ ${fmtNum(maxP)}</span>
             </div>
 
-            <!-- 고점 라벨 (상단) -->
-            <div style="position:absolute;left:${clampPct(maxXPct)}%;top:0;
-              transform:translateX(-50%);text-align:center;pointer-events:none">
-              <div style="font-size:9px;color:#f87171;font-weight:700;
-                background:var(--bg2);padding:1px 3px;border-radius:3px;white-space:nowrap;
-                border:1px solid #f8717140">▲ ${fmtNum(maxP)}</div>
+            <!-- 저점 라벨: 마커 바로 아래 -->
+            <div style="position:absolute;bottom:0;left:${minLabelLeft};right:${minLabelRight};
+              pointer-events:none;white-space:nowrap">
+              <span style="font-size:9px;color:#60a5fa;font-weight:700;
+                background:var(--bg2);padding:1px 4px;border-radius:3px;
+                border:1px solid #60a5fa50">▼ ${fmtNum(minP)}</span>
             </div>
 
-            <!-- 현재가 라벨 (우측) -->
-            <div style="position:absolute;right:0;top:50%;transform:translateY(-50%);
+            <!-- 현재가 라벨: 고점과 겹치지 않을 때만 표시 -->
+            ${showCurrentLabel ? `
+            <div style="position:absolute;right:2px;
+              top:calc(${((lastYc/H)*100).toFixed(1)}% - 9px);
               pointer-events:none">
-              <div style="font-size:9px;color:${lineColor};font-weight:700;
-                background:var(--bg2);padding:1px 4px;border-radius:3px;white-space:nowrap;
-                border:1px solid ${lineColor}40">${fmtNum(lastP)}</div>
-            </div>
+              <span style="font-size:9px;color:${lineColor};font-weight:700;
+                background:var(--bg2);padding:1px 4px;border-radius:3px;
+                border:1px solid ${lineColor}50">${fmtNum(lastP)}</span>
+            </div>` : ''}
           </div>
         </div>`;
       })()}
