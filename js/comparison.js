@@ -454,9 +454,10 @@ async function runComparison() {
       if (priceRows?.length) {
         const prices = priceRows.map(r => r.price).filter(Boolean);
         const latest = priceRows[0];
-        const ma5  = prices.slice(0, 5).reduce((a,b)=>a+b,0) / Math.min(5, prices.length);
-        const ma20 = prices.slice(0, 20).reduce((a,b)=>a+b,0) / Math.min(20, prices.length);
-        const ma60 = prices.slice(0, 60).reduce((a,b)=>a+b,0) / Math.min(60, prices.length);
+        const calcMA = n => prices.slice(0, n).reduce((a,b)=>a+b,0) / Math.min(n, prices.length);
+        const ma5  = calcMA(5);
+        const ma20 = calcMA(20);
+        const ma60 = calcMA(60);
         maData[s.code] = {
           price: latest.price,
           chg:   latest.price_change_rate,
@@ -788,6 +789,12 @@ function _drawSparklines(metricKey) {
   });
 }
 
+function _cmpSetActiveMetric(metricKey) {
+  document.querySelectorAll('#cmp-result .chip[data-metric]').forEach(el => {
+    el.classList.toggle('active', el.dataset.metric === metricKey);
+  });
+}
+
 // ── Chart.js 차트 렌더링 ──
 let _cmpChartInstance = null;
 function renderCmpChart(metricKey) {
@@ -797,10 +804,7 @@ function renderCmpChart(metricKey) {
   // CMP.metric 업데이트
   CMP.metric = metricKey;
 
-  // 탭 active 업데이트 — data-metric 속성 기반
-  document.querySelectorAll('#cmp-result .chip[data-metric]').forEach(el => {
-    el.classList.toggle('active', el.dataset.metric === metricKey);
-  });
+  _cmpSetActiveMetric(metricKey);
 
   const metaDef = CMP_METRICS.find(m => m.key === metricKey) || CMP_METRICS[0];
   const labels  = window._cmpSortedLabels;
@@ -873,10 +877,7 @@ async function fetchCmpMetricAndRender(metricKey, canvas, labels, metaDef) {
 
   window._cmpMetricCache[metricKey] = datasets;
 
-  // 탭 active 업데이트
-  document.querySelectorAll('#cmp-result .chip[data-metric]').forEach(el => {
-    el.classList.toggle('active', el.dataset.metric === metricKey);
-  });
+  _cmpSetActiveMetric(metricKey);
 
   drawCmpChart(canvas, datasets, labels, metaDef);
   renderCmpDetailTable(metricKey);

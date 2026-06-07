@@ -390,12 +390,15 @@ function _monInitDnd() {
   });
 }
 
+async function _updateCodeVariants(code, payload) {
+  for (const c of [code, code+'.KS', code+'.KQ']) {
+    await sb.from('companies').update(payload).eq('code', c);
+  }
+}
+
 async function _monMoveStock(code, name, newInd, newSub) {
   try {
-    for (const c of [code, code+'.KS', code+'.KQ']) {
-      await sb.from('companies').update({ industry: newInd||null, sub_industry: newSub||null })
-        .eq('code', c);
-    }
+    await _updateCodeVariants(code, { industry: newInd||null, sub_industry: newSub||null });
     await _monLoadBoard();
     toast(`✅ ${name} → ${newInd}${newSub ? '/'+newSub : ''}`, 'success');
   } catch(e) { toast('이동 실패: '+e.message, 'error'); }
@@ -405,9 +408,7 @@ async function _monMoveStock(code, name, newInd, newSub) {
 async function monRemoveStock(code, name) {
   if (!confirm(`'${name}'을(를) 모니터링에서 제거할까요?\n(기업 데이터는 유지됩니다)`)) return;
   try {
-    for (const c of [code, code+'.KS', code+'.KQ']) {
-      await sb.from('companies').update({ is_monitored: false, monitoring_level: 'data' }).eq('code', c)
-    }
+    await _updateCodeVariants(code, { is_monitored: false, monitoring_level: 'data' });
     _monMarkDirty();
     await _monLoadBoard();
     toast(`🗑 ${name} 모니터링 제거`, 'success');
@@ -516,9 +517,7 @@ async function monDeleteIndustry(ind) {
     : `'${ind}' 산업을 삭제할까요?`;
   if (!confirm(msg)) return;
   for (const s of stocks) {
-    for (const c of [s.code, s.code+'.KS', s.code+'.KQ']) {
-      await sb.from('companies').update({ is_monitored:false, monitoring_level:'data' }).eq('code',c)
-    }
+    await _updateCodeVariants(s.code, { is_monitored: false, monitoring_level: 'data' });
   }
   if (stocks.length) {
     _monMarkDirty();
@@ -564,9 +563,7 @@ function monEditSub(labelEl, ind, oldSub) {
     // DB 업데이트 - 해당 서브섹터 종목들 일괄 변경
     const stocks = _monData[ind]?.[oldSub] || [];
     for (const s of stocks) {
-      for (const c of [s.code, s.code+'.KS', s.code+'.KQ']) {
-        await sb.from('companies').update({ sub_industry: newSub }).eq('code', c);
-      }
+      await _updateCodeVariants(s.code, { sub_industry: newSub });
     }
     // 내부 상태 업데이트
     if (_monData[ind]) {

@@ -41,13 +41,8 @@ function _calcTemperature() {
   let krwPts = 12; // 데이터 없을 때 중립
   if (krwChg !== null) {
     const chgPct = krwLvl ? (krwChg / krwLvl) * 100 : 0;
-    if      (chgPct < -0.5)  krwPts = 25;  // 원화 강세 0.5% 이상
-    else if (chgPct < -0.2)  krwPts = 21;
-    else if (chgPct < -0.05) krwPts = 17;
-    else if (chgPct <= 0.05) krwPts = 12;  // 보합
-    else if (chgPct <= 0.2)  krwPts = 7;
-    else if (chgPct <= 0.5)  krwPts = 3;
-    else                     krwPts = 0;   // 원화 급약세
+    const _krwScale = [[-0.5,25],[-0.2,21],[-0.05,17],[0.05,12],[0.2,7],[0.5,3]];
+    krwPts = _krwScale.find(([t]) => chgPct < t)?.[1] ?? 0;
   }
   score += krwPts;
   const krwStr = krwChg != null
@@ -61,14 +56,8 @@ function _calcTemperature() {
   // ② 코스피/닥 등락률 (max 25)
   // 당일 등락률은 환율·수급의 결과이나, 시장 참여자 심리를 직접 반영
   const krAvg = ((m.kospi_chg ?? 0) + (m.kosdaq_chg ?? 0)) / 2;
-  let krPts;
-  if      (krAvg >=  2.0) krPts = 25;
-  else if (krAvg >=  1.0) krPts = 21;
-  else if (krAvg >=  0.3) krPts = 16;
-  else if (krAvg >=  0.0) krPts = 11;
-  else if (krAvg >= -0.3) krPts = 7;
-  else if (krAvg >= -1.0) krPts = 3;
-  else                    krPts = 0;
+  const _krScale = [[2.0,25],[1.0,21],[0.3,16],[0.0,11],[-0.3,7],[-1.0,3]];
+  const krPts = _krScale.find(([t]) => krAvg >= t)?.[1] ?? 0;
   score += krPts;
   parts.push({
     label: `코스피/닥 ${krAvg >= 0 ? '+' : ''}${krAvg.toFixed(2)}%`,
@@ -78,14 +67,8 @@ function _calcTemperature() {
   // ③ 외국인 수급 방향 (max 20)
   // foreign_net_buy 단위: 주(株) — 방향성 지표로 활용
   const frgnTotal = rows.reduce((s, r) => s + (r.foreign_net_buy ?? 0), 0);
-  let frgnPts;
-  if      (frgnTotal >  500000) frgnPts = 20;
-  else if (frgnTotal >  200000) frgnPts = 16;
-  else if (frgnTotal >   50000) frgnPts = 12;
-  else if (frgnTotal >=      0) frgnPts = 8;
-  else if (frgnTotal > -200000) frgnPts = 4;
-  else if (frgnTotal > -500000) frgnPts = 1;
-  else                          frgnPts = 0;
+  const _frgnScale = [[500000,20],[200000,16],[50000,12],[0,8],[-200000,4],[-500000,1]];
+  const frgnPts = _frgnScale.find(([t]) => frgnTotal > t)?.[1] ?? 0;
   score += frgnPts;
   const fStr = (frgnTotal >= 0 ? '+' : '') + frgnTotal.toLocaleString() + '주';
   parts.push({ label: `외국인 ${fStr}`, pts: frgnPts, max: 20, hint: '' });
@@ -93,16 +76,10 @@ function _calcTemperature() {
   // ④ VIX 글로벌 공포지수 (max 15)
   // 미 S&P500 기반 간접지표 — 글로벌 위험선호도 반영
   const vix = m.vix ?? null;
-  let vixPts = 7; // 데이터 없을 때 중립
-  if (vix !== null) {
-    if      (vix <  13) vixPts = 15;
-    else if (vix <  16) vixPts = 13;
-    else if (vix <  19) vixPts = 10;
-    else if (vix <  22) vixPts = 7;
-    else if (vix <  25) vixPts = 4;
-    else if (vix <  30) vixPts = 2;
-    else                vixPts = 0;
-  }
+  const _vixScale = [[13,15],[16,13],[19,10],[22,7],[25,4],[30,2]];
+  const vixPts = vix !== null
+    ? (_vixScale.find(([t]) => vix < t)?.[1] ?? 0)
+    : 7; // 데이터 없을 때 중립
   score += vixPts;
   const vixHint = vix != null
     ? (vix < 16 ? '안정 국면' : vix < 22 ? '주의 구간' : '공포 구간')
@@ -116,14 +93,10 @@ function _calcTemperature() {
   // 금리 하락 = 유동성 확대 + 성장주 할인율 완화 = 긍정
   // 반도체·IT 비중 높은 코스피 특성상 금리 민감도 높음
   const us10yChg = m.us10y_chg ?? null;
-  let ratesPts = 7; // 데이터 없을 때 중립
-  if (us10yChg !== null) {
-    if      (us10yChg < -0.06) ratesPts = 15;
-    else if (us10yChg < -0.02) ratesPts = 12;
-    else if (us10yChg <= 0.02) ratesPts = 7;
-    else if (us10yChg <= 0.06) ratesPts = 3;
-    else                       ratesPts = 0;
-  }
+  const _ratesScale = [[-0.06,15],[-0.02,12],[0.02,7],[0.06,3]];
+  const ratesPts = us10yChg !== null
+    ? (_ratesScale.find(([t]) => us10yChg < t)?.[1] ?? 0)
+    : 7; // 데이터 없을 때 중립
   score += ratesPts;
   const ratesStr = us10yChg != null
     ? `${us10yChg >= 0 ? '+' : ''}${Number(us10yChg).toFixed(3)}%`

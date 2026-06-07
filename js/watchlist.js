@@ -18,49 +18,30 @@ function fmtPriceKr(price) {
   return `${price.toLocaleString()}원`;
 }
 
-function syncWlPrice(from, val) {
+function _syncPriceCap(prefix, from, val) {
   const shares = window._wlShares;
-  const hint = document.getElementById('wl-target-cap-hint');
+  const hint = document.getElementById(`${prefix}-cap-hint`);
   if (!shares || !val) { if (hint) hint.textContent = ''; return; }
 
   if (from === 'price') {
     const price = parseFloat(val);
     if (!isNaN(price)) {
       const capEok = Math.round(price * shares / 1e8);
-      document.getElementById('wl-target_cap').value = capEok;
+      document.getElementById(`${prefix}_cap`).value = capEok;
       if (hint) hint.innerHTML = `<span style="color:var(--tg)">≈ ${fmtEok(capEok)}</span>`;
     }
   } else {
     const capEok = parseFloat(val);
     if (!isNaN(capEok)) {
       const price = Math.round(capEok * 1e8 / shares);
-      document.getElementById('wl-target_price').value = price;
+      document.getElementById(`${prefix}_price`).value = price;
       if (hint) hint.innerHTML = `<span style="color:var(--tg)">≈ ${fmtPriceKr(price)}</span>`;
     }
   }
 }
 
-function syncWlWatchPrice(from, val) {
-  const shares = window._wlShares;
-  const hint = document.getElementById('wl-watch-cap-hint');
-  if (!shares || !val) { if (hint) hint.textContent = ''; return; }
-
-  if (from === 'price') {
-    const price = parseFloat(val);
-    if (!isNaN(price)) {
-      const capEok = Math.round(price * shares / 1e8);
-      document.getElementById('wl-watch_cap').value = capEok;
-      if (hint) hint.innerHTML = `<span style="color:var(--tg)">≈ ${fmtEok(capEok)}</span>`;
-    }
-  } else {
-    const capEok = parseFloat(val);
-    if (!isNaN(capEok)) {
-      const price = Math.round(capEok * 1e8 / shares);
-      document.getElementById('wl-watch_price').value = price;
-      if (hint) hint.innerHTML = `<span style="color:var(--tg)">≈ ${fmtPriceKr(price)}</span>`;
-    }
-  }
-}
+function syncWlPrice(from, val)      { _syncPriceCap('wl-target', from, val); }
+function syncWlWatchPrice(from, val) { _syncPriceCap('wl-watch',  from, val); }
 
 let _wlCompanies = null;
 
