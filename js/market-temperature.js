@@ -45,7 +45,7 @@ function _calcTemperature() {
     ? `${sp5Chg >= 0 ? '+' : ''}${Number(sp5Chg).toFixed(2)}%`
     : '—';
   parts.push({ label: `S&P500 ${sp5Str}`, pts: sp5Pts, max: 15,
-    hint: sp5Chg != null ? (sp5Chg >= 0 ? '미국 상승' : '미국 하락') : '데이터 없음' });
+    hint: sp5Chg != null ? (sp5Chg >= 0.3 ? '코스피 매수 유리' : sp5Chg <= -0.3 ? '코스피 매도 압력' : '보합') : '데이터 없음' });
 
   // ② USD/KRW 환율 방향 (max 15) — 수출주 역효과 감안해 25→15pt
   // 원화 강세(달러↓) = 외국인 자금 유입 선호 / 원화 약세 = 이탈 압력
@@ -70,18 +70,24 @@ function _calcTemperature() {
   // 당일 등락만 반영하면 결과를 점수로 재포장하는 동어반복이 됨.
   // 최근 5 거래일 누적 등락률로 단기 추세를 평가한다.
   // 데이터가 1건뿐이면 당일 등락으로 fallback.
-  const _krRows = window._macroRows || [m];
+  const _krRows = window._macroRows || [];
   const kr5dSum = _krRows.reduce((s, r) =>
     s + (((r.kospi_chg ?? 0) + (r.kosdaq_chg ?? 0)) / 2), 0);
   // 임계값: 5일 누적 기준 (max 20pt로 조정)
   const _krScale = [[5.0,20],[2.5,17],[0.5,13],[-0.5,9],[-2.5,5],[-5.0,2]];
-  const krPts = _krScale.find(([t]) => kr5dSum >= t)?.[1] ?? 0;
+  // 데이터 없으면 중립 10pt (다른 지표의 null 중립 비율 ~47% 기준)
+  const krPts = _krRows.length === 0 ? 10 : (_krScale.find(([t]) => kr5dSum >= t)?.[1] ?? 0);
   score += krPts;
-  const kr5dLabel = _krRows.length >= 2 ? '5일' : '당일';
+  const kr5dLabel = _krRows.length >= 2 ? '5일' : _krRows.length === 1 ? '당일' : '—';
+  const krHint = _krRows.length === 0
+    ? '데이터 없음'
+    : kr5dSum >= 0.5 ? '단기 추세 상승'
+    : kr5dSum <= -0.5 ? '단기 추세 하락'
+    : '추세 중립';
   parts.push({
-    label: `코스피/닥 ${kr5dLabel} ${kr5dSum >= 0 ? '+' : ''}${kr5dSum.toFixed(2)}%`,
+    label: `코스피/닥 ${kr5dLabel} ${_krRows.length > 0 ? (kr5dSum >= 0 ? '+' : '') + kr5dSum.toFixed(2) + '%' : '—'}`,
     pts: krPts, max: 20,
-    hint: _krRows.length >= 2 ? `최근 ${_krRows.length}거래일 누적` : '당일 등락 (데이터 수집 중)',
+    hint: krHint,
   });
 
   // ④ 외국인 수급 방향 (max 20)
@@ -96,7 +102,12 @@ function _calcTemperature() {
     ? (frgnAmt / 1000).toFixed(1) + '천억'
     : Math.round(frgnAmt).toLocaleString() + '억';
   const fStr = (frgnAmt >= 0 ? '+' : '-') + frgnAbsStr;
-  parts.push({ label: `외국인 ${fStr}`, pts: frgnPts, max: 20, hint: '' });
+  const frgnHint = frgnAmt >= 500 ? '강한 매수세'
+    : frgnAmt >= 50  ? '매수 우위'
+    : frgnAmt >= -50 ? '보합'
+    : frgnAmt >= -200 ? '매도 우위'
+    : '강한 매도세';
+  parts.push({ label: `외국인 ${fStr}`, pts: frgnPts, max: 20, hint: frgnHint });
 
   // ⑤ VIX 글로벌 공포지수 (max 15)
   // 미 S&P500 기반 간접지표 — 글로벌 위험선호도 반영
@@ -141,27 +152,27 @@ function _calcTemperature() {
 
   if (score >= 80) {
     gradeTxt = '과열 국면'; gradeColor = '#a78bfa'; gradeEmoji = '🟣';
-    strategy = '단계적 비중 축소 검토 — 고점 추격 매수 자제. 수익 실현 구간 설정 권고. 신규 진입 시 손절선 엄격히 관리.';
+    strategy = '단계적 비중 축소 — 신고가 추격 매수 자제. 보유 종목 목표가 도달 시 1/3씩 수익 실현. 손절선은 매입가 -5% 이내로 엄격히 관리.';
   } else if (score >= 60) {
     gradeTxt = '우호 국면'; gradeColor = '#2dce89'; gradeEmoji = '🟢';
     if (krwNeg)
-      strategy = '수급 긍정이나 환율 약세 — 외국인 지속성 확인 필요. 수출주·환헤지 비중 점검.';
+      strategy = '수급 긍정이나 환율 약세 주의 — 외국인 순매수 지속성 확인 필요. 수출주 비중 점검, 내수·방어주 우선 대응.';
     else
-      strategy = '매수 우위 환경 — 주도 업종 중심 분할 진입 검토. 모멘텀 종목 비중 확대 가능.';
+      strategy = '매수 우위 환경 — 외국인 순매수 상위 섹터 중심 1/3씩 분할 진입. 추세 추종 전략 유효, 손절선 설정 후 비중 확대.';
   } else if (score >= 40) {
     gradeTxt = '중립 국면'; gradeColor = '#f59e0b'; gradeEmoji = '🟡';
     if (spDrop)
-      strategy = '미국 급락 후 국면 — 코스피 갭다운 가능성. 장 초반 매도 압력 확인 후 대응.';
+      strategy = '미국 급락 후 국면 — 코스피 갭다운 가능성. 장 초반 15분 매도 압력 확인 후 진입 판단. 반등 시 단기 매도 우선.';
     else if (ratePop)
-      strategy = '금리 상승 압력 주의 — 고PER 성장주 비중 축소 고려. 가치주·배당주로 분산.';
+      strategy = '금리 상승 압력 주의 — 고PER 성장·바이오주 비중 축소 검토. 은행·에너지·배당주로 방어 분산.';
     else
-      strategy = '선별적 접근 — 수급 확인된 주도 업종만 대응. 시장 방향성 확인 전 신규 진입 자제.';
+      strategy = '선별 접근 — 외국인·기관 동시 순매수 섹터만 소량 진입. 시장 방향성 확인 전 신규 포지션 자제, 기존 보유 유지.';
   } else if (score >= 20) {
     gradeTxt = '경계 국면'; gradeColor = '#fb6340'; gradeEmoji = '🟠';
-    strategy = '방어적 포지션 — 낙폭 과대 종목 단기 반등 관찰. 신규 포지션 최소화, 현금 비중 확대 준비.';
+    strategy = '방어적 포지션 — 현금 비중 50% 이상 유지. VIX 하락 + 외국인 순매수 전환 확인 시 소량 타진. 낙폭 과대 대형주 단기 반등 관찰.';
   } else {
     gradeTxt = '위험 국면'; gradeColor = '#f5365c'; gradeEmoji = '🔴';
-    strategy = '현금 비중 극대화 — 신규 진입 전면 자제. 기존 포지션 손절 기준 재점검. 공포 극대화 구간에서 역발상 준비.';
+    strategy = '현금 비중 극대화 — 신규 진입 전면 자제. 기존 포지션 손절 기준 재점검 후 실행. VIX 30 이상·외국인 연속 매수 전환 시 역발상 진입 준비.';
   }
 
   return { score, gradeTxt, gradeColor, gradeEmoji, parts, strategy };
@@ -220,7 +231,19 @@ async function renderMarketTemperature() {
     const diff     = t.score - prev.score;
     const diffAbs  = Math.abs(diff);
     const diffSign = diff > 0 ? '▲' : diff < 0 ? '▼' : '─';
-    const diffColor = diff > 0 ? 'var(--green)' : diff < 0 ? 'var(--red)' : 'var(--text3)';
+    // 색상: 과열·우호(≥60) 구간에서 상승은 위험 심화 → 빨강, 하락은 냉각 → 초록
+    // 경계·위험(<40) 구간에서 상승은 회복 → 초록, 하락은 악화 → 빨강
+    // 중립(40~59): 상승 = 긍정(초록)
+    let diffColor;
+    if (diff === 0) {
+      diffColor = 'var(--text3)';
+    } else if (t.score >= 60) {
+      diffColor = diff > 0 ? 'var(--red)' : 'var(--tg)';
+    } else if (t.score < 40) {
+      diffColor = diff > 0 ? 'var(--tg)' : 'var(--red)';
+    } else {
+      diffColor = diff > 0 ? 'var(--tg)' : 'var(--red)';
+    }
     const diffStr  = diff === 0 ? '전일 동일' : `전일比 ${diffSign} ${diffAbs}`;
     diffBadge = `<span style="font-size:11px;font-weight:600;color:${diffColor};
       margin-left:6px">${diffStr}</span>
@@ -244,8 +267,17 @@ async function renderMarketTemperature() {
         ${t.gradeEmoji} ${t.gradeTxt}
         ${diffBadge}
       </div>
+      <!-- 포인터 마커 -->
+      <div style="position:relative;height:7px;margin-bottom:2px">
+        <div style="position:absolute;left:${t.score}%;transform:translateX(-50%);
+          width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;
+          border-top:6px solid ${t.gradeColor}"></div>
+      </div>
       <div class="temp-gauge-bar">
-        <div class="temp-gauge-fill" style="width:${t.score}%"></div>
+        <!-- 구간별 그라데이션 바 (위험→경계→중립→우호→과열) -->
+        <div class="temp-gauge-fill" style="width:${t.score}%;
+          background:linear-gradient(90deg,#f5365c 0%,#fb6340 20%,#f59e0b 40%,#2dce89 60%,#a78bfa 80%,#a78bfa 100%);
+          opacity:0.9"></div>
         ${[20, 40, 60, 80].map(v =>
           `<div style="position:absolute;left:${v}%;top:0;bottom:0;
             width:1px;background:rgba(0,0,0,.4);z-index:1"></div>`
