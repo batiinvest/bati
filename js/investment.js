@@ -216,7 +216,7 @@ function pInvestment() {
         </div>
       </div>
       <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px">
-        US ETF ↔ KR 섹터 성과 비교 · 선행 신호 자동 탐지
+        미국이 먼저 움직이면 한국이 따라온다 — US·KR 섹터 성과 비교 및 선행 신호 탐지
       </div>
       <div id="im-body">
         ${_skelList(11, true)}

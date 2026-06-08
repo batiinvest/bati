@@ -9,15 +9,18 @@
 
 // ── 신호 표시 설정 (렌더링 전용, 계산 로직 없음) ─────────────────────────────
 const _IM_SIGNALS_MAP = {
-  us_lead_bull: { color: '#2dce89', icon: '⚡', label: 'KR 추격 예상', tip: 'US 선행 상승 — KR 아직 미반영, 매수 관찰 구간' },
-  us_lead_bear: { color: '#f5365c', icon: '⚠️', label: 'KR 하락 경고', tip: 'US 선행 하락 — KR 낙폭 확대 경고' },
-  kr_outrun:    { color: '#ffd600', icon: '🚀', label: 'KR 독주',       tip: 'KR 독자 강세 — 디커플링' },
-  co_bull:      { color: '#4a9eff', icon: '🟢', label: '동조 강세',     tip: 'US·KR 동반 상승' },
-  co_bear:      { color: '#fb6340', icon: '🔴', label: '동조 약세',     tip: 'US·KR 동반 하락' },
+  us_lead_bull: { color: '#2dce89', icon: '⚡', label: 'KR 추격 예상', tip: 'US 먼저 상승 — KR 아직 미반영, 매수 관찰' },
+  us_lead_bear: { color: '#f5365c', icon: '⚠️', label: 'KR 하락 경고', tip: 'US 먼저 하락 — KR 낙폭 확대 경고' },
+  kr_outrun:    { color: '#ffd600', icon: '🚀', label: 'KR 독주',       tip: 'KR 독자 강세 — 과열 주의, 조정 가능' },
+  co_bull:      { color: '#2dce89', icon: '🟢', label: '동조 강세',     tip: 'US·KR 동반 상승 — 추세 지속 가능' },
+  co_bear:      { color: '#f5365c', icon: '🔴', label: '동조 약세',     tip: 'US·KR 동반 하락 — 방어적 대응 필요' },
 };
 
-// 신호 우선순위 (정렬용)
+// 신호 우선순위 (정렬용) — 코드 키 기준
 const _IM_SIGNAL_PRIO = { us_lead_bull: 0, us_lead_bear: 1, kr_outrun: 2, co_bull: 3, co_bear: 4 };
+
+// 신호 객체 → 코드 키 역조회 헬퍼
+const _imSigKey = s => Object.keys(_IM_SIGNALS_MAP).find(k => _IM_SIGNALS_MAP[k] === s) ?? null;
 
 // ── 셀 색상 헬퍼 ──────────────────────────────────────────────────────────────
 function _imColor(v) {
@@ -105,12 +108,12 @@ async function loadIndustryMatrix() {
         },
       }));
 
-    // ── 신호 강도 순 정렬 ─────────────────────────────────────────────────────
+    // ── 신호 우선순위 순 정렬 (버그 수정: _imSigKey로 코드 키 역조회) ─────────
     matrixRows.sort((a, b) => {
       const sa = a.sig[5] || a.sig[1] || a.sig[20];
       const sb_ = b.sig[5] || b.sig[1] || b.sig[20];
-      const pa = sa ? (_IM_SIGNAL_PRIO[sa.label] ?? _IM_SIGNAL_PRIO[Object.keys(_IM_SIGNALS_MAP).find(k => _IM_SIGNALS_MAP[k] === sa)] ?? 9) : 9;
-      const pb = sb_ ? (_IM_SIGNAL_PRIO[sb_.label] ?? _IM_SIGNAL_PRIO[Object.keys(_IM_SIGNALS_MAP).find(k => _IM_SIGNALS_MAP[k] === sb_)] ?? 9) : 9;
+      const pa = sa  ? (_IM_SIGNAL_PRIO[_imSigKey(sa)]  ?? 9) : 9;
+      const pb = sb_ ? (_IM_SIGNAL_PRIO[_imSigKey(sb_)] ?? 9) : 9;
       if (pa !== pb) return pa - pb;
       return (b.us5d ?? 0) - (a.us5d ?? 0);
     });
@@ -154,27 +157,30 @@ function renderIndustryMatrix() {
   // ── 신호 카운트 요약 ───────────────────────────────────────────────────────
   const sigCount = {};
   rows.forEach(r => {
-    const s = r.sig[p];
-    if (s) sigCount[s.label] = (sigCount[s.label] || 0) + 1;
+    const key = _imSigKey(r.sig[p]);
+    if (key) sigCount[key] = (sigCount[key] || 0) + 1;
   });
-  const sigSummary = Object.values(_IM_SIGNALS_MAP)
-    .filter((s, i, arr) => arr.findIndex(x => x.label === s.label) === i) // dedupe
-    .filter(s => sigCount[s.label])
-    .map(s =>
+  const sigSummary = Object.entries(_IM_SIGNALS_MAP)
+    .filter(([k]) => sigCount[k])
+    .map(([k, s]) =>
       `<span style="font-size:11px;color:${s.color};background:${s.color}15;border-radius:3px;padding:1px 7px">` +
-      `${s.icon} ${s.label} <b>${sigCount[s.label]}</b></span>`)
+      `${s.icon} ${s.label} <b>${sigCount[k]}</b></span>`)
     .join('');
 
-  // ── 미니 퍼포먼스 바 ──────────────────────────────────────────────────────
+  // ── 양방향 퍼포먼스 바 (음수=왼쪽, 양수=오른쪽, 중앙선 기준) ─────────────
   function perfBar(v, flag) {
     const c   = _imColor(v);
-    const pct = v != null ? Math.round(Math.abs(v) / maxAbs * 100) : 0;
+    const pct = v != null ? Math.min(Math.abs(v) / maxAbs * 50, 50) : 0; // 전체 너비의 50%가 최대
     const val = v != null ? (v >= 0 ? '+' : '') + v.toFixed(1) + '%' : '—';
+    const isPos = v != null && v >= 0;
     return (
       `<div style="display:flex;align-items:center;gap:5px">` +
         `<span style="font-size:10px;color:var(--text3);width:20px;flex-shrink:0">${flag}</span>` +
-        `<div style="flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden">` +
-          `<div style="height:100%;width:${pct}%;background:${c.txt};border-radius:3px;transition:width .4s ease"></div>` +
+        `<div style="flex:1;height:8px;border-radius:3px;position:relative;background:rgba(255,255,255,.07);overflow:hidden">` +
+          `<div style="position:absolute;top:0;height:100%;width:${pct}%;` +
+               `background:${c.txt};border-radius:3px;transition:width .4s ease;` +
+               `${isPos ? 'left:50%' : `right:${50}%;`}"></div>` +
+          `<div style="position:absolute;top:0;left:50%;width:1px;height:100%;background:rgba(255,255,255,.25)"></div>` +
         `</div>` +
         `<span style="font-size:11px;font-weight:600;color:${c.txt};min-width:38px;text-align:right;` +
               `font-variant-numeric:tabular-nums">${val}</span>` +
@@ -189,30 +195,40 @@ function renderIndustryMatrix() {
     const sig = r.sig[p];
     const indColor = ((typeof IND_COLORS !== 'undefined' ? IND_COLORS : null) || {})[r.ind] || '#a8adc4';
 
+    // Δ 스프레드: US - KR, 맥락 레이블로 명확화
     const sp = (usV != null && krV != null) ? usV - krV : null;
-    const spColor = sp == null ? 'var(--text3)' : sp > 0 ? '#2dce89' : '#f5365c';
-    const spStr = sp != null
-      ? `<span style="font-size:10px;color:${spColor};margin-left:6px">` +
-        `Δ${sp > 0 ? '+' : ''}${sp.toFixed(1)}%</span>`
-      : '';
+    let spHtml = '';
+    if (sp != null && Math.abs(sp) >= 0.3) {
+      const spColor = sp > 0 ? '#2dce89' : '#f5365c';
+      const spLabel = sp > 0 ? 'US↑KR미반영' : 'KR↑US대비';
+      spHtml =
+        `<span style="font-size:9px;color:${spColor};margin-left:6px;` +
+        `background:${spColor}18;border-radius:3px;padding:1px 5px;white-space:nowrap">` +
+        `${spLabel} ${sp > 0 ? '+' : ''}${sp.toFixed(1)}%</span>`;
+    }
 
+    // 신호 배지 + 인라인 설명 (모바일 hover 불가 대응)
     const sigBadge = sig
-      ? `<span style="font-size:10px;font-weight:700;color:${sig.color};` +
-        `background:${sig.color}1a;border-radius:4px;padding:2px 8px;` +
-        `white-space:nowrap;cursor:help" title="${sig.tip}">${sig.icon} ${sig.label}</span>`
-      : `<span style="font-size:10px;color:var(--text3);padding:2px 8px">— 중립</span>`;
+      ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0">` +
+          `<span style="font-size:10px;font-weight:700;color:${sig.color};` +
+          `background:${sig.color}1a;border-radius:4px;padding:2px 8px;white-space:nowrap">` +
+          `${sig.icon} ${sig.label}</span>` +
+          `<span style="font-size:9px;color:var(--text3);text-align:right;line-height:1.3;max-width:130px">` +
+          `${sig.tip}</span>` +
+        `</div>`
+      : `<span style="font-size:10px;color:var(--text3);padding:2px 8px;flex-shrink:0">— 중립</span>`;
 
     return (
-      `<div style="padding:7px 12px;border-bottom:1px solid var(--border)">` +
-        `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">` +
-          `<div style="display:flex;align-items:center;gap:5px">` +
+      `<div style="padding:8px 12px;border-bottom:1px solid var(--border)">` +
+        `<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">` +
+          `<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-width:0">` +
             `<span style="width:7px;height:7px;border-radius:50%;background:${indColor};flex-shrink:0"></span>` +
             `<span style="font-size:12px;font-weight:700;color:var(--text1)">${r.ind}</span>` +
-            spStr +
+            spHtml +
           `</div>` +
           sigBadge +
         `</div>` +
-        `<div style="display:flex;flex-direction:column;gap:3px">` +
+        `<div style="display:flex;flex-direction:column;gap:4px">` +
           perfBar(usV, '🇺🇸') +
           perfBar(krV, '🇰🇷') +
         `</div>` +
@@ -221,14 +237,12 @@ function renderIndustryMatrix() {
   }).join('');
 
   // ── 범례 ──────────────────────────────────────────────────────────────────
-  const legendItems = Object.entries(_IM_SIGNALS_MAP)
-    .filter(([, s], i, arr) => arr.findIndex(([, x]) => x.label === s.label) === i);
   const legendHtml =
     `<div style="padding:8px 12px 6px;border-top:1px solid var(--border);` +
          `display:flex;flex-wrap:wrap;gap:5px;align-items:center">` +
-      legendItems.map(([, s]) =>
+      Object.entries(_IM_SIGNALS_MAP).map(([, s]) =>
         `<span style="font-size:10px;color:${s.color};background:${s.color}15;` +
-              `border-radius:3px;padding:1px 6px;cursor:help" title="${s.tip}">${s.icon} ${s.label}</span>`
+              `border-radius:3px;padding:1px 6px">${s.icon} ${s.label}</span>`
       ).join('') +
       `<span style="font-size:10px;color:var(--text3);margin-left:auto">` +
         `${{ 1:'1일', 5:'5일', 20:'20일' }[p]} 기준 · 백엔드 탐지</span>` +
