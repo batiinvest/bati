@@ -9,7 +9,11 @@ let _invTrendChart = null;
 function _mkCard(id, label, st, color, indexVal, indexChg) {
   const el = document.getElementById(id);
   if (!el || !st.total) return;
-  const pct = (st.rise / st.total * 100).toFixed(0);
+  const risePct  = st.rise / st.total * 100;
+  const flatPct  = st.flat / st.total * 100;
+  // 시장 강도 레이블 + 색상
+  const strengthClr   = risePct >= 60 ? 'var(--red)' : risePct <= 40 ? 'var(--blue)' : 'var(--text3)';
+  const strengthLabel = risePct >= 65 ? '강세' : risePct >= 55 ? '우세' : risePct >= 45 ? '중립' : risePct >= 35 ? '열세' : '약세';
   const valStr = indexVal != null
     ? indexVal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})
     : '';
@@ -23,17 +27,20 @@ function _mkCard(id, label, st, color, indexVal, indexChg) {
         : '') +
       '<span style="margin-left:auto;font-size:10px;color:var(--text3)">' + st.total.toLocaleString() + '개</span>' +
     '</div>' +
-    // 바
-    '<div style="height:5px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.08);margin-bottom:6px;display:flex">' +
-      '<div style="width:' + pct + '%;background:var(--red)"></div>' +
+    // 상승/하락 비율 바 (8px, 3색: 상승/보합/하락)
+    '<div style="height:8px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.08);margin-bottom:6px;display:flex">' +
+      '<div style="width:' + risePct.toFixed(1) + '%;background:var(--red);transition:width .5s ease"></div>' +
+      '<div style="width:' + flatPct.toFixed(1) + '%;background:rgba(255,255,255,0.06)"></div>' +
       '<div style="flex:1;background:var(--blue)"></div>' +
     '</div>' +
-    // 수치
-    '<div style="display:flex;gap:8px;font-size:11px">' +
+    // 수치 + 상승 비율 % 강도 레이블
+    '<div style="display:flex;gap:8px;font-size:11px;align-items:center">' +
       '<span style="color:var(--red);font-weight:700">▲ ' + st.rise.toLocaleString() + '</span>' +
       '<span style="color:var(--blue);font-weight:700">▼ ' + st.fall.toLocaleString() + '</span>' +
       '<span style="color:var(--text3)">━ ' + st.flat.toLocaleString() + '</span>' +
-      '<span style="margin-left:auto;color:var(--text3)">총 ' + st.total.toLocaleString() + '개</span>' +
+      '<span style="margin-left:auto;font-size:12px;font-weight:800;color:' + strengthClr + '">' +
+        risePct.toFixed(0) + '% <span style="font-size:10px;font-weight:600">' + strengthLabel + '</span>' +
+      '</span>' +
     '</div>';
 }
 
@@ -96,23 +103,29 @@ async function loadMarketOverview(maxDate) {
     // 전체 종목 카드 직접 렌더링
     const totalCard = document.getElementById('inv-mkt-total');
     if (totalCard) {
-      const avg_ = avg;
+      const _rPct = rise / enriched.length * 100;
+      const _fPct = flat / enriched.length * 100;
+      const _sClr = _rPct >= 60 ? 'var(--red)' : _rPct <= 40 ? 'var(--blue)' : 'var(--text3)';
+      const _sLbl = _rPct >= 65 ? '강세' : _rPct >= 55 ? '우세' : _rPct >= 45 ? '중립' : _rPct >= 35 ? '열세' : '약세';
       totalCard.innerHTML =
         '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">' +
           '<span style="font-size:12px;font-weight:700;color:var(--text3)">전체</span>' +
           '<span style="font-size:15px;font-weight:800;margin-left:4px">' + enriched.length.toLocaleString() + '개</span>' +
-          '<span style="font-size:12px;font-weight:700;color:' + chgColor(avg_) + '">평균 ' + chgStr(avg_) + '</span>' +
+          '<span style="font-size:12px;font-weight:700;color:' + chgColor(avg) + '">평균 ' + chgStr(avg) + '</span>' +
           '<span style="margin-left:auto;font-size:10px;color:var(--text3)">' + enriched.length.toLocaleString() + '개</span>' +
         '</div>' +
-        '<div style="height:5px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.08);margin-bottom:6px;display:flex">' +
-          '<div style="width:' + risePct + '%;background:var(--red)"></div>' +
-          '<div style="width:' + ((enriched.length-rise-fall)/enriched.length*100).toFixed(1) + '%;background:rgba(255,255,255,0.06)"></div>' +
+        '<div style="height:8px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.08);margin-bottom:6px;display:flex">' +
+          '<div style="width:' + _rPct.toFixed(1) + '%;background:var(--red);transition:width .5s ease"></div>' +
+          '<div style="width:' + _fPct.toFixed(1) + '%;background:rgba(255,255,255,0.06)"></div>' +
           '<div style="flex:1;background:var(--blue)"></div>' +
         '</div>' +
-        '<div style="display:flex;gap:8px;font-size:11px">' +
+        '<div style="display:flex;gap:8px;font-size:11px;align-items:center">' +
           '<span style="color:var(--red);font-weight:700">▲ ' + rise.toLocaleString() + '</span>' +
           '<span style="color:var(--blue);font-weight:700">▼ ' + fall.toLocaleString() + '</span>' +
           '<span style="color:var(--text3)">━ ' + flat.toLocaleString() + '</span>' +
+          '<span style="margin-left:auto;font-size:12px;font-weight:800;color:' + _sClr + '">' +
+            _rPct.toFixed(0) + '% <span style="font-size:10px;font-weight:600">' + _sLbl + '</span>' +
+          '</span>' +
         '</div>';
     }
   }
@@ -267,15 +280,34 @@ async function loadMarketOverview(maxDate) {
           const ctx = chart.ctx;
           chart.data.datasets.forEach((ds, di) => {
             chart.getDatasetMeta(di).data.forEach((bar, i) => {
-              const val = ds.data[i];
-              const txt = (val > 0 ? '+' : '') + val + '%';
-              const x   = val >= 0 ? bar.x + 4 : bar.x - 4;
+              const val   = ds.data[i];
+              const ind   = chart.data.labels[i];
+              const iData = (window._indMapData || {})[ind];
+              const isPos = val >= 0;
+              const mainClr  = isPos ? 'rgba(245,54,92,1)' : 'rgba(42,171,238,1)';
+              const x        = isPos ? bar.x + 4 : bar.x - 4;
+              const align    = isPos ? 'left' : 'right';
+
               ctx.save();
+              // ① 등락률 (+X%)
+              const mainTxt = (isPos ? '+' : '') + val + '%';
               ctx.font = 'bold 11px sans-serif';
-              ctx.fillStyle = val >= 0 ? 'rgba(245,54,92,1)' : 'rgba(42,171,238,1)';
-              ctx.textAlign = val >= 0 ? 'left' : 'right';
+              ctx.fillStyle = mainClr;
+              ctx.textAlign = align;
               ctx.textBaseline = 'middle';
-              ctx.fillText(txt, x, bar.y);
+              ctx.fillText(mainTxt, x, bar.y);
+
+              // ② 종목 수 (▲N▼N) — 등락률 바로 뒤에
+              if (iData) {
+                const mainW  = ctx.measureText(mainTxt).width;
+                const gap    = 5;
+                const x2     = isPos ? x + mainW + gap : x - mainW - gap;
+                const cntTxt = `▲${iData.rise}▼${iData.fall}`;
+                ctx.font = '10px sans-serif';
+                ctx.fillStyle = 'rgba(168,173,196,0.65)';
+                ctx.textAlign = align;
+                ctx.fillText(cntTxt, x2, bar.y);
+              }
               ctx.restore();
             });
           });
