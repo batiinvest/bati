@@ -105,7 +105,7 @@ function pInvestment() {
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="display:flex;align-items:center;gap:8px">
         <span class="card-title">${_ICO.flow}기관/외국인 수급</span>
-        <span style="font-size:11px;color:var(--text3)">장중 4회 집계</span>
+        <span style="font-size:11px;color:var(--text3)" id="flow-date-label">장중 4회 집계</span>
       </div>
       <div class="flow-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--border)">
         <div>

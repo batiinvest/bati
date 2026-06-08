@@ -932,10 +932,23 @@ function renderHgprTab(tab) {
 
 
 // ══════════════════════════════════════════
-// 💰 기관/외국인 수급 — 3열 그리드 (동시매수 | 외국인 | 기관)
+// 💰 기관/외국인 수급 — 3열 그리드 (동시매수 | 외국인순매수/순매도 | 기관)
 // ══════════════════════════════════════════
 
-let _flowData = null;
+let _flowData     = null;   // 순매수 데이터
+let _flowSellData = null;   // 외국인 순매도 데이터
+let _flowDate     = null;   // 집계 기준일
+let _frgnSellMode = false;  // 외국인 열: false=순매수, true=순매도
+
+// 억원 환산 포맷 (주수 × 가격 기준)
+function _flowAmtFmt(shares, price) {
+  if (!shares || !price) return '—';
+  const amt = Math.abs(shares) * price / 1e8;
+  if (amt >= 100) return Math.round(amt) + '억';
+  if (amt >= 10)  return amt.toFixed(1) + '억';
+  if (amt >= 1)   return amt.toFixed(2) + '억';
+  return (amt * 100).toFixed(0) + '백만';
+}
 
 async function loadFlowData() {
   const loading = '<div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>';
@@ -953,7 +966,13 @@ async function loadFlowData() {
       });
       return;
     }
+    _flowDate = maxDate;
 
+    // 날짜 표시
+    const dateEl = document.getElementById('flow-date-label');
+    if (dateEl) dateEl.textContent = maxDate + ' 기준';
+
+    // 순매수 데이터 (외국인 or 기관 순매수)
     let { data, error } = await sb.from('market_data')
       .select('stock_code,corp_name,price,price_change_rate,market_cap,foreign_net_buy,institution_net_buy,foreign_hold_rate,market')
       .eq('base_date', maxDate)
@@ -962,7 +981,7 @@ async function loadFlowData() {
       .limit(300);
 
     if (error) {
-      // institution_net_buy 컬럼 미존재 시 fallback — 외국인 수급만 조회
+      // institution_net_buy 컬럼 미존재 시 fallback
       console.warn('[FlowData] institution_net_buy 컬럼 조회 실패, fallback 실행:', error.message);
       const fb = await sb.from('market_data')
         .select('stock_code,corp_name,price,price_change_rate,market_cap,foreign_net_buy,foreign_hold_rate,market')
@@ -973,8 +992,17 @@ async function loadFlowData() {
       if (fb.error) throw fb.error;
       data = fb.data;
     }
-
     _flowData = data || [];
+
+    // 외국인 순매도 데이터 (별도 조회)
+    const { data: sellData } = await sb.from('market_data')
+      .select('stock_code,corp_name,price,price_change_rate,market_cap,foreign_net_buy,foreign_hold_rate,market')
+      .eq('base_date', maxDate)
+      .lt('foreign_net_buy', 0)
+      .order('foreign_net_buy', { ascending: true })
+      .limit(50);
+    _flowSellData = sellData || [];
+
     renderAllFlowData();
   } catch(e) {
     console.error('[FlowData] 최종 오류:', e?.message || e);
@@ -991,68 +1019,114 @@ function renderAllFlowData() {
   _renderFlowCol('orgn', 'flow-body-orgn');
 }
 
+// 외국인 열 순매수/순매도 모드 전환
+function _setFlowMode(sell) {
+  _frgnSellMode = sell;
+  _renderFlowCol('frgn', 'flow-body-frgn');
+}
+
 function _renderFlowCol(tab, bodyId) {
   const body = document.getElementById(bodyId);
   if (!body || !_flowData) return;
 
+  // ── 데이터 선택 및 정렬 (금액 기준) ─────────────────────────────────────────
   let rows;
   if (tab === 'both') {
     rows = _flowData
       .filter(r => (r.foreign_net_buy || 0) > 0 && (r.institution_net_buy || 0) > 0)
-      .sort((a, b) =>
-        ((b.foreign_net_buy || 0) + (b.institution_net_buy || 0)) -
-        ((a.foreign_net_buy || 0) + (a.institution_net_buy || 0))
-      ).slice(0, 20);
+      .sort((a, b) => {
+        // 동시매수: (외국인 금액 + 기관 금액) 합산 기준
+        const aAmt = ((a.foreign_net_buy||0) + (a.institution_net_buy||0)) * (a.price||0);
+        const bAmt = ((b.foreign_net_buy||0) + (b.institution_net_buy||0)) * (b.price||0);
+        return bAmt - aAmt;
+      }).slice(0, 20);
   } else if (tab === 'frgn') {
-    rows = _flowData
-      .filter(r => (r.foreign_net_buy ?? 0) > 0)
-      .sort((a, b) => (b.foreign_net_buy || 0) - (a.foreign_net_buy || 0))
-      .slice(0, 20);
+    if (_frgnSellMode) {
+      // 외국인 순매도 모드
+      rows = (_flowSellData || [])
+        .sort((a, b) => ((a.foreign_net_buy||0)*(a.price||0)) - ((b.foreign_net_buy||0)*(b.price||0)))
+        .slice(0, 20);
+    } else {
+      rows = _flowData
+        .filter(r => (r.foreign_net_buy ?? 0) > 0)
+        .sort((a, b) => ((b.foreign_net_buy||0)*(b.price||0)) - ((a.foreign_net_buy||0)*(a.price||0)))
+        .slice(0, 20);
+    }
   } else {
     rows = _flowData
       .filter(r => (r.institution_net_buy ?? 0) > 0)
-      .sort((a, b) => (b.institution_net_buy || 0) - (a.institution_net_buy || 0))
+      .sort((a, b) => ((b.institution_net_buy||0)*(b.price||0)) - ((a.institution_net_buy||0)*(a.price||0)))
       .slice(0, 20);
   }
 
   if (!rows.length) {
     const msg = tab === 'both'
       ? '기관 집계 전<br><span style="font-size:10px">09:35·11:25·13:25·14:35</span>'
-      : tab === 'orgn'
-        ? '기관 집계 전'
-        : '외국인 데이터 없음';
+      : tab === 'orgn' ? '기관 집계 전' : '데이터 없음';
     body.innerHTML = `<div style="padding:1.5rem;color:var(--text3);font-size:12px;text-align:center">${msg}</div>`;
     return;
   }
 
-  // 컬럼별 레이아웃
+  // ── 컬럼 레이아웃 ────────────────────────────────────────────────────────────
+  // both: 종목 | 등락 | 외국인억/기관억 (3열 통합)
+  // frgn: 종목 | 등락 | 금액 | 보유율
+  // orgn: 종목 | 등락 | 금액
   const CFG = {
-    both: { cols: '1fr 42px 52px 52px',
-            hdr: `<span style="font-size:10px;color:var(--text3)">종목</span><span style="font-size:10px;color:var(--text3);text-align:right">등락</span><span style="font-size:10px;color:var(--tg);text-align:right">외국인</span><span style="font-size:10px;color:var(--yellow);text-align:right">기관</span>` },
-    frgn: { cols: '1fr 42px 58px',
-            hdr: `<span style="font-size:10px;color:var(--text3)">종목</span><span style="font-size:10px;color:var(--text3);text-align:right">등락</span><span style="font-size:10px;color:var(--tg);text-align:right">외국인</span>` },
-    orgn: { cols: '1fr 42px 58px',
-            hdr: `<span style="font-size:10px;color:var(--text3)">종목</span><span style="font-size:10px;color:var(--text3);text-align:right">등락</span><span style="font-size:10px;color:var(--yellow);text-align:right">기관</span>` },
+    both: { cols: '1fr 44px 82px',
+            hdr: `<span style="font-size:10px;color:var(--text3)">종목</span>
+                  <span style="font-size:10px;color:var(--text3);text-align:right">등락</span>
+                  <span style="font-size:10px;text-align:right"><span style="color:var(--tg)">외</span><span style="color:var(--text3)">/</span><span style="color:var(--yellow)">기</span>(억)</span>` },
+    frgn: { cols: '1fr 44px 52px 44px',
+            hdr: `<span style="font-size:10px;color:var(--text3)">종목</span>
+                  <span style="font-size:10px;color:var(--text3);text-align:right">등락</span>
+                  <span style="font-size:10px;color:${_frgnSellMode?'var(--blue)':'var(--tg)'};text-align:right">금액(억)</span>
+                  <span style="font-size:10px;color:var(--text3);text-align:right">보유율</span>` },
+    orgn: { cols: '1fr 44px 52px',
+            hdr: `<span style="font-size:10px;color:var(--text3)">종목</span>
+                  <span style="font-size:10px;color:var(--text3);text-align:right">등락</span>
+                  <span style="font-size:10px;color:var(--yellow);text-align:right">금액(억)</span>` },
   };
   const { cols, hdr } = CFG[tab];
 
-  const numFmt = v => v != null ? (Math.abs(v) >= 10000
-    ? (v / 10000).toFixed(0) + '만'
-    : v.toLocaleString()) : '—';
+  // ── 외국인 열: 순매수/순매도 토글 바 ────────────────────────────────────────
+  const frgnToggle = tab === 'frgn'
+    ? `<div style="display:flex;gap:4px;padding:4px 8px;border-bottom:1px solid var(--border);background:var(--bg2)">
+         <button class="chip ${!_frgnSellMode?'active':''}" onclick="_setFlowMode(false)"
+           style="font-size:10px;padding:2px 8px;flex:1">순매수 ▲</button>
+         <button class="chip ${_frgnSellMode?'active':''}" onclick="_setFlowMode(true)"
+           style="font-size:10px;padding:2px 8px;flex:1;${_frgnSellMode?'color:var(--blue)':''}">순매도 ▼</button>
+       </div>`
+    : '';
 
   const header = `<div style="display:grid;grid-template-columns:${cols};padding:4px 8px;background:var(--bg3);border-bottom:1px solid var(--border)">${hdr}</div>`;
 
+  // ── 행 렌더링 ────────────────────────────────────────────────────────────────
   const TOP_N = 5;
   const mkRow = r => {
     const safeName = (r.corp_name || r.stock_code).replace(/'/g, "\\'");
-    const name = r.corp_name || r.stock_code;
+    const name     = r.corp_name || r.stock_code;
     const dispName = name.length > 7 ? name.slice(0, 7) + '…' : name;
-    const cells = tab === 'both'
-      ? `<span style="font-size:11px;font-weight:600;text-align:right;color:var(--tg)">${numFmt(r.foreign_net_buy)}</span>
-         <span style="font-size:11px;font-weight:600;text-align:right;color:var(--yellow)">${numFmt(r.institution_net_buy)}</span>`
-      : tab === 'frgn'
-        ? `<span style="font-size:11px;font-weight:600;text-align:right;color:var(--tg)">${numFmt(r.foreign_net_buy)}</span>`
-        : `<span style="font-size:11px;font-weight:600;text-align:right;color:var(--yellow)">${numFmt(r.institution_net_buy)}</span>`;
+
+    let cells;
+    if (tab === 'both') {
+      const fAmt = _flowAmtFmt(r.foreign_net_buy, r.price);
+      const oAmt = _flowAmtFmt(r.institution_net_buy, r.price);
+      cells = `<span style="font-size:10px;font-weight:600;text-align:right">` +
+        `<span style="color:var(--tg)">${fAmt}</span>` +
+        `<span style="color:var(--text3)">/</span>` +
+        `<span style="color:var(--yellow)">${oAmt}</span></span>`;
+    } else if (tab === 'frgn') {
+      const amtClr = _frgnSellMode ? 'var(--blue)' : 'var(--tg)';
+      const amt    = _flowAmtFmt(r.foreign_net_buy, r.price);
+      const holdRate = r.foreign_hold_rate != null
+        ? `<span style="font-size:10px;color:var(--text3);text-align:right">${r.foreign_hold_rate.toFixed(1)}%</span>`
+        : `<span style="font-size:10px;color:var(--text3);text-align:right">—</span>`;
+      cells = `<span style="font-size:11px;font-weight:600;text-align:right;color:${amtClr}">${amt}</span>${holdRate}`;
+    } else {
+      const amt = _flowAmtFmt(r.institution_net_buy, r.price);
+      cells = `<span style="font-size:11px;font-weight:600;text-align:right;color:var(--yellow)">${amt}</span>`;
+    }
+
     return `<div style="display:grid;grid-template-columns:${cols};align-items:center;padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer"
       onclick="openStockDetail('${r.stock_code}','${safeName}')"
       onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
@@ -1062,9 +1136,9 @@ function _renderFlowCol(tab, bodyId) {
     </div>`;
   };
 
-  const topHtml  = rows.slice(0, TOP_N).map(mkRow).join('');
+  const topHtml   = rows.slice(0, TOP_N).map(mkRow).join('');
   const extraRows = rows.slice(TOP_N);
-  const moreHtml = extraRows.length
+  const moreHtml  = extraRows.length
     ? `<div id="flow-more-${tab}" style="display:none">${extraRows.map(mkRow).join('')}</div>
        <div style="padding:5px 8px;text-align:center;cursor:pointer;font-size:11px;color:var(--text3);
          border-top:1px solid var(--border)" onclick="toggleFlowMore('${tab}')">
@@ -1072,7 +1146,7 @@ function _renderFlowCol(tab, bodyId) {
        </div>`
     : '';
 
-  body.innerHTML = header + topHtml + moreHtml;
+  body.innerHTML = frgnToggle + header + topHtml + moreHtml;
 }
 
 function toggleFlowMore(tab) {
