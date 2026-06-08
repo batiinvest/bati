@@ -175,8 +175,9 @@ async function loadMacroData() {
         const futRi   = futRisk ? _BI[futRisk] : null;
         const futClr  = futChg != null ? chgColor(futChg) : 'var(--text3)';
         const futValStr = Number(futVal).toLocaleString(undefined, {maximumFractionDigits: 2});
+        const futBig = futChg != null && Math.abs(futChg) >= 0.5;
         const futChgHtml = futChg != null
-          ? `<span style="color:${futClr};font-size:9px">${futChg>0?'+':''}${futChg.toFixed(2)}%</span>`
+          ? `<span style="color:${futClr};font-size:${futBig?'11':'9'}px;font-weight:${futBig?'700':'500'}">${futChg>0?'+':''}${futChg.toFixed(2)}%</span>`
           : '';
         const futBox = futRi
           ? `background:${futRi.bg};border:1px solid ${futRi.border};border-radius:4px;padding:1px 5px;${futRi.glow?'box-shadow:'+futRi.glow+';':''}`
@@ -185,7 +186,7 @@ async function loadMacroData() {
           `<div style="display:flex;align-items:baseline;gap:3px;margin-top:4px;padding-top:3px;` +
           `border-top:1px solid rgba(255,255,255,0.08);${futBox}">` +
             `<span style="font-size:9px;color:var(--text2);white-space:nowrap;font-weight:500">${futLabel}</span>` +
-            `<span style="font-size:10px;font-weight:600;color:var(--text1)">${futValStr}</span>` +
+            `<span style="font-size:${futBig?'12':'10'}px;font-weight:${futBig?'700':'600'};color:var(--text1)">${futValStr}</span>` +
             futChgHtml +
           `</div>`;
       }

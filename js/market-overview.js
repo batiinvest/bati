@@ -1010,7 +1010,8 @@ function _renderFlowCol(tab, bodyId) {
 
   const header = `<div style="display:grid;grid-template-columns:${cols};padding:4px 8px;background:var(--bg3);border-bottom:1px solid var(--border)">${hdr}</div>`;
 
-  const rowsHtml = rows.map(r => {
+  const TOP_N = 5;
+  const mkRow = r => {
     const safeName = (r.corp_name || r.stock_code).replace(/'/g, "\\'");
     const name = r.corp_name || r.stock_code;
     const dispName = name.length > 7 ? name.slice(0, 7) + '…' : name;
@@ -1027,7 +1028,28 @@ function _renderFlowCol(tab, bodyId) {
       <span style="font-size:11px;font-weight:700;color:${chgColor(r.price_change_rate)};text-align:right">${chgStr(r.price_change_rate)}</span>
       ${cells}
     </div>`;
-  }).join('');
+  };
 
-  body.innerHTML = header + rowsHtml;
+  const topHtml  = rows.slice(0, TOP_N).map(mkRow).join('');
+  const extraRows = rows.slice(TOP_N);
+  const moreHtml = extraRows.length
+    ? `<div id="flow-more-${tab}" style="display:none">${extraRows.map(mkRow).join('')}</div>
+       <div style="padding:5px 8px;text-align:center;cursor:pointer;font-size:11px;color:var(--text3);
+         border-top:1px solid var(--border)" onclick="toggleFlowMore('${tab}')">
+         <span id="flow-more-btn-${tab}">더보기 ▾ (${extraRows.length}개)</span>
+       </div>`
+    : '';
+
+  body.innerHTML = header + topHtml + moreHtml;
+}
+
+function toggleFlowMore(tab) {
+  const moreDiv = document.getElementById(`flow-more-${tab}`);
+  const btn     = document.getElementById(`flow-more-btn-${tab}`);
+  if (!moreDiv) return;
+  const isOpen = moreDiv.style.display !== 'none';
+  moreDiv.style.display = isOpen ? 'none' : 'block';
+  btn.textContent = isOpen
+    ? `더보기 ▾ (${moreDiv.children.length}개)`
+    : '접기 ▴';
 }
