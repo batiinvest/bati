@@ -10,7 +10,7 @@
  *
  * ── 배점 구조 (총 100점) ─────────────────────────────────
  *  ① USD/KRW 환율 방향   25pt  한국 시장 1순위 선행지표
- *  ② 코스피/닥 등락률    25pt  당일 시장 결과 반영
+ *  ② 코스피/닥 5일 추세  25pt  단기 추세 (5거래일 누적 등락률)
  *  ③ 외국인 수급 방향    20pt  매수 주체 확인 (금액 기준 억원)
  *  ④ VIX 글로벌 공포지수 15pt  간접 글로벌 리스크
  *  ⑤ 미 10년 금리 방향   15pt  성장주 할인율 직결
@@ -53,15 +53,22 @@ function _calcTemperature() {
     : '데이터 없음';
   parts.push({ label: `USD/KRW ${krwStr}`, pts: krwPts, max: 25, hint: krwHint });
 
-  // ② 코스피/닥 등락률 (max 25)
-  // 당일 등락률은 환율·수급의 결과이나, 시장 참여자 심리를 직접 반영
-  const krAvg = ((m.kospi_chg ?? 0) + (m.kosdaq_chg ?? 0)) / 2;
-  const _krScale = [[2.0,25],[1.0,21],[0.3,16],[0.0,11],[-0.3,7],[-1.0,3]];
-  const krPts = _krScale.find(([t]) => krAvg >= t)?.[1] ?? 0;
+  // ② 코스피/닥 5일 추세 (max 25)
+  // 당일 등락만 반영하면 결과를 점수로 재포장하는 동어반복이 됨.
+  // 최근 5 거래일 누적 등락률로 단기 추세를 평가한다.
+  // 데이터가 1건뿐이면 당일 등락으로 fallback.
+  const _krRows = window._macroRows || [m];
+  const kr5dSum = _krRows.reduce((s, r) =>
+    s + (((r.kospi_chg ?? 0) + (r.kosdaq_chg ?? 0)) / 2), 0);
+  // 임계값: 5일 누적 기준 (1일 임계값 × ~3배 — 5거래일 합산 현실 분포 반영)
+  const _krScale = [[5.0,25],[2.5,21],[0.5,16],[-0.5,11],[-2.5,7],[-5.0,3]];
+  const krPts = _krScale.find(([t]) => kr5dSum >= t)?.[1] ?? 0;
   score += krPts;
+  const kr5dLabel = _krRows.length >= 2 ? '5일' : '당일';
   parts.push({
-    label: `코스피/닥 ${krAvg >= 0 ? '+' : ''}${krAvg.toFixed(2)}%`,
-    pts: krPts, max: 25, hint: '',
+    label: `코스피/닥 ${kr5dLabel} ${kr5dSum >= 0 ? '+' : ''}${kr5dSum.toFixed(2)}%`,
+    pts: krPts, max: 25,
+    hint: _krRows.length >= 2 ? `최근 ${_krRows.length}거래일 누적` : '당일 등락 (데이터 수집 중)',
   });
 
   // ③ 외국인 수급 방향 (max 20)

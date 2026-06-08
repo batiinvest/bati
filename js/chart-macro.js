@@ -32,9 +32,10 @@ function _getRisk(key, value) {
 
 async function loadMacroData() {
   const { data } = await sb.from('macro_data')
-    .select('*').order('base_date', { ascending: false }).limit(1);
+    .select('*').order('base_date', { ascending: false }).limit(5);
   const m = data?.[0] || {};
-  window._macroData = m;  // market-insight.js에서 재활용
+  window._macroData = m;   // market-insight.js / market-temperature.js 재활용
+  window._macroRows = data || []; // 5일치 — 온도계 5일 추세 계산용
 
   // 위험 신호 감지 → 동적 스트립 삽입
   const _riskItems = [
