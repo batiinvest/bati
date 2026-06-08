@@ -88,7 +88,77 @@ function pInvestment() {
   <!-- 시황 탭 -->
   <div id="inv-tab-market" style="display:${window._invTab==='market'?'block':'none'}">
 
-    <!-- 🌡️ 시장 온도계 -->
+    <!-- ① 증시 동향 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+        <span class="card-title">${_ICO.bar}증시 동향</span>
+        <div id="inv-banner-content" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-left:auto">
+          <span style="color:var(--text3);font-size:12px"><span class="loading"></span></span>
+        </div>
+      </div>
+      <!-- 전체 집계 + 코스피/코스닥 지수 한 행 -->
+      <div id="inv-total-summary" style="padding:.75rem 1rem;border-bottom:1px solid var(--border)"></div>
+      <div id="inv-industry-grid"></div>
+    </div>
+
+    <!-- ② 기관/외국인 수급 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="display:flex;align-items:center;gap:8px">
+        <span class="card-title">${_ICO.flow}기관/외국인 수급</span>
+        <span style="font-size:11px;color:var(--text3)">장중 4회 집계</span>
+      </div>
+      <div class="flow-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--border)">
+        <div>
+          <div style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--text2);background:var(--bg2);border-bottom:1px solid var(--border)">
+            ${_ICO.shuffle}동시매수 <span style="font-size:10px;color:var(--text3);font-weight:400">외국인+기관</span>
+          </div>
+          <div id="flow-body-both">${_skelList(8, true)}</div>
+        </div>
+        <div style="border-left:1px solid var(--border)">
+          <div style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--tg);background:var(--bg2);border-bottom:1px solid var(--border)">
+            ${_ICO.globe}외국인 순매수
+          </div>
+          <div id="flow-body-frgn">${_skelList(8, true)}</div>
+        </div>
+        <div style="border-left:1px solid var(--border)">
+          <div style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--yellow);background:var(--bg2);border-bottom:1px solid var(--border)">
+            ${_ICO.building}기관 순매수
+          </div>
+          <div id="flow-body-orgn">${_skelList(8, true)}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ③ 섹터 수급 트렌드 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+        <span class="card-title">${_ICO.shuffle}섹터 수급 트렌드</span>
+        <span style="font-size:10px;color:var(--text3)" id="sf-date"></span>
+        <div style="display:flex;gap:4px;margin-left:auto;flex-wrap:wrap;align-items:center">
+          <!-- 수급 타입 탭 -->
+          <button class="chip active" data-sf-type="combined"
+            onclick="switchSfType('combined')" style="font-size:11px;padding:2px 8px">합산</button>
+          <button class="chip" data-sf-type="foreign"
+            onclick="switchSfType('foreign')"  style="font-size:11px;padding:2px 8px">외국인</button>
+          <button class="chip" data-sf-type="inst"
+            onclick="switchSfType('inst')"     style="font-size:11px;padding:2px 8px">기관</button>
+          <div style="width:1px;height:14px;background:var(--border);margin:0 2px;flex-shrink:0"></div>
+          <!-- 기간 탭 -->
+          ${[{p:1,l:'1일'},{p:5,l:'5일'},{p:20,l:'20일'}].map(({p,l})=>`
+            <button class="chip ${p===5?'active':''}" data-sf-period="${p}"
+              onclick="switchSfPeriod(${p})" style="font-size:11px;padding:2px 8px">${l}</button>
+          `).join('')}
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px" id="sf-desc">
+        외국인+기관 스마트머니 (모니터링 종목 기준)
+      </div>
+      <div id="sf-body" style="padding:.25rem 0">
+        ${_skelList(12, true)}
+      </div>
+    </div>
+
+    <!-- ④ 시장 온도계 -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-header">
         <span class="card-title">${_ICO.temp}시장 온도계</span>
@@ -106,20 +176,7 @@ function pInvestment() {
       </div>
     </div>
 
-    <!-- ① 증시 동향 (최상단) -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header" style="flex-wrap:wrap;gap:6px">
-        <span class="card-title">${_ICO.bar}증시 동향</span>
-        <div id="inv-banner-content" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-left:auto">
-          <span style="color:var(--text3);font-size:12px"><span class="loading"></span></span>
-        </div>
-      </div>
-      <!-- 전체 집계 + 코스피/코스닥 지수 한 행 -->
-      <div id="inv-total-summary" style="padding:.75rem 1rem;border-bottom:1px solid var(--border)"></div>
-      <div id="inv-industry-grid"></div>
-    </div>
-
-    <!-- 💡 투자포인트 요약 -->
+    <!-- ⑤ 투자포인트 요약 -->
     <div class="card insight-card" style="margin-bottom:12px">
       <div class="card-header" style="justify-content:space-between;flex-wrap:wrap;gap:4px">
         <span class="card-title">${_ICO.bulb}투자포인트 요약</span>
@@ -146,13 +203,128 @@ function pInvestment() {
       </div>
     </div>
 
-    <!-- 📈 흐름 비교 차트 (접기/펼치기) -->
+    <!-- ⑥ 산업 강도 매트릭스 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+        <span class="card-title">${_ICO.grid}산업 강도 매트릭스</span>
+        <span style="font-size:10px;color:var(--text3)" id="im-date"></span>
+        <div style="display:flex;gap:4px;margin-left:auto">
+          ${[{p:1,l:'1일'},{p:5,l:'5일'},{p:20,l:'20일'}].map(({p,l})=>`
+            <button class="chip ${p===5?'active':''}" data-im-period="${p}"
+              onclick="switchImPeriod(${p})" style="font-size:11px;padding:2px 8px">${l}</button>
+          `).join('')}
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px">
+        US ETF ↔ KR 섹터 성과 비교 · 선행 신호 자동 탐지
+      </div>
+      <div id="im-body">
+        ${_skelList(11, true)}
+      </div>
+    </div>
+
+    <!-- ⑦ 산업 동향 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="flex-wrap:wrap;gap:4px;padding-bottom:6px">
+        <span class="card-title">${_ICO.grid}산업 동향</span>
+        <!-- US ETF 배너 -->
+        <div id="inv-etf-banner" style="display:flex;gap:10px;align-items:center;margin-left:auto;font-size:12px;flex-wrap:wrap">
+          <span style="color:var(--text3)"><span class="loading"></span></span>
+        </div>
+      </div>
+      <!-- KR 모니터링 현황 -->
+      <div id="inv-industry-banner" style="padding:4px 1rem 6px;border-bottom:1px solid var(--border);font-size:12px;display:flex;gap:10px;color:var(--text3)">
+        <span><span class="loading"></span></span>
+      </div>
+      <div id="inv-industry-chart"></div>
+    </div>
+
+    <!-- ⑧ 주도주 탐색기 + 성과 검증 (2열) -->
+    <div class="card" style="margin-bottom:12px">
+
+      <!-- 카드 헤더 -->
+      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+        <span class="card-title">${_ICO.rocket}주도주 탐색기</span>
+        <button id="ls-refresh-btn" onclick="refreshLeadingStocks()"
+          style="font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid var(--border);
+                 background:transparent;color:var(--text3);cursor:pointer;line-height:1.6"
+          title="데이터 새로고침">${_ICO.refresh}</button>
+      </div>
+
+      <!-- 2열 그리드 (모바일에서 세로 전환) -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));min-height:0">
+
+        <!-- 왼쪽: 현재 주도주 -->
+        <div style="border-right:1px solid var(--border)">
+          <div style="padding:6px 12px;border-bottom:1px solid var(--border);
+            display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:600;color:var(--text2)">현재 주도주</span>
+            <span style="font-size:11px;color:var(--text3)" id="ls-date"></span>
+            <div style="display:flex;gap:3px;margin-left:auto">
+              <button class="chip active" data-ls-tab="all"    onclick="switchLsTab('all')"
+                style="font-size:10px;padding:4px 10px">전체</button>
+              <button class="chip"        data-ls-tab="kospi"  onclick="switchLsTab('kospi')"
+                style="font-size:10px;padding:4px 10px">코스피</button>
+              <button class="chip"        data-ls-tab="kosdaq" onclick="switchLsTab('kosdaq')"
+                style="font-size:10px;padding:4px 10px">코스닥</button>
+            </div>
+          </div>
+          <div id="ls-body">${_skelList(10)}</div>
+        </div>
+
+        <!-- 오른쪽: 과거 주도주 수익률 -->
+        <div>
+          <div style="padding:6px 12px;border-bottom:1px solid var(--border);
+            display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:600;color:var(--text2)">과거 주도주 수익률</span>
+            <span id="ls-bt-date" style="font-size:11px;color:var(--text3)"></span>
+            <div style="display:flex;gap:3px;margin-left:auto">
+              <button class="chip active" data-bt-period="1w"  onclick="switchBtPeriod('1w')"
+                style="font-size:10px;padding:4px 10px">1주전</button>
+              <button class="chip"        data-bt-period="1m"  onclick="switchBtPeriod('1m')"
+                style="font-size:10px;padding:4px 10px">1개월전</button>
+              <button class="chip"        data-bt-period="3m"  onclick="switchBtPeriod('3m')"
+                style="font-size:10px;padding:4px 10px">3개월전</button>
+            </div>
+          </div>
+          <div id="ls-bt-body" style="padding:8px">${_skelList(5)}</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ⑨ 52주 신고가 종목 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span class="card-title">${_ICO.flag}52주 신고가 종목</span>
+        <div style="display:flex;gap:4px;margin-left:auto">
+          <button class="chip active" data-hgpr-tab="monitored" onclick="switchHgprTab('monitored')" style="font-size:11px;padding:2px 8px">⭐ 모니터링</button>
+          <button class="chip"        data-hgpr-tab="all"       onclick="switchHgprTab('all')"       style="font-size:11px;padding:2px 8px">전체 종목</button>
+        </div>
+      </div>
+      <div id="hgpr-body" style="padding:.5rem 0">
+        ${_skelList(6)}
+      </div>
+    </div>
+
+    <!-- ⑩ 거래대금 상위 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header">
+        <span class="card-title">${_ICO.coin}거래대금 상위</span>
+        <span style="font-size:11px;color:var(--text3)">당일 거래대금 기준</span>
+      </div>
+      <div id="inv-volume-body" style="display:grid;grid-template-columns:repeat(2,1fr);gap:0;border-top:1px solid var(--border)">
+        ${_skelList(3)}
+      </div>
+    </div>
+
+    <!-- ⑪ 흐름 비교 차트 (접기/펼치기) -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="cursor:pointer" onclick="toggleTrendChart()">
         <span class="card-title">${_ICO.chart}흐름 비교 차트</span>
-        <span id="inv-trend-toggle" style="font-size:12px;color:var(--text3);margin-left:auto">펼치기 ▾</span>
+        <span id="inv-trend-toggle" style="font-size:12px;color:var(--text3);margin-left:auto">접기 ▴</span>
       </div>
-      <div id="inv-trend-body" style="display:none">
+      <div id="inv-trend-body" style="display:block">
         <div style="flex-wrap:wrap;gap:8px;padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center">
           <div style="display:flex;gap:4px;margin-left:auto">
             ${[{d:7,l:'1주'},{d:30,l:'1달'},{d:90,l:'3달'}].map(({d,l})=>`
@@ -192,207 +364,7 @@ function pInvestment() {
       </div>
     </div>
 
-    <!-- 📈 52주 신고가 종목 -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span class="card-title">${_ICO.flag}52주 신고가 종목</span>
-        <div style="display:flex;gap:4px;margin-left:auto">
-          <button class="chip active" data-hgpr-tab="monitored" onclick="switchHgprTab('monitored')" style="font-size:11px;padding:2px 8px">⭐ 모니터링</button>
-          <button class="chip"        data-hgpr-tab="all"       onclick="switchHgprTab('all')"       style="font-size:11px;padding:2px 8px">전체 종목</button>
-        </div>
-      </div>
-      <div id="hgpr-body" style="padding:.5rem 0">
-        ${_skelList(6)}
-      </div>
-    </div>
-
-    <!-- 💰 거래대금 상위 -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header">
-        <span class="card-title">${_ICO.coin}거래대금 상위</span>
-        <span style="font-size:11px;color:var(--text3)">당일 거래대금 기준</span>
-      </div>
-      <div id="inv-volume-body" style="display:grid;grid-template-columns:repeat(2,1fr);gap:0;border-top:1px solid var(--border)">
-        ${_skelList(3)}
-      </div>
-    </div>
-
-    <!-- 🏆 주도주 탐색기 + 성과 검증 (2열) -->
-    <div class="card" style="margin-bottom:12px">
-
-      <!-- 카드 헤더 -->
-      <div class="card-header" style="flex-wrap:wrap;gap:6px">
-        <span class="card-title">${_ICO.rocket}주도주 탐색기</span>
-        <button id="ls-refresh-btn" onclick="refreshLeadingStocks()"
-          style="font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid var(--border);
-                 background:transparent;color:var(--text3);cursor:pointer;line-height:1.6"
-          title="데이터 새로고침">${_ICO.refresh}</button>
-      </div>
-
-      <!-- 2열 그리드 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;min-height:0">
-
-        <!-- 왼쪽: 현재 주도주 -->
-        <div style="border-right:1px solid var(--border)">
-          <div style="padding:6px 12px;border-bottom:1px solid var(--border);
-            display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <span style="font-size:12px;font-weight:600;color:var(--text2)">현재 주도주</span>
-            <span style="font-size:11px;color:var(--text3)" id="ls-date"></span>
-            <div style="display:flex;gap:3px;margin-left:auto">
-              <button class="chip active" data-ls-tab="all"    onclick="switchLsTab('all')"
-                style="font-size:10px;padding:1px 7px">전체</button>
-              <button class="chip"        data-ls-tab="kospi"  onclick="switchLsTab('kospi')"
-                style="font-size:10px;padding:1px 7px">코스피</button>
-              <button class="chip"        data-ls-tab="kosdaq" onclick="switchLsTab('kosdaq')"
-                style="font-size:10px;padding:1px 7px">코스닥</button>
-            </div>
-          </div>
-          <div id="ls-body">${_skelList(10)}</div>
-        </div>
-
-        <!-- 오른쪽: 과거 주도주 수익률 -->
-        <div>
-          <div style="padding:6px 12px;border-bottom:1px solid var(--border);
-            display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <span style="font-size:12px;font-weight:600;color:var(--text2)">과거 주도주 수익률</span>
-            <span id="ls-bt-date" style="font-size:11px;color:var(--text3)"></span>
-            <div style="display:flex;gap:3px;margin-left:auto">
-              <button class="chip active" data-bt-period="1w"  onclick="switchBtPeriod('1w')"
-                style="font-size:10px;padding:1px 7px">1주전</button>
-              <button class="chip"        data-bt-period="1m"  onclick="switchBtPeriod('1m')"
-                style="font-size:10px;padding:1px 7px">1개월전</button>
-              <button class="chip"        data-bt-period="3m"  onclick="switchBtPeriod('3m')"
-                style="font-size:10px;padding:1px 7px">3개월전</button>
-            </div>
-          </div>
-          <div id="ls-bt-body" style="padding:8px">${_skelList(5)}</div>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- 💰 기관/외국인 수급 -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header" style="display:flex;align-items:center;gap:8px">
-        <span class="card-title">${_ICO.flow}기관/외국인 수급</span>
-        <span style="font-size:11px;color:var(--text3)">장중 집계 기준 (09:35·11:25·13:25·14:35)</span>
-      </div>
-      <div class="flow-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--border)">
-        <div>
-          <div style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--text2);background:var(--bg2);border-bottom:1px solid var(--border)">
-            ${_ICO.shuffle}동시매수 <span style="font-size:10px;color:var(--text3);font-weight:400">외국인+기관</span>
-          </div>
-          <div id="flow-body-both">${_skelList(8, true)}</div>
-        </div>
-        <div style="border-left:1px solid var(--border)">
-          <div style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--tg);background:var(--bg2);border-bottom:1px solid var(--border)">
-            ${_ICO.globe}외국인 순매수
-          </div>
-          <div id="flow-body-frgn">${_skelList(8, true)}</div>
-        </div>
-        <div style="border-left:1px solid var(--border)">
-          <div style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--yellow);background:var(--bg2);border-bottom:1px solid var(--border)">
-            ${_ICO.building}기관 순매수
-          </div>
-          <div id="flow-body-orgn">${_skelList(8, true)}</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 📊 섹터 수급 트렌드 -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header" style="flex-wrap:wrap;gap:6px">
-        <span class="card-title">${_ICO.shuffle}섹터 수급 트렌드</span>
-        <span style="font-size:10px;color:var(--text3)" id="sf-date"></span>
-        <div style="display:flex;gap:4px;margin-left:auto;flex-wrap:wrap;align-items:center">
-          <!-- 수급 타입 탭 -->
-          <button class="chip active" data-sf-type="combined"
-            onclick="switchSfType('combined')" style="font-size:11px;padding:2px 8px">합산</button>
-          <button class="chip" data-sf-type="foreign"
-            onclick="switchSfType('foreign')"  style="font-size:11px;padding:2px 8px">외국인</button>
-          <button class="chip" data-sf-type="inst"
-            onclick="switchSfType('inst')"     style="font-size:11px;padding:2px 8px">기관</button>
-          <div style="width:1px;height:14px;background:var(--border);margin:0 2px;flex-shrink:0"></div>
-          <!-- 기간 탭 -->
-          ${[{p:1,l:'1일'},{p:5,l:'5일'},{p:20,l:'20일'}].map(({p,l})=>`
-            <button class="chip ${p===5?'active':''}" data-sf-period="${p}"
-              onclick="switchSfPeriod(${p})" style="font-size:11px;padding:2px 8px">${l}</button>
-          `).join('')}
-        </div>
-      </div>
-      <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px" id="sf-desc">
-        외국인+기관 스마트머니 (모니터링 종목 기준)
-      </div>
-      <div id="sf-body" style="padding:.25rem 0">
-        ${_skelList(12, true)}
-      </div>
-    </div>
-
-    <!-- 🌐 산업 강도 매트릭스 -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header" style="flex-wrap:wrap;gap:6px">
-        <span class="card-title">${_ICO.grid}산업 강도 매트릭스</span>
-        <span style="font-size:10px;color:var(--text3)" id="im-date"></span>
-        <div style="display:flex;gap:4px;margin-left:auto">
-          ${[{p:1,l:'1일'},{p:5,l:'5일'},{p:20,l:'20일'}].map(({p,l})=>`
-            <button class="chip ${p===5?'active':''}" data-im-period="${p}"
-              onclick="switchImPeriod(${p})" style="font-size:11px;padding:2px 8px">${l}</button>
-          `).join('')}
-        </div>
-      </div>
-      <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px">
-        US ETF ↔ KR 섹터 성과 비교 · 선행 신호 자동 탐지
-      </div>
-      <div id="im-body">
-        ${_skelList(11, true)}
-      </div>
-    </div>
-
-    <!-- 🔴🔵 급등/급락 — 4열 그리드 -->
-    <div class="surge-drop-grid">
-      <div class="card" style="margin-bottom:0">
-        <div class="card-header" style="padding:8px 10px">
-          <span class="card-title" style="color:var(--red);font-size:13px">${_ICO.arrowUp}코스피 급등</span>
-        </div>
-        <div id="inv-surge-kospi" style="padding:.25rem 0"></div>
-      </div>
-      <div class="card" style="margin-bottom:0">
-        <div class="card-header" style="padding:8px 10px">
-          <span class="card-title" style="color:var(--blue);font-size:13px">${_ICO.arrowDn}코스피 급락</span>
-        </div>
-        <div id="inv-drop-kospi" style="padding:.25rem 0"></div>
-      </div>
-      <div class="card" style="margin-bottom:0">
-        <div class="card-header" style="padding:8px 10px">
-          <span class="card-title" style="color:var(--red);font-size:13px">${_ICO.arrowUp}코스닥 급등</span>
-        </div>
-        <div id="inv-surge-kosdaq" style="padding:.25rem 0"></div>
-      </div>
-      <div class="card" style="margin-bottom:0">
-        <div class="card-header" style="padding:8px 10px">
-          <span class="card-title" style="color:var(--blue);font-size:13px">${_ICO.arrowDn}코스닥 급락</span>
-        </div>
-        <div id="inv-drop-kosdaq" style="padding:.25rem 0"></div>
-      </div>
-    </div>
-
-    <!-- 🇰🇷 산업 동향 — 별도 카드 -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header" style="flex-wrap:wrap;gap:4px;padding-bottom:6px">
-        <span class="card-title">${_ICO.grid}산업 동향</span>
-        <!-- US ETF 배너 -->
-        <div id="inv-etf-banner" style="display:flex;gap:10px;align-items:center;margin-left:auto;font-size:12px;flex-wrap:wrap">
-          <span style="color:var(--text3)"><span class="loading"></span></span>
-        </div>
-      </div>
-      <!-- KR 모니터링 현황 -->
-      <div id="inv-industry-banner" style="padding:4px 1rem 6px;border-bottom:1px solid var(--border);font-size:12px;display:flex;gap:10px;color:var(--text3)">
-        <span><span class="loading"></span></span>
-      </div>
-      <div id="inv-industry-chart"></div>
-    </div>
-
-    <!-- 📈 산업별 흐름 비교 -->
+    <!-- ⑫ 산업별 흐름 비교 -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="flex-wrap:wrap;gap:6px">
         <span class="card-title">${_ICO.chart}산업별 흐름 비교</span>
@@ -420,7 +392,7 @@ function pInvestment() {
       </div>
     </div>
 
-    <!-- 🌐 US vs KR 산업 비교 차트 -->
+    <!-- ⑬ US vs KR 산업 비교 차트 -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="flex-wrap:wrap;gap:6px">
         <span class="card-title">${_ICO.globe}US vs KR 산업 비교</span>
@@ -449,6 +421,34 @@ function pInvestment() {
       </div>
       <div style="padding:1rem;position:relative;height:320px">
         <canvas id="uskr-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- ⑭ 급등/급락 — 4열 그리드 -->
+    <div class="surge-drop-grid">
+      <div class="card" style="margin-bottom:0">
+        <div class="card-header" style="padding:8px 10px">
+          <span class="card-title" style="color:var(--red);font-size:13px">${_ICO.arrowUp}코스피 급등</span>
+        </div>
+        <div id="inv-surge-kospi" style="padding:.25rem 0"></div>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <div class="card-header" style="padding:8px 10px">
+          <span class="card-title" style="color:var(--blue);font-size:13px">${_ICO.arrowDn}코스피 급락</span>
+        </div>
+        <div id="inv-drop-kospi" style="padding:.25rem 0"></div>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <div class="card-header" style="padding:8px 10px">
+          <span class="card-title" style="color:var(--red);font-size:13px">${_ICO.arrowUp}코스닥 급등</span>
+        </div>
+        <div id="inv-surge-kosdaq" style="padding:.25rem 0"></div>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <div class="card-header" style="padding:8px 10px">
+          <span class="card-title" style="color:var(--blue);font-size:13px">${_ICO.arrowDn}코스닥 급락</span>
+        </div>
+        <div id="inv-drop-kosdaq" style="padding:.25rem 0"></div>
       </div>
     </div>
 

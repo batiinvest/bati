@@ -9,11 +9,12 @@
  *   window._allMarketRows (market-overview.js)
  *
  * ── 배점 구조 (총 100점) ─────────────────────────────────
- *  ① USD/KRW 환율 방향   25pt  한국 시장 1순위 선행지표
- *  ② 코스피/닥 5일 추세  25pt  단기 추세 (5거래일 누적 등락률)
- *  ③ 외국인 수급 방향    20pt  매수 주체 확인 (금액 기준 억원)
- *  ④ VIX 글로벌 공포지수 15pt  간접 글로벌 리스크
- *  ⑤ 미 10년 금리 방향   15pt  성장주 할인율 직결
+ *  ① S&P500 방향         15pt  코스피 최대 선행지표 (상관계수 ~0.7)
+ *  ② USD/KRW 환율 방향   15pt  외국인 자금 유입 채널 (수출주 역효과 감안 하향)
+ *  ③ 코스피/닥 5일 추세  20pt  단기 추세 (5거래일 누적 등락률)
+ *  ④ 외국인 수급 방향    20pt  매수 주체 확인 (금액 기준 억원)
+ *  ⑤ VIX 글로벌 공포지수 15pt  간접 글로벌 리스크
+ *  ⑥ 미 10년 금리 방향   15pt  성장주 할인율 직결
  * ─────────────────────────────────────────────────────────
  * ※ 시장 폭(상승 종목 비율)·산업 모멘텀 제거 — 둘 다 동일 정보의 중복
  *
@@ -33,15 +34,27 @@ function _calcTemperature() {
   let score = 0;
   const parts = [];
 
-  // ① USD/KRW 환율 방향 (max 25)
-  // 원화 강세(달러↓) = 외국인 자금 유입 + 위험자산 선호 = 긍정
-  // 원화 약세(달러↑) = 외국인 이탈 압력 + 수입 물가 부담 = 부정
+  // ① S&P500 방향 (max 15) — 코스피 최대 선행지표, 상관계수 ~0.7
+  const sp5Chg = m.sp500_chg ?? null;
+  const _sp5Scale = [[2.0,15],[1.0,12],[0.3,9],[-0.3,6],[-1.0,3]];
+  const sp5Pts = sp5Chg !== null
+    ? (_sp5Scale.find(([t]) => sp5Chg >= t)?.[1] ?? 0)
+    : 7; // 데이터 없을 때 중립
+  score += sp5Pts;
+  const sp5Str = sp5Chg != null
+    ? `${sp5Chg >= 0 ? '+' : ''}${Number(sp5Chg).toFixed(2)}%`
+    : '—';
+  parts.push({ label: `S&P500 ${sp5Str}`, pts: sp5Pts, max: 15,
+    hint: sp5Chg != null ? (sp5Chg >= 0 ? '미국 상승' : '미국 하락') : '데이터 없음' });
+
+  // ② USD/KRW 환율 방향 (max 15) — 수출주 역효과 감안해 25→15pt
+  // 원화 강세(달러↓) = 외국인 자금 유입 선호 / 원화 약세 = 이탈 압력
   const krwChg = m.usd_krw_chg ?? null;
   const krwLvl = m.usd_krw     ?? null;
-  let krwPts = 12; // 데이터 없을 때 중립
+  let krwPts = 7; // 데이터 없을 때 중립
   if (krwChg !== null) {
     const chgPct = krwLvl ? (krwChg / krwLvl) * 100 : 0;
-    const _krwScale = [[-0.5,25],[-0.2,21],[-0.05,17],[0.05,12],[0.2,7],[0.5,3]];
+    const _krwScale = [[-0.5,15],[-0.2,12],[-0.05,10],[0.05,7],[0.2,4],[0.5,2]];
     krwPts = _krwScale.find(([t]) => chgPct < t)?.[1] ?? 0;
   }
   score += krwPts;
@@ -51,27 +64,27 @@ function _calcTemperature() {
   const krwHint = krwChg != null
     ? (krwChg < 0 ? '원화 강세 ▲' : krwChg > 0 ? '원화 약세 ▼' : '보합')
     : '데이터 없음';
-  parts.push({ label: `USD/KRW ${krwStr}`, pts: krwPts, max: 25, hint: krwHint });
+  parts.push({ label: `USD/KRW ${krwStr}`, pts: krwPts, max: 15, hint: krwHint });
 
-  // ② 코스피/닥 5일 추세 (max 25)
+  // ③ 코스피/닥 5일 추세 (max 20)
   // 당일 등락만 반영하면 결과를 점수로 재포장하는 동어반복이 됨.
   // 최근 5 거래일 누적 등락률로 단기 추세를 평가한다.
   // 데이터가 1건뿐이면 당일 등락으로 fallback.
   const _krRows = window._macroRows || [m];
   const kr5dSum = _krRows.reduce((s, r) =>
     s + (((r.kospi_chg ?? 0) + (r.kosdaq_chg ?? 0)) / 2), 0);
-  // 임계값: 5일 누적 기준 (1일 임계값 × ~3배 — 5거래일 합산 현실 분포 반영)
-  const _krScale = [[5.0,25],[2.5,21],[0.5,16],[-0.5,11],[-2.5,7],[-5.0,3]];
+  // 임계값: 5일 누적 기준 (max 20pt로 조정)
+  const _krScale = [[5.0,20],[2.5,17],[0.5,13],[-0.5,9],[-2.5,5],[-5.0,2]];
   const krPts = _krScale.find(([t]) => kr5dSum >= t)?.[1] ?? 0;
   score += krPts;
   const kr5dLabel = _krRows.length >= 2 ? '5일' : '당일';
   parts.push({
     label: `코스피/닥 ${kr5dLabel} ${kr5dSum >= 0 ? '+' : ''}${kr5dSum.toFixed(2)}%`,
-    pts: krPts, max: 25,
+    pts: krPts, max: 20,
     hint: _krRows.length >= 2 ? `최근 ${_krRows.length}거래일 누적` : '당일 등락 (데이터 수집 중)',
   });
 
-  // ③ 외국인 수급 방향 (max 20)
+  // ④ 외국인 수급 방향 (max 20)
   // 금액(억원) 기준 — 주(株) 단위는 저가주·고가주 가중치 왜곡 발생
   const frgnAmt = rows.reduce((s, r) =>
     s + ((r.foreign_net_buy ?? 0) * (r.price ?? 0)) / 1e8, 0);
@@ -85,7 +98,7 @@ function _calcTemperature() {
   const fStr = (frgnAmt >= 0 ? '+' : '-') + frgnAbsStr;
   parts.push({ label: `외국인 ${fStr}`, pts: frgnPts, max: 20, hint: '' });
 
-  // ④ VIX 글로벌 공포지수 (max 15)
+  // ⑤ VIX 글로벌 공포지수 (max 15)
   // 미 S&P500 기반 간접지표 — 글로벌 위험선호도 반영
   // 임계값: 2023~2026 실제 VIX 분포 반영 (평균 15~20, 역대 저점 10~12)
   const vix = m.vix ?? null;
@@ -102,7 +115,7 @@ function _calcTemperature() {
     pts: vixPts, max: 15, hint: vixHint,
   });
 
-  // ⑤ 미 10년 국채금리 방향 (max 15)
+  // ⑥ 미 10년 국채금리 방향 (max 15)
   // 금리 하락 = 유동성 확대 + 성장주 할인율 완화 = 긍정
   // 반도체·IT 비중 높은 코스피 특성상 금리 민감도 높음
   const us10yChg = m.us10y_chg ?? null;
@@ -124,9 +137,10 @@ function _calcTemperature() {
 
   const krwNeg  = krwChg != null && krwChg > 3;
   const ratePop = us10yChg != null && us10yChg > 0.05;
+  const spDrop  = sp5Chg != null && sp5Chg < -1.5; // S&P 급락 플래그
 
   if (score >= 80) {
-    gradeTxt = '과열 국면'; gradeColor = '#4a9eff'; gradeEmoji = '🔵';
+    gradeTxt = '과열 국면'; gradeColor = '#a78bfa'; gradeEmoji = '🟣';
     strategy = '단계적 비중 축소 검토 — 고점 추격 매수 자제. 수익 실현 구간 설정 권고. 신규 진입 시 손절선 엄격히 관리.';
   } else if (score >= 60) {
     gradeTxt = '우호 국면'; gradeColor = '#2dce89'; gradeEmoji = '🟢';
@@ -136,7 +150,9 @@ function _calcTemperature() {
       strategy = '매수 우위 환경 — 주도 업종 중심 분할 진입 검토. 모멘텀 종목 비중 확대 가능.';
   } else if (score >= 40) {
     gradeTxt = '중립 국면'; gradeColor = '#f59e0b'; gradeEmoji = '🟡';
-    if (ratePop)
+    if (spDrop)
+      strategy = '미국 급락 후 국면 — 코스피 갭다운 가능성. 장 초반 매도 압력 확인 후 대응.';
+    else if (ratePop)
       strategy = '금리 상승 압력 주의 — 고PER 성장주 비중 축소 고려. 가치주·배당주로 분산.';
     else
       strategy = '선별적 접근 — 수급 확인된 주도 업종만 대응. 시장 방향성 확인 전 신규 진입 자제.';
@@ -253,7 +269,8 @@ async function renderMarketTemperature() {
   <div style="display:flex;flex-direction:column;gap:5px">
     ${t.parts.map(p => {
       const pct      = Math.round(p.pts / p.max * 100);
-      const barColor = pct >= 70 ? '#2dce89' : pct >= 40 ? '#f59e0b' : '#f5365c';
+      // 바 색상: 빨강/초록 사용 금지 (시장 상승/하락 색상과 충돌)
+      const barColor = pct >= 70 ? '#2AABEE' : pct >= 40 ? '#f59e0b' : '#64748b';
       return `
       <div class="temp-detail-row">
         <span style="min-width:140px;color:var(--text2);font-size:11px">${p.label}${p.hint ? ` <span style="color:var(--text3);font-size:10px">${p.hint}</span>` : ''}</span>

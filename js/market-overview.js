@@ -117,20 +117,12 @@ async function loadMarketOverview(maxDate) {
     }
   }
 
-  // macro_data에서 코스피/코스닥/나스닥 지수값 조회
-  let _kospiVal = null, _kospiChg = null, _kosdaqVal = null, _kosdaqChg = null;
-  let _nasdaqVal = null, _nasdaqChg = null, _nasdaqFut = null, _nasdaqFutChg = null;
-  try {
-    const { data: _macro } = await sb.from('macro_data')
-      .select('kospi,kospi_chg,kosdaq,kosdaq_chg,nasdaq,nasdaq_chg,nasdaq_fut,nasdaq_fut_chg')
-      .order('base_date', {ascending: false}).limit(1).single();
-    if (_macro) {
-      _kospiVal    = _macro.kospi;       _kospiChg    = _macro.kospi_chg;
-      _kosdaqVal   = _macro.kosdaq;      _kosdaqChg   = _macro.kosdaq_chg;
-      _nasdaqVal   = _macro.nasdaq;      _nasdaqChg   = _macro.nasdaq_chg;
-      _nasdaqFut   = _macro.nasdaq_fut;  _nasdaqFutChg = _macro.nasdaq_fut_chg;
-    }
-  } catch(e) { /* null 유지 */ }
+  // loadMacroData()가 이미 window._macroData에 저장 — 재조회 불필요
+  const _md = window._macroData || {};
+  const _kospiVal = _md.kospi ?? null,    _kospiChg  = _md.kospi_chg  ?? null;
+  const _kosdaqVal = _md.kosdaq ?? null,  _kosdaqChg = _md.kosdaq_chg ?? null;
+  const _nasdaqVal = _md.nasdaq ?? null,  _nasdaqChg = _md.nasdaq_chg ?? null;
+  const _nasdaqFut = _md.nasdaq_fut ?? null, _nasdaqFutChg = _md.nasdaq_fut_chg ?? null;
 
   _mkCard('inv-mkt-kospi',  '코스피', kospi,  '#2AABEE', _kospiVal,  _kospiChg);
   _mkCard('inv-mkt-kosdaq', '코스닥', kosdaq, '#2dce89', _kosdaqVal, _kosdaqChg);
