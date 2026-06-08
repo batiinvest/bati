@@ -54,7 +54,7 @@ async function loadMarketOverview(maxDate) {
   const industryMap = await getIndustryMap();
   const all = await fetchAllPages(
     sb.from('market_data')
-      .select('stock_code,corp_name,price,price_change_rate,volume,market,market_cap,foreign_net_buy,foreign_hold_rate')
+      .select('stock_code,corp_name,price,price_change_rate,volume,trading_value,market,market_cap,foreign_net_buy,foreign_hold_rate')
       .eq('base_date', maxDate)
       .not('price_change_rate', 'is', null)
   );

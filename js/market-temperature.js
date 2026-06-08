@@ -11,7 +11,7 @@
  * ── 배점 구조 (총 100점) ─────────────────────────────────
  *  ① USD/KRW 환율 방향   25pt  한국 시장 1순위 선행지표
  *  ② 코스피/닥 등락률    25pt  당일 시장 결과 반영
- *  ③ 외국인 수급 방향    20pt  매수 주체 확인
+ *  ③ 외국인 수급 방향    20pt  매수 주체 확인 (금액 기준 억원)
  *  ④ VIX 글로벌 공포지수 15pt  간접 글로벌 리스크
  *  ⑤ 미 10년 금리 방향   15pt  성장주 할인율 직결
  * ─────────────────────────────────────────────────────────
@@ -65,24 +65,30 @@ function _calcTemperature() {
   });
 
   // ③ 외국인 수급 방향 (max 20)
-  // foreign_net_buy 단위: 주(株) — 방향성 지표로 활용
-  const frgnTotal = rows.reduce((s, r) => s + (r.foreign_net_buy ?? 0), 0);
-  const _frgnScale = [[500000,20],[200000,16],[50000,12],[0,8],[-200000,4],[-500000,1]];
-  const frgnPts = _frgnScale.find(([t]) => frgnTotal > t)?.[1] ?? 0;
+  // 금액(억원) 기준 — 주(株) 단위는 저가주·고가주 가중치 왜곡 발생
+  const frgnAmt = rows.reduce((s, r) =>
+    s + ((r.foreign_net_buy ?? 0) * (r.price ?? 0)) / 1e8, 0);
+  // 임계값: 억원 기준 (500억, 200억, 50억, 보합, -200억, -500억)
+  const _frgnScale = [[500,20],[200,16],[50,12],[0,8],[-200,4],[-500,1]];
+  const frgnPts = _frgnScale.find(([t]) => frgnAmt > t)?.[1] ?? 0;
   score += frgnPts;
-  const fStr = (frgnTotal >= 0 ? '+' : '') + frgnTotal.toLocaleString() + '주';
+  const frgnAbsStr = Math.abs(frgnAmt) >= 1000
+    ? (frgnAmt / 1000).toFixed(1) + '천억'
+    : Math.round(frgnAmt).toLocaleString() + '억';
+  const fStr = (frgnAmt >= 0 ? '+' : '-') + frgnAbsStr;
   parts.push({ label: `외국인 ${fStr}`, pts: frgnPts, max: 20, hint: '' });
 
   // ④ VIX 글로벌 공포지수 (max 15)
   // 미 S&P500 기반 간접지표 — 글로벌 위험선호도 반영
+  // 임계값: 2023~2026 실제 VIX 분포 반영 (평균 15~20, 역대 저점 10~12)
   const vix = m.vix ?? null;
-  const _vixScale = [[13,15],[16,13],[19,10],[22,7],[25,4],[30,2]];
+  const _vixScale = [[15,15],[18,12],[21,9],[24,6],[28,3],[35,1]];
   const vixPts = vix !== null
     ? (_vixScale.find(([t]) => vix < t)?.[1] ?? 0)
     : 7; // 데이터 없을 때 중립
   score += vixPts;
   const vixHint = vix != null
-    ? (vix < 16 ? '안정 국면' : vix < 22 ? '주의 구간' : '공포 구간')
+    ? (vix < 18 ? '안정 국면' : vix < 24 ? '주의 구간' : '공포 구간')
     : '데이터 없음';
   parts.push({
     label: vix != null ? `VIX ${Number(vix).toFixed(1)}` : 'VIX —',

@@ -727,7 +727,13 @@ async function loadInvestment() {
 
   // 전체 상장사 급등/급락 — loadMarketOverview가 이미 가져온 데이터를 메모리에서 계산
   // (DB 쿼리 4회 → 0회, window._allMarketRows 재활용)
-  const _all = (window._allMarketRows || []).filter(r => r.price_change_rate != null);
+  // 최소 거래대금 5억원 필터 — 거래량 극소 껍데기 급등 종목 제거
+  const _MIN_TV = 5e8; // 5억원
+  const _all = (window._allMarketRows || []).filter(r => {
+    if (r.price_change_rate == null) return false;
+    const tv = r.trading_value || ((r.volume ?? 0) * (r.price ?? 0));
+    return tv >= _MIN_TV;
+  });
   const _byMkt = (mkt, asc) => [..._all]
     .filter(r => r.market === mkt)
     .sort((a, b) => asc
@@ -792,7 +798,9 @@ function renderVolumeLeaders() {
       const c     = r.price_change_rate ?? 0;
       const cc    = c > 0 ? 'var(--red)' : c < 0 ? 'var(--blue)' : 'var(--text3)';
       const cs    = (c >= 0 ? '+' : '') + c.toFixed(1) + '%';
-      const tvStr = r.tv >= 1e11
+      const tvStr = r.tv >= 1e12
+        ? (r.tv / 1e12).toFixed(1) + '조'
+        : r.tv >= 1e11
         ? (r.tv / 1e11).toFixed(1) + '천억'
         : (r.tv / 1e8).toFixed(0) + '억';
       const barPct = Math.round(r.tv / maxTV * 100);
