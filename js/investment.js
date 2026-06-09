@@ -129,33 +129,69 @@ function pInvestment() {
       </div>
     </div>
 
-    <!-- ③ 섹터 수급 트렌드 -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header" style="flex-wrap:wrap;gap:6px">
-        <span class="card-title">${_ICO.shuffle}섹터 수급 트렌드</span>
-        <span style="font-size:10px;color:var(--text3)" id="sf-date"></span>
-        <div style="display:flex;gap:4px;margin-left:auto;flex-wrap:wrap;align-items:center">
-          <!-- 수급 타입 탭 -->
-          <button class="chip active" data-sf-type="combined"
-            onclick="switchSfType('combined')" style="font-size:11px;padding:2px 8px">합산</button>
-          <button class="chip" data-sf-type="foreign"
-            onclick="switchSfType('foreign')"  style="font-size:11px;padding:2px 8px">외국인</button>
-          <button class="chip" data-sf-type="inst"
-            onclick="switchSfType('inst')"     style="font-size:11px;padding:2px 8px">기관</button>
-          <div style="width:1px;height:14px;background:var(--border);margin:0 2px;flex-shrink:0"></div>
-          <!-- 기간 탭 -->
-          ${[{p:1,l:'1일'},{p:5,l:'5일'},{p:20,l:'20일(~1개월)'}].map(({p,l})=>`
-            <button class="chip ${p===5?'active':''}" data-sf-period="${p}"
-              onclick="switchSfPeriod(${p})" style="font-size:11px;padding:2px 8px">${l}</button>
-          `).join('')}
+    <!-- ③+⑥ 섹터 수급 트렌드 + 산업 강도 매트릭스 — 2열 그리드 (모바일: 탭 전환) -->
+
+    <!-- 모바일 탭 버튼 (768px 미만에서만 보임) -->
+    <div id="sf-im-tabs" style="display:none;gap:0;margin-bottom:8px;
+      border-radius:7px;overflow:hidden;border:1px solid var(--border)">
+      <button id="sf-im-tab-sf" onclick="switchSfImTab('sf')"
+        style="flex:1;padding:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;
+          background:var(--accent);color:#fff">수급 트렌드</button>
+      <button id="sf-im-tab-im" onclick="switchSfImTab('im')"
+        style="flex:1;padding:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;
+          background:var(--bg3);color:var(--text3)">강도 매트릭스</button>
+    </div>
+
+    <!-- 그리드 컨테이너 -->
+    <div id="sf-im-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;align-items:start">
+
+      <!-- 섹터 수급 트렌드 -->
+      <div id="sf-card" class="card" style="margin-bottom:0">
+        <div class="card-header" style="flex-wrap:wrap;gap:6px">
+          <span class="card-title">${_ICO.shuffle}섹터 수급 트렌드</span>
+          <span style="font-size:10px;color:var(--text3)" id="sf-date"></span>
+          <div style="display:flex;gap:4px;margin-left:auto;flex-wrap:wrap;align-items:center">
+            <button class="chip active" data-sf-type="combined"
+              onclick="switchSfType('combined')" style="font-size:11px;padding:2px 8px">합산</button>
+            <button class="chip" data-sf-type="foreign"
+              onclick="switchSfType('foreign')"  style="font-size:11px;padding:2px 8px">외국인</button>
+            <button class="chip" data-sf-type="inst"
+              onclick="switchSfType('inst')"     style="font-size:11px;padding:2px 8px">기관</button>
+            <div style="width:1px;height:14px;background:var(--border);margin:0 2px;flex-shrink:0"></div>
+            ${[{p:1,l:'1일'},{p:5,l:'5일'},{p:20,l:'20일'}].map(({p,l})=>`
+              <button class="chip ${p===5?'active':''}" data-sf-period="${p}"
+                onclick="switchSfPeriod(${p})" style="font-size:11px;padding:2px 8px">${l}</button>
+            `).join('')}
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px" id="sf-desc">
+          외국인+기관 스마트머니 (KR 전체 종목 기준)
+        </div>
+        <div id="sf-body" style="padding:.25rem 0">
+          ${_skelList(12, true)}
         </div>
       </div>
-      <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px" id="sf-desc">
-        외국인+기관 스마트머니 (KR 전체 종목 기준)
+
+      <!-- 산업 강도 매트릭스 -->
+      <div id="im-card" class="card" style="margin-bottom:0">
+        <div class="card-header" style="flex-wrap:wrap;gap:6px">
+          <span class="card-title">${_ICO.grid}산업 강도 매트릭스</span>
+          <span style="font-size:10px;color:var(--text3)" id="im-date"></span>
+          <div style="display:flex;gap:4px;margin-left:auto">
+            ${[{p:1,l:'1일'},{p:5,l:'5일'},{p:20,l:'20일'}].map(({p,l})=>`
+              <button class="chip ${p===5?'active':''}" data-im-period="${p}"
+                onclick="switchImPeriod(${p})" style="font-size:11px;padding:2px 8px">${l}</button>
+            `).join('')}
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px">
+          미국이 먼저 움직이면 한국이 따라온다 — US·KR 섹터 성과 비교 및 선행 신호 탐지
+        </div>
+        <div id="im-body">
+          ${_skelList(11, true)}
+        </div>
       </div>
-      <div id="sf-body" style="padding:.25rem 0">
-        ${_skelList(12, true)}
-      </div>
+
     </div>
 
     <!-- ④ 시장 온도계 -->
@@ -203,25 +239,6 @@ function pInvestment() {
       </div>
     </div>
 
-    <!-- ⑥ 산업 강도 매트릭스 -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header" style="flex-wrap:wrap;gap:6px">
-        <span class="card-title">${_ICO.grid}산업 강도 매트릭스</span>
-        <span style="font-size:10px;color:var(--text3)" id="im-date"></span>
-        <div style="display:flex;gap:4px;margin-left:auto">
-          ${[{p:1,l:'1일'},{p:5,l:'5일'},{p:20,l:'20일'}].map(({p,l})=>`
-            <button class="chip ${p===5?'active':''}" data-im-period="${p}"
-              onclick="switchImPeriod(${p})" style="font-size:11px;padding:2px 8px">${l}</button>
-          `).join('')}
-        </div>
-      </div>
-      <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px">
-        미국이 먼저 움직이면 한국이 따라온다 — US·KR 섹터 성과 비교 및 선행 신호 탐지
-      </div>
-      <div id="im-body">
-        ${_skelList(11, true)}
-      </div>
-    </div>
 
     <!-- ⑦ 산업 동향 -->
     <div class="card" style="margin-bottom:12px">
@@ -686,6 +703,7 @@ async function loadInvestment() {
   renderVolumeLeaders();
 
   // Phase 2 — 주도주 탐색기 + 백테스트 + 섹터 수급 트렌드 + 산업 강도 매트릭스
+  _initSfImLayout(); // 2열 그리드 / 모바일 탭 초기화
   loadLeadingStocks();
   loadLeadingBacktest();
   loadSectorFlow();
@@ -841,6 +859,56 @@ function toggleInsightHistory() {
   if (btn) btn.classList.toggle('active', !isOpen);
   if (!isOpen) loadInsightHistory();
 }
+
+
+// ── 섹터 수급 + 산업강도 2열 그리드 / 모바일 탭 전환 ──────────────────────────
+let _sfImActiveTab = 'sf'; // 모바일 활성 탭
+
+function switchSfImTab(tab) {
+  _sfImActiveTab = tab;
+  const sfCard = document.getElementById('sf-card');
+  const imCard = document.getElementById('im-card');
+  const tabSf  = document.getElementById('sf-im-tab-sf');
+  const tabIm  = document.getElementById('sf-im-tab-im');
+  if (!sfCard || !imCard) return;
+
+  const isMobile = window.innerWidth < 768;
+  if (isMobile) {
+    sfCard.style.display = tab === 'sf' ? '' : 'none';
+    imCard.style.display = tab === 'im' ? '' : 'none';
+  }
+  if (tabSf) {
+    tabSf.style.background = tab === 'sf' ? 'var(--accent)' : 'var(--bg3)';
+    tabSf.style.color      = tab === 'sf' ? '#fff' : 'var(--text3)';
+  }
+  if (tabIm) {
+    tabIm.style.background = tab === 'im' ? 'var(--accent)' : 'var(--bg3)';
+    tabIm.style.color      = tab === 'im' ? '#fff' : 'var(--text3)';
+  }
+}
+
+function _initSfImLayout() {
+  const grid    = document.getElementById('sf-im-grid');
+  const tabs    = document.getElementById('sf-im-tabs');
+  const sfCard  = document.getElementById('sf-card');
+  const imCard  = document.getElementById('im-card');
+  if (!grid || !tabs || !sfCard || !imCard) return;
+
+  const isMobile = window.innerWidth < 768;
+  // 모바일: 1열 + 탭 버튼 표시
+  grid.style.gridTemplateColumns = isMobile ? '1fr' : '1fr 1fr';
+  tabs.style.display = isMobile ? 'flex' : 'none';
+  if (isMobile) {
+    sfCard.style.display = _sfImActiveTab === 'sf' ? '' : 'none';
+    imCard.style.display = _sfImActiveTab === 'im' ? '' : 'none';
+  } else {
+    sfCard.style.display = '';
+    imCard.style.display = '';
+  }
+}
+
+// 페이지 로드 + 리사이즈 시 레이아웃 업데이트
+window.addEventListener('resize', _initSfImLayout);
 
 
 // ── 시황/공시/급등 로직은 분리된 파일에서 로드 ──
