@@ -935,7 +935,8 @@ function renderHgprTab(tab) {
 // 💰 기관/외국인 수급 — 3열 그리드 (동시매수 | 외국인순매수/순매도 | 기관)
 // ══════════════════════════════════════════
 
-let _flowData     = null;   // 순매수 데이터
+let _flowData     = null;   // 외국인+기관 합산 풀 데이터
+let _flowBothData = null;   // 동시매수 전용 (외국인 AND 기관 순매수)
 let _flowSellData = null;   // 외국인 순매도 데이터
 let _flowDate     = null;   // 집계 기준일
 let _frgnSellMode = false;  // 외국인 열: false=순매수, true=순매도
@@ -972,36 +973,38 @@ async function loadFlowData() {
     const dateEl = document.getElementById('flow-date-label');
     if (dateEl) dateEl.textContent = maxDate + ' 기준';
 
-    // 순매수 데이터 (외국인 or 기관 순매수)
-    let { data, error } = await sb.from('market_data')
-      .select('stock_code,corp_name,price,price_change_rate,market_cap,foreign_net_buy,institution_net_buy,foreign_hold_rate,market')
-      .eq('base_date', maxDate)
-      .or('foreign_net_buy.gt.0,institution_net_buy.gt.0')
-      .order('foreign_net_buy', { ascending: false })
-      .limit(300);
+    const SEL = 'stock_code,corp_name,price,price_change_rate,market_cap,foreign_net_buy,institution_net_buy,foreign_hold_rate,market';
 
-    if (error) {
-      // institution_net_buy 컬럼 미존재 시 fallback
-      console.warn('[FlowData] institution_net_buy 컬럼 조회 실패, fallback 실행:', error.message);
-      const fb = await sb.from('market_data')
-        .select('stock_code,corp_name,price,price_change_rate,market_cap,foreign_net_buy,foreign_hold_rate,market')
-        .eq('base_date', maxDate)
-        .gt('foreign_net_buy', 0)
-        .order('foreign_net_buy', { ascending: false })
-        .limit(300);
-      if (fb.error) throw fb.error;
-      data = fb.data;
-    }
-    _flowData = data || [];
+    // 3개 쿼리 병렬 실행 — 각 열의 AND 조건을 서버에서 처리해 누락 방지
+    const [frgnRes, orgnRes, bothRes, sellRes] = await Promise.all([
+      // 외국인 순매수 (금액 상위)
+      sb.from('market_data').select(SEL).eq('base_date', maxDate)
+        .gt('foreign_net_buy', 0).order('foreign_net_buy', { ascending: false }).limit(50),
+      // 기관 순매수 (금액 상위)
+      sb.from('market_data').select(SEL).eq('base_date', maxDate)
+        .gt('institution_net_buy', 0).order('institution_net_buy', { ascending: false }).limit(50),
+      // 동시매수 — 외국인 AND 기관 동시 순매수 (서버 AND 조건)
+      sb.from('market_data').select(SEL).eq('base_date', maxDate)
+        .gt('foreign_net_buy', 0).gt('institution_net_buy', 0)
+        .order('foreign_net_buy', { ascending: false }).limit(50),
+      // 외국인 순매도
+      sb.from('market_data').select(SEL).eq('base_date', maxDate)
+        .lt('foreign_net_buy', 0).order('foreign_net_buy', { ascending: true }).limit(50),
+    ]);
 
-    // 외국인 순매도 데이터 (별도 조회)
-    const { data: sellData } = await sb.from('market_data')
-      .select('stock_code,corp_name,price,price_change_rate,market_cap,foreign_net_buy,foreign_hold_rate,market')
-      .eq('base_date', maxDate)
-      .lt('foreign_net_buy', 0)
-      .order('foreign_net_buy', { ascending: true })
-      .limit(50);
-    _flowSellData = sellData || [];
+    if (frgnRes.error) throw frgnRes.error;
+
+    // _flowData: 외국인·기관·동시매수 모두 포함 (중복 제거)
+    const combined = [...(frgnRes.data||[]), ...(orgnRes.data||[]), ...(bothRes.data||[])];
+    const seen = new Set();
+    _flowData = combined.filter(r => {
+      if (seen.has(r.stock_code)) return false;
+      seen.add(r.stock_code); return true;
+    });
+
+    // 동시매수 전용 데이터 (별도 보관)
+    _flowBothData = bothRes.data || [];
+    _flowSellData = sellRes.data || [];
 
     renderAllFlowData();
   } catch(e) {
@@ -1032,8 +1035,8 @@ function _renderFlowCol(tab, bodyId) {
   // ── 데이터 선택 및 정렬 (금액 기준) ─────────────────────────────────────────
   let rows;
   if (tab === 'both') {
-    rows = _flowData
-      .filter(r => (r.foreign_net_buy || 0) > 0 && (r.institution_net_buy || 0) > 0)
+    // _flowBothData: 서버에서 AND 조건으로 가져온 동시매수 전용 데이터
+    rows = (_flowBothData || [])
       .sort((a, b) => {
         // 동시매수: (외국인 금액 + 기관 금액) 합산 기준
         const aAmt = ((a.foreign_net_buy||0) + (a.institution_net_buy||0)) * (a.price||0);
