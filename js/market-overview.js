@@ -1064,8 +1064,8 @@ function _renderFlowCol(tab, bodyId) {
 
   if (!rows.length) {
     const msg = tab === 'both'
-      ? '기관 집계 전<br><span style="font-size:10px">09:35·11:25·13:25·14:35</span>'
-      : tab === 'orgn' ? '기관 집계 전' : '데이터 없음';
+      ? '오늘 외국인·기관 동시 순매수 종목 없음<br><span style="font-size:10px">외국인↔기관 매수 방향 상이</span>'
+      : tab === 'orgn' ? '기관 집계 전<br><span style="font-size:10px">09:35·11:25·13:25·14:35</span>' : '데이터 없음';
     body.innerHTML = `<div style="padding:1.5rem;color:var(--text3);font-size:12px;text-align:center">${msg}</div>`;
     return;
   }
