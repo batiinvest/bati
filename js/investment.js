@@ -144,14 +144,14 @@ function pInvestment() {
             onclick="switchSfType('inst')"     style="font-size:11px;padding:2px 8px">기관</button>
           <div style="width:1px;height:14px;background:var(--border);margin:0 2px;flex-shrink:0"></div>
           <!-- 기간 탭 -->
-          ${[{p:1,l:'1일'},{p:5,l:'5일'},{p:20,l:'20일'}].map(({p,l})=>`
+          ${[{p:1,l:'1일'},{p:5,l:'5일'},{p:20,l:'20일(~1개월)'}].map(({p,l})=>`
             <button class="chip ${p===5?'active':''}" data-sf-period="${p}"
               onclick="switchSfPeriod(${p})" style="font-size:11px;padding:2px 8px">${l}</button>
           `).join('')}
         </div>
       </div>
       <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px" id="sf-desc">
-        외국인+기관 스마트머니 (모니터링 종목 기준)
+        외국인+기관 스마트머니 (KR 전체 종목 기준)
       </div>
       <div id="sf-body" style="padding:.25rem 0">
         ${_skelList(12, true)}

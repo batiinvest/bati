@@ -12,9 +12,9 @@ let _sfPeriod = 5;
 let _sfType   = 'combined';
 
 const _SF_TYPES = {
-  combined: { label: '합산',   posColor: '#2dce89', negColor: '#f5365c', desc: '외국인+기관 스마트머니' },
-  foreign:  { label: '외국인', posColor: '#2AABEE', negColor: '#f5365c', desc: '외국인 순매수' },
-  inst:     { label: '기관',   posColor: '#f59e0b', negColor: '#f5365c', desc: '기관 순매수'   },
+  combined: { label: '합산',   posColor: '#2dce89', negColor: '#f5365c', desc: '외국인+기관 스마트머니 (KR 전체 종목 기준)' },
+  foreign:  { label: '외국인', posColor: '#2AABEE', negColor: '#f5365c', desc: '외국인 순매수 (KR 전체 종목 기준)' },
+  inst:     { label: '기관',   posColor: '#f59e0b', negColor: '#f5365c', desc: '기관 순매수 (KR 전체 종목 기준)'   },
 };
 
 // ── 로드 ──────────────────────────────────────────────────────────────────────
@@ -64,14 +64,16 @@ async function loadSectorFlow() {
     const maps = { combined: {}, foreign: {}, inst: {} };
     for (const r of rows) {
       const ind = r.industry;
-      maps.foreign[ind]  = { d1: r.foreign_net_1d, d3: null, d5: r.foreign_net_5d, d20: r.foreign_net_20d };
-      maps.inst[ind]     = { d1: r.inst_net_1d,    d3: null, d5: r.inst_net_5d,    d20: r.inst_net_20d    };
+      maps.foreign[ind]  = { d1: r.foreign_net_1d, d5: r.foreign_net_5d, d20: r.foreign_net_20d };
+      maps.inst[ind]     = { d1: r.inst_net_1d,    d5: r.inst_net_5d,    d20: r.inst_net_20d    };
       maps.combined[ind] = {
         d1:  (r.foreign_net_1d  || 0) + (r.inst_net_1d  || 0) || null,
-        d3:  null,
         d5:  (r.foreign_net_5d  || 0) + (r.inst_net_5d  || 0) || null,
         d20: (r.foreign_net_20d || 0) + (r.inst_net_20d || 0) || null,
       };
+      // stock_count 저장
+      maps._stockCount = maps._stockCount || {};
+      maps._stockCount[ind] = r.stock_count || 0;
     }
 
     window._sfMaps = maps;
@@ -120,7 +122,7 @@ function renderSectorFlow() {
 
   const entries = KR_INDS
     .filter(ind => sectorMap[ind])
-    .map(ind => ({ ind, val: sectorMap[ind][key] ?? 0 }))
+    .map(ind => ({ ind, val: sectorMap[ind][key] ?? null }))
     .filter(e => e.val !== null)
     .sort((a, b) => b.val - a.val);
 
@@ -129,15 +131,17 @@ function renderSectorFlow() {
     return;
   }
 
-  const maxAbs = Math.max(...entries.map(e => Math.abs(e.val)), 1);
-
+  const maxAbs     = Math.max(...entries.map(e => Math.abs(e.val)), 1);
   const showSignal = _sfType === 'combined' && maps.foreign && maps.inst;
+  const stockCount = maps._stockCount || {};
 
   el.innerHTML = entries.map(({ ind, val }) => {
     const isPos  = val >= 0;
     const color  = isPos ? typeConfig.posColor : typeConfig.negColor;
-    const pct    = Math.round(Math.abs(val) / maxAbs * 100);
+    // 양방향 바: 중앙선 기준, 최대 50%씩
+    const barPct = Math.min(Math.abs(val) / maxAbs * 50, 50);
     const valStr = fmtNet(val);
+    const cnt    = stockCount[ind] ? `<span style="font-size:9px;color:var(--text3)">(${stockCount[ind]})</span>` : '';
 
     // 합산일 때: 외국인/기관 방향 일치 여부 뱃지
     let signalBadge = '';
@@ -154,12 +158,14 @@ function renderSectorFlow() {
 
     return `
     <div style="display:flex;align-items:center;gap:8px;padding:5px 12px;border-bottom:1px solid var(--border)">
-      <span style="min-width:48px;font-size:12px;color:var(--text2);flex-shrink:0">${ind}</span>
-      <div style="flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden">
-        <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width .4s ease"></div>
+      <span style="min-width:60px;font-size:12px;color:var(--text2);flex-shrink:0">${ind} ${cnt}</span>
+      <!-- 양방향 바: 중앙선 기준 -->
+      <div style="flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.06);position:relative;overflow:hidden">
+        <div style="position:absolute;top:0;height:100%;width:${barPct}%;background:${color};border-radius:3px;transition:width .4s ease;${isPos ? 'left:50%' : `right:50%`}"></div>
+        <div style="position:absolute;top:0;left:50%;width:1px;height:100%;background:rgba(255,255,255,.2)"></div>
       </div>
       ${signalBadge}
-      <span style="min-width:54px;text-align:right;font-size:12px;font-weight:600;color:${color}">${valStr}</span>
+      <span style="min-width:58px;text-align:right;font-size:12px;font-weight:600;color:${color}">${valStr}</span>
     </div>`;
   }).join('');
 }
