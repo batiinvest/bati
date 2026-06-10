@@ -149,11 +149,6 @@ function renderIndustryMatrix() {
   const usK = { 1: 'us1d', 5: 'us5d', 20: 'us20d' }[p];
   const krK = { 1: 'kr1d', 5: 'kr5d', 20: 'kr20d' }[p];
 
-  const maxAbs = Math.max(
-    ...rows.map(r => Math.max(Math.abs(r[usK] ?? 0), Math.abs(r[krK] ?? 0))),
-    2,
-  );
-
   // ── 신호 카운트 요약 ───────────────────────────────────────────────────────
   const sigCount = {};
   rows.forEach(r => {
@@ -167,92 +162,75 @@ function renderIndustryMatrix() {
       `${s.icon} ${s.label} <b>${sigCount[k]}</b></span>`)
     .join('');
 
-  // ── 양방향 퍼포먼스 바 (compact: flag 생략, 바+값만) ─────────────────────
-  function perfBar(v, flag) {
-    const c   = _imColor(v);
-    const pct = v != null ? Math.min(Math.abs(v) / maxAbs * 50, 50) : 0;
-    const val = v != null ? (v >= 0 ? '+' : '') + v.toFixed(1) + '%' : '—';
-    const isPos = v != null && v >= 0;
-    return (
-      `<div style="display:flex;align-items:center;gap:4px;min-width:0">` +
-        `<span style="font-size:9px;color:var(--text3);flex-shrink:0">${flag}</span>` +
-        `<div style="flex:1;height:6px;border-radius:2px;position:relative;background:rgba(255,255,255,.07);overflow:hidden">` +
-          `<div style="position:absolute;top:0;height:100%;width:${pct}%;` +
-               `background:${c.txt};border-radius:2px;transition:width .4s ease;` +
-               `${isPos ? 'left:50%' : 'right:50%;'}"></div>` +
-          `<div style="position:absolute;top:0;left:50%;width:1px;height:100%;background:rgba(255,255,255,.2)"></div>` +
-        `</div>` +
-        `<span style="font-size:10px;font-weight:600;color:${c.txt};width:34px;text-align:right;` +
-              `font-variant-numeric:tabular-nums;flex-shrink:0">${val}</span>` +
-      `</div>`
-    );
-  }
+  // ── 수치 포맷 헬퍼 ────────────────────────────────────────────────────────
+  const fmtPct = v => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—';
 
-  // ── 각 행 (compact: tip 제거, US/KR 2열 나란히) ───────────────────────────
+  // ── 테이블 헤더 ───────────────────────────────────────────────────────────
+  const pLabel = { 1:'1일', 5:'5일', 20:'20일' }[p];
+  const headerHtml =
+    `<div style="display:grid;grid-template-columns:68px 52px 52px 1fr;` +
+         `gap:0;padding:4px 12px;border-bottom:1px solid var(--border);` +
+         `background:var(--bg2)">` +
+      `<span style="font-size:10px;color:var(--text3)">섹터</span>` +
+      `<span style="font-size:10px;color:var(--text3);text-align:right">🇺🇸 ${pLabel}</span>` +
+      `<span style="font-size:10px;color:var(--text3);text-align:right">🇰🇷 ${pLabel}</span>` +
+      `<span style="font-size:10px;color:var(--text3);text-align:right">신호</span>` +
+    `</div>`;
+
+  // ── 각 행 (1줄 테이블) ────────────────────────────────────────────────────
   const rowsHtml = rows.map(r => {
     const usV = r[usK];
     const krV = r[krK];
     const sig = r.sig[p];
     const indColor = ((typeof IND_COLORS !== 'undefined' ? IND_COLORS : null) || {})[r.ind] || '#a8adc4';
+    const usC  = _imColor(usV).txt;
+    const krC  = _imColor(krV).txt;
 
-    // Δ 스프레드
-    const sp = (usV != null && krV != null) ? usV - krV : null;
-    let spHtml = '';
-    if (sp != null && Math.abs(sp) >= 0.3) {
-      const spColor = sp > 0 ? '#2dce89' : '#f5365c';
-      const spLabel = sp > 0 ? 'US↑KR미반영' : 'KR↑US대비';
-      spHtml =
-        `<span style="font-size:9px;color:${spColor};margin-left:5px;` +
-        `background:${spColor}18;border-radius:3px;padding:1px 4px;white-space:nowrap">` +
-        `${spLabel} ${sp > 0 ? '+' : ''}${sp.toFixed(1)}%</span>`;
-    }
-
-    // 신호 배지 (tip 텍스트 제거 — 높이 절감)
-    const sigBadge = sig
-      ? `<span style="font-size:10px;font-weight:700;color:${sig.color};` +
-          `background:${sig.color}1a;border-radius:4px;padding:2px 7px;white-space:nowrap;flex-shrink:0">` +
+    const sigCell = sig
+      ? `<span style="font-size:10px;font-weight:700;color:${sig.color};white-space:nowrap">` +
           `${sig.icon} ${sig.label}</span>`
-      : `<span style="font-size:10px;color:var(--text3);flex-shrink:0">—</span>`;
+      : `<span style="font-size:10px;color:var(--text3)">—</span>`;
 
     return (
-      `<div style="padding:5px 12px;border-bottom:1px solid var(--border)">` +
-        // 1줄: 섹터명 + 스프레드 + 신호배지
-        `<div style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:4px">` +
-          `<div style="display:flex;align-items:center;gap:4px;min-width:0;flex:1;overflow:hidden">` +
-            `<span style="width:6px;height:6px;border-radius:50%;background:${indColor};flex-shrink:0"></span>` +
-            `<span style="font-size:11px;font-weight:700;color:var(--text1);white-space:nowrap">${r.ind}</span>` +
-            spHtml +
-          `</div>` +
-          sigBadge +
+      `<div style="display:grid;grid-template-columns:68px 52px 52px 1fr;` +
+           `gap:0;padding:5px 12px;border-bottom:1px solid var(--border);align-items:center">` +
+        // 섹터명
+        `<div style="display:flex;align-items:center;gap:4px;min-width:0">` +
+          `<span style="width:6px;height:6px;border-radius:50%;background:${indColor};flex-shrink:0"></span>` +
+          `<span style="font-size:11px;font-weight:700;color:var(--text1);` +
+                `white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.ind}</span>` +
         `</div>` +
-        // 2줄: US / KR 바 나란히
-        `<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">` +
-          perfBar(usV, '🇺🇸') +
-          perfBar(krV, '🇰🇷') +
-        `</div>` +
+        // US 수치
+        `<span style="font-size:12px;font-weight:700;color:${usC};text-align:right;` +
+              `font-variant-numeric:tabular-nums">${fmtPct(usV)}</span>` +
+        // KR 수치
+        `<span style="font-size:12px;font-weight:700;color:${krC};text-align:right;` +
+              `font-variant-numeric:tabular-nums">${fmtPct(krV)}</span>` +
+        // 신호
+        `<div style="text-align:right">${sigCell}</div>` +
       `</div>`
     );
   }).join('');
 
   // ── 범례 ──────────────────────────────────────────────────────────────────
   const legendHtml =
-    `<div style="padding:8px 12px 6px;border-top:1px solid var(--border);` +
+    `<div style="padding:6px 12px;border-top:1px solid var(--border);` +
          `display:flex;flex-wrap:wrap;gap:5px;align-items:center">` +
       Object.entries(_IM_SIGNALS_MAP).map(([, s]) =>
         `<span style="font-size:10px;color:${s.color};background:${s.color}15;` +
               `border-radius:3px;padding:1px 6px">${s.icon} ${s.label}</span>`
       ).join('') +
       `<span style="font-size:10px;color:var(--text3);margin-left:auto">` +
-        `${{ 1:'1일', 5:'5일', 20:'20일' }[p]} 기준 · 백엔드 탐지</span>` +
+        `백엔드 탐지</span>` +
     `</div>`;
 
   const summaryHtml = sigSummary
-    ? `<div style="padding:6px 12px;border-bottom:1px solid var(--border);` +
+    ? `<div style="padding:5px 12px;border-bottom:1px solid var(--border);` +
            `display:flex;flex-wrap:wrap;gap:5px;align-items:center;background:var(--bg2)">` +
         `<span style="font-size:10px;color:var(--text3);margin-right:2px">탐지 신호:</span>` +
         sigSummary +
       `</div>`
     : '';
 
-  el.innerHTML = summaryHtml + rowsHtml + legendHtml;
+  el.innerHTML = summaryHtml + headerHtml + rowsHtml + legendHtml;
 }
