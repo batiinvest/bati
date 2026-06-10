@@ -168,4 +168,6 @@ function renderSectorFlow() {
       <span style="min-width:58px;text-align:right;font-size:12px;font-weight:600;color:${color}">${valStr}</span>
     </div>`;
   }).join('');
+
+  if (typeof _syncSfImHeight === 'function') _syncSfImHeight();
 }

@@ -233,4 +233,6 @@ function renderIndustryMatrix() {
     : '';
 
   el.innerHTML = summaryHtml + headerHtml + rowsHtml + legendHtml;
+
+  if (typeof _syncSfImHeight === 'function') _syncSfImHeight();
 }

@@ -143,10 +143,10 @@ function pInvestment() {
     </div>
 
     <!-- 그리드 컨테이너 -->
-    <div id="sf-im-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;align-items:stretch">
+    <div id="sf-im-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;align-items:start">
 
       <!-- 섹터 수급 트렌드 -->
-      <div id="sf-card" class="card" style="margin-bottom:0;display:flex;flex-direction:column">
+      <div id="sf-card" class="card" style="margin-bottom:0">
         <div class="card-header" style="flex-wrap:wrap;gap:6px">
           <span class="card-title">${_ICO.shuffle}섹터 수급 트렌드</span>
           <span style="font-size:10px;color:var(--text3)" id="sf-date"></span>
@@ -167,13 +167,13 @@ function pInvestment() {
         <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px" id="sf-desc">
           외국인+기관 스마트머니 (KR 전체 종목 기준)
         </div>
-        <div id="sf-body" style="padding:.25rem 0;flex:1;overflow-y:auto">
+        <div id="sf-body" style="padding:.25rem 0">
           ${_skelList(12, true)}
         </div>
       </div>
 
       <!-- 산업 강도 매트릭스 -->
-      <div id="im-card" class="card" style="margin-bottom:0;display:flex;flex-direction:column">
+      <div id="im-card" class="card" style="margin-bottom:0">
         <div class="card-header" style="flex-wrap:wrap;gap:6px">
           <span class="card-title">${_ICO.grid}산업 강도 매트릭스</span>
           <span style="font-size:10px;color:var(--text3)" id="im-date"></span>
@@ -187,7 +187,7 @@ function pInvestment() {
         <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px">
           미국이 먼저 움직이면 한국이 따라온다 — US·KR 섹터 성과 비교 및 선행 신호 탐지
         </div>
-        <div id="im-body" style="flex:1;overflow-y:auto">
+        <div id="im-body">
           ${_skelList(11, true)}
         </div>
       </div>
@@ -908,7 +908,21 @@ function _initSfImLayout() {
 }
 
 // 페이지 로드 + 리사이즈 시 레이아웃 업데이트
-window.addEventListener('resize', _initSfImLayout);
+window.addEventListener('resize', () => { _initSfImLayout(); _syncSfImHeight(); });
+
+// ── 두 카드 높이 동기화 ────────────────────────────────────────────────────────
+function _syncSfImHeight() {
+  if (window.innerWidth < 768) return;          // 모바일 탭 모드는 불필요
+  const sf = document.getElementById('sf-card');
+  const im = document.getElementById('im-card');
+  if (!sf || !im) return;
+  // 높이 초기화 후 자연 높이 측정
+  sf.style.height = '';
+  im.style.height = '';
+  const h = Math.max(sf.offsetHeight, im.offsetHeight);
+  sf.style.height = h + 'px';
+  im.style.height = h + 'px';
+}
 
 
 // ── 시황/공시/급등 로직은 분리된 파일에서 로드 ──
