@@ -236,13 +236,13 @@ async function loadWatchlist() {
     if (buyCapEok) {
       if (isBuyZone) {
         buyCell = `<div style="color:var(--tg);font-weight:700;font-size:13px">✅ 매수 구간</div>
-                   <div style="font-size:11px;color:var(--text3)">${fmtEok(buyCapEok)} 이하</div>`;
+                   <div style="font-size:12px;color:var(--text2)">${fmtEok(buyCapEok)} 이하</div>`;
       } else {
         buyCell = `<div style="font-size:13px;font-weight:600">${fmtEok(buyCapEok)}</div>
-                   <div style="font-size:11px;color:var(--text3)">현재보다 ${buyGap!=null?Math.abs(buyGap).toFixed(1)+'%':'—'} 하락 필요</div>`;
+                   <div style="font-size:12px;color:var(--text2)">현재보다 ${buyGap!=null?Math.abs(buyGap).toFixed(1)+'%':'—'} 하락 필요</div>`;
       }
     } else {
-      buyCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
+      buyCell = `<span style="color:var(--text2);font-size:12px">—</span>`;
     }
 
     // ── 업사이드 (target_price 기준, 현재 대비) ──────────────────────────
@@ -255,17 +255,17 @@ async function loadWatchlist() {
       const multStr = upsideMult != null ? `${upsideMult.toFixed(1)}배` : '';
       const color   = upsidePct > 0 ? 'var(--tg)' : 'var(--red)';
       tgtCell = `<div style="font-size:13px;font-weight:600">${fmtEok(tgtCapEok)}</div>
-                 <div style="font-size:11px;color:${color}">${pctStr}${multStr ? ' · '+multStr : ''}</div>`;
+                 <div style="font-size:12px;font-weight:600;color:${color}">${pctStr}${multStr ? ' · '+multStr : ''}</div>`;
     } else {
-      tgtCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
+      tgtCell = `<span style="color:var(--text2);font-size:12px">—</span>`;
     }
 
     // ── 투자포인트 (최대 2개) ────────────────────────────────────────────
     const theses = [w.thesis_1, w.thesis_2].filter(Boolean);
     const thesisCell = theses.length
-      ? theses.map((t,i) => `<div style="font-size:11px;color:var(--text2);padding:1px 0;display:flex;gap:5px">
+      ? theses.map((t,i) => `<div style="font-size:12px;color:var(--text1);padding:1px 0;display:flex;gap:5px">
           <span style="color:var(--tg);font-weight:700;flex-shrink:0">${i+1}.</span><span>${t}</span></div>`).join('')
-      : `<span style="font-size:11px;color:var(--text3)">—</span>`;
+      : `<span style="font-size:12px;color:var(--text2)">—</span>`;
 
     // ── 행 배경: 매수 구간이면 연초록 강조 ──────────────────────────────
     const rowBg = isBuyZone ? 'background:rgba(45,206,137,.06)' : '';
@@ -277,8 +277,8 @@ async function loadWatchlist() {
           <span style="font-size:13px;font-weight:700">${w.corp_name}</span>
           <span style="font-size:10px;padding:1px 6px;border-radius:100px;background:${groupColors[w.group_name]||'#888'}22;color:${groupColors[w.group_name]||'#888'}">${w.group_name}</span>
         </div>
-        ${w.industry ? `<div style="font-size:10px;color:var(--text3);margin-top:2px">${w.industry}</div>` : ''}
-        ${w.catalyst ? `<div style="font-size:10px;color:var(--tg);margin-top:2px">⚡ ${w.catalyst}</div>` : ''}
+        ${w.industry ? `<div style="font-size:11px;color:var(--text2);margin-top:2px">${w.industry}</div>` : ''}
+        ${w.catalyst ? `<div style="font-size:11px;color:var(--tg);margin-top:2px">⚡ ${w.catalyst}</div>` : ''}
       </td>
       <td style="${tdStyle}">
         <div style="font-size:13px;font-weight:700">${price ? price.toLocaleString()+'원' : '—'}</div>
