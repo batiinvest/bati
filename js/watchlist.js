@@ -357,124 +357,105 @@ async function renderWatchlistForm(id) {
         style="width:100%;box-sizing:border-box;height:60px;resize:vertical">${w[field]||''}</textarea>
     </div>`;
 
+  const isHolding = (w.group_name === '보유중');
+
   body.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:1rem">
 
-      <!-- 기본 정보 -->
-      <div style="font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:6px">기본 정보</div>
-
       <!-- 종목 검색 -->
-      <div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">종목 검색</div>
-        <div style="position:relative">
-          <input type="text" class="form-input" id="wl-search"
-            placeholder="종목명 또는 코드 입력..."
-            value="${w.corp_name||''}"
-            oninput="searchWatchlistStock(this.value)"
-            style="width:100%;box-sizing:border-box">
-          <div id="wl-search-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg1);border:1px solid var(--border);border-radius:8px;z-index:999;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.3)"></div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end">
+        <div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">종목 검색</div>
+          <div style="position:relative">
+            <input type="text" class="form-input" id="wl-search"
+              placeholder="종목명 또는 코드 입력..."
+              value="${w.corp_name||''}"
+              oninput="searchWatchlistStock(this.value)"
+              style="width:100%;box-sizing:border-box">
+            <div id="wl-search-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg1);border:1px solid var(--border);border-radius:8px;z-index:999;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.3)"></div>
+          </div>
+          <input type="hidden" id="wl-stock_code" value="${w.stock_code||''}">
+          <input type="hidden" id="wl-corp_name"  value="${w.corp_name||''}">
+          <input type="hidden" id="wl-industry"   value="${w.industry||''}">
         </div>
-      </div>
-
-      <!-- 자동완성된 기본 정보 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
-        ${inp('stock_code','종목코드','자동입력','')}
-        ${inp('corp_name','종목명','자동입력','')}
-        ${inp('industry','산업','자동입력','')}
         <div>
           <div style="font-size:12px;color:var(--text2);margin-bottom:4px">그룹</div>
-          <select class="form-select" id="wl-group_name" style="width:100%">
-            ${['관심','후보','보유중'].map(g=>`<option value="${g}" ${(w.group_name || (window._wlGroup !== 'all' ? window._wlGroup : '관심'))===g?'selected':''}>${g}</option>`).join('')}
+          <select class="form-select" id="wl-group_name" style="width:100px"
+            onchange="document.getElementById('wl-holding-section').style.display=this.value==='보유중'?'':'none'">
+            ${['관심','후보','보유중'].map(g=>`<option value="${g}" ${(w.group_name||(window._wlGroup!=='all'?window._wlGroup:'관심'))===g?'selected':''}>${g}</option>`).join('')}
           </select>
         </div>
       </div>
 
-      <!-- 시장 데이터 자동입력 (읽기전용) -->
-      <div style="background:var(--bg2);border-radius:8px;padding:10px 12px">
-        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">📊 시장 데이터 (자동입력)</div>
-        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
-          <div><div style="font-size:10px;color:var(--text3)">현재가</div><div id="wl-auto-price" style="font-size:12px;font-weight:600">—</div></div>
-          <div><div style="font-size:10px;color:var(--text3)">등락률</div><div id="wl-auto-chg" style="font-size:12px;font-weight:600">—</div></div>
-          <div><div style="font-size:10px;color:var(--text3)">시총</div><div id="wl-auto-cap" style="font-size:12px;font-weight:600">—</div></div>
-          <div><div style="font-size:10px;color:var(--text3)">PER</div><div id="wl-auto-per" style="font-size:12px;font-weight:600">—</div></div>
-          <div><div style="font-size:10px;color:var(--text3)">PBR</div><div id="wl-auto-pbr" style="font-size:12px;font-weight:600">—</div></div>
+      <!-- 시장 데이터 자동입력 -->
+      <div style="background:var(--bg2);border-radius:8px;padding:10px 14px">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+          <div><div style="font-size:10px;color:var(--text3)">현재가</div><div id="wl-auto-price" style="font-size:13px;font-weight:600">—</div></div>
+          <div><div style="font-size:10px;color:var(--text3)">등락률</div><div id="wl-auto-chg"  style="font-size:13px;font-weight:600">—</div></div>
+          <div><div style="font-size:10px;color:var(--text3)">시총</div>  <div id="wl-auto-cap"  style="font-size:13px;font-weight:600">—</div></div>
+          <div><div style="font-size:10px;color:var(--text3)">PER</div>   <div id="wl-auto-per"  style="font-size:13px;font-weight:600">—</div></div>
+        </div>
+        <div id="wl-shares-hint" style="font-size:11px;color:var(--text3);margin-top:6px"></div>
+      </div>
+
+      <!-- 매수 목표 시총 ↔ 업사이드 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="background:var(--bg2);border-radius:8px;padding:10px 12px">
+          <div style="font-size:11px;color:var(--tg);font-weight:600;margin-bottom:8px">매수 목표 시총</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <div style="font-size:10px;color:var(--text3);margin-bottom:3px">주가 (원)</div>
+              <input type="number" class="form-input" id="wl-watch_price" value="${w.watch_price||''}"
+                placeholder="예: 60,000" oninput="syncWlWatchPrice('price',this.value)"
+                style="width:100%;box-sizing:border-box;font-size:12px">
+              <div id="wl-watch-cap-hint" style="font-size:10px;color:var(--tg);margin-top:3px"></div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--text3);margin-bottom:3px">시총 (억원)</div>
+              <input type="number" class="form-input" id="wl-watch_cap"
+                placeholder="억원" oninput="syncWlWatchPrice('cap',this.value)"
+                style="width:100%;box-sizing:border-box;font-size:12px">
+            </div>
+          </div>
+        </div>
+        <div style="background:var(--bg2);border-radius:8px;padding:10px 12px">
+          <div style="font-size:11px;color:var(--text3);font-weight:600;margin-bottom:8px">업사이드 목표 시총</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <div style="font-size:10px;color:var(--text3);margin-bottom:3px">주가 (원)</div>
+              <input type="number" class="form-input" id="wl-target_price" value="${w.target_price||''}"
+                placeholder="예: 100,000" oninput="syncWlPrice('price',this.value)"
+                style="width:100%;box-sizing:border-box;font-size:12px">
+              <div id="wl-target-cap-hint" style="font-size:10px;color:var(--text3);margin-top:3px"></div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--text3);margin-bottom:3px">시총 (억원)</div>
+              <input type="number" class="form-input" id="wl-target_cap"
+                placeholder="억원" oninput="syncWlPrice('cap',this.value)"
+                style="width:100%;box-sizing:border-box;font-size:12px">
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- 가격 기준 (시총↔주가 연동) -->
-      <div style="font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:6px">💰 매수 기준 · 목표</div>
-      <div id="wl-shares-hint" style="font-size:11px;color:var(--text3);margin-top:-6px"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
-        <div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">매수 목표가 (원) <span style="color:var(--tg)">← 이 가격대에 매수</span></div>
-          <input type="number" class="form-input" id="wl-watch_price" value="${w.watch_price||''}"
-            placeholder="예: 60000"
-            oninput="syncWlWatchPrice('price', this.value)"
-            style="width:100%;box-sizing:border-box">
-          <div id="wl-watch-cap-hint" style="font-size:10px;color:var(--text3);margin-top:2px"></div>
-        </div>
-        <div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">매수 목표 시총 (억원)</div>
-          <input type="number" class="form-input" id="wl-watch_cap"
-            placeholder="억원 단위"
-            oninput="syncWlWatchPrice('cap', this.value)"
-            style="width:100%;box-sizing:border-box">
-        </div>
-        <div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">업사이드 목표가 (원) <span style="color:var(--text3)">← 매도 목표</span></div>
-          <input type="number" class="form-input" id="wl-target_price" value="${w.target_price||''}"
-            placeholder="예: 100000"
-            oninput="syncWlPrice('price', this.value)"
-            style="width:100%;box-sizing:border-box">
-          <div id="wl-target-cap-hint" style="font-size:10px;color:var(--text3);margin-top:2px"></div>
-        </div>
-        <div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">업사이드 목표 시총 (억원)</div>
-          <input type="number" class="form-input" id="wl-target_cap"
-            placeholder="억원 단위"
-            oninput="syncWlPrice('cap', this.value)"
-            style="width:100%;box-sizing:border-box">
+      <!-- 보유중 전용 -->
+      <div id="wl-holding-section" style="display:${isHolding?'':'none'}">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          ${inp('avg_price','평균 매수가 (원)','','number')}
+          ${inp('quantity','보유 수량 (주)','','number')}
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-        ${inp('avg_price','평균 매수가 (원)','','number')}
-        ${inp('quantity','보유 수량 (주)','','number')}
-        ${inp('peer_per','업계 평균 PER','','number')}
+
+      <!-- 투자 근거 + 리스크 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        ${ta('thesis_1','💡 투자 근거','핵심 투자 이유')}
+        ${ta('risk_1','⚠️ 핵심 리스크','가장 큰 하방 리스크')}
       </div>
 
-      <!-- 밸류에이션 -->
-      <div style="font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:6px">📊 밸류에이션</div>
-      ${ta('valuation_note','밸류에이션 근거','예: DCF 기준 적정 시총 20조, 현재 15조로 25% 할인')}
-      ${inp('competitor','경쟁사','예: 할로자임, 아비타스')}
+      <!-- 상승 트리거 -->
+      ${inp('catalyst','⚡ 상승 트리거','예: 2025 Q2 FDA 임상 결과 발표')}
 
-      ${inp('catalyst','⚡ 주가 상승 트리거 (예정 이벤트)','예: 2025 Q2 FDA 임상 결과 발표')}
-
-      <!-- 투자포인트 -->
-      <div style="font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:6px">💡 핵심 투자포인트</div>
-      ${ta('thesis_1','투자포인트 1 (필수)','가장 핵심적인 투자 근거')}
-      ${ta('thesis_2','투자포인트 2','')}
-      ${ta('thesis_3','투자포인트 3','')}
-
-      <!-- 리스크 -->
-      <div style="font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:6px">⚠️ 리스크</div>
-      ${ta('risk_1','리스크 1 (필수)','가장 큰 하방 리스크')}
-      ${ta('risk_2','리스크 2','')}
-      ${ta('risk_3','리스크 3','')}
-
-      <!-- 논리 붕괴 -->
-      <div style="font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:6px">🚫 논리 붕괴 조건</div>
-      ${ta('break_condition','이 조건이 충족되면 즉시 매도 검토','예: 로슈 기술이전 계약 해지 or 경쟁 플랫폼 FDA 승인')}
-
-
-
-      <!-- 다음 확인 -->
-      <div style="font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:6px">📅 다음 확인 일정</div>
-      <div style="display:grid;grid-template-columns:160px 1fr;gap:10px">
-        ${inp('next_check_date','날짜','','date')}
-        ${inp('next_check_memo','확인할 내용','예: 2025 Q1 실적 발표 — 마일스톤 수령 여부 확인')}
-      </div>
-
-      <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:.5rem">
+      <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:.25rem">
         <button class="btn" onclick="document.getElementById('m-watchlist').remove()">취소</button>
         <button class="btn btn-primary" onclick="saveWatchlist(${id||'null'})">저장</button>
       </div>
