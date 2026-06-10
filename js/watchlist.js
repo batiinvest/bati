@@ -100,13 +100,13 @@ async function selectWatchlistStock(code, name, industry, market) {
     document.getElementById('wl-auto-price').textContent = m.price ? m.price.toLocaleString()+'원' : '—';
     document.getElementById('wl-auto-chg').innerHTML = m.price_change_rate != null
       ? `<span style="color:${chgColor(m.price_change_rate)}">${m.price_change_rate>0?'+':''}${m.price_change_rate.toFixed(2)}%</span>` : '—';
-    document.getElementById('wl-auto-cap').textContent = m.market_cap ? fmtEok(m.market_cap) : '—';
+    document.getElementById('wl-auto-cap').textContent = m.market_cap ? fmtEok(m.market_cap / 1e8) : '—';
     document.getElementById('wl-auto-per').textContent = m.per ? m.per.toFixed(1) : '—';
     document.getElementById('wl-auto-pbr').textContent = m.pbr ? m.pbr.toFixed(2) : '—';
 
     // 주식수 = 시총 / 현재가 (계산용 저장)
     if (m.market_cap && m.price) {
-      window._wlShares = Math.round(m.market_cap / m.price);
+      window._wlShares = Math.round(m.market_cap / m.price); // 원/원 = 주수
       document.getElementById('wl-shares-hint').textContent =
         `발행주식수 약 ${Math.round(window._wlShares/10000).toLocaleString()}만주 기준`;
     } else {
