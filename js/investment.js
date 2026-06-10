@@ -916,12 +916,24 @@ function _syncSfImHeight() {
   const sf = document.getElementById('sf-card');
   const im = document.getElementById('im-card');
   if (!sf || !im) return;
-  // 높이 초기화 후 자연 높이 측정
+
+  // 행 높이 초기화 → 자연 높이 측정
+  const sfBody = document.getElementById('sf-body');
+  if (sfBody) Array.from(sfBody.children).forEach(r => r.style.minHeight = '');
+
   sf.style.height = '';
   im.style.height = '';
+
   const h = Math.max(sf.offsetHeight, im.offsetHeight);
   sf.style.height = h + 'px';
   im.style.height = h + 'px';
+
+  // sf가 짧을 때: 각 행 높이를 균등 분배해 빈 여백 제거
+  if (sfBody && sfBody.children.length > 0) {
+    const availH = sfBody.offsetHeight;
+    const perRow = Math.floor(availH / sfBody.children.length);
+    Array.from(sfBody.children).forEach(r => r.style.minHeight = perRow + 'px');
+  }
 }
 
 
