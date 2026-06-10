@@ -1,5 +1,5 @@
 // chart-uskr.js — US vs KR 산업 비교 차트
-// 의존: config.js (KR_INDUSTRIES, IND_COLORS), chart-industry.js (_krIndDates)
+// 의존: config.js (INDUSTRIES, IND_COLORS), chart-industry.js (_krIndDates)
 
 // ══════════════════════════════════════════════════════════════
 // 🌐 US vs KR 산업 비교 차트

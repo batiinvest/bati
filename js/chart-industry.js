@@ -1,5 +1,5 @@
 // chart-industry.js — KR 산업별 흐름 비교 차트
-// 의존: config.js (KR_INDUSTRIES, IND_COLORS, IND_DEFAULT_COLORS)
+// 의존: config.js (INDUSTRIES, IND_COLORS, IND_DEFAULT_COLORS)
 
 // ══════════════════════════════════════════
 //  📈 산업별 흐름 비교 차트

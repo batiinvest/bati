@@ -2,7 +2,6 @@
 async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const pw    = document.getElementById('login-pw').value;
-  const btn   = document.getElementById('login-btn');
   const err   = document.getElementById('login-err');
   err.classList.add('hidden');
 
@@ -11,33 +10,21 @@ async function doLogin() {
     err.classList.remove('hidden'); return;
   }
 
-  btn.disabled = true; btn.textContent = '로그인 중...';
-
-  try {
+  await withBtn('login-btn', '로그인 중...', async () => {
     const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
     console.log('[login] data:', data, 'error:', error);
     if (error) throw error;
-  } catch(e) {
+  }).catch(e => {
     console.error('[login error]', e);
-    const msg = e.message || JSON.stringify(e);
-    err.textContent = msg.includes('Invalid login')
-      ? '이메일 또는 비밀번호가 올바르지 않습니다.'
-      : msg.includes('Email not confirmed')
-      ? '이메일 인증이 필요합니다. Supabase에서 Confirm email을 OFF로 설정해주세요.'
-      : msg.includes('fetch')
-      ? 'Supabase 연결 실패 — SB_URL, SB_KEY를 확인해주세요.'
-      : msg;
+    err.textContent = parseAuthError(e);
     err.classList.remove('hidden');
-  } finally {
-    btn.disabled = false; btn.textContent = '로그인';
-  }
+  });
 }
 
 async function doSignup() {
   const name  = document.getElementById('signup-name').value.trim();
   const email = document.getElementById('signup-email').value.trim();
   const pw    = document.getElementById('signup-pw').value;
-  const btn   = document.getElementById('signup-btn');
   const err   = document.getElementById('signup-err');
   err.style.color = 'var(--red)';
   err.classList.add('hidden');
@@ -47,22 +34,15 @@ async function doSignup() {
     err.classList.remove('hidden'); return;
   }
 
-  btn.disabled = true; btn.textContent = '가입 중...';
-
-  try {
+  await withBtn('signup-btn', '가입 중...', async () => {
     const { data, error } = await sb.auth.signUp({
       email, password: pw, options: { data: { name } }
     });
     console.log('[signup] data:', data, 'error:', error);
     if (error) throw error;
 
-    // app_users에 viewer role로 등록
     if (data?.user?.id) {
-      await sb.from('app_users').upsert({
-        id:   data.user.id,
-        name: name,
-        role: 'viewer',
-      }, { onConflict: 'id' });
+      await sb.from('app_users').upsert({ id: data.user.id, name, role: 'viewer' }, { onConflict: 'id' });
     }
 
     err.style.color = 'var(--green)';
@@ -72,20 +52,11 @@ async function doSignup() {
       showLogin();
       document.getElementById('login-email').value = email;
     }, 1500);
-  } catch(e) {
+  }).catch(e => {
     console.error('[signup error]', e);
-    const msg = e.message || JSON.stringify(e);
-    err.textContent = msg.includes('already registered')
-      ? '이미 가입된 이메일입니다. 로그인을 시도해보세요.'
-      : msg.includes('fetch')
-      ? 'Supabase 연결 실패 — SB_URL, SB_KEY를 확인해주세요.'
-      : msg.includes('Database error')
-      ? 'DB 오류 — Supabase SQL Editor에서 fix_trigger.sql을 실행해주세요.'
-      : msg;
+    err.textContent = parseAuthError(e);
     err.classList.remove('hidden');
-  } finally {
-    btn.disabled = false; btn.textContent = '가입하기';
-  }
+  });
 }
 
 async function doLogout() {

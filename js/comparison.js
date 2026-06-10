@@ -638,7 +638,7 @@ async function runComparison() {
     drawCmpRadar(stockDataMap);
 
   } catch(e) {
-    el.innerHTML = `<div style="padding:1rem;color:var(--red)">${e.message}</div>`;
+    el.innerHTML = errorHTML(e.message);
     console.error('[비교분석]', e);
   }
 }

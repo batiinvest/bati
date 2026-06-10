@@ -283,7 +283,7 @@ function pNotice() {
 async function loadNotices() {
   const el = document.getElementById('notice-list'); if (!el) return;
   const { data, error } = await DB('notice_history').select('*').order('created_at',{ascending:false}).limit(30);
-  if (error) { el.innerHTML=`<div style="padding:1rem;color:var(--red);font-size:13px">${error.message}</div>`; return; }
+  if (error) { el.innerHTML = errorHTML(error.message); return; }
   el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>시각</th><th>발송자</th><th>대상</th><th>내용</th><th>발송</th><th>성공</th></tr></thead><tbody>
     ${!data.length?'<tr><td colspan="6" class="empty-row">발송 기록이 없습니다. 공지를 작성하고 발송하면 여기에 기록됩니다.</td></tr>':data.map(h=>`<tr>
       <td style="font-size:12px;color:var(--text1)">${new Date(h.created_at).toLocaleString('ko-KR')}</td>
@@ -303,7 +303,7 @@ function pLogs() {
 async function loadLogs() {
   const el = document.getElementById('log-list'); if (!el) return;
   const { data, error } = await DB('sync_logs').select('*').order('synced_at',{ascending:false}).limit(50);
-  if (error) { el.innerHTML=`<div style="padding:1rem;color:var(--red);font-size:13px">${error.message}</div>`; return; }
+  if (error) { el.innerHTML = errorHTML(error.message); return; }
   el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>시각</th><th>채팅방</th><th>이전</th><th>이후</th><th>변화</th></tr></thead><tbody>
     ${!data.length?'<tr><td colspan="5" class="empty-row">동기화 기록이 없습니다. 멤버 수 동기화를 실행하면 여기에 기록됩니다.</td></tr>':data.map(l=>{const d=l.after-l.before;return`<tr>
       <td style="font-size:12px;color:var(--text1)">${new Date(l.synced_at).toLocaleString('ko-KR')}</td>

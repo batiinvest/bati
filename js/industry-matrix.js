@@ -91,9 +91,7 @@ async function loadIndustryMatrix() {
     }
 
     // ── matrixRows 빌드 ───────────────────────────────────────────────────────
-    const KR_INDS = (typeof KR_INDUSTRIES !== 'undefined' ? KR_INDUSTRIES : null)
-                 || (typeof INDUSTRIES    !== 'undefined' ? INDUSTRIES    : null)
-                 || [];
+    const KR_INDS = INDUSTRIES;
 
     const matrixRows = rows
       .filter(r => KR_INDS.includes(r.industry))

@@ -422,7 +422,7 @@ function pInvestment() {
       </div>
       <!-- 산업 선택 (하나 선택 → KR+US 1:1 비교) -->
       <div style="padding:.5rem 1rem;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-        ${KR_INDUSTRIES.map((ind,i)=>`
+        ${INDUSTRIES.map((ind,i)=>`
           <button class="chip ${i===0?'active':''}" id="uskr-btn-${ind}"
             onclick="selectUskrInd('${ind}')"
             style="font-size:12px;padding:3px 10px">${ind}</button>

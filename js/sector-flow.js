@@ -5,7 +5,7 @@
  * 이전: market_data 직접 집계 (복잡한 페이지네이션 + 인라인 연산)
  * 현재: 사전집계 테이블 단순 조회 → 렌더링만 담당
  *
- * 의존: sb, fmtNet, KR_INDUSTRIES, IND_COLORS (config.js)
+ * 의존: sb, fmtNet, INDUSTRIES, IND_COLORS (config.js)
  */
 
 let _sfPeriod = 5;
@@ -116,9 +116,7 @@ function renderSectorFlow() {
   const typeConfig = _SF_TYPES[_sfType] || _SF_TYPES.combined;
   const key        = `d${_sfPeriod}`;
 
-  const KR_INDS = (typeof KR_INDUSTRIES !== 'undefined' ? KR_INDUSTRIES : null)
-               || (typeof INDUSTRIES    !== 'undefined' ? INDUSTRIES    : null)
-               || [];
+  const KR_INDS = INDUSTRIES;
 
   const entries = KR_INDS
     .filter(ind => sectorMap[ind])

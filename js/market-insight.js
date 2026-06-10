@@ -24,7 +24,7 @@
  *   window._krIndDates        (chart-industry.js)
  *   window._allMarketRows     (market-overview.js)
  *   window.USKR_MAP           (chart-uskr.js)
- *   window.KR_INDUSTRIES      (config.js)
+ *   window.INDUSTRIES      (config.js)
  *   sb                        (config.js)
  */
 
@@ -69,7 +69,7 @@ async function buildInsightData() {
       const latestDate = dates[0];
       const latest = usRows.filter(r => r.base_date === latestDate);
       const uskrMap = window.USKR_MAP || {};
-      KR_INDUSTRIES.forEach(ind => {
+      INDUSTRIES.forEach(ind => {
         const tickers = uskrMap[ind] || [];
         const d1Vals  = latest
           .filter(r => r.industry === ind && tickers.includes(r.ticker) && r.chg_pct != null)
@@ -82,7 +82,7 @@ async function buildInsightData() {
 
   // KR 업종별 기간 수익률
   const krPeriod = {};
-  KR_INDUSTRIES.forEach(ind => {
+  INDUSTRIES.forEach(ind => {
     const dates = Object.keys(indDates[ind] || {}).sort();
     const calcReturn = (days) => {
       const slice = dates.slice(-days);
@@ -143,12 +143,12 @@ function analyzeMarket({ m, krR, krPeriod, usIndAvg }) {
   const usStrong  = usSorted.filter(([,v]) => v.d1 >= THR.STRONG).map(([ind]) => ind);
   const usWeak    = usSorted.filter(([,v]) => v.d1 <= THR.WEAK  ).map(([ind]) => ind);
 
-  const krSorted  = KR_INDUSTRIES
+  const krSorted  = INDUSTRIES
     .filter(ind => krPeriod[ind]?.d1 != null)
     .sort((a,b) => (krPeriod[b]?.d1 ?? 0) - (krPeriod[a]?.d1 ?? 0));
 
   const krRank1d = krSorted.map((ind,i) => ({ ind, rank: i+1 }));
-  const krSorted5d = KR_INDUSTRIES
+  const krSorted5d = INDUSTRIES
     .filter(ind => krPeriod[ind]?.d5 != null)
     .sort((a,b) => (krPeriod[b]?.d5 ?? 0) - (krPeriod[a]?.d5 ?? 0));
   const krRank5dMap = {};
@@ -164,7 +164,7 @@ function analyzeMarket({ m, krR, krPeriod, usIndAvg }) {
   });
 
   const crossSignals = [];
-  KR_INDUSTRIES.forEach(ind => {
+  INDUSTRIES.forEach(ind => {
     const usChg = usIndAvg[ind]?.d1 ?? null;
     const krChg = krPeriod[ind]?.d1 ?? null;
     if (usChg == null || krChg == null) return;
@@ -205,34 +205,33 @@ window._insightSaveDB = async function() {
 
   if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
 
-  try {
-    const record = {
-      market_date:       data.market_date,
-      market_type:       'KR',
-      one_line_summary:  data.one_line_summary,
-      flow_summary:      JSON.stringify(data.flow    || {}),
-      key_points:        JSON.stringify(data.key_points   || []),
-      risk_factors:      JSON.stringify(data.risk_factors || []),
-      watch_events:      JSON.stringify(data.watch_events || []),
-      strong_industries: JSON.stringify((data.flow?.strong_industries) || []),
-      weak_industries:   JSON.stringify((data.flow?.weak_industries)   || []),
-      top_stocks:        JSON.stringify([]),
-      data_basis:        data.data_basis || '',
-      generated_at:      new Date().toISOString(),
-    };
+  const record = {
+    market_date:       data.market_date,
+    market_type:       'KR',
+    one_line_summary:  data.one_line_summary,
+    flow_summary:      JSON.stringify(data.flow    || {}),
+    key_points:        JSON.stringify(data.key_points   || []),
+    risk_factors:      JSON.stringify(data.risk_factors || []),
+    watch_events:      JSON.stringify(data.watch_events || []),
+    strong_industries: JSON.stringify((data.flow?.strong_industries) || []),
+    weak_industries:   JSON.stringify((data.flow?.weak_industries)   || []),
+    top_stocks:        JSON.stringify([]),
+    data_basis:        data.data_basis || '',
+    generated_at:      new Date().toISOString(),
+  };
 
+  try {
     const { error } = await sb
       .from('market_investment_summary')
       .upsert(record, { onConflict: 'market_date,market_type' });
-
     if (error) throw error;
 
     if (btn) { btn.textContent = '✅ 저장됨'; btn.style.color = 'var(--green)'; }
-    if (typeof toast === 'function') toast('투자포인트 요약이 DB에 저장되었습니다.', 'success');
+    toast('투자포인트 요약이 DB에 저장되었습니다.', 'success');
   } catch(e) {
     console.error('[Insight] 저장 실패:', e);
-    if (btn) { btn.textContent = 'DB 저장'; btn.disabled = false; }
-    if (typeof toast === 'function') toast('저장 실패: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'DB 저장'; }
+    toast('저장 실패: ' + e.message, 'error');
   }
 };
 

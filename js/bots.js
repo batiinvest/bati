@@ -201,7 +201,7 @@ async function loadBotStatus() {
       '</tr>').join('') +
     '</tbody></table></div>';
   } catch(e) {
-    card.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:13px">조회 실패: ' + e.message + '</div>';
+    card.innerHTML = errorHTML('조회 실패: ' + e.message);
   }
 }
 
@@ -1029,7 +1029,7 @@ async function loadProMembers() {
     </table></div>`;
 
   } catch(e) {
-    listEl.innerHTML = `<div style="padding:1rem;color:var(--red);font-size:13px">조회 실패: ${e.message}</div>`;
+    listEl.innerHTML = errorHTML('조회 실패: ' + e.message);
   }
 }
 

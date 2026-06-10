@@ -540,7 +540,7 @@ async function loadTeam() {
 
   const { data, error } = await DB('app_users').select('*').order('created_at');
   if (error) {
-    el.innerHTML = `<div style="padding:1rem;color:var(--red);font-size:13px">${error.message}</div>`;
+    el.innerHTML = errorHTML(error.message);
     return;
   }
 

@@ -655,7 +655,7 @@ async function monApply() {
 //  🌐 US 종목 관리
 // ══════════════════════════════════════════
 
-// KR_INDUSTRIES — config.js에서 전역 정의
+// INDUSTRIES — config.js에서 전역 정의
 
 async function loadEtfMapUI() {
   const wrap = document.getElementById('etf-map-wrap');
@@ -667,21 +667,21 @@ async function loadEtfMapUI() {
     .order('industry').order('ticker');
 
   if (error) {
-    wrap.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:13px">오류: ' + error.message + '</div>';
+    wrap.innerHTML = errorHTML('오류: ' + error.message);
     return;
   }
 
   // 산업별 그룹핑
   const map = {};
-  KR_INDUSTRIES.forEach(ind => { map[ind] = []; });
+  INDUSTRIES.forEach(ind => { map[ind] = []; });
   (rows || []).forEach(r => {
     if (map[r.industry] && !map[r.industry].includes(r.ticker))
       map[r.industry].push(r.ticker);
   });
 
-  const rows_html = KR_INDUSTRIES.map((ind, idx) => {
+  const rows_html = INDUSTRIES.map((ind, idx) => {
     const tickers = map[ind] || [];
-    const isLast = idx === KR_INDUSTRIES.length - 1;
+    const isLast = idx === INDUSTRIES.length - 1;
     const border = isLast ? 'none' : '0.5px solid rgba(255,255,255,.08)';
     return `
     <div style="display:grid;grid-template-columns:100px 1fr;border-bottom:${border};align-items:start">

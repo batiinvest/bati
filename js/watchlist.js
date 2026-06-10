@@ -1,14 +1,4 @@
-﻿
-function fmtEok(eok) {  // 억 단위 입력 (config.js fmtCap은 원 단위)
-  // 억 단위 입력값을 보기 쉽게 변환
-  if (eok == null || isNaN(eok)) return '—';
-  if (eok >= 10000) {
-    const jo = Math.floor(eok / 10000);
-    const rem = Math.round(eok % 10000);
-    return rem > 0 ? `${jo}조 ${rem.toLocaleString()}억` : `${jo}조`;
-  }
-  return `${eok.toLocaleString()}억`;
-}
+﻿// fmtEok → config.js 참조
 
 function fmtPriceKr(price) {
   // 원 단위 주가를 보기 쉽게

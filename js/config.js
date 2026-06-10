@@ -113,6 +113,17 @@ function fmtCap(won) {
   return sign + eokVal.toFixed(1) + '억';
 }
 
+// 억 단위 입력값 표시 (예: 15000 → "1조 5,000억") — fmtCap의 억 단위 버전
+function fmtEok(eok) {
+  if (eok == null || isNaN(eok)) return '—';
+  if (eok >= 10000) {
+    const jo  = Math.floor(eok / 10000);
+    const rem = Math.round(eok % 10000);
+    return rem > 0 ? `${jo}조 ${rem.toLocaleString()}억` : `${jo}조`;
+  }
+  return `${eok.toLocaleString()}억`;
+}
+
 // 등락률 색상 — 한국 주식 관행 (상승=빨강, 하락=파랑)
 const chgColor = v => v > 0 ? 'var(--red)' : v < 0 ? 'var(--blue)' : 'var(--text3)';
 
@@ -241,21 +252,49 @@ async function triggerBotReload() {
 
 async function requestBotReload(btnId = 'reload-btn') {
   if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
-  const btn = document.getElementById(btnId);
-  const origHTML = btn?.innerHTML;
-  if (btn) { btn.disabled = true; btn.textContent = '전송 중...'; }
-  try {
-    await triggerBotReload();
-    toast('✓ 재로드 요청 전송 완료 — 봇이 1분 내 반영합니다', 'success');
-  } catch(e) {
-    toast('전송 실패: ' + e.message, 'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = origHTML; }
-  }
+  await withBtn(btnId, '전송 중...', triggerBotReload)
+    .then(() => toast('✓ 재로드 요청 전송 완료 — 봇이 1분 내 반영합니다', 'success'))
+    .catch(e => toast('전송 실패: ' + e.message, 'error'));
 }
 
-// ── KR 산업 목록 (단일 정의 — 전 파일에서 이 상수를 참조할 것) ──
-const KR_INDUSTRIES = INDUSTRIES;  // alias — 동일 11개 산업, INDUSTRIES를 단일 소스로 사용
+// ══════════════════════════════════════════
+//  공통 UI 헬퍼
+// ══════════════════════════════════════════
+
+/**
+ * 버튼 로딩 상태 관리 — 작업 중 비활성화, 완료/실패 시 원복
+ * 사용: await withBtn('btn-id', '처리 중...', async () => { ... })
+ */
+async function withBtn(btnId, loadingText, fn) {
+  const btn = document.getElementById(btnId);
+  const orig = btn?.innerHTML;
+  if (btn) { btn.disabled = true; btn.textContent = loadingText; }
+  try { return await fn(); }
+  finally { if (btn) { btn.disabled = false; btn.innerHTML = orig; } }
+}
+
+/**
+ * 컨테이너 로딩 → 실행 → 에러 처리 패턴 공통화
+ * 사용: await withLoad('el-id', async el => { el.innerHTML = ...; })
+ */
+async function withLoad(elId, fn) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.innerHTML = loadingHTML();
+  try { await fn(el); }
+  catch(e) { el.innerHTML = errorHTML(e.message); }
+}
+
+/** Supabase auth 에러 메시지 한국어 변환 */
+function parseAuthError(e) {
+  const msg = e.message || JSON.stringify(e);
+  if (msg.includes('Invalid login'))      return '이메일 또는 비밀번호가 올바르지 않습니다.';
+  if (msg.includes('Email not confirmed')) return '이메일 인증이 필요합니다. Supabase에서 Confirm email을 OFF로 설정해주세요.';
+  if (msg.includes('already registered')) return '이미 가입된 이메일입니다. 로그인을 시도해보세요.';
+  if (msg.includes('fetch'))              return 'Supabase 연결 실패 — SB_URL, SB_KEY를 확인해주세요.';
+  if (msg.includes('Database error'))     return 'DB 오류 — Supabase SQL Editor에서 fix_trigger.sql을 실행해주세요.';
+  return msg;
+}
 
 // ── KR 산업별 색상 (단일 정의) ──
 // 주의: IND_COLORS(산업 흐름 차트용)와 KR_IND_COLORS(US vs KR 비교용)를 통합
