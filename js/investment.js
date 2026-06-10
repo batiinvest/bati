@@ -143,10 +143,10 @@ function pInvestment() {
     </div>
 
     <!-- 그리드 컨테이너 -->
-    <div id="sf-im-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;align-items:start">
+    <div id="sf-im-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;align-items:stretch">
 
       <!-- 섹터 수급 트렌드 -->
-      <div id="sf-card" class="card" style="margin-bottom:0">
+      <div id="sf-card" class="card" style="margin-bottom:0;display:flex;flex-direction:column">
         <div class="card-header" style="flex-wrap:wrap;gap:6px">
           <span class="card-title">${_ICO.shuffle}섹터 수급 트렌드</span>
           <span style="font-size:10px;color:var(--text3)" id="sf-date"></span>
@@ -167,13 +167,13 @@ function pInvestment() {
         <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px" id="sf-desc">
           외국인+기관 스마트머니 (KR 전체 종목 기준)
         </div>
-        <div id="sf-body" style="padding:.25rem 0">
+        <div id="sf-body" style="padding:.25rem 0;flex:1;overflow-y:auto">
           ${_skelList(12, true)}
         </div>
       </div>
 
       <!-- 산업 강도 매트릭스 -->
-      <div id="im-card" class="card" style="margin-bottom:0">
+      <div id="im-card" class="card" style="margin-bottom:0;display:flex;flex-direction:column">
         <div class="card-header" style="flex-wrap:wrap;gap:6px">
           <span class="card-title">${_ICO.grid}산업 강도 매트릭스</span>
           <span style="font-size:10px;color:var(--text3)" id="im-date"></span>
@@ -187,7 +187,7 @@ function pInvestment() {
         <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px">
           미국이 먼저 움직이면 한국이 따라온다 — US·KR 섹터 성과 비교 및 선행 신호 탐지
         </div>
-        <div id="im-body">
+        <div id="im-body" style="flex:1;overflow-y:auto">
           ${_skelList(11, true)}
         </div>
       </div>
