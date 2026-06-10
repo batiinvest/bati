@@ -211,7 +211,7 @@ async function loadWatchlist() {
       <th style="${thStyle}">현재가</th>
       <th style="${thStyle}">시총</th>
       <th style="${thStyle}">매수 목표 시총</th>
-      <th style="${thStyle}">업사이드 목표</th>
+      <th style="${thStyle}">업사이드</th>
       <th style="${thStyle}">투자포인트</th>
       <th style="${thStyle}"></th>
     </tr>`;
@@ -245,13 +245,17 @@ async function loadWatchlist() {
       buyCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
     }
 
-    // ── 업사이드 목표 (target_price 기준) ────────────────────────────────
-    const tgtCapEok = (w.target_price && shares) ? Math.round(w.target_price * shares / 1e8) : null;
-    const upside    = (w.target_price && price) ? ((w.target_price - price) / price * 100) : null;
+    // ── 업사이드 (target_price 기준, 현재 대비) ──────────────────────────
+    const tgtCapEok  = (w.target_price && shares) ? Math.round(w.target_price * shares / 1e8) : null;
+    const upsidePct  = (w.target_price && price)  ? ((w.target_price - price) / price * 100)  : null;
+    const upsideMult = (tgtCapEok && capEok)       ? (tgtCapEok / capEok)                      : null;
     let tgtCell;
     if (tgtCapEok) {
+      const pctStr  = upsidePct  != null ? `${upsidePct>0?'+':''}${upsidePct.toFixed(0)}%`   : '';
+      const multStr = upsideMult != null ? `${upsideMult.toFixed(1)}배` : '';
+      const color   = upsidePct > 0 ? 'var(--tg)' : 'var(--red)';
       tgtCell = `<div style="font-size:13px;font-weight:600">${fmtEok(tgtCapEok)}</div>
-                 ${upside != null ? `<div style="font-size:11px;color:${upside>0?'var(--tg)':'var(--red)'}">${upside>0?'▲':'▼'} ${Math.abs(upside).toFixed(1)}%</div>` : ''}`;
+                 <div style="font-size:11px;color:${color}">${pctStr}${multStr ? ' · '+multStr : ''}</div>`;
     } else {
       tgtCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
     }
