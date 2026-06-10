@@ -208,7 +208,8 @@ async function loadWatchlist() {
   const header = `
     <tr>
       <th style="${thStyle}">종목</th>
-      <th style="${thStyle}">현재가 / 시총</th>
+      <th style="${thStyle}">현재가</th>
+      <th style="${thStyle}">시총</th>
       <th style="${thStyle}">매수 목표 시총</th>
       <th style="${thStyle}">업사이드 목표</th>
       <th style="${thStyle}">투자포인트</th>
@@ -278,7 +279,9 @@ async function loadWatchlist() {
       <td style="${tdStyle}">
         <div style="font-size:13px;font-weight:700">${price ? price.toLocaleString()+'원' : '—'}</div>
         <div style="font-size:11px;color:${chgColor(chg)}">${chg!=null?(chg>0?'+':'')+chg.toFixed(2)+'%':''}</div>
-        ${capEok ? `<div style="font-size:11px;color:var(--text3)">${fmtEok(capEok)}</div>` : ''}
+      </td>
+      <td style="${tdStyle}">
+        <div style="font-size:13px;font-weight:600">${capEok ? fmtEok(capEok) : '—'}</div>
       </td>
       <td style="${tdStyle}">${buyCell}</td>
       <td style="${tdStyle}">${tgtCell}</td>
