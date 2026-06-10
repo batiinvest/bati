@@ -167,68 +167,66 @@ function renderIndustryMatrix() {
       `${s.icon} ${s.label} <b>${sigCount[k]}</b></span>`)
     .join('');
 
-  // ── 양방향 퍼포먼스 바 (음수=왼쪽, 양수=오른쪽, 중앙선 기준) ─────────────
+  // ── 양방향 퍼포먼스 바 (compact: flag 생략, 바+값만) ─────────────────────
   function perfBar(v, flag) {
     const c   = _imColor(v);
-    const pct = v != null ? Math.min(Math.abs(v) / maxAbs * 50, 50) : 0; // 전체 너비의 50%가 최대
+    const pct = v != null ? Math.min(Math.abs(v) / maxAbs * 50, 50) : 0;
     const val = v != null ? (v >= 0 ? '+' : '') + v.toFixed(1) + '%' : '—';
     const isPos = v != null && v >= 0;
     return (
-      `<div style="display:flex;align-items:center;gap:5px">` +
-        `<span style="font-size:10px;color:var(--text3);width:20px;flex-shrink:0">${flag}</span>` +
-        `<div style="flex:1;height:8px;border-radius:3px;position:relative;background:rgba(255,255,255,.07);overflow:hidden">` +
+      `<div style="display:flex;align-items:center;gap:4px;min-width:0">` +
+        `<span style="font-size:9px;color:var(--text3);flex-shrink:0">${flag}</span>` +
+        `<div style="flex:1;height:6px;border-radius:2px;position:relative;background:rgba(255,255,255,.07);overflow:hidden">` +
           `<div style="position:absolute;top:0;height:100%;width:${pct}%;` +
-               `background:${c.txt};border-radius:3px;transition:width .4s ease;` +
-               `${isPos ? 'left:50%' : `right:${50}%;`}"></div>` +
-          `<div style="position:absolute;top:0;left:50%;width:1px;height:100%;background:rgba(255,255,255,.25)"></div>` +
+               `background:${c.txt};border-radius:2px;transition:width .4s ease;` +
+               `${isPos ? 'left:50%' : 'right:50%;'}"></div>` +
+          `<div style="position:absolute;top:0;left:50%;width:1px;height:100%;background:rgba(255,255,255,.2)"></div>` +
         `</div>` +
-        `<span style="font-size:11px;font-weight:600;color:${c.txt};min-width:38px;text-align:right;` +
-              `font-variant-numeric:tabular-nums">${val}</span>` +
+        `<span style="font-size:10px;font-weight:600;color:${c.txt};width:34px;text-align:right;` +
+              `font-variant-numeric:tabular-nums;flex-shrink:0">${val}</span>` +
       `</div>`
     );
   }
 
-  // ── 각 행 ─────────────────────────────────────────────────────────────────
+  // ── 각 행 (compact: tip 제거, US/KR 2열 나란히) ───────────────────────────
   const rowsHtml = rows.map(r => {
     const usV = r[usK];
     const krV = r[krK];
     const sig = r.sig[p];
     const indColor = ((typeof IND_COLORS !== 'undefined' ? IND_COLORS : null) || {})[r.ind] || '#a8adc4';
 
-    // Δ 스프레드: US - KR, 맥락 레이블로 명확화
+    // Δ 스프레드
     const sp = (usV != null && krV != null) ? usV - krV : null;
     let spHtml = '';
     if (sp != null && Math.abs(sp) >= 0.3) {
       const spColor = sp > 0 ? '#2dce89' : '#f5365c';
       const spLabel = sp > 0 ? 'US↑KR미반영' : 'KR↑US대비';
       spHtml =
-        `<span style="font-size:9px;color:${spColor};margin-left:6px;` +
-        `background:${spColor}18;border-radius:3px;padding:1px 5px;white-space:nowrap">` +
+        `<span style="font-size:9px;color:${spColor};margin-left:5px;` +
+        `background:${spColor}18;border-radius:3px;padding:1px 4px;white-space:nowrap">` +
         `${spLabel} ${sp > 0 ? '+' : ''}${sp.toFixed(1)}%</span>`;
     }
 
-    // 신호 배지 + 인라인 설명 (모바일 hover 불가 대응)
+    // 신호 배지 (tip 텍스트 제거 — 높이 절감)
     const sigBadge = sig
-      ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0">` +
-          `<span style="font-size:10px;font-weight:700;color:${sig.color};` +
-          `background:${sig.color}1a;border-radius:4px;padding:2px 8px;white-space:nowrap">` +
-          `${sig.icon} ${sig.label}</span>` +
-          `<span style="font-size:9px;color:var(--text3);text-align:right;line-height:1.3;max-width:130px">` +
-          `${sig.tip}</span>` +
-        `</div>`
-      : `<span style="font-size:10px;color:var(--text3);padding:2px 8px;flex-shrink:0">— 중립</span>`;
+      ? `<span style="font-size:10px;font-weight:700;color:${sig.color};` +
+          `background:${sig.color}1a;border-radius:4px;padding:2px 7px;white-space:nowrap;flex-shrink:0">` +
+          `${sig.icon} ${sig.label}</span>`
+      : `<span style="font-size:10px;color:var(--text3);flex-shrink:0">—</span>`;
 
     return (
-      `<div style="padding:8px 12px;border-bottom:1px solid var(--border)">` +
-        `<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">` +
-          `<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-width:0">` +
-            `<span style="width:7px;height:7px;border-radius:50%;background:${indColor};flex-shrink:0"></span>` +
-            `<span style="font-size:12px;font-weight:700;color:var(--text1)">${r.ind}</span>` +
+      `<div style="padding:5px 12px;border-bottom:1px solid var(--border)">` +
+        // 1줄: 섹터명 + 스프레드 + 신호배지
+        `<div style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:4px">` +
+          `<div style="display:flex;align-items:center;gap:4px;min-width:0;flex:1;overflow:hidden">` +
+            `<span style="width:6px;height:6px;border-radius:50%;background:${indColor};flex-shrink:0"></span>` +
+            `<span style="font-size:11px;font-weight:700;color:var(--text1);white-space:nowrap">${r.ind}</span>` +
             spHtml +
           `</div>` +
           sigBadge +
         `</div>` +
-        `<div style="display:flex;flex-direction:column;gap:4px">` +
+        // 2줄: US / KR 바 나란히
+        `<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">` +
           perfBar(usV, '🇺🇸') +
           perfBar(krV, '🇰🇷') +
         `</div>` +
