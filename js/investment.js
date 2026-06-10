@@ -913,14 +913,14 @@ window.addEventListener('resize', () => { _initSfImLayout(); _syncSfImHeight(); 
 // ── 두 카드 높이 동기화 ────────────────────────────────────────────────────────
 function _syncSfImHeight() {
   if (window.innerWidth < 768) return;          // 모바일 탭 모드는 불필요
-  const sf = document.getElementById('sf-card');
-  const im = document.getElementById('im-card');
-  if (!sf || !im) return;
-
-  // 행 높이 초기화 → 자연 높이 측정
+  const sf     = document.getElementById('sf-card');
+  const im     = document.getElementById('im-card');
   const sfBody = document.getElementById('sf-body');
-  if (sfBody) Array.from(sfBody.children).forEach(r => r.style.minHeight = '');
+  if (!sf || !im || !sfBody) return;
 
+  // 초기화 → 자연 높이 측정
+  Array.from(sfBody.children).forEach(r => r.style.minHeight = '');
+  sfBody.style.height = '';
   sf.style.height = '';
   im.style.height = '';
 
@@ -928,10 +928,10 @@ function _syncSfImHeight() {
   sf.style.height = h + 'px';
   im.style.height = h + 'px';
 
-  // sf가 짧을 때: 각 행 높이를 균등 분배해 빈 여백 제거
-  if (sfBody && sfBody.children.length > 0) {
-    const availH = sfBody.offsetHeight;
-    const perRow = Math.floor(availH / sfBody.children.length);
+  // sf-body가 채워야 할 높이 = 카드 하단 - sf-body 상단
+  const bodyAvail = sf.getBoundingClientRect().bottom - sfBody.getBoundingClientRect().top;
+  if (bodyAvail > 0 && sfBody.children.length > 0) {
+    const perRow = Math.floor(bodyAvail / sfBody.children.length);
     Array.from(sfBody.children).forEach(r => r.style.minHeight = perRow + 'px');
   }
 }
