@@ -1,4 +1,4 @@
-/**
+﻿/**
  * market-insight.js — 투자포인트 요약 엔진 v2
  *
  * 흐름:
@@ -482,7 +482,7 @@ function _renderInsightCard(data) {
       <div class="insight-row-label">국내</div>
       <div class="insight-row-val">
         코스피 <span style="color:${chgColor(f.kospi_chg)};font-weight:600">${_fmt(f.kospi_chg)}</span>
-        <span style="color:var(--text3)">|</span>
+        <span style="color:var(--text2)">|</span>
         코스닥 <span style="color:${chgColor(f.kosdaq_chg)};font-weight:600">${_fmt(f.kosdaq_chg)}</span>
       </div>
     </div>
@@ -490,9 +490,9 @@ function _renderInsightCard(data) {
       <div class="insight-row-label">미국</div>
       <div class="insight-row-val">
         S&P <span style="color:${chgColor(f.sp500_chg)};font-weight:600">${_fmt(f.sp500_chg)}</span>
-        <span style="color:var(--text3)">|</span>
+        <span style="color:var(--text2)">|</span>
         NDX <span style="color:${chgColor(f.nasdaq_chg)};font-weight:600">${_fmt(f.nasdaq_chg)}</span>
-        ${f.vix != null ? `<span style="color:var(--text3)">|</span> VIX <span style="color:${vixColor};font-weight:600">${Number(f.vix).toFixed(0)}</span>` : ''}
+        ${f.vix != null ? `<span style="color:var(--text2)">|</span> VIX <span style="color:${vixColor};font-weight:600">${Number(f.vix).toFixed(0)}</span>` : ''}
       </div>
     </div>
     ${indTagsHTML ? `
@@ -536,14 +536,14 @@ function _renderInsightCard(data) {
     ${(data.watch_events || []).map(text => `
       <div class="insight-event-row">
         <span class="insight-risk-icon">${text.slice(0,2)}</span>
-        <span style="font-size:13px;color:var(--text2)">${text.slice(2).trim()}</span>
+        <span style="font-size:13px;color:var(--text1)">${text.slice(2).trim()}</span>
       </div>`).join('')}
   </div>`;
 
   // ─── 섹션 5: 한 줄 요약 ─────────────────────────────────────────────────
   const sec5 = `
   <div class="insight-oneliner">
-    <div style="font-size:11px;color:var(--text3);font-weight:600;margin-bottom:5px;letter-spacing:.05em">한 줄 요약</div>
+    <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:5px;letter-spacing:.05em">한 줄 요약</div>
     <div style="font-size:14px;font-weight:600;color:var(--text);line-height:1.55">
       ${data.one_line_summary || '—'}
     </div>
@@ -558,18 +558,18 @@ function _renderInsightCard(data) {
     ${data.generated_by === 'live' ? `
     <button id="insight-save-btn" onclick="window._insightSaveDB()"
       style="font-size:10px;padding:2px 9px;border-radius:4px;border:1px solid var(--border);
-             background:var(--bg3);color:var(--text2);cursor:pointer">
+             background:var(--bg3);color:var(--text1);cursor:pointer">
       DB 저장
     </button>` : ''}
     <button onclick="loadMarketInsight(true)"
       style="font-size:10px;padding:2px 9px;border-radius:4px;border:1px solid var(--border);
-             background:var(--bg3);color:var(--text2);cursor:pointer">
+             background:var(--bg3);color:var(--text1);cursor:pointer">
       재생성
     </button>
   </div>` : '';
 
   const footer = `
-  <div style="text-align:right;font-size:10px;color:var(--text3);margin-top:6px">
+  <div style="text-align:right;font-size:10px;color:var(--text2);margin-top:6px">
     ${source} · ${data.data_basis || ''}
   </div>
   ${adminBtns}`;
@@ -584,7 +584,7 @@ function _renderInsightCard(data) {
 async function loadInsightHistory() {
   const el = document.getElementById('insight-history-body');
   if (!el) return;
-  el.innerHTML = `<div style="color:var(--text3);font-size:12px;padding:.5rem 0"><span class="loading"></span> 불러오는 중...</div>`;
+  el.innerHTML = `<div style="color:var(--text2);font-size:12px;padding:.5rem 0"><span class="loading"></span> 불러오는 중...</div>`;
 
   try {
     const { data, error } = await sb.from('market_investment_summary')
@@ -595,7 +595,7 @@ async function loadInsightHistory() {
 
     if (error) throw error;
     if (!data || !data.length) {
-      el.innerHTML = `<div style="color:var(--text3);font-size:12px;padding:.5rem 0">저장된 기록이 없습니다.</div>`;
+      el.innerHTML = `<div style="color:var(--text2);font-size:12px;padding:.5rem 0">저장된 기록이 없습니다.</div>`;
       return;
     }
 
@@ -615,7 +615,7 @@ async function loadInsightHistory() {
         ? `<span style="color:${chgColor(flow.kospi_chg)};font-weight:600">${flow.kospi_chg >= 0 ? '+' : ''}${Number(flow.kospi_chg).toFixed(1)}%</span>`
         : '';
       const vixStr    = flow.vix != null
-        ? `<span style="color:var(--text3)">VIX ${Number(flow.vix).toFixed(0)}</span>`
+        ? `<span style="color:var(--text2)">VIX ${Number(flow.vix).toFixed(0)}</span>`
         : '';
 
       const isFirst = idx === 0;
@@ -640,13 +640,13 @@ async function loadInsightHistory() {
             ${kospiStr}
             ${vixStr}
           </div>
-          <div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:4px">
+          <div style="font-size:12px;color:var(--text1);line-height:1.5;margin-bottom:4px">
             ${row.one_line_summary || '—'}
           </div>
           ${kps.length ? `
           <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px">
             ${kps.slice(0, 3).map(kp =>
-              `<span style="font-size:10px;color:var(--text3);background:rgba(255,255,255,.04);
+              `<span style="font-size:10px;color:var(--text2);background:rgba(255,255,255,.04);
                 border:1px solid rgba(255,255,255,.07);border-radius:3px;padding:1px 6px;
                 white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px">${kp}</span>`
             ).join('')}
@@ -657,7 +657,7 @@ async function loadInsightHistory() {
 
   } catch(e) {
     console.error('[InsightHistory]', e);
-    el.innerHTML = `<div style="color:var(--text3);font-size:12px;padding:.5rem 0">기록 조회 실패: ${e.message}</div>`;
+    el.innerHTML = `<div style="color:var(--text2);font-size:12px;padding:.5rem 0">기록 조회 실패: ${e.message}</div>`;
   }
 }
 
@@ -672,7 +672,7 @@ async function loadMarketInsight(force = false) {
   const el = document.getElementById('market-insight-card');
   if (!el) return;
 
-  el.innerHTML = `<div style="padding:.5rem;color:var(--text3);font-size:12px">
+  el.innerHTML = `<div style="padding:.5rem;color:var(--text2);font-size:12px">
     <span class="loading"></span> ${force ? '재생성 중...' : '분석 중...'}</div>`;
 
   try {
@@ -689,7 +689,7 @@ async function loadMarketInsight(force = false) {
     _renderInsightCard(liveData);
   } catch(e) {
     console.error('[MarketInsight]', e);
-    el.innerHTML = `<div style="color:var(--text3);font-size:12px;padding:.5rem">
+    el.innerHTML = `<div style="color:var(--text2);font-size:12px;padding:.5rem">
       분석 데이터 준비 중... (장 마감 후 업데이트)</div>`;
   }
 }

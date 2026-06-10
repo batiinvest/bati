@@ -1,4 +1,4 @@
-// rooms.js — 채팅방 CRUD, 공지 발송, 팀원 관리
+﻿// rooms.js — 채팅방 CRUD, 공지 발송, 팀원 관리
 
 // 산업별 이모지 — autoGenIntro / autoGenNotice 공용
 const IND_EMOJI_MAP = {
@@ -503,7 +503,7 @@ async function testBot() {
 //  TEAM MANAGEMENT
 // ══════════════════════════════════════════
 function pTeam() {
-  if (!isAdmin()) return `<div style="padding:2rem;text-align:center;color:var(--text3);font-size:13px">admin만 접근 가능합니다.</div>`;
+  if (!isAdmin()) return `<div style="padding:2rem;text-align:center;color:var(--text2);font-size:13px">admin만 접근 가능합니다.</div>`;
   return `
   <div style="max-width:720px">
     <!-- 역할 설명 카드 -->
@@ -515,7 +515,7 @@ function pTeam() {
       ].map(r => `
       <div style="background:${r.bg};border:1px solid var(--border);border-radius:var(--radius);padding:1rem">
         <div style="font-size:13px;font-weight:600;color:${r.color};margin-bottom:.5rem">${r.label}</div>
-        ${r.perms.map(p => `<div style="font-size:11px;color:var(--text2);padding:2px 0;display:flex;gap:5px;align-items:center">
+        ${r.perms.map(p => `<div style="font-size:11px;color:var(--text1);padding:2px 0;display:flex;gap:5px;align-items:center">
           <span style="width:4px;height:4px;border-radius:50%;background:${r.color};flex-shrink:0"></span>${p}
         </div>`).join('')}
       </div>`).join('')}
@@ -528,7 +528,7 @@ function pTeam() {
         <button class="btn btn-sm" onclick="loadTeam()">새로고침</button>
       </div>
       <div id="team-list" style="padding:.5rem 0">
-        <div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>
+        <div style="padding:1.5rem;text-align:center;color:var(--text2)"><span class="loading"></span></div>
       </div>
     </div>
   </div>`;
@@ -569,11 +569,11 @@ async function loadTeam() {
           ${u.name || '—'}
           ${isMe ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:rgba(42,171,238,.15);color:var(--tg)">나</span>` : ''}
         </div>
-        <div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.email}</div>
+        <div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.email}</div>
       </div>
 
       <!-- 마지막 로그인 -->
-      <div style="font-size:11px;color:var(--text3);text-align:right;min-width:90px;display:none" class="team-col-time">${lastLogin}</div>
+      <div style="font-size:11px;color:var(--text2);text-align:right;min-width:90px;display:none" class="team-col-time">${lastLogin}</div>
 
       <!-- 역할 배지 / 변경 -->
       <div style="flex-shrink:0">
@@ -595,7 +595,7 @@ async function loadTeam() {
       </div>
     </div>`;
   }).join('') +
-  `<div style="padding:.75rem 1rem;font-size:11px;color:var(--text3)">
+  `<div style="padding:.75rem 1rem;font-size:11px;color:var(--text2)">
     총 ${data.length}명 · 본인 역할은 변경 불가
   </div>`;
 

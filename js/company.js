@@ -1,4 +1,4 @@
-// company.js — 모니터링 종목 관리 페이지
+﻿// company.js — 모니터링 종목 관리 페이지
 // DB: companies (code, name, industry, sub_industry, is_monitored)
 
 // ── 변경사항 추적 ──────────────────────────────
@@ -21,13 +21,13 @@ function _renderMonitoringTab() {
     grid-template-columns:320px 1fr;gap:0;min-height:calc(100vh - 96px);align-items:start">
     <div style="border-right:1px solid var(--border);padding:1.25rem;position:sticky;top:45px;
       height:calc(100vh - 45px);overflow-y:auto;background:var(--bg2)">
-      <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:12px">🔍 기업 검색</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text1);margin-bottom:12px">🔍 기업 검색</div>
       <div style="position:relative;margin-bottom:8px">
         <input type="text" id="mon-search" class="form-input"
           placeholder="종목명 또는 코드..."
           oninput="monSearch(this.value)"
           style="width:100%;box-sizing:border-box;padding-left:32px">
-        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3)">🔍</span>
+        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text2)">🔍</span>
       </div>
       <div id="mon-search-results" style="margin-bottom:12px"></div>
       <div id="mon-add-panel" style="display:none;padding:12px;background:var(--bg3);border-radius:8px;margin-bottom:12px">
@@ -42,10 +42,10 @@ function _renderMonitoringTab() {
         <button class="btn btn-sm" style="width:100%;background:var(--tg);color:#fff" onclick="monAddSelected()">
           ✚ 모니터링에 추가
         </button>
-        <div id="mon-sel-label" style="font-size:11px;color:var(--text3);margin-top:6px;text-align:center"></div>
+        <div id="mon-sel-label" style="font-size:11px;color:var(--text2);margin-top:6px;text-align:center"></div>
       </div>
       <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
-      <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:10px">🏗 산업 추가</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text1);margin-bottom:10px">🏗 산업 추가</div>
       <div style="display:flex;gap:6px;margin-bottom:8px">
         <input type="text" id="mon-new-industry" class="form-input" placeholder="새 산업명..."
           style="flex:1;font-size:12px" onkeydown="if(event.key==='Enter')monAddIndustry()">
@@ -61,7 +61,7 @@ function _renderMonitoringTab() {
             background:rgba(255,193,7,0.15);color:#ffc107;border:1px solid rgba(255,193,7,0.3)">
             ● 미적용 변경사항
           </span>
-          <div style="font-size:12px;color:var(--text3)" id="mon-summary"></div>
+          <div style="font-size:12px;color:var(--text2)" id="mon-summary"></div>
           <button id="mon-apply-btn" onclick="monApply()"
             style="font-size:12px;font-weight:700;padding:6px 16px;border-radius:6px;
               border:none;cursor:pointer;background:var(--tg);color:#fff;
@@ -71,7 +71,7 @@ function _renderMonitoringTab() {
         </div>
       </div>
       <div id="mon-board">
-        <div style="color:var(--text3);font-size:13px;padding:40px;text-align:center"><span class="loading"></span> 로딩 중...</div>
+        <div style="color:var(--text2);font-size:13px;padding:40px;text-align:center"><span class="loading"></span> 로딩 중...</div>
       </div>
     </div>
   </div>`;
@@ -84,7 +84,7 @@ function _renderEtfTab() {
     <div class="card">
       <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span class="card-title">🌐 US 종목 관리</span>
-        <span style="font-size:12px;color:var(--text3)">KR 산업별 대응 US 종목 추가·삭제</span>
+        <span style="font-size:12px;color:var(--text2)">KR 산업별 대응 US 종목 추가·삭제</span>
         <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
           <span id="etf-dirty-badge" style="display:none;align-items:center;gap:4px;
             font-size:11px;padding:3px 8px;border-radius:100px;
@@ -101,7 +101,7 @@ function _renderEtfTab() {
       </div>
       <div class="card-body" style="padding:0">
         <div id="etf-map-wrap">
-          <div style="padding:1rem;color:var(--text3);font-size:13px">로딩 중...</div>
+          <div style="padding:1rem;color:var(--text2);font-size:13px">로딩 중...</div>
         </div>
       </div>
     </div>
@@ -149,7 +149,7 @@ function _collectionScheduleCard() {
     const items = schedules.filter(s => s.group === g);
     return `
     <div style="margin-bottom:1rem">
-      <div style="padding:6px 1rem;font-size:11px;font-weight:700;color:var(--text3);
+      <div style="padding:6px 1rem;font-size:11px;font-weight:700;color:var(--text2);
         letter-spacing:.08em;background:${groupColor[g]};border-radius:6px 6px 0 0;
         border:1px solid rgba(255,255,255,.06);border-bottom:none">
         ${groupLabel[g]}
@@ -165,7 +165,7 @@ function _collectionScheduleCard() {
             <div style="display:flex;align-items:center;gap:6px">
               ${s.badge ? `<span style="font-size:10px;padding:1px 6px;border-radius:3px;
                 background:rgba(245,54,92,.2);color:#f5365c;font-weight:700">${s.badge}</span>` : ''}
-              <span style="font-size:10px;color:var(--text3);font-family:monospace">${s.job}</span>
+              <span style="font-size:10px;color:var(--text2);font-family:monospace">${s.job}</span>
             </div>
           </div>
         `).join('')}
@@ -177,9 +177,9 @@ function _collectionScheduleCard() {
   <div class="card" style="margin-bottom:1rem">
     <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span class="card-title">📅 수집 스케줄</span>
-      <span style="font-size:12px;color:var(--text3)">평일 자동 실행 기준 · 주말/공휴일 자동 스킵</span>
-      <div style="margin-left:auto;font-size:11px;color:var(--text3)">
-        market_data 보존: 모니터링 <b style="color:var(--tg)">90일</b> / 전체 <b style="color:var(--text2)">28일</b>
+      <span style="font-size:12px;color:var(--text2)">평일 자동 실행 기준 · 주말/공휴일 자동 스킵</span>
+      <div style="margin-left:auto;font-size:11px;color:var(--text2)">
+        market_data 보존: 모니터링 <b style="color:var(--tg)">90일</b> / 전체 <b style="color:var(--text1)">28일</b>
       </div>
     </div>
     <div class="card-body">${rows}</div>
@@ -248,7 +248,7 @@ async function _monLoadBoard() {
     .order('name');
 
   if (!companies?.length) {
-    if (board) board.innerHTML = '<div style="color:var(--text3);padding:40px;text-align:center">모니터링 종목이 없습니다</div>';
+    if (board) board.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center">모니터링 종목이 없습니다</div>';
     return;
   }
   if (sumEl) sumEl.textContent = `총 ${companies.length}개 종목`;
@@ -285,14 +285,14 @@ function _renderIndustryCard(ind, subs) {
           onkeydown="if(event.key==='Enter')monAddSub('${ind.replace(/'/g,"\\'")}')">
         <button class="btn btn-sm" onclick="monAddSub('${ind.replace(/'/g,"\\'")}')">추가</button>
         <button class="btn btn-sm" onclick="monDeleteIndustry('${ind.replace(/'/g,"\\'")}')}"
-          style="color:var(--text3);background:none;border-color:var(--border)">✕</button>
+          style="color:var(--text2);background:none;border-color:var(--border)">✕</button>
       </div>
     </div>
     <div style="padding:.75rem 1rem 1.25rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px">
       ${subKeys.map(sub => _renderSubCard(ind, sub, subs[sub])).join('')}
       <div class="mon-drop-zone" data-industry="${ind}" data-sub=""
         style="border:2px dashed var(--border);border-radius:8px;padding:12px;min-height:60px;
-          text-align:center;color:var(--text3);font-size:11px;display:flex;align-items:center;justify-content:center">
+          text-align:center;color:var(--text2);font-size:11px;display:flex;align-items:center;justify-content:center">
         ＋ 서브섹터 없이 추가
       </div>
     </div>
@@ -311,13 +311,13 @@ function _renderSubCard(ind, sub, stocks) {
         ondblclick="monEditSub(this,'${safeInd}','${safeSub}')">${sub}</span>
       <div style="display:flex;gap:6px;align-items:center">
         <button onclick="monEditSub(this.closest('.mon-sub-card').querySelector('.mon-sub-label'),'${safeInd}','${safeSub}')"
-          style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 2px;color:var(--text3)"
+          style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 2px;color:var(--text2)"
           title="이름 수정"
           onmouseenter="this.style.color='var(--tg)'"
           onmouseleave="this.style.color='var(--text3)'">✎</button>
-        <span style="font-size:11px;color:var(--text2);font-weight:600">${stocks.length}개</span>
+        <span style="font-size:11px;color:var(--text1);font-weight:600">${stocks.length}개</span>
         <button onclick="monDeleteSub('${safeInd}','${safeSub}')"
-          style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:0"
+          style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:11px;padding:0"
           onmouseenter="this.style.color='var(--red)'"
           onmouseleave="this.style.color='var(--text3)'">✕</button>
       </div>
@@ -344,10 +344,10 @@ function _renderStockChip(s) {
     onmouseleave="this.style.borderColor='var(--border)'">
     <div style="display:flex;flex-direction:column;gap:1px;overflow:hidden;flex:1">
       <span style="font-size:13px;font-weight:600;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</span>
-      <span style="font-size:10px;color:var(--text2)">${code} · ${mkt}</span>
+      <span style="font-size:10px;color:var(--text1)">${code} · ${mkt}</span>
     </div>
     <button onclick="monRemoveStock('${code}','${safeName}')"
-      style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;
+      style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:13px;
         padding:0 2px;flex-shrink:0;line-height:1;border-radius:3px"
       onmouseenter="this.style.color='var(--red)';this.style.background='rgba(245,54,92,0.1)'"
       onmouseleave="this.style.color='var(--text3)';this.style.background='none'">✕</button>
@@ -426,7 +426,7 @@ async function monSearch(q) {
     .or(`name.ilike.%${q}%,code.ilike.%${q}%`)
     .order('is_monitored', { ascending:false }).limit(12);
 
-  if (!data?.length) { el.innerHTML='<div style="font-size:12px;color:var(--text3);padding:6px">검색 결과 없음</div>'; return; }
+  if (!data?.length) { el.innerHTML='<div style="font-size:12px;color:var(--text2);padding:6px">검색 결과 없음</div>'; return; }
 
   el.innerHTML = data.map(c => {
     const code = c.code.replace(/\.(KS|KQ)$/, '');
@@ -436,7 +436,7 @@ async function monSearch(q) {
         background:${mon?'rgba(42,171,238,0.08)':'var(--bg3)'}"
         onclick="monSelectStock('${code}','${c.name.replace(/'/g,"\\'")}','${c.industry||''}','${c.sub_industry||''}')">
       <div>
-        <span style="color:var(--text3);font-size:10px;margin-right:4px">${code}</span>
+        <span style="color:var(--text2);font-size:10px;margin-right:4px">${code}</span>
         <span style="font-weight:600">${c.name}</span>
       </div>
       <span style="font-size:10px;color:${mon?'var(--tg)':'var(--text3)'}">${mon?'✓모니터링':'+ 추가'}</span>
@@ -660,7 +660,7 @@ async function monApply() {
 async function loadEtfMapUI() {
   const wrap = document.getElementById('etf-map-wrap');
   if (!wrap) return;
-  wrap.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:13px">로딩 중...</div>';
+  wrap.innerHTML = '<div style="padding:1rem;color:var(--text2);font-size:13px">로딩 중...</div>';
 
   const { data: rows, error } = await sb.from('us_etf_map')
     .select('industry,ticker')

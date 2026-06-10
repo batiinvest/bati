@@ -1,4 +1,4 @@
-// investment.js — 오늘의 시황 페이지
+﻿// investment.js — 오늘의 시황 페이지
 
 // ── 전체 지표 정의 ──
 const INV_ALL_METRICS = [
@@ -80,7 +80,7 @@ function pInvestment() {
       <button class="chip ${window._invTab==='disclosure'?'active':''}" onclick="setInvTab('disclosure')">${_ICO.doc}공시</button>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-      <div style="font-size:11px;color:var(--text3)" id="inv-date"></div>
+      <div style="font-size:11px;color:var(--text2)" id="inv-date"></div>
       <button class="btn btn-sm" id="inv-refresh-btn" onclick="refreshInvestment()">${_ICO.refresh}새로고침</button>
     </div>
   </div>
@@ -93,7 +93,7 @@ function pInvestment() {
       <div class="card-header" style="flex-wrap:wrap;gap:6px">
         <span class="card-title">${_ICO.bar}증시 동향</span>
         <div id="inv-banner-content" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-left:auto">
-          <span style="color:var(--text3);font-size:12px"><span class="loading"></span></span>
+          <span style="color:var(--text2);font-size:12px"><span class="loading"></span></span>
         </div>
       </div>
       <!-- 전체 집계 + 코스피/코스닥 지수 한 행 -->
@@ -105,12 +105,12 @@ function pInvestment() {
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="display:flex;align-items:center;gap:8px">
         <span class="card-title">${_ICO.flow}기관/외국인 수급</span>
-        <span style="font-size:11px;color:var(--text3)" id="flow-date-label">장중 4회 집계</span>
+        <span style="font-size:11px;color:var(--text2)" id="flow-date-label">장중 4회 집계</span>
       </div>
       <div class="flow-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--border)">
         <div>
-          <div style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--text2);background:var(--bg2);border-bottom:1px solid var(--border)">
-            ${_ICO.shuffle}동시매수 <span style="font-size:10px;color:var(--text3);font-weight:400">외국인+기관</span>
+          <div style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--text1);background:var(--bg2);border-bottom:1px solid var(--border)">
+            ${_ICO.shuffle}동시매수 <span style="font-size:10px;color:var(--text2);font-weight:400">외국인+기관</span>
           </div>
           <div id="flow-body-both">${_skelList(8, true)}</div>
         </div>
@@ -139,7 +139,7 @@ function pInvestment() {
           background:var(--accent);color:#fff">수급 트렌드</button>
       <button id="sf-im-tab-im" onclick="switchSfImTab('im')"
         style="flex:1;padding:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;
-          background:var(--bg3);color:var(--text3)">강도 매트릭스</button>
+          background:var(--bg3);color:var(--text2)">강도 매트릭스</button>
     </div>
 
     <!-- 그리드 컨테이너 -->
@@ -149,7 +149,7 @@ function pInvestment() {
       <div id="sf-card" class="card" style="margin-bottom:0">
         <div class="card-header" style="flex-wrap:wrap;gap:6px">
           <span class="card-title">${_ICO.shuffle}섹터 수급 트렌드</span>
-          <span style="font-size:10px;color:var(--text3)" id="sf-date"></span>
+          <span style="font-size:10px;color:var(--text2)" id="sf-date"></span>
           <div style="display:flex;gap:4px;margin-left:auto;flex-wrap:wrap;align-items:center">
             <button class="chip active" data-sf-type="combined"
               onclick="switchSfType('combined')" style="font-size:11px;padding:2px 8px">합산</button>
@@ -164,7 +164,7 @@ function pInvestment() {
             `).join('')}
           </div>
         </div>
-        <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px" id="sf-desc">
+        <div style="font-size:11px;color:var(--text2);padding:5px 12px 2px" id="sf-desc">
           외국인+기관 스마트머니 (KR 전체 종목 기준)
         </div>
         <div id="sf-body" style="padding:.25rem 0">
@@ -176,7 +176,7 @@ function pInvestment() {
       <div id="im-card" class="card" style="margin-bottom:0">
         <div class="card-header" style="flex-wrap:wrap;gap:6px">
           <span class="card-title">${_ICO.grid}산업 강도 매트릭스</span>
-          <span style="font-size:10px;color:var(--text3)" id="im-date"></span>
+          <span style="font-size:10px;color:var(--text2)" id="im-date"></span>
           <div style="display:flex;gap:4px;margin-left:auto">
             ${[{p:1,l:'1일'},{p:5,l:'5일'},{p:20,l:'20일'}].map(({p,l})=>`
               <button class="chip ${p===5?'active':''}" data-im-period="${p}"
@@ -184,7 +184,7 @@ function pInvestment() {
             `).join('')}
           </div>
         </div>
-        <div style="font-size:11px;color:var(--text3);padding:5px 12px 2px">
+        <div style="font-size:11px;color:var(--text2);padding:5px 12px 2px">
           미국이 먼저 움직이면 한국이 따라온다 — US·KR 섹터 성과 비교 및 선행 신호 탐지
         </div>
         <div id="im-body">
@@ -198,7 +198,7 @@ function pInvestment() {
     <div class="card" style="margin-bottom:12px">
       <div class="card-header">
         <span class="card-title">${_ICO.temp}시장 온도계</span>
-        <span style="font-size:11px;color:var(--text3);margin-left:auto" id="market-temp-date"></span>
+        <span style="font-size:11px;color:var(--text2);margin-left:auto" id="market-temp-date"></span>
       </div>
       <div class="card-body" style="padding:.75rem 1rem" id="market-temp-body">
         <div style="display:flex;align-items:center;gap:16px">
@@ -224,17 +224,17 @@ function pInvestment() {
         </div>
       </div>
       <div class="card-body" style="padding:.75rem 1rem" id="market-insight-card">
-        <div style="color:var(--text3);font-size:12px"><span class="loading"></span> 분석 중...</div>
+        <div style="color:var(--text2);font-size:12px"><span class="loading"></span> 분석 중...</div>
       </div>
       <!-- 히스토리 패널 (접힘) -->
       <div id="insight-history" style="display:none;border-top:1px solid var(--border)">
-        <div style="padding:7px 1rem 4px;font-size:11px;font-weight:600;color:var(--text3);
+        <div style="padding:7px 1rem 4px;font-size:11px;font-weight:600;color:var(--text2);
           letter-spacing:.04em;display:flex;align-items:center;gap:6px">
           최근 시장 국면
           <span style="font-size:10px;font-weight:400;opacity:.7">(DB 저장 기준)</span>
         </div>
         <div id="insight-history-body" style="padding:0 1rem .75rem">
-          <div style="color:var(--text3);font-size:12px;padding:.5rem 0"><span class="loading"></span></div>
+          <div style="color:var(--text2);font-size:12px;padding:.5rem 0"><span class="loading"></span></div>
         </div>
       </div>
     </div>
@@ -246,11 +246,11 @@ function pInvestment() {
         <span class="card-title">${_ICO.grid}산업 동향</span>
         <!-- US ETF 배너 -->
         <div id="inv-etf-banner" style="display:flex;gap:10px;align-items:center;margin-left:auto;font-size:12px;flex-wrap:wrap">
-          <span style="color:var(--text3)"><span class="loading"></span></span>
+          <span style="color:var(--text2)"><span class="loading"></span></span>
         </div>
       </div>
       <!-- KR 모니터링 현황 -->
-      <div id="inv-industry-banner" style="padding:4px 1rem 6px;border-bottom:1px solid var(--border);font-size:12px;display:flex;gap:10px;color:var(--text3)">
+      <div id="inv-industry-banner" style="padding:4px 1rem 6px;border-bottom:1px solid var(--border);font-size:12px;display:flex;gap:10px;color:var(--text2)">
         <span><span class="loading"></span></span>
       </div>
       <div id="inv-industry-chart"></div>
@@ -264,7 +264,7 @@ function pInvestment() {
         <span class="card-title">${_ICO.rocket}주도주 탐색기</span>
         <button id="ls-refresh-btn" onclick="refreshLeadingStocks()"
           style="font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid var(--border);
-                 background:transparent;color:var(--text3);cursor:pointer;line-height:1.6"
+                 background:transparent;color:var(--text2);cursor:pointer;line-height:1.6"
           title="데이터 새로고침">${_ICO.refresh}</button>
       </div>
 
@@ -275,8 +275,8 @@ function pInvestment() {
         <div style="border-right:1px solid var(--border)">
           <div style="padding:6px 12px;border-bottom:1px solid var(--border);
             display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <span style="font-size:12px;font-weight:600;color:var(--text2)">현재 주도주</span>
-            <span style="font-size:11px;color:var(--text3)" id="ls-date"></span>
+            <span style="font-size:12px;font-weight:600;color:var(--text1)">현재 주도주</span>
+            <span style="font-size:11px;color:var(--text2)" id="ls-date"></span>
             <div style="display:flex;gap:3px;margin-left:auto">
               <button class="chip active" data-ls-tab="all"    onclick="switchLsTab('all')"
                 style="font-size:10px;padding:4px 10px">전체</button>
@@ -293,8 +293,8 @@ function pInvestment() {
         <div>
           <div style="padding:6px 12px;border-bottom:1px solid var(--border);
             display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <span style="font-size:12px;font-weight:600;color:var(--text2)">과거 주도주 수익률</span>
-            <span id="ls-bt-date" style="font-size:11px;color:var(--text3)"></span>
+            <span style="font-size:12px;font-weight:600;color:var(--text1)">과거 주도주 수익률</span>
+            <span id="ls-bt-date" style="font-size:11px;color:var(--text2)"></span>
             <div style="display:flex;gap:3px;margin-left:auto">
               <button class="chip active" data-bt-period="1w"  onclick="switchBtPeriod('1w')"
                 style="font-size:10px;padding:4px 10px">1주전</button>
@@ -328,7 +328,7 @@ function pInvestment() {
     <div class="card" style="margin-bottom:12px">
       <div class="card-header">
         <span class="card-title">${_ICO.coin}거래대금 상위</span>
-        <span style="font-size:11px;color:var(--text3)">당일 거래대금 기준</span>
+        <span style="font-size:11px;color:var(--text2)">당일 거래대금 기준</span>
       </div>
       <div id="inv-volume-body" style="display:grid;grid-template-columns:repeat(2,1fr);gap:0;border-top:1px solid var(--border)">
         ${_skelList(3)}
@@ -339,7 +339,7 @@ function pInvestment() {
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="cursor:pointer" onclick="toggleTrendChart()">
         <span class="card-title">${_ICO.chart}흐름 비교 차트</span>
-        <span id="inv-trend-toggle" style="font-size:12px;color:var(--text3);margin-left:auto">접기 ▴</span>
+        <span id="inv-trend-toggle" style="font-size:12px;color:var(--text2);margin-left:auto">접기 ▴</span>
       </div>
       <div id="inv-trend-body" style="display:block">
         <div style="flex-wrap:wrap;gap:8px;padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center">
@@ -352,7 +352,7 @@ function pInvestment() {
         </div>
         <!-- 그룹 필터 버튼 -->
         <div style="padding:.5rem 1rem;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:4px;align-items:center">
-          <span style="font-size:11px;color:var(--text3);margin-right:4px">그룹선택</span>
+          <span style="font-size:11px;color:var(--text2);margin-right:4px">그룹선택</span>
           ${['미국','한국','환율','원자재','기타'].map(g => `
             <button class="chip" style="font-size:11px;padding:2px 8px"
               onclick="selectInvGroup('${g}')">${g}</button>
@@ -368,13 +368,13 @@ function pInvestment() {
                 onchange="toggleInvMetric('${m.col}')" ${['sp500','nasdaq','kospi','kosdaq'].includes(m.col)?'checked':''}>
               <span style="width:8px;height:8px;border-radius:50%;background:${m.color};flex-shrink:0"></span>
               <span>${m.name}</span>
-              <span style="font-size:10px;color:var(--text3)">${m.group}</span>
+              <span style="font-size:10px;color:var(--text2)">${m.group}</span>
             </label>
           `).join('')}
         </div>
         <div style="padding:1rem;position:relative;height:260px">
           <canvas id="inv-trend-chart"></canvas>
-          <div id="inv-trend-empty" style="display:none;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:13px">
+          <div id="inv-trend-empty" style="display:none;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:13px">
             데이터 수집 중... (매일 09:00, 16:10 업데이트)
           </div>
         </div>
@@ -430,7 +430,7 @@ function pInvestment() {
       </div>
       <!-- 모드 전환 버튼 -->
       <div style="padding:.4rem 1rem;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center">
-        <span style="font-size:11px;color:var(--text3)">표시 방식</span>
+        <span style="font-size:11px;color:var(--text2)">표시 방식</span>
         <button class="chip active" id="uskr-mode-avg" onclick="setUskrMode('avg')"
           style="font-size:11px;padding:2px 8px">KR vs US 평균</button>
         <button class="chip" id="uskr-mode-all" onclick="setUskrMode('all')"
@@ -478,7 +478,7 @@ function pInvestment() {
     <div class="card" style="margin-bottom:1.25rem">
       <div class="card-header">
         <span class="card-title">${_ICO.doc}오늘 실적 공시 종목</span>
-        <span id="inv-disclosure-date" style="font-size:11px;color:var(--text3);margin-left:8px"></span>
+        <span id="inv-disclosure-date" style="font-size:11px;color:var(--text2);margin-left:8px"></span>
         <button id="inv-disclosure-expand-btn" class="btn btn-sm" style="margin-left:auto;font-size:12px"
           onclick="toggleAllDisclosures()">+ 전체 공시</button>
       </div>
@@ -540,14 +540,14 @@ function mkIndexCard(label, value, chg, unit, sub, risk) {
 
   return `
   <div class="card" style="${cardStyle}">
-    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text2);margin-bottom:3px;font-weight:500">
+    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text1);margin-bottom:3px;font-weight:500">
       ${rs ? `<span style="font-size:11px">${rs.icon}</span>` : ''}
       <span>${label}</span>
     </div>
     <div style="font-size:15px;font-weight:700;color:${rs?'var(--text1)':'var(--text1)'};line-height:1.2">${val}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
       <div style="font-size:12px;color:${cc};font-weight:600">${cs}</div>
-      ${sub ? `<div style="font-size:10px;color:var(--text2)">${sub}</div>` : ''}
+      ${sub ? `<div style="font-size:10px;color:var(--text1)">${sub}</div>` : ''}
     </div>
   </div>`;
 }
@@ -733,7 +733,7 @@ async function loadInvestment() {
   if (indBanner) {
     const sep = '<span style="color:var(--border)">|</span>';
     indBanner.innerHTML = [
-      `<span style="color:var(--text3)">모니터링 ${rows.length}개</span>`,
+      `<span style="color:var(--text2)">모니터링 ${rows.length}개</span>`,
       sep,
       `<span style="color:var(--red);font-weight:600">▲ ${rise}개</span>`,
       sep,
@@ -765,14 +765,14 @@ async function loadInvestment() {
 
   const rankRow = (r, i) => `
     <div style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-bottom:1px solid var(--border)">
-      <span style="width:14px;font-size:10px;color:var(--text3);font-weight:600;flex-shrink:0">${i+1}</span>
+      <span style="width:14px;font-size:10px;color:var(--text2);font-weight:600;flex-shrink:0">${i+1}</span>
       <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.corp_name}</span>
       <span style="font-size:12px;font-weight:700;color:${chgColor(r.price_change_rate)};flex-shrink:0">${chgStr(r.price_change_rate)}</span>
     </div>`;
 
   const setCard = (id, data) => {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = (data || []).map(rankRow).join('') || '<div style="padding:12px;color:var(--text3);font-size:12px;text-align:center">데이터 없음</div>';
+    if (el) el.innerHTML = (data || []).map(rankRow).join('') || '<div style="padding:12px;color:var(--text2);font-size:12px;text-align:center">데이터 없음</div>';
   };
   setCard('inv-surge-kospi',  surgeKospi  || []);
   setCard('inv-drop-kospi',   dropKospi   || []);
@@ -788,7 +788,7 @@ function renderVolumeLeaders() {
 
   const allRows = window._allMarketRows || [];
   if (!allRows.length) {
-    el.innerHTML = '<div style="grid-column:1/-1;padding:1rem;text-align:center;color:var(--text3);font-size:12px">데이터 없음</div>';
+    el.innerHTML = '<div style="grid-column:1/-1;padding:1rem;text-align:center;color:var(--text2);font-size:12px">데이터 없음</div>';
     return;
   }
 
@@ -808,7 +808,7 @@ function renderVolumeLeaders() {
       <div style="border-right:${pi === 0 ? '1px solid var(--border)' : 'none'}">
         <div style="padding:8px 12px;font-size:12px;font-weight:700;color:${p.color};
           border-bottom:2px solid ${p.color}50;letter-spacing:.5px">${p.label}</div>
-        <div style="padding:1rem;text-align:center;color:var(--text3);font-size:11px">데이터 없음</div>
+        <div style="padding:1rem;text-align:center;color:var(--text2);font-size:11px">데이터 없음</div>
       </div>`;
 
     const maxTV = sorted[0].tv;
@@ -825,7 +825,7 @@ function renderVolumeLeaders() {
       return `
       <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;
         border-bottom:1px solid var(--border)">
-        <span style="min-width:16px;font-size:11px;color:var(--text3);font-weight:600">${i + 1}</span>
+        <span style="min-width:16px;font-size:11px;color:var(--text2);font-weight:600">${i + 1}</span>
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px">${r.corp_name}</div>
           <div style="height:3px;border-radius:2px;background:var(--border);overflow:hidden">
@@ -833,7 +833,7 @@ function renderVolumeLeaders() {
           </div>
         </div>
         <div style="text-align:right;white-space:nowrap">
-          <div style="font-size:12px;color:var(--text2)">${tvStr}</div>
+          <div style="font-size:12px;color:var(--text1)">${tvStr}</div>
           <div style="font-size:11px;font-weight:600;color:${cc}">${cs}</div>
         </div>
       </div>`;

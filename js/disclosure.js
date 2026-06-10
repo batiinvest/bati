@@ -1,4 +1,4 @@
-// disclosure.js — 공시 탭: 오늘 실적 공시, 전체 공시 토글
+﻿// disclosure.js — 공시 탭: 오늘 실적 공시, 전체 공시 토글
 // 의존: config.js (sb)
 //
 // [v3] daily_disclosures 테이블 조회 (app_config JSON 탈출)
@@ -26,7 +26,7 @@ async function loadAllDisclosures() {
   const el = document.getElementById('inv-all-disclosure-list');
   if (!el) return;
 
-  el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text3);font-size:12px"><span class="loading"></span> 공시 목록 불러오는 중...</div>`;
+  el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text2);font-size:12px"><span class="loading"></span> 공시 목록 불러오는 중...</div>`;
 
   // ── 단일 쿼리: daily_disclosures 테이블에서 오늘 전체 조회 ──
   const todayStr = fmtDate();   // config.js fmtDate() 공통 헬퍼 사용
@@ -38,7 +38,7 @@ async function loadAllDisclosures() {
     .order('corp_name');
 
   if (error || !all?.length) {
-    el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text3);font-size:12px">
+    el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text2);font-size:12px">
       ${error ? '조회 오류: ' + error.message : '전체 공시 데이터 없음 (매일 18:30 업데이트)'}
     </div>`;
     return;
@@ -91,7 +91,7 @@ async function loadAllDisclosures() {
       const parts = [];
       if (buy)    parts.push(`<span style="color:var(--red);font-size:10px;font-weight:600">▲예정취득 ${buy.toLocaleString()}주</span>`);
       if (sell)   parts.push(`<span style="color:var(--blue);font-size:10px;font-weight:600">▼예정처분 ${sell.toLocaleString()}주</span>`);
-      if (period) parts.push(`<span style="color:var(--text3);font-size:10px">(${period})</span>`);
+      if (period) parts.push(`<span style="color:var(--text2);font-size:10px">(${period})</span>`);
       return parts.join(' ');
     }
     if (type === 'major') return `<span style="color:var(--yellow);font-size:10px;font-weight:600">⚠ 최대주주 지분변동</span>`;
@@ -101,7 +101,7 @@ async function loadAllDisclosures() {
       const rtTxt = (bfRt && afRt && bfRt !== afRt) ? `${bfRt}→${afRt}` : (afRt || bfRt || '');
       if (change > 0)  return `<span style="color:var(--red);font-size:10px;font-weight:600">▲취득 ${Math.abs(change).toLocaleString()}주${rtTxt ? ' (' + rtTxt + ')' : ''}</span>`;
       if (change < 0)  return `<span style="color:var(--blue);font-size:10px;font-weight:600">▼처분 ${Math.abs(change).toLocaleString()}주${rtTxt ? ' (' + rtTxt + ')' : ''}</span>`;
-      return `<span style="color:var(--text3);font-size:10px">${rtTxt ? '보유 ' + rtTxt + ' ' : ''}변동없음</span>`;
+      return `<span style="color:var(--text2);font-size:10px">${rtTxt ? '보유 ' + rtTxt + ' ' : ''}변동없음</span>`;
     }
     // insider
     const parts = [];
@@ -136,7 +136,7 @@ async function loadAllDisclosures() {
       <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
           <span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:100px;background:${style.bg};color:${style.color}">${label}</span>
-          <span style="font-size:11px;color:var(--text3)">${displayItems.length}건${isInsider && displayItems.length < items.length ? ` (${items.length}건 공시)` : ''}</span>
+          <span style="font-size:11px;color:var(--text2)">${displayItems.length}건${isInsider && displayItems.length < items.length ? ` (${items.length}건 공시)` : ''}</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(${needsBadge ? '240' : '180'}px,1fr));gap:6px">
           ${displayItems.map(d => {
@@ -168,7 +168,7 @@ async function loadAllDisclosures() {
       </div>`;
   }).join('');
 
-  el.innerHTML = catHTML + `<div style="padding:4px 1rem 10px;font-size:11px;color:var(--text3)">총 ${all.length}건 표시</div>`;
+  el.innerHTML = catHTML + `<div style="padding:4px 1rem 10px;font-size:11px;color:var(--text2)">총 ${all.length}건 표시</div>`;
 }
 
 // ── 오늘 실적 공시 목록 ──
@@ -187,7 +187,7 @@ async function loadTodayDisclosures() {
     .single();
 
   if (!cfg?.value) {
-    el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text3);font-size:12px">오늘 공시 데이터 없음 (매일 18:30 업데이트)</div>`;
+    el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text2);font-size:12px">오늘 공시 데이터 없음 (매일 18:30 업데이트)</div>`;
     return;
   }
 
@@ -195,7 +195,7 @@ async function loadTodayDisclosures() {
   try { corps = JSON.parse(cfg.value); } catch { }
 
   if (!corps.length) {
-    el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text3);font-size:12px">오늘 실적 공시 없음</div>`;
+    el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text2);font-size:12px">오늘 실적 공시 없음</div>`;
     return;
   }
 
@@ -219,7 +219,7 @@ async function loadTodayDisclosures() {
         </div>`;
       }).join('')}
     </div>
-    <div style="padding:4px 1rem 8px;font-size:11px;color:var(--text3)">
+    <div style="padding:4px 1rem 8px;font-size:11px;color:var(--text2)">
       총 ${corps.length}개 종목 공시 · 재무 데이터 수집 완료
     </div>`;
 }

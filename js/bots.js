@@ -1,4 +1,4 @@
-// bots.js — 봇 모니터링, 봇 설정
+﻿// bots.js — 봇 모니터링, 봇 설정
 
 // ── 공통 유틸 ──────────────────────────────────────────────────────────────
 
@@ -28,20 +28,20 @@ function _botDartTabHTML() {
   return `
     <div class="card" style="margin-bottom:1rem"><div class="card-header"><span class="card-title">알림 키워드</span></div><div class="card-body">
       <div class="form-group">
-        <label class="form-label">AI 트리거 키워드 <span style="font-size:11px;color:var(--text3)">(쉼표로 구분)</span></label>
+        <label class="form-label">AI 트리거 키워드 <span style="font-size:11px;color:var(--text2)">(쉼표로 구분)</span></label>
         <textarea class="form-input" id="cfg-ai-kw" rows="3" placeholder="공급계약,임상,무상증자,..."></textarea>
         <div class="form-hint">이 키워드가 공시 제목에 포함되면 Gemini AI 분석을 실행합니다.</div>
       </div>
       <div class="form-group">
-        <label class="form-label">전체 중요 키워드 <span style="font-size:11px;color:var(--text3)">(쉼표로 구분)</span></label>
+        <label class="form-label">전체 중요 키워드 <span style="font-size:11px;color:var(--text2)">(쉼표로 구분)</span></label>
         <textarea class="form-input" id="cfg-global-kw" rows="2" placeholder="거래정지,상장폐지,부도,..."></textarea>
         <div class="form-hint">비보유 종목도 이 키워드가 있으면 무조건 알림 발송합니다.</div>
       </div>
       <button class="btn btn-primary" onclick="saveBotKeywords()">저장</button>
     </div></div>
-    <div style="font-size:12px;color:var(--text2);margin-bottom:1rem;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
+    <div style="font-size:12px;color:var(--text1);margin-bottom:1rem;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
       공시 제목에 키워드가 포함되면 해당 등급으로 분류됩니다. 쉼표로 구분하며 저장 후 봇 재로드 시 반영됩니다.<br>
-      <b style="color:var(--red)">긴급</b> → 메인+산업+기업 &nbsp;|&nbsp; <b style="color:var(--green)">중요</b> → 산업+기업 &nbsp;|&nbsp; <b style="color:var(--text2)">일반</b> → 산업+기업 &nbsp;|&nbsp; <b style="color:var(--text3)">잡공시</b> → 기업채널만
+      <b style="color:var(--red)">긴급</b> → 메인+산업+기업 &nbsp;|&nbsp; <b style="color:var(--green)">중요</b> → 산업+기업 &nbsp;|&nbsp; <b style="color:var(--text1)">일반</b> → 산업+기업 &nbsp;|&nbsp; <b style="color:var(--text2)">잡공시</b> → 기업채널만
     </div>
     ${[
       {id:'cfg-dart-urgent',  key:'dart_urgent',       color:'var(--red)',   title:'🚨 긴급 키워드',       sub:'메인 + 산업 + 기업채널', rows:3, placeholder:'거래정지,횡령,배임,상장폐지,불성실,공개매수,영업정지'},
@@ -54,7 +54,7 @@ function _botDartTabHTML() {
     <div class="card" style="margin-bottom:.75rem">
       <div class="card-header">
         <span class="card-title" ${c.color?`style="color:${c.color}"`:''}>${c.title}</span>
-        <span style="font-size:11px;color:var(--text3)">${c.sub}</span>
+        <span style="font-size:11px;color:var(--text2)">${c.sub}</span>
       </div>
       <div class="card-body">
         <textarea class="form-input" id="${c.id}" rows="${c.rows}" placeholder="${c.placeholder}"></textarea>
@@ -64,27 +64,27 @@ function _botDartTabHTML() {
       </div>
     </div>`).join('')}
     <details style="margin-bottom:.75rem">
-      <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);list-style:none">
+      <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--text1);padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);list-style:none">
         📋 공시 알림 규칙 요약 (클릭해서 펼치기)
       </summary>
       <div class="card" style="border-radius:0 0 var(--radius-sm) var(--radius-sm)">
-        <div class="card-body" style="font-size:12px;color:var(--text2);line-height:1.8">
+        <div class="card-body" style="font-size:12px;color:var(--text1);line-height:1.8">
           <div style="margin-bottom:1rem">
             <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">① 수신 대상</div>
             <div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
-              <b>내 종목</b> (companies 테이블 is_monitored=true) <span style="color:var(--text3)">또는</span>
+              <b>내 종목</b> (companies 테이블 is_monitored=true) <span style="color:var(--text2)">또는</span>
               <b>전체 중요 키워드</b> 포함 공시만 수신<br>
-              <span style="color:var(--text3)">비상장 종목 · 블랙리스트 · 제목/기업명 필터는 수신 전 차단</span>
+              <span style="color:var(--text2)">비상장 종목 · 블랙리스트 · 제목/기업명 필터는 수신 전 차단</span>
             </div>
           </div>
           <div style="margin-bottom:1rem">
             <div style="font-weight:600;color:var(--text1);margin-bottom:.4rem">② 등급 분류 우선순위</div>
             <div style="display:grid;grid-template-columns:80px 1fr;gap:4px 12px;padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
-              <span style="color:var(--text3)">판정 순서</span><span style="color:var(--text3)">잡공시 → 긴급 → 중요 → 일반</span>
+              <span style="color:var(--text2)">판정 순서</span><span style="color:var(--text2)">잡공시 → 긴급 → 중요 → 일반</span>
               <span style="color:var(--red);font-weight:600">🚨 긴급</span><span>거래정지, 횡령, 배임, 상장폐지, 관리종목, 공개매수, 불성실공시, 영업정지</span>
               <span style="color:var(--green);font-weight:600">📌 중요</span><span>공급계약, 수주, 잠정실적, 무/유상증자, 최대주주변경, 합병, CB/BW, 소송, 특허, 임상</span>
-              <span style="color:var(--text3)">🔇 잡공시</span><span>소유상황보고, 기업설명회, IR개최, 감사보고서, 주주총회, 의결권대리</span>
-              <span style="color:var(--text2)">📄 일반</span><span>위 3가지 외 모두</span>
+              <span style="color:var(--text2)">🔇 잡공시</span><span>소유상황보고, 기업설명회, IR개최, 감사보고서, 주주총회, 의결권대리</span>
+              <span style="color:var(--text1)">📄 일반</span><span>위 3가지 외 모두</span>
             </div>
           </div>
           <div>
@@ -123,7 +123,7 @@ function _botCardsHTML() {
     <button class="btn btn-sm" onclick="loadBotStatus()">새로고침</button>
   </div>
   <div class="card" id="bot-notice-card">
-    <div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>
+    <div style="padding:1.5rem;text-align:center;color:var(--text2)"><span class="loading"></span></div>
   </div>`;
 }
 
@@ -189,12 +189,12 @@ async function loadBotStatus() {
     const { data, error } = await sb.from('notice_history').select('*').order('created_at',{ascending:false}).limit(20);
     if (error) throw error;
     if (!data || !data.length) {
-      card.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:13px">발송 기록 없음 — 봇 연동 후 자동으로 기록됩니다.</div>';
+      card.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:13px">발송 기록 없음 — 봇 연동 후 자동으로 기록됩니다.</div>';
       return;
     }
     card.innerHTML = '<div class="table-wrap"><table><thead><tr><th>시각</th><th>대상</th><th>내용</th><th>성공</th></tr></thead><tbody>' +
       data.map(h => '<tr>' +
-        '<td style="font-size:12px;color:var(--text2)">' + new Date(h.created_at).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) + '</td>' +
+        '<td style="font-size:12px;color:var(--text1)">' + new Date(h.created_at).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) + '</td>' +
         '<td><span class="badge badge-cat">' + (h.target||'—') + '</span></td>' +
         '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">' + (h.content||'') + '</td>' +
         '<td style="color:var(--green)">' + (h.ok_count||0) + '/' + (h.sent_count||0) + '</td>' +
@@ -206,7 +206,7 @@ async function loadBotStatus() {
 }
 
 function pBotConfig() {
-  if (!isAdmin()) return `<div style="padding:2rem;text-align:center;color:var(--text3);font-size:13px">admin만 접근 가능합니다.</div>`;
+  if (!isAdmin()) return `<div style="padding:2rem;text-align:center;color:var(--text2);font-size:13px">admin만 접근 가능합니다.</div>`;
   return `
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
     <div class="tabs" style="margin-bottom:0" id="botcfg-tabs">
@@ -233,11 +233,11 @@ function pBotConfig() {
   <div id="botcfg-news" style="display:none">
     <div class="card" style="margin-bottom:1rem">
       <div class="card-header">
-        <span class="card-title">스팸 패턴 <span style="font-size:11px;font-weight:400;color:var(--text3)">— 제목에 포함 시 발송 차단</span></span>
+        <span class="card-title">스팸 패턴 <span style="font-size:11px;font-weight:400;color:var(--text2)">— 제목에 포함 시 발송 차단</span></span>
       </div>
       <div class="card-body">
         <div class="form-group">
-          <label class="form-label">패턴 목록 <span style="font-size:11px;color:var(--text3)">(한 줄에 하나씩, 정규식 가능)</span></label>
+          <label class="form-label">패턴 목록 <span style="font-size:11px;color:var(--text2)">(한 줄에 하나씩, 정규식 가능)</span></label>
           <textarea class="form-input" id="cfg-spam-patterns" rows="8" placeholder="매수.*위&#10;급등.*예고&#10;순매수.*위"></textarea>
           <div class="form-hint">예: <code>매수.*위</code> → "매수 1위", "매수 3위" 등 모두 차단</div>
         </div>
@@ -247,24 +247,24 @@ function pBotConfig() {
 
     <div class="card" style="margin-bottom:1rem">
       <div class="card-header">
-        <span class="card-title">실질 보도 키워드 <span style="font-size:11px;font-weight:400;color:var(--text3)">— 하나도 없으면 발송 안 함</span></span>
+        <span class="card-title">실질 보도 키워드 <span style="font-size:11px;font-weight:400;color:var(--text2)">— 하나도 없으면 발송 안 함</span></span>
       </div>
       <div class="card-body">
         <div class="form-group">
-          <label class="form-label">키워드 목록 <span style="font-size:11px;color:var(--text3)">(쉼표로 구분)</span></label>
+          <label class="form-label">키워드 목록 <span style="font-size:11px;color:var(--text2)">(쉼표로 구분)</span></label>
           <textarea class="form-input" id="cfg-meaningful-kw" rows="5" placeholder="계약,수주,실적,임상,특허,인수..."></textarea>
           <div class="form-hint">이 중 하나라도 제목/본문에 있어야 발송합니다.</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
           <button class="btn btn-primary" onclick="saveNewsFilter('news_meaningful_keywords', 'cfg-meaningful-kw', ',')">저장</button>
-          <span style="font-size:11px;color:var(--text3)">저장 후 봇 재로드 버튼을 눌러주세요.</span>
+          <span style="font-size:11px;color:var(--text2)">저장 후 봇 재로드 버튼을 눌러주세요.</span>
         </div>
       </div>
     </div>
 
     <div class="card" style="margin-bottom:1rem"><div class="card-header">
       <span class="card-title">산업별 뉴스 검색어</span>
-      <span style="font-size:11px;color:var(--text3)">쉼표로 구분 — 저장 즉시 봇 다음 사이클에 반영</span>
+      <span style="font-size:11px;color:var(--text2)">쉼표로 구분 — 저장 즉시 봇 다음 사이클에 반영</span>
     </div><div class="card-body">
       <div id="news-terms-list"><span class="loading"></span></div>
     </div></div>
@@ -276,7 +276,7 @@ function pBotConfig() {
     <!-- 채널 구조 -->
     <div class="card" style="margin-bottom:.75rem">
       <div class="card-header"><span class="card-title">📡 채널 구조</span></div>
-      <div class="card-body" style="font-size:12px;color:var(--text2);line-height:1.9">
+      <div class="card-body" style="font-size:12px;color:var(--text1);line-height:1.9">
         <div style="display:grid;grid-template-columns:150px 1fr;gap:4px 16px;padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
           <span style="color:var(--tg);font-weight:600">@BatiInvestChat</span><span>메인 채널 — 시장 속보 + 정기 브리핑</span>
           <span style="color:var(--tg);font-weight:600">@batiarchive</span><span>아카이브 채널 — KIND IR자료 PDF 전체</span>
@@ -292,7 +292,7 @@ function pBotConfig() {
       <div class="card-body" style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:11px;min-width:520px">
           <thead>
-            <tr style="background:var(--bg3);color:var(--text3)">
+            <tr style="background:var(--bg3);color:var(--text2)">
               <th style="padding:6px 10px;border:1px solid var(--border);text-align:left;min-width:160px">정보 종류</th>
               <th style="padding:6px 8px;border:1px solid var(--border);text-align:center">메인<br><span style="font-weight:400;font-size:10px">@BatiInvestChat</span></th>
               <th style="padding:6px 8px;border:1px solid var(--border);text-align:center">아카이브<br><span style="font-weight:400;font-size:10px">@batiarchive</span></th>
@@ -303,94 +303,94 @@ function pBotConfig() {
           <tbody>
             <tr>
               <td style="padding:6px 10px;border:1px solid var(--border);color:var(--red);font-weight:600">🚨 DART 긴급 공시</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">시총 1,000억↑</span></td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text2);font-size:10px">시총 1,000억↑</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
             </tr>
             <tr style="background:var(--bg2)">
               <td style="padding:6px 10px;border:1px solid var(--border);color:var(--green);font-weight:600">📌 DART 중요 (내 종목)</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
             </tr>
             <tr>
               <td style="padding:6px 10px;border:1px solid var(--border);color:var(--green);font-weight:600">🔥 DART 중요 (비보유+전체중요키워드)</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">시총 1,000억↑</span></td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text2);font-size:10px">시총 1,000억↑</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
             </tr>
             <tr style="background:var(--bg2)">
-              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">📄 DART 일반</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text1)">📄 DART 일반</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
             </tr>
             <tr>
-              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text3)">🔇 DART 잡공시</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">🔇 DART 잡공시</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
             </tr>
             <tr style="background:var(--bg2)">
-              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">📰 네이버 뉴스</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text1)">📰 네이버 뉴스</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
             </tr>
             <tr>
-              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">📋 KIND IR자료 PDF</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">전체</span></td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">모니터링</span></td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">모니터링</span></td>
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text1)">📋 KIND IR자료 PDF</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text2);font-size:10px">전체</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text2);font-size:10px">모니터링</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text2);font-size:10px">모니터링</span></td>
             </tr>
             <tr style="background:var(--bg2)">
-              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">🤖 AI 심층 분석</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text1)">🤖 AI 심층 분석</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
             </tr>
             <tr>
-              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">🌏 글로벌 매크로 브리핑</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">06:30</span></td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text1)">🌏 글로벌 매크로 브리핑</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text2);font-size:10px">06:30</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
             </tr>
             <tr style="background:var(--bg2)">
-              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">🍱 점심·🏁마감 시황 브리핑</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">전광판+랭킹</span></td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">산업 랭킹</span></td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">종목 상세</span></td>
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text1)">🍱 점심·🏁마감 시황 브리핑</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text2);font-size:10px">전광판+랭킹</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text2);font-size:10px">산업 랭킹</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text2);font-size:10px">종목 상세</span></td>
             </tr>
             <tr>
-              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">📑 증권사 리포트 (네이버)</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">목록+PDF</span></td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">산업분석</span></td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">기업분석</span></td>
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text1)">📑 증권사 리포트 (네이버)</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text2);font-size:10px">목록+PDF</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text2);font-size:10px">산업분석</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text2);font-size:10px">기업분석</span></td>
             </tr>
             <tr style="background:var(--bg2)">
-              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">🏆 주간 랭킹 (토요일)</td>
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text1)">🏆 주간 랭킹 (토요일)</td>
               <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">산업별</span></td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text2);font-size:10px">산업별</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
             </tr>
             <tr>
-              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text2)">🗓 일요일 기술적 진단</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text3)">—</td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">시총 리포트</span></td>
-              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text3);font-size:10px">차트 진단</span></td>
+              <td style="padding:6px 10px;border:1px solid var(--border);color:var(--text1)">🗓 일요일 기술적 진단</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:var(--text2)">—</td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text2);font-size:10px">시총 리포트</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--border);text-align:center">✅ <span style="color:var(--text2);font-size:10px">차트 진단</span></td>
             </tr>
           </tbody>
         </table>
@@ -400,49 +400,49 @@ function pBotConfig() {
     <!-- 정기 브리핑 스케줄 -->
     <div class="card" style="margin-bottom:.75rem">
       <div class="card-header"><span class="card-title">⏰ 정기 발송 스케줄</span></div>
-      <div class="card-body" style="font-size:12px;color:var(--text2)">
+      <div class="card-body" style="font-size:12px;color:var(--text1)">
         <div style="display:grid;grid-template-columns:110px 1fr auto;gap:5px 12px;line-height:1.8;align-items:center">
-          <span style="color:var(--text3);font-size:11px">평일 06:30</span>
+          <span style="color:var(--text2);font-size:11px">평일 06:30</span>
           <span>🌏 글로벌 매크로 — 미국 마감·야간선물·금리·환율·원자재·BTC</span>
           <span style="font-size:10px;color:var(--tg);white-space:nowrap">메인</span>
 
-          <span style="color:var(--text3);font-size:11px">평일 08:50</span>
+          <span style="color:var(--text2);font-size:11px">평일 08:50</span>
           <span>📑 증권사 리포트 — 산업분석·기업분석 PDF</span>
           <span style="font-size:10px;color:var(--tg);white-space:nowrap">@batiarchive · 산업 · 기업</span>
 
-          <span style="color:var(--text3);font-size:11px">평일 09:05</span>
+          <span style="color:var(--text2);font-size:11px">평일 09:05</span>
           <span>📋 KIND IR자료 오전 수집</span>
           <span style="font-size:10px;color:var(--tg);white-space:nowrap">@batiarchive · 산업 · 기업</span>
 
-          <span style="color:var(--text3);font-size:11px">평일 11:30</span>
+          <span style="color:var(--text2);font-size:11px">평일 11:30</span>
           <span>🍱 점심 시황 — 시장 전광판 + 유니버스 랭킹 + 산업 테마 현황</span>
           <span style="font-size:10px;color:var(--tg);white-space:nowrap">메인 · 산업</span>
 
-          <span style="color:var(--text3);font-size:11px">평일 18:00</span>
+          <span style="color:var(--text2);font-size:11px">평일 18:00</span>
           <span>📑 증권사 리포트 — 장후 추가분</span>
           <span style="font-size:10px;color:var(--tg);white-space:nowrap">@batiarchive · 산업 · 기업</span>
 
-          <span style="color:var(--text3);font-size:11px">평일 18:10</span>
+          <span style="color:var(--text2);font-size:11px">평일 18:10</span>
           <span>📋 KIND IR자료 오후 수집</span>
           <span style="font-size:10px;color:var(--tg);white-space:nowrap">@batiarchive · 산업 · 기업</span>
 
-          <span style="color:var(--text3);font-size:11px">평일 18:30</span>
+          <span style="color:var(--text2);font-size:11px">평일 18:30</span>
           <span>🏁 마감 시황 — 시장 전광판 + 유니버스 랭킹 + 종목 상세</span>
           <span style="font-size:10px;color:var(--tg);white-space:nowrap">메인 · 산업 · 기업</span>
 
-          <span style="color:var(--text3);font-size:11px">토요일 10:00</span>
+          <span style="color:var(--text2);font-size:11px">토요일 10:00</span>
           <span>🏆 주간 랭킹 — 모니터링 종목 주간 수익률</span>
           <span style="font-size:10px;color:var(--tg);white-space:nowrap">메인</span>
 
-          <span style="color:var(--text3);font-size:11px">토요일 10:30</span>
+          <span style="color:var(--text2);font-size:11px">토요일 10:30</span>
           <span>🏭 주간 산업 리포트 — 산업별 주간 수익률 + 테마 성적표</span>
           <span style="font-size:10px;color:var(--tg);white-space:nowrap">산업</span>
 
-          <span style="color:var(--text3);font-size:11px">일요일 10:00</span>
+          <span style="color:var(--text2);font-size:11px">일요일 10:00</span>
           <span>🗓 산업별 시총 리포트</span>
           <span style="font-size:10px;color:var(--tg);white-space:nowrap">산업</span>
 
-          <span style="color:var(--text3);font-size:11px">일요일 10:30</span>
+          <span style="color:var(--text2);font-size:11px">일요일 10:30</span>
           <span>🗓 종목별 기술적 진단 — 이평선·RSI·볼린저밴드</span>
           <span style="font-size:10px;color:var(--tg);white-space:nowrap">기업</span>
         </div>
@@ -452,18 +452,18 @@ function pBotConfig() {
     <!-- KIND IR 흐름 -->
     <div class="card">
       <div class="card-header"><span class="card-title">📋 KIND IR자료 흐름</span></div>
-      <div class="card-body" style="font-size:12px;color:var(--text2);line-height:1.8">
+      <div class="card-body" style="font-size:12px;color:var(--text1);line-height:1.8">
         <div style="padding:8px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
-          <div style="margin-bottom:6px;color:var(--text3)">하루 2회 수집: 09:05 · 18:05</div>
+          <div style="margin-bottom:6px;color:var(--text2)">하루 2회 수집: 09:05 · 18:05</div>
           <div style="display:flex;flex-direction:column;gap:4px">
             <div>① KIND 자료실 신규 업로드 감지 (irSeq 기준)</div>
-            <div style="padding-left:16px;color:var(--text3)">↓ 전체 상장사</div>
+            <div style="padding-left:16px;color:var(--text2)">↓ 전체 상장사</div>
             <div>② <span style="color:var(--tg);font-weight:600">@batiarchive</span>에 PDF 전송 (요약 메시지 + 종목별 파일)</div>
-            <div style="padding-left:16px;color:var(--text3)">↓ 모니터링 등록 종목만 추가 전달</div>
+            <div style="padding-left:16px;color:var(--text2)">↓ 모니터링 등록 종목만 추가 전달</div>
             <div>③ 해당 <b>산업 채널</b> + <b>기업 채널</b>에도 동일 PDF 전달</div>
           </div>
         </div>
-        <div style="margin-top:.75rem;font-size:11px;color:var(--text3)">
+        <div style="margin-top:.75rem;font-size:11px;color:var(--text2)">
           * "일자" 컬럼은 IR 개최 예정일이며 업로드일과 다를 수 있음. 업로드 즉시 수집됩니다.
         </div>
       </div>
@@ -471,7 +471,7 @@ function pBotConfig() {
 
     <div style="background:linear-gradient(135deg,rgba(42,171,238,.12),rgba(42,171,238,.04));border:1px solid rgba(42,171,238,.25);border-radius:var(--radius);padding:1rem 1.25rem">
       <div style="font-size:13px;font-weight:600;color:var(--tg);margin-bottom:.5rem">봇 서버 연동 방법</div>
-      <div style="font-size:12px;color:var(--text2);line-height:1.9">
+      <div style="font-size:12px;color:var(--text1);line-height:1.9">
         1. <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">supabase_bridge.py</code> 를 봇 폴더에 복사<br>
         2. <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">pip install supabase</code> 실행<br>
         3. <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">.env</code> 에 <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">SB_URL</code>, <code style="background:var(--bg3);padding:1px 6px;border-radius:3px">SB_SERVICE_KEY</code> 추가<br>
@@ -495,7 +495,7 @@ function pBotConfig() {
   <!-- ④ 알림·채널 탭 -->
   <div id="botcfg-alert" style="display:none">
 
-    <div style="font-size:12px;color:var(--text2);margin-bottom:1rem;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
+    <div style="font-size:12px;color:var(--text1);margin-bottom:1rem;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)">
       시세감시 봇이 기업채팅방에 발송하는 알림 기준입니다. 저장 후 봇 재로드 시 반영됩니다.
     </div>
 
@@ -514,14 +514,14 @@ function pBotConfig() {
             <div class="form-hint">이 이상 상승 시 강세 알림</div>
           </div>
           <div class="form-group" style="margin:0">
-            <label class="form-label">📉 약세 기준 (%) <span style="font-size:11px;font-weight:400;color:var(--text3)">음수 입력</span></label>
+            <label class="form-label">📉 약세 기준 (%) <span style="font-size:11px;font-weight:400;color:var(--text2)">음수 입력</span></label>
             <input class="form-input" id="cfg-alert-down" type="number" step="0.5" min="-30" max="-1" placeholder="-5">
             <div class="form-hint">이 이하 하락 시 약세 알림</div>
           </div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
           <button class="btn btn-primary" onclick="saveAlertThresholds()">저장</button>
-          <span style="font-size:11px;color:var(--text3)">VI 발동·상한가·하한가는 기준값 무관하게 항상 발송됩니다.</span>
+          <span style="font-size:11px;color:var(--text2)">VI 발동·상한가·하한가는 기준값 무관하게 항상 발송됩니다.</span>
         </div>
       </div>
     </div>
@@ -552,11 +552,11 @@ function pBotConfig() {
 
     <div class="card">
       <div class="card-header">
-        <span class="card-title">🔍 신뢰도 낮은 출처 <span style="font-size:11px;font-weight:400;color:var(--text3)">— URL에 포함 시 낮은 우선순위</span></span>
+        <span class="card-title">🔍 신뢰도 낮은 출처 <span style="font-size:11px;font-weight:400;color:var(--text2)">— URL에 포함 시 낮은 우선순위</span></span>
       </div>
       <div class="card-body">
         <div class="form-group">
-          <label class="form-label">출처 키워드 <span style="font-size:11px;color:var(--text3)">(쉼표로 구분)</span></label>
+          <label class="form-label">출처 키워드 <span style="font-size:11px;color:var(--text2)">(쉼표로 구분)</span></label>
           <textarea class="form-input" id="cfg-low-trust" rows="3" placeholder="blog.naver,cafe.naver,tistory,brunch,newspim,fntoday"></textarea>
           <div class="form-hint">뉴스 링크 URL에 이 문자열이 포함되면 신뢰도 낮은 출처로 분류됩니다.</div>
         </div>
@@ -609,7 +609,7 @@ async function loadSchedules() {
       </label>
     </div>`;
   }).join('') +
-  '<div style="font-size:11px;color:var(--text3);margin-top:.75rem">변경 즉시 반영됩니다. 봇은 다음 사이클에서 확인합니다.</div>';
+  '<div style="font-size:11px;color:var(--text2);margin-top:.75rem">변경 즉시 반영됩니다. 봇은 다음 사이클에서 확인합니다.</div>';
 }
 
 async function loadDartLevel() {
@@ -751,7 +751,7 @@ async function saveAlertThresholds() {
 const saveAlertConfig = saveConfigKey;
 
 function pSettings() {
-  if (!isAdmin()) return `<div style="padding:2rem;text-align:center;color:var(--text3);font-size:13px">admin만 설정 변경 가능합니다.</div>`;
+  if (!isAdmin()) return `<div style="padding:2rem;text-align:center;color:var(--text2);font-size:13px">admin만 설정 변경 가능합니다.</div>`;
   return `
   <div class="card" style="max-width:560px;margin-bottom:1rem"><div class="card-header"><span class="card-title">Bot 토큰 (DB 저장)</span></div><div class="card-body">
     <div class="form-group">
@@ -774,10 +774,10 @@ function pSettings() {
     <button class="btn btn-primary" onclick="saveConfig('app_name', document.getElementById('cfg-appname').value.trim())">저장</button>
   </div></div>
 
-  <div class="card" style="max-width:560px"><div class="card-header"><span class="card-title">Supabase 연결 정보</span></div><div class="card-body" style="font-size:13px;color:var(--text2);line-height:1.9">
+  <div class="card" style="max-width:560px"><div class="card-header"><span class="card-title">Supabase 연결 정보</span></div><div class="card-body" style="font-size:13px;color:var(--text1);line-height:1.9">
     <p>Project URL: <code style="background:var(--bg3);padding:1px 6px;border-radius:3px;font-size:12px">${SB_URL}</code></p>
     <p style="margin-top:.5rem">연결된 유저: <strong style="color:var(--text)">${A.user?.email}</strong> (${A.profile?.role})</p>
-    <p style="margin-top:.5rem;font-size:12px;color:var(--text3)">URL/Key 변경이 필요하면 index.html 상단의 SB_URL, SB_KEY를 직접 수정하세요.</p>
+    <p style="margin-top:.5rem;font-size:12px;color:var(--text2)">URL/Key 변경이 필요하면 index.html 상단의 SB_URL, SB_KEY를 직접 수정하세요.</p>
   </div></div>
 `;
 }
@@ -787,7 +787,7 @@ function pSettings() {
 // ══════════════════════════════════════════
 
 function pPro() {
-  if (!isAdmin()) return `<div style="padding:2rem;text-align:center;color:var(--text3);font-size:13px">admin만 접근 가능합니다.</div>`;
+  if (!isAdmin()) return `<div style="padding:2rem;text-align:center;color:var(--text2);font-size:13px">admin만 접근 가능합니다.</div>`;
   return `
   <!-- 현황 요약 -->
   <div class="metrics-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:1rem">
@@ -819,10 +819,10 @@ function pPro() {
   <div class="card" style="margin-bottom:.75rem">
     <div class="card-header"><span class="card-title">➕ 신규 멤버 등록</span></div>
     <div class="card-body">
-      <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:.75rem;font-size:12px;color:var(--text2);line-height:1.9">
+      <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:.75rem;font-size:12px;color:var(--text1);line-height:1.9">
         💡 <b>텔레그램 ID 확인</b><br>
         구독 신청자가 <a href="https://t.me/baticompanybot" target="_blank" style="color:var(--tg)">@baticompanybot</a> 에 <b>말을 걸면</b> 어드민 채팅방으로 신청자 정보(이름·ID)가 자동으로 전달됩니다.<br>
-        <span style="color:var(--text3)">별도로 ID를 물어보거나 복사할 필요 없습니다.</span>
+        <span style="color:var(--text2)">별도로 ID를 물어보거나 복사할 필요 없습니다.</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:10px;margin-bottom:.75rem">
         <div class="form-group" style="margin:0">
@@ -860,7 +860,7 @@ function pPro() {
       <button class="btn btn-sm" onclick="loadProMembers()">새로고침</button>
     </div>
     <div id="pro-member-list">
-      <div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>
+      <div style="padding:1.5rem;text-align:center;color:var(--text2)"><span class="loading"></span></div>
     </div>
   </div>`;
 }
@@ -938,12 +938,12 @@ async function loadSmsDeposits() {
     // app_config에서 최근 이력 로드
     const { data } = await sb.from('app_config').select('value').eq('key', 'sms_deposit_log').maybeSingle();
     if (!data || !data.value) {
-      logEl.innerHTML = '<div style="font-size:12px;color:var(--text3)">아직 처리 이력이 없습니다.</div>';
+      logEl.innerHTML = '<div style="font-size:12px;color:var(--text2)">아직 처리 이력이 없습니다.</div>';
       return;
     }
     const entries = JSON.parse(data.value).reverse();
     if (!entries.length) {
-      logEl.innerHTML = '<div style="font-size:12px;color:var(--text3)">아직 처리 이력이 없습니다.</div>';
+      logEl.innerHTML = '<div style="font-size:12px;color:var(--text2)">아직 처리 이력이 없습니다.</div>';
       return;
     }
 
@@ -958,9 +958,9 @@ async function loadSmsDeposits() {
         const [label, color] = STATUS_LABEL[e.action] || ['?', 'var(--text3)'];
         const time = new Date(e.time).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
         return `<tr>
-          <td style="font-size:11px;color:var(--text2)">${time}</td>
+          <td style="font-size:11px;color:var(--text1)">${time}</td>
           <td style="font-size:12px">${e.bank||'?'}</td>
-          <td><b>${e.name||'?'}</b>${e.member && e.member !== e.name ? `<br><span style="font-size:10px;color:var(--text3)">→ ${e.member}</span>` : ''}</td>
+          <td><b>${e.name||'?'}</b>${e.member && e.member !== e.name ? `<br><span style="font-size:10px;color:var(--text2)">→ ${e.member}</span>` : ''}</td>
           <td style="font-size:12px">${(e.amount||0).toLocaleString()}원</td>
           <td style="color:${color};font-size:12px;font-weight:600">${label}</td>
         </tr>`;
@@ -974,7 +974,7 @@ async function loadSmsDeposits() {
 async function loadProMembers() {
   const listEl = document.getElementById('pro-member-list');
   if (!listEl) return;
-  listEl.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div>';
+  listEl.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text2)"><span class="loading"></span></div>';
 
   try {
     const { data: members, error } = await sb.from('pro_members')
@@ -996,7 +996,7 @@ async function loadProMembers() {
     s('pro-stat-exp',    exp7);
 
     if (!members || !members.length) {
-      listEl.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:13px">등록된 멤버가 없습니다.</div>';
+      listEl.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:13px">등록된 멤버가 없습니다.</div>';
       return;
     }
 
@@ -1009,8 +1009,8 @@ async function loadProMembers() {
         ? '<span class="badge" style="background:rgba(42,171,238,.15);color:var(--tg)">채널 내</span>'
         : (m.is_active ? '<span class="badge badge-cat">초대 대기</span>' : '<span class="badge" style="background:rgba(var(--red-rgb),.12);color:var(--red)">비활성</span>');
       return `<tr>
-        <td style="font-size:12px;color:var(--text2)">${m.telegram_id}</td>
-        <td><b>${m.real_name||'—'}</b><br><span style="font-size:11px;color:var(--text3)">${m.telegram_name||''}</span></td>
+        <td style="font-size:12px;color:var(--text1)">${m.telegram_id}</td>
+        <td><b>${m.real_name||'—'}</b><br><span style="font-size:11px;color:var(--text2)">${m.telegram_name||''}</span></td>
         <td style="${expStyle};font-size:12px;font-weight:600">${until}${isExp?' <span style="font-size:10px">(만료)</span>':isNear?' <span style="font-size:10px">(D-'+Math.ceil((new Date(until)-new Date(today))/86400000)+')</span>':''}</td>
         <td>${status}</td>
         <td>

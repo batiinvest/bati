@@ -1,4 +1,4 @@
-// pages.js — 텔레그램 채널 관련 페이지 (overview, rooms, notice, logs)
+﻿// pages.js — 텔레그램 채널 관련 페이지 (overview, rooms, notice, logs)
 // 투자현황 → investment.js / 스크리너 → screener.js
 
 /**
@@ -80,18 +80,18 @@ function pOverview() {
               ${v.industryLink
                 ? `<a href="${v.industryLink}" target="_blank" style="color:var(--tg)" onclick="event.stopPropagation()">산업채팅방</a>`
                 : '산업채팅방'}
-              <span style="color:var(--text2);margin-left:3px">${v.industryM.toLocaleString()}명</span>
+              <span style="color:var(--text1);margin-left:3px">${v.industryM.toLocaleString()}명</span>
             </span>` : '<span></span>'}
             <span style="flex:1"></span>
-            <span style="font-size:12px;color:var(--text2)">기업방 <b>${v.n}</b>개</span>
+            <span style="font-size:12px;color:var(--text1)">기업방 <b>${v.n}</b>개</span>
             <span style="font-size:13px;font-weight:600;min-width:70px;text-align:right">${v.m.toLocaleString()}명</span>
-            <span style="font-size:11px;color:var(--text3);width:14px;text-align:center" id="${catId}-icon">▶</span>
+            <span style="font-size:11px;color:var(--text2);width:14px;text-align:center" id="${catId}-icon">▶</span>
           </div>
           <div id="${catId}" style="display:none;padding:2px 0 10px 18px">
             ${compList.map(r=>`
               <div style="display:flex;align-items:center;gap:6px;padding:3px 0">
                 <span style="font-size:12px;flex:1;color:var(--text1)">${r.name}</span>
-                <span style="font-size:12px;color:var(--text2);min-width:52px;text-align:right">${(r.members||0).toLocaleString()}명</span>
+                <span style="font-size:12px;color:var(--text1);min-width:52px;text-align:right">${(r.members||0).toLocaleString()}명</span>
                 <span style="font-size:11px;font-weight:500;min-width:28px;text-align:center;color:${(r.members||0)>=(r.max_members||1000)?'var(--red)':'var(--green)'}">${(r.members||0)>=(r.max_members||1000)?'마감':'입장'}</span>
                 ${r.link?`<a href="${r.link}" target="_blank" style="font-size:12px;color:var(--tg);text-decoration:none">→</a>`:'<span style="width:12px"></span>'}
               </div>`).join('')}
@@ -100,7 +100,7 @@ function pOverview() {
       }).join('')}
     </div></div>
     <div class="card"><div class="card-header"><span class="card-title">채팅방 멤버 순위</span></div><div class="card-body" style="padding:.75rem 1rem;max-height:400px;overflow-y:auto">
-      ${sortedRooms.map((r,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px"><span style="width:16px;color:var(--text3);font-size:11px;font-weight:600">${i+1}</span><span style="flex:1">${r.name}</span><span style="color:var(--text2);font-size:12px">${(r.members||0).toLocaleString()}</span><div style="width:50px"><div class="progress"><div class="progress-fill" style="background:${CATS[r.cat]||'#888'};width:${Math.min(100,Math.round((r.members||0)/(r.max_members||1000)*100))}%"></div></div></div></div>`).join('')}
+      ${sortedRooms.map((r,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px"><span style="width:16px;color:var(--text2);font-size:11px;font-weight:600">${i+1}</span><span style="flex:1">${r.name}</span><span style="color:var(--text1);font-size:12px">${(r.members||0).toLocaleString()}</span><div style="width:50px"><div class="progress"><div class="progress-fill" style="background:${CATS[r.cat]||'#888'};width:${Math.min(100,Math.round((r.members||0)/(r.max_members||1000)*100))}%"></div></div></div></div>`).join('')}
     </div></div>
   </div>`;
 }
@@ -113,23 +113,23 @@ function _renderRoomRow(r) {
     <td><div style="display:flex;align-items:center;gap:6px">
       <span class="cat-dot" style="background:${CATS[r.cat]||'#888'}"></span>
       <span style="font-weight:500">${r.name}</span>
-      ${r.code ? `<span style="font-size:10px;color:var(--text3)">${r.code}</span>` : ''}
+      ${r.code ? `<span style="font-size:10px;color:var(--text2)">${r.code}</span>` : ''}
     </div></td>
     <td>
       <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
         <span class="badge badge-cat">${r.cat}</span>
         ${r.room_type==='industry' ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:rgba(74,158,255,.15);color:#4a9eff">산업방</span>` : ''}
       </div>
-      ${r.sub_cat && r.sub_cat !== '산업전체' ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${r.sub_cat}</div>` : ''}
+      ${r.sub_cat && r.sub_cat !== '산업전체' ? `<div style="font-size:11px;color:var(--text2);margin-top:2px">${r.sub_cat}</div>` : ''}
     </td>
     <td>
-      <div>${(r.members||0).toLocaleString()}<span style="color:var(--text3)">/${r.max_members||1000}</span></div>
+      <div>${(r.members||0).toLocaleString()}<span style="color:var(--text2)">/${r.max_members||1000}</span></div>
       <div class="progress" style="margin-top:4px">
         <div class="progress-fill" style="background:${barColor};width:${fill}%"></div>
       </div>
     </td>
     <td><span class="badge ${r.status==='full'?'badge-full':r.status==='paid'?'badge-paid':'badge-open'}">${r.status==='full'?'정원 마감':r.status==='paid'?'🔒 유료':'일반 입장'}</span></td>
-    <td><span style="font-size:11px;color:var(--text3);font-family:monospace">${String(r.chat_id).slice(0,22)}</span></td>
+    <td><span style="font-size:11px;color:var(--text2);font-family:monospace">${String(r.chat_id).slice(0,22)}</span></td>
     <td><div style="display:flex;gap:5px">
       <button class="btn btn-sm" onclick="openDetail(${r.id})">상세</button>
       ${canEdit() ? `<button class="btn btn-sm" onclick="syncOne(${r.id})" title="동기화">↻</button>
@@ -195,7 +195,7 @@ function pRooms() {
     ${cats.map(c => `<button class="chip ${A.cat===c?'active':''}" data-cat="${c}"
       onclick="A.cat='${c}';_filterAndRenderRooms()">${c}</button>`).join('')}
   </div>
-  <div style="font-size:12px;color:var(--text3);margin-bottom:.75rem" id="room-count">${filtered.length}개</div>
+  <div style="font-size:12px;color:var(--text2);margin-bottom:.75rem" id="room-count">${filtered.length}개</div>
   <div class="card"><div class="table-wrap"><table>
     <thead><tr><th>채팅방</th><th>산업</th><th id="th-members" onclick="A.sortBy='members';A.sortDir=(A.sortDir==='desc'?'asc':'desc');_filterAndRenderRooms()" style="cursor:pointer;user-select:none">멤버 수 ↕</th><th>상태</th><th>Chat ID</th><th>관리</th></tr></thead>
     <tbody id="room-tbody">${filtered.map(_renderRoomRow).join('')}</tbody>
@@ -203,7 +203,7 @@ function pRooms() {
 }
 
 function pNotice() {
-  if (!canEdit()) return `<div style="padding:2rem;text-align:center;color:var(--text3);font-size:13px">발송 권한이 없습니다 (viewer)</div>`;
+  if (!canEdit()) return `<div style="padding:2rem;text-align:center;color:var(--text2);font-size:13px">발송 권한이 없습니다 (viewer)</div>`;
 
   const roomOptions = [...A.rooms]
     .sort((a,b) => a.name.localeCompare(b.name, 'ko'))
@@ -257,7 +257,7 @@ function pNotice() {
           <option value="Markdown">Markdown (URL 자동 링크)</option>
         </select>
       </div>
-      <div style="align-self:flex-end;font-size:12px;color:var(--text3)" id="i-target-info"></div>
+      <div style="align-self:flex-end;font-size:12px;color:var(--text2)" id="i-target-info"></div>
     </div>
     <div class="form-group"><label class="form-label">내용</label>
       <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;align-items:center">
@@ -266,18 +266,18 @@ function pNotice() {
         </button>
         <button class="btn btn-sm" onclick="autoGenIntro(true)" title="수정본 무시하고 채팅방 데이터로 새로 생성">🔄 새로 생성</button>
         <button class="btn btn-sm" onclick="clearNoticeContent()">🗑 지우기</button>
-        <span style="font-size:10px;color:var(--text3);align-self:center"><code>---</code> 줄 기준으로 분할 발송</span>
+        <span style="font-size:10px;color:var(--text2);align-self:center"><code>---</code> 줄 기준으로 분할 발송</span>
       </div>
       <textarea class="form-input" id="i-content" rows="12" style="font-size:12px;font-family:monospace"
         placeholder="직접 입력하거나 소개 글 생성 버튼을 누르세요"
         oninput="prev(this.value,'i-prev')"></textarea>
     </div>
-    <div class="form-group"><label class="form-label">미리보기</label><div id="i-prev" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;min-height:36px;color:var(--text2);white-space:pre-wrap"></div></div>
-    <div id="i-prog" class="hidden" style="font-size:12px;padding:8px;background:var(--bg3);border-radius:var(--radius-sm);color:var(--text2);margin-bottom:.75rem"></div>
+    <div class="form-group"><label class="form-label">미리보기</label><div id="i-prev" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;min-height:36px;color:var(--text1);white-space:pre-wrap"></div></div>
+    <div id="i-prog" class="hidden" style="font-size:12px;padding:8px;background:var(--bg3);border-radius:var(--radius-sm);color:var(--text1);margin-bottom:.75rem"></div>
     <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary" id="i-btn" onclick="sendInline()">발송 + DB 저장</button></div>
   </div></div>
   <div class="section-header"><span class="section-title">발송 기록</span></div>
-  <div class="card" id="notice-list"><div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div></div>`;
+  <div class="card" id="notice-list"><div style="padding:1.5rem;text-align:center;color:var(--text2)"><span class="loading"></span></div></div>`;
 }
 
 async function loadNotices() {
@@ -286,8 +286,8 @@ async function loadNotices() {
   if (error) { el.innerHTML=`<div style="padding:1rem;color:var(--red);font-size:13px">${error.message}</div>`; return; }
   el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>시각</th><th>발송자</th><th>대상</th><th>내용</th><th>발송</th><th>성공</th></tr></thead><tbody>
     ${!data.length?'<tr><td colspan="6" class="empty-row">발송 기록이 없습니다. 공지를 작성하고 발송하면 여기에 기록됩니다.</td></tr>':data.map(h=>`<tr>
-      <td style="font-size:12px;color:var(--text2)">${new Date(h.created_at).toLocaleString('ko-KR')}</td>
-      <td style="font-size:12px;color:var(--text2)">봇/대시보드</td>
+      <td style="font-size:12px;color:var(--text1)">${new Date(h.created_at).toLocaleString('ko-KR')}</td>
+      <td style="font-size:12px;color:var(--text1)">봇/대시보드</td>
       <td><span class="badge badge-cat">${h.target}</span></td>
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.content.replace(/<[^>]+>/g,'').slice(0,35)}...</td>
       <td>${h.sent_count}</td><td style="color:var(--green)">${h.ok_count}</td>
@@ -297,7 +297,7 @@ async function loadNotices() {
 
 function pLogs() {
   return `<div class="section-header"><span class="section-title">동기화 로그 (최근 50건)</span><button class="btn btn-sm" onclick="loadLogs()">새로고침</button></div>
-  <div class="card" id="log-list"><div style="padding:1.5rem;text-align:center;color:var(--text3)"><span class="loading"></span></div></div>`;
+  <div class="card" id="log-list"><div style="padding:1.5rem;text-align:center;color:var(--text2)"><span class="loading"></span></div></div>`;
 }
 
 async function loadLogs() {
@@ -306,7 +306,7 @@ async function loadLogs() {
   if (error) { el.innerHTML=`<div style="padding:1rem;color:var(--red);font-size:13px">${error.message}</div>`; return; }
   el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>시각</th><th>채팅방</th><th>이전</th><th>이후</th><th>변화</th></tr></thead><tbody>
     ${!data.length?'<tr><td colspan="5" class="empty-row">동기화 기록이 없습니다. 멤버 수 동기화를 실행하면 여기에 기록됩니다.</td></tr>':data.map(l=>{const d=l.after-l.before;return`<tr>
-      <td style="font-size:12px;color:var(--text2)">${new Date(l.synced_at).toLocaleString('ko-KR')}</td>
+      <td style="font-size:12px;color:var(--text1)">${new Date(l.synced_at).toLocaleString('ko-KR')}</td>
       <td style="font-weight:500">${l.room_name}</td>
       <td>${(l.before||0).toLocaleString()}</td><td>${(l.after||0).toLocaleString()}</td>
       <td style="font-weight:600;color:${d>0?'var(--green)':d<0?'var(--red)':'var(--text3)'}">${d>0?'+':''}${d}</td>

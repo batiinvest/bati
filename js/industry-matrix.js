@@ -1,4 +1,4 @@
-/**
+﻿/**
  * industry-matrix.js — 산업 강도 매트릭스
  *
  * sector_daily_summary 테이블에서 US 누적 등락률 · KR 누적 등락률 · 신호를 읽어 렌더링.
@@ -52,7 +52,7 @@ async function loadIndustryMatrix() {
   if (!el) return;
 
   el.innerHTML =
-    '<div style="padding:1rem;color:var(--text3);font-size:12px">' +
+    '<div style="padding:1rem;color:var(--text2);font-size:12px">' +
     '<span class="loading"></span> 신호 분석 중...</div>';
 
   try {
@@ -66,7 +66,7 @@ async function loadIndustryMatrix() {
     const latestDate = latestRow?.base_date;
     if (!latestDate) {
       el.innerHTML =
-        '<div style="padding:1rem;text-align:center;color:var(--text3);font-size:12px">' +
+        '<div style="padding:1rem;text-align:center;color:var(--text2);font-size:12px">' +
         '신호 데이터 없음 — 장 마감 후 (17:15) 자동 집계됩니다</div>';
       return;
     }
@@ -85,7 +85,7 @@ async function loadIndustryMatrix() {
 
     if (!rows?.length) {
       el.innerHTML =
-        '<div style="padding:1rem;text-align:center;color:var(--text3);font-size:12px">' +
+        '<div style="padding:1rem;text-align:center;color:var(--text2);font-size:12px">' +
         '신호 데이터 없음 — 장 마감 후 (17:15) 자동 집계됩니다</div>';
       return;
     }
@@ -129,7 +129,7 @@ async function loadIndustryMatrix() {
   } catch(e) {
     console.error('[IndustryMatrix]', e);
     if (el) el.innerHTML =
-      `<div style="padding:1rem;color:var(--text3);font-size:12px">오류: ${e.message}</div>`;
+      `<div style="padding:1rem;color:var(--text2);font-size:12px">오류: ${e.message}</div>`;
   }
 }
 
@@ -141,7 +141,7 @@ function renderIndustryMatrix() {
   const rows = window._imRows || [];
   if (!rows.length) {
     el.innerHTML =
-      '<div style="padding:1rem;text-align:center;color:var(--text3);font-size:12px">데이터 없음</div>';
+      '<div style="padding:1rem;text-align:center;color:var(--text2);font-size:12px">데이터 없음</div>';
     return;
   }
 
@@ -171,10 +171,10 @@ function renderIndustryMatrix() {
     `<div style="display:grid;grid-template-columns:68px 52px 52px 1fr;` +
          `gap:0;padding:4px 12px;border-bottom:1px solid var(--border);` +
          `background:var(--bg2)">` +
-      `<span style="font-size:10px;color:var(--text3)">섹터</span>` +
-      `<span style="font-size:10px;color:var(--text3);text-align:right">🇺🇸 ${pLabel}</span>` +
-      `<span style="font-size:10px;color:var(--text3);text-align:right">🇰🇷 ${pLabel}</span>` +
-      `<span style="font-size:10px;color:var(--text3);text-align:right">신호</span>` +
+      `<span style="font-size:10px;color:var(--text2)">섹터</span>` +
+      `<span style="font-size:10px;color:var(--text2);text-align:right">🇺🇸 ${pLabel}</span>` +
+      `<span style="font-size:10px;color:var(--text2);text-align:right">🇰🇷 ${pLabel}</span>` +
+      `<span style="font-size:10px;color:var(--text2);text-align:right">신호</span>` +
     `</div>`;
 
   // ── 각 행 (1줄 테이블) ────────────────────────────────────────────────────
@@ -189,7 +189,7 @@ function renderIndustryMatrix() {
     const sigCell = sig
       ? `<span style="font-size:10px;font-weight:700;color:${sig.color};white-space:nowrap">` +
           `${sig.icon} ${sig.label}</span>`
-      : `<span style="font-size:10px;color:var(--text3)">—</span>`;
+      : `<span style="font-size:10px;color:var(--text2)">—</span>`;
 
     return (
       `<div style="display:grid;grid-template-columns:68px 52px 52px 1fr;` +
@@ -220,14 +220,14 @@ function renderIndustryMatrix() {
         `<span style="font-size:10px;color:${s.color};background:${s.color}15;` +
               `border-radius:3px;padding:1px 6px">${s.icon} ${s.label}</span>`
       ).join('') +
-      `<span style="font-size:10px;color:var(--text3);margin-left:auto">` +
+      `<span style="font-size:10px;color:var(--text2);margin-left:auto">` +
         `백엔드 탐지</span>` +
     `</div>`;
 
   const summaryHtml = sigSummary
     ? `<div style="padding:5px 12px;border-bottom:1px solid var(--border);` +
            `display:flex;flex-wrap:wrap;gap:5px;align-items:center;background:var(--bg2)">` +
-        `<span style="font-size:10px;color:var(--text3);margin-right:2px">탐지 신호:</span>` +
+        `<span style="font-size:10px;color:var(--text2);margin-right:2px">탐지 신호:</span>` +
         sigSummary +
       `</div>`
     : '';

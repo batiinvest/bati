@@ -1,4 +1,4 @@
-// chart-macro.js — 글로벌 매크로 차트 (흐름 비교 차트, ETF 배너)
+﻿// chart-macro.js — 글로벌 매크로 차트 (흐름 비교 차트, ETF 배너)
 // 의존: config.js, investment.js (INV_ALL_METRICS, INV)
 
 // ── 매크로 위험 신호 임계값 (투자전문가 기준) ──
@@ -66,7 +66,7 @@ async function loadMacroData() {
     strip.id = '_macro-risk-strip';
     strip.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 12px;margin-bottom:8px;border-radius:8px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.25)';
     strip.innerHTML =
-      '<span style="font-size:11px;color:var(--text3);font-weight:600;white-space:nowrap">🔔 위험 신호</span>' +
+      '<span style="font-size:11px;color:var(--text2);font-weight:600;white-space:nowrap">🔔 위험 신호</span>' +
       _activeRisks.map(r => {
         const ri = _RI[r.risk];
         return `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:12px;` +
@@ -137,7 +137,7 @@ async function loadMacroData() {
           `${ri.glow ? 'box-shadow:' + ri.glow + ';' : ''}">` +
           `<div style="display:flex;align-items:center;gap:3px;line-height:1">` +
             `<span style="font-size:11px;line-height:1">${ri.icon}</span>` +
-            `<span style="font-size:10px;color:var(--text2);font-weight:500;white-space:nowrap">${label}</span>` +
+            `<span style="font-size:10px;color:var(--text1);font-weight:500;white-space:nowrap">${label}</span>` +
           `</div>` +
           `<div style="display:flex;align-items:baseline;gap:3px">` +
             `<span style="font-size:13px;font-weight:800;color:var(--text1)">${valStr}</span>` +
@@ -148,7 +148,7 @@ async function loadMacroData() {
 
       // 일반 항목
       return `<div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">` +
-        `<span style="font-size:10px;color:var(--text2);line-height:1;font-weight:500">${label}</span>` +
+        `<span style="font-size:10px;color:var(--text1);line-height:1;font-weight:500">${label}</span>` +
         `<div style="display:flex;align-items:baseline;gap:3px">` +
           `<span style="font-size:12px;font-weight:700;color:var(--text1)">${valStr}</span>` +
           chgHtml +
@@ -185,7 +185,7 @@ async function loadMacroData() {
         futHtml =
           `<div style="display:flex;align-items:baseline;gap:3px;margin-top:4px;padding-top:3px;` +
           `border-top:1px solid rgba(255,255,255,0.08);${futBox}">` +
-            `<span style="font-size:9px;color:var(--text2);white-space:nowrap;font-weight:500">${futLabel}</span>` +
+            `<span style="font-size:9px;color:var(--text1);white-space:nowrap;font-weight:500">${futLabel}</span>` +
             `<span style="font-size:${futBig?'12':'10'}px;font-weight:${futBig?'700':'600'};color:var(--text1)">${futValStr}</span>` +
             futChgHtml +
           `</div>`;
@@ -196,7 +196,7 @@ async function loadMacroData() {
         : '';
 
       return `<div style="display:flex;flex-direction:column;gap:0;flex-shrink:0;${boxStyle}">` +
-        `<span style="font-size:10px;color:var(--text2);line-height:1;font-weight:500">${idxLabel}</span>` +
+        `<span style="font-size:10px;color:var(--text1);line-height:1;font-weight:500">${idxLabel}</span>` +
         `<div style="display:flex;align-items:baseline;gap:3px;margin-top:1px">` +
           `<span style="font-size:12px;font-weight:700;color:var(--text1)">${valStr}</span>` +
           chgHtml +
@@ -281,11 +281,11 @@ async function loadUsEtfBanner() {
 
   if (error) {
     console.error('[ETF배너] 조회 오류:', error);
-    etfBanner.innerHTML = '<span style="color:var(--text3);font-size:11px">US ETF 데이터 오류</span>';
+    etfBanner.innerHTML = '<span style="color:var(--text2);font-size:11px">US ETF 데이터 오류</span>';
     return;
   }
   if (!rows?.length) {
-    etfBanner.innerHTML = '<span style="color:var(--text3);font-size:11px">US ETF 수집 대기 중</span>';
+    etfBanner.innerHTML = '<span style="color:var(--text2);font-size:11px">US ETF 수집 대기 중</span>';
     return;
   }
 
@@ -316,14 +316,14 @@ async function loadUsEtfBanner() {
 
   etfBanner.innerHTML = sorted.map(([ind, avg]) =>
     `<span style="display:flex;align-items:center;gap:4px;white-space:nowrap">
-      <span style="font-size:11px;color:var(--text3)">${ind}</span>
+      <span style="font-size:11px;color:var(--text2)">${ind}</span>
       ${fmt(avg)}
     </span>`
   ).join(sep);
 
   } catch(e) {
     console.error('[ETF배너] 예외:', e);
-    etfBanner.innerHTML = '<span style="color:var(--text3);font-size:11px">US ETF 로드 실패</span>';
+    etfBanner.innerHTML = '<span style="color:var(--text2);font-size:11px">US ETF 로드 실패</span>';
   }
 }
 

@@ -1,4 +1,4 @@
-
+﻿
 function fmtEok(eok) {  // 억 단위 입력 (config.js fmtCap은 원 단위)
   // 억 단위 입력값을 보기 쉽게 변환
   if (eok == null || isNaN(eok)) return '—';
@@ -73,9 +73,9 @@ async function searchWatchlistStock(query) {
       style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px"
       onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
       <span style="font-weight:500">${c.name}</span>
-      <span style="font-size:11px;color:var(--text3)">${code}</span>
-      ${c.industry ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:var(--bg3);color:var(--text3)">${c.industry}</span>` : ''}
-      <span style="font-size:10px;color:var(--text3);margin-left:auto">${c.market||''}</span>
+      <span style="font-size:11px;color:var(--text2)">${code}</span>
+      ${c.industry ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:var(--bg3);color:var(--text2)">${c.industry}</span>` : ''}
+      <span style="font-size:10px;color:var(--text2);margin-left:auto">${c.market||''}</span>
     </div>`;
   }).join('');
 }
@@ -158,7 +158,7 @@ function pWatchlist() {
       <button class="chip"        data-group="보유중"  onclick="setWlGroup(this,'보유중')">보유중</button>
       <button class="chip"        data-group="관심"    onclick="setWlGroup(this,'관심')">관심</button>
       <button class="chip"        data-group="후보"    onclick="setWlGroup(this,'후보')">후보</button>
-      <span id="wl-count" style="font-size:12px;color:var(--text3);margin-left:4px"></span>
+      <span id="wl-count" style="font-size:12px;color:var(--text2);margin-left:4px"></span>
     </div>
     <button class="btn btn-primary" onclick="openWatchlistModal(null)">+ 종목 추가</button>
   </div>
@@ -176,7 +176,7 @@ async function loadWatchlist() {
   const group = window._wlGroup || 'all';
   const listEl = document.getElementById('wl-list');
   if (!listEl) return;
-  listEl.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text3)"><span class="loading"></span></div>';
+  listEl.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text2)"><span class="loading"></span></div>';
 
   let q = sb.from('watchlist').select('*').order('created_at', { ascending: false });
   if (group !== 'all') q = q.eq('group_name', group);
@@ -199,12 +199,12 @@ async function loadWatchlist() {
   const groupColors = { '관심': '#4a9eff', '후보': '#ffc107', '보유중': 'var(--tg)' };
 
   if (!data?.length) {
-    listEl.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text3)">등록된 관심종목이 없어요.<br>+ 종목 추가 버튼을 눌러 추가해주세요.</div>';
+    listEl.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text2)">등록된 관심종목이 없어요.<br>+ 종목 추가 버튼을 눌러 추가해주세요.</div>';
     return;
   }
 
   // ── 테이블 헤더 ───────────────────────────────────────────────────────────
-  const thStyle = 'font-size:11px;color:var(--text3);font-weight:500;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap';
+  const thStyle = 'font-size:11px;color:var(--text2);font-weight:500;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap';
   const header = `
     <tr>
       <th style="${thStyle}">종목</th>
@@ -236,13 +236,13 @@ async function loadWatchlist() {
     if (buyCapEok) {
       if (isBuyZone) {
         buyCell = `<div style="color:var(--tg);font-weight:700;font-size:13px">✅ 매수 구간</div>
-                   <div style="font-size:12px;color:var(--text2)">${fmtEok(buyCapEok)} 이하</div>`;
+                   <div style="font-size:12px;color:var(--text1)">${fmtEok(buyCapEok)} 이하</div>`;
       } else {
         buyCell = `<div style="font-size:13px;font-weight:600">${fmtEok(buyCapEok)}</div>
-                   <div style="font-size:12px;color:var(--text2)">현재보다 ${buyGap!=null?Math.abs(buyGap).toFixed(1)+'%':'—'} 하락 필요</div>`;
+                   <div style="font-size:12px;color:var(--text1)">현재보다 ${buyGap!=null?Math.abs(buyGap).toFixed(1)+'%':'—'} 하락 필요</div>`;
       }
     } else {
-      buyCell = `<span style="color:var(--text2);font-size:12px">—</span>`;
+      buyCell = `<span style="color:var(--text1);font-size:12px">—</span>`;
     }
 
     // ── 업사이드 (target_price 기준, 현재 대비) ──────────────────────────
@@ -257,7 +257,7 @@ async function loadWatchlist() {
       tgtCell = `<div style="font-size:13px;font-weight:600">${fmtEok(tgtCapEok)}</div>
                  <div style="font-size:12px;font-weight:600;color:${color}">${pctStr}${multStr ? ' · '+multStr : ''}</div>`;
     } else {
-      tgtCell = `<span style="color:var(--text2);font-size:12px">—</span>`;
+      tgtCell = `<span style="color:var(--text1);font-size:12px">—</span>`;
     }
 
     // ── 투자포인트 (최대 2개) ────────────────────────────────────────────
@@ -265,7 +265,7 @@ async function loadWatchlist() {
     const thesisCell = theses.length
       ? theses.map((t,i) => `<div style="font-size:12px;color:var(--text1);padding:1px 0;display:flex;gap:5px">
           <span style="color:var(--tg);font-weight:700;flex-shrink:0">${i+1}.</span><span>${t}</span></div>`).join('')
-      : `<span style="font-size:12px;color:var(--text2)">—</span>`;
+      : `<span style="font-size:12px;color:var(--text1)">—</span>`;
 
     // ── 행 배경: 매수 구간이면 연초록 강조 ──────────────────────────────
     const rowBg = isBuyZone ? 'background:rgba(45,206,137,.06)' : '';
@@ -277,7 +277,7 @@ async function loadWatchlist() {
           <span style="font-size:13px;font-weight:700">${w.corp_name}</span>
           <span style="font-size:10px;padding:1px 6px;border-radius:100px;background:${groupColors[w.group_name]||'#888'}22;color:${groupColors[w.group_name]||'#888'}">${w.group_name}</span>
         </div>
-        ${w.industry ? `<div style="font-size:11px;color:var(--text2);margin-top:2px">${w.industry}</div>` : ''}
+        ${w.industry ? `<div style="font-size:11px;color:var(--text1);margin-top:2px">${w.industry}</div>` : ''}
         ${w.catalyst ? `<div style="font-size:11px;color:var(--tg);margin-top:2px">⚡ ${w.catalyst}</div>` : ''}
       </td>
       <td style="${tdStyle}">
@@ -328,7 +328,7 @@ function openWatchlistModal(id) {
         <button class="modal-close" onclick="document.getElementById('m-watchlist').remove()">×</button>
       </div>
       <div id="wl-modal-body" style="padding:1.25rem">
-        <div style="text-align:center;color:var(--text3)"><span class="loading"></span></div>
+        <div style="text-align:center;color:var(--text2)"><span class="loading"></span></div>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -346,13 +346,13 @@ async function renderWatchlistForm(id) {
 
   const inp = (field, label, placeholder='', type='text', readonly=false) => `
     <div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">${label}</div>
+      <div style="font-size:12px;color:var(--text1);margin-bottom:4px">${label}</div>
       <input type="${type}" class="form-input" id="wl-${field}" value="${w[field]||''}"
         placeholder="${placeholder}" ${readonly?'readonly style="width:100%;box-sizing:border-box;opacity:0.7"':'style="width:100%;box-sizing:border-box"'}>
     </div>`;
   const ta = (field, label, placeholder='') => `
     <div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">${label}</div>
+      <div style="font-size:12px;color:var(--text1);margin-bottom:4px">${label}</div>
       <textarea class="form-input" id="wl-${field}" placeholder="${placeholder}"
         style="width:100%;box-sizing:border-box;height:60px;resize:vertical">${w[field]||''}</textarea>
     </div>`;
@@ -365,7 +365,7 @@ async function renderWatchlistForm(id) {
       <!-- 종목 검색 -->
       <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end">
         <div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">종목 검색</div>
+          <div style="font-size:12px;color:var(--text1);margin-bottom:4px">종목 검색</div>
           <div style="position:relative">
             <input type="text" class="form-input" id="wl-search"
               placeholder="종목명 또는 코드 입력..."
@@ -379,7 +379,7 @@ async function renderWatchlistForm(id) {
           <input type="hidden" id="wl-industry"   value="${w.industry||''}">
         </div>
         <div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">그룹</div>
+          <div style="font-size:12px;color:var(--text1);margin-bottom:4px">그룹</div>
           <select class="form-select" id="wl-group_name" style="width:100px"
             onchange="document.getElementById('wl-holding-section').style.display=this.value==='보유중'?'':'none'">
             ${['관심','후보','보유중'].map(g=>`<option value="${g}" ${(w.group_name||(window._wlGroup!=='all'?window._wlGroup:'관심'))===g?'selected':''}>${g}</option>`).join('')}
@@ -390,12 +390,12 @@ async function renderWatchlistForm(id) {
       <!-- 시장 데이터 자동입력 -->
       <div style="background:var(--bg2);border-radius:8px;padding:10px 14px">
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
-          <div><div style="font-size:10px;color:var(--text3)">현재가</div><div id="wl-auto-price" style="font-size:13px;font-weight:600">—</div></div>
-          <div><div style="font-size:10px;color:var(--text3)">등락률</div><div id="wl-auto-chg"  style="font-size:13px;font-weight:600">—</div></div>
-          <div><div style="font-size:10px;color:var(--text3)">시총</div>  <div id="wl-auto-cap"  style="font-size:13px;font-weight:600">—</div></div>
-          <div><div style="font-size:10px;color:var(--text3)">PER</div>   <div id="wl-auto-per"  style="font-size:13px;font-weight:600">—</div></div>
+          <div><div style="font-size:10px;color:var(--text2)">현재가</div><div id="wl-auto-price" style="font-size:13px;font-weight:600">—</div></div>
+          <div><div style="font-size:10px;color:var(--text2)">등락률</div><div id="wl-auto-chg"  style="font-size:13px;font-weight:600">—</div></div>
+          <div><div style="font-size:10px;color:var(--text2)">시총</div>  <div id="wl-auto-cap"  style="font-size:13px;font-weight:600">—</div></div>
+          <div><div style="font-size:10px;color:var(--text2)">PER</div>   <div id="wl-auto-per"  style="font-size:13px;font-weight:600">—</div></div>
         </div>
-        <div id="wl-shares-hint" style="font-size:11px;color:var(--text3);margin-top:6px"></div>
+        <div id="wl-shares-hint" style="font-size:11px;color:var(--text2);margin-top:6px"></div>
       </div>
 
       <!-- 매수 목표 시총 ↔ 업사이드 -->
@@ -404,14 +404,14 @@ async function renderWatchlistForm(id) {
           <div style="font-size:11px;color:var(--tg);font-weight:600;margin-bottom:8px">매수 목표 시총</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div>
-              <div style="font-size:10px;color:var(--text3);margin-bottom:3px">주가 (원)</div>
+              <div style="font-size:10px;color:var(--text2);margin-bottom:3px">주가 (원)</div>
               <input type="number" class="form-input" id="wl-watch_price" value="${w.watch_price||''}"
                 placeholder="예: 60,000" oninput="syncWlWatchPrice('price',this.value)"
                 style="width:100%;box-sizing:border-box;font-size:12px">
               <div id="wl-watch-cap-hint" style="font-size:10px;color:var(--tg);margin-top:3px"></div>
             </div>
             <div>
-              <div style="font-size:10px;color:var(--text3);margin-bottom:3px">시총 (억원)</div>
+              <div style="font-size:10px;color:var(--text2);margin-bottom:3px">시총 (억원)</div>
               <input type="number" class="form-input" id="wl-watch_cap"
                 placeholder="억원" oninput="syncWlWatchPrice('cap',this.value)"
                 style="width:100%;box-sizing:border-box;font-size:12px">
@@ -419,17 +419,17 @@ async function renderWatchlistForm(id) {
           </div>
         </div>
         <div style="background:var(--bg2);border-radius:8px;padding:10px 12px">
-          <div style="font-size:11px;color:var(--text3);font-weight:600;margin-bottom:8px">업사이드 목표 시총</div>
+          <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:8px">업사이드 목표 시총</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div>
-              <div style="font-size:10px;color:var(--text3);margin-bottom:3px">주가 (원)</div>
+              <div style="font-size:10px;color:var(--text2);margin-bottom:3px">주가 (원)</div>
               <input type="number" class="form-input" id="wl-target_price" value="${w.target_price||''}"
                 placeholder="예: 100,000" oninput="syncWlPrice('price',this.value)"
                 style="width:100%;box-sizing:border-box;font-size:12px">
-              <div id="wl-target-cap-hint" style="font-size:10px;color:var(--text3);margin-top:3px"></div>
+              <div id="wl-target-cap-hint" style="font-size:10px;color:var(--text2);margin-top:3px"></div>
             </div>
             <div>
-              <div style="font-size:10px;color:var(--text3);margin-bottom:3px">시총 (억원)</div>
+              <div style="font-size:10px;color:var(--text2);margin-bottom:3px">시총 (억원)</div>
               <input type="number" class="form-input" id="wl-target_cap"
                 placeholder="억원" oninput="syncWlPrice('cap',this.value)"
                 style="width:100%;box-sizing:border-box;font-size:12px">

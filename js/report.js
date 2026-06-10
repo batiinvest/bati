@@ -1,4 +1,4 @@
-// report.js — 기업 분석 리포트 페이지
+﻿// report.js — 기업 분석 리포트 페이지
 // 20년+ 수석 펀드매니저 관점의 투자 의사결정 중심 구성
 // 의존: config.js (sb, fmtNum, fmtCap 등)
 
@@ -25,7 +25,7 @@ function pReport() {
             style="width:100%;padding:7px 32px 7px 10px;border:1px solid var(--border);
               border-radius:var(--radius-sm);background:var(--bg3);color:var(--text1);font-size:13px">
           <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);
-            width:14px;height:14px;color:var(--text3);pointer-events:none"
+            width:14px;height:14px;color:var(--text2);pointer-events:none"
             viewBox="0 0 16 16" fill="none">
             <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" stroke-width="1.5"/>
             <path d="M10 10l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -38,14 +38,14 @@ function pReport() {
           style="padding:7px 14px;font-size:12px;white-space:nowrap">분석 리포트</button>
         <button onclick="document.getElementById('rp-dart-file').click()"
           style="padding:7px 12px;font-size:12px;white-space:nowrap;border:1px solid var(--border);
-            border-radius:var(--radius-sm);background:var(--bg3);color:var(--text2);cursor:pointer"
+            border-radius:var(--radius-sm);background:var(--bg3);color:var(--text1);cursor:pointer"
           title="사업보고서 MD 파일 업로드">DART 업로드</button>
       </div>
       ${_rpStock ? `
       <div style="display:flex;align-items:center;gap:6px">
         <span style="font-weight:700;font-size:14px">${_rpStock.name}</span>
-        <span style="font-size:12px;color:var(--text2)">${_rpStock.code}</span>
-        <span id="rp-price-badge" style="font-size:12px;color:var(--text2)">로딩중...</span>
+        <span style="font-size:12px;color:var(--text1)">${_rpStock.code}</span>
+        <span id="rp-price-badge" style="font-size:12px;color:var(--text1)">로딩중...</span>
       </div>` : ''}
     </div>
 
@@ -70,7 +70,7 @@ function _rpLanding() {
     </div>
     <div>
       <div style="font-size:18px;font-weight:700;margin-bottom:6px">기업 분석 리포트</div>
-      <div style="font-size:13px;color:var(--text3);line-height:1.6">
+      <div style="font-size:13px;color:var(--text2);line-height:1.6">
         20년+ 수석 펀드매니저 관점의 투자 분석<br>
         밸류에이션 · 실적 · 재무 · 수급 · 리스크를 한 화면에
       </div>
@@ -79,7 +79,7 @@ function _rpLanding() {
       ${examples.map(n => `
         <button onclick="rpQuickSearch('${n}')"
           style="padding:5px 12px;border:1px solid var(--border);border-radius:100px;
-            background:var(--bg3);color:var(--text2);font-size:12px;cursor:pointer">
+            background:var(--bg3);color:var(--text1);font-size:12px;cursor:pointer">
           ${n}
         </button>`).join('')}
     </div>
@@ -87,7 +87,7 @@ function _rpLanding() {
 }
 
 function _rpSkeleton() {
-  return `<div style="text-align:center;padding:40px;color:var(--text3);font-size:13px">
+  return `<div style="text-align:center;padding:40px;color:var(--text2);font-size:13px">
     <span class="loading"></span> 데이터 로딩 중...
   </div>`;
 }
@@ -122,8 +122,8 @@ async function rpSearchInput(q) {
         onmouseover="this.style.background='var(--bg3)'"
         onmouseout="this.style.background=''">
         <span style="font-size:13px;font-weight:500">${r.name}</span>
-        <span style="font-size:12px;color:var(--text2)">${r.code}</span>
-        <span style="font-size:12px;color:var(--text2);margin-left:auto">${r.industry||''}</span>
+        <span style="font-size:12px;color:var(--text1)">${r.code}</span>
+        <span style="font-size:12px;color:var(--text1);margin-left:auto">${r.industry||''}</span>
       </div>`).join('');
     dd.style.display = 'block';
   }, 200);
@@ -284,14 +284,14 @@ function rpRenderReport() {
   const dartRisks = _rpData.dart?.summary?.risk_points || [];
 
   const bullHTML = watch?.note
-    ? `<div id="rp-bull-points" style="font-size:14px;color:var(--text2);line-height:1.7">${_rpFormatNote(watch.note)}</div>`
+    ? `<div id="rp-bull-points" style="font-size:14px;color:var(--text1);line-height:1.7">${_rpFormatNote(watch.note)}</div>`
     : dartPts.length
       ? `<div style="display:flex;flex-direction:column;gap:5px" id="rp-bull-points">
           ${dartPts.slice(0,4).map(t => `<div style="display:flex;align-items:flex-start;gap:8px">
             <span style="color:#4ade80;font-weight:700;font-size:14px;margin-top:1px">•</span>
-            <span style="font-size:13px;color:var(--text2);line-height:1.5">${t}</span>
+            <span style="font-size:13px;color:var(--text1);line-height:1.5">${t}</span>
           </div>`).join('')}
-          <div style="font-size:12px;color:var(--text2);margin-top:2px">DART 분석 기반 자동 추출</div>
+          <div style="font-size:12px;color:var(--text1);margin-top:2px">DART 분석 기반 자동 추출</div>
         </div>`
       : `<div style="display:flex;flex-direction:column;gap:6px" id="rp-bull-points">
           ${['핵심 투자포인트를 투자노트에 작성해주세요','예) HBM 수주 확대로 데이터센터 모멘텀 강화','예) 하반기 ASP 상승 + 원가 하락 → 마진 개선']
@@ -305,7 +305,7 @@ function rpRenderReport() {
     ? `<div style="display:flex;flex-direction:column;gap:5px">
         ${dartRisks.slice(0,4).map(t => `<div style="display:flex;align-items:flex-start;gap:8px">
           <span style="color:#f87171;font-weight:700;font-size:14px;margin-top:1px">•</span>
-          <span style="font-size:13px;color:var(--text2);line-height:1.5">${t}</span>
+          <span style="font-size:13px;color:var(--text1);line-height:1.5">${t}</span>
         </div>`).join('')}
       </div>`
     : `<div style="display:flex;flex-direction:column;gap:6px">
@@ -327,32 +327,32 @@ function rpRenderReport() {
       <div style="min-width:0;flex-shrink:0">
         <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px">
           <span style="font-size:26px;font-weight:800">${_rpStock.name}</span>
-          <span style="font-size:15px;color:var(--text2)">${_rpStock.code}</span>
-          ${latest.per  ? `<span style="font-size:13px;padding:2px 9px;border-radius:100px;background:var(--bg3);color:var(--text2)">PER ${latest.per?.toFixed(1)}x</span>` : ''}
-          ${latest.pbr  ? `<span style="font-size:13px;padding:2px 9px;border-radius:100px;background:var(--bg3);color:var(--text2)">PBR ${latest.pbr?.toFixed(2)}x</span>` : ''}
+          <span style="font-size:15px;color:var(--text1)">${_rpStock.code}</span>
+          ${latest.per  ? `<span style="font-size:13px;padding:2px 9px;border-radius:100px;background:var(--bg3);color:var(--text1)">PER ${latest.per?.toFixed(1)}x</span>` : ''}
+          ${latest.pbr  ? `<span style="font-size:13px;padding:2px 9px;border-radius:100px;background:var(--bg3);color:var(--text1)">PBR ${latest.pbr?.toFixed(2)}x</span>` : ''}
         </div>
         <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
           <span style="font-size:34px;font-weight:700">${price ? fmtNum(price) + '원' : '—'}</span>
           <span style="font-size:20px;font-weight:600;color:${chgColor}">${chgStr}</span>
         </div>
         <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap">
-          ${mktCap ? `<span style="font-size:14px;color:var(--text2)">시총 <b style="color:var(--text1)">${fmtCap(mktCap)}</b></span>` : ''}
-          ${fr != null ? `<span style="font-size:14px;color:var(--text2)">외국인 <b style="color:var(--text1)">${fr.toFixed(1)}%</b></span>` : ''}
-          ${latestF.roe ? `<span style="font-size:14px;color:var(--text2)">ROE <b style="color:var(--text1)">${latestF.roe?.toFixed(1)}%</b></span>` : ''}
-          ${latest.trading_value ? `<span style="font-size:14px;color:var(--text2)">거래대금 <b style="color:var(--text1)">${fmtCap(latest.trading_value)}</b></span>` : ''}
-          ${latest.volume ? `<span style="font-size:14px;color:var(--text2)">거래량 <b style="color:var(--text1)">${fmtNum(latest.volume)}</b></span>` : ''}
+          ${mktCap ? `<span style="font-size:14px;color:var(--text1)">시총 <b style="color:var(--text1)">${fmtCap(mktCap)}</b></span>` : ''}
+          ${fr != null ? `<span style="font-size:14px;color:var(--text1)">외국인 <b style="color:var(--text1)">${fr.toFixed(1)}%</b></span>` : ''}
+          ${latestF.roe ? `<span style="font-size:14px;color:var(--text1)">ROE <b style="color:var(--text1)">${latestF.roe?.toFixed(1)}%</b></span>` : ''}
+          ${latest.trading_value ? `<span style="font-size:14px;color:var(--text1)">거래대금 <b style="color:var(--text1)">${fmtCap(latest.trading_value)}</b></span>` : ''}
+          ${latest.volume ? `<span style="font-size:14px;color:var(--text1)">거래량 <b style="color:var(--text1)">${fmtNum(latest.volume)}</b></span>` : ''}
         </div>
         <!-- 52주 가격 위치 (시총 아래) -->
         ${high52 > 0 ? `
         <div style="margin-top:10px;width:200px">
-          <div style="font-size:11px;color:var(--text2);margin-bottom:5px">52주 가격 위치</div>
+          <div style="font-size:11px;color:var(--text1);margin-bottom:5px">52주 가격 위치</div>
           <div style="height:5px;border-radius:3px;background:var(--border);position:relative;margin:0 2px">
             <div style="position:absolute;left:0;top:0;height:100%;width:${pos52}%;
               background:linear-gradient(90deg,var(--blue),var(--tg));border-radius:3px"></div>
             <div style="position:absolute;top:-4px;left:calc(${pos52}% - 6px);width:12px;height:12px;
               border-radius:50%;background:white;border:2px solid var(--tg);box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>
           </div>
-          <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--text2)">
+          <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--text1)">
             <span>저 ${fmtNum(low52)}</span>
             <span style="font-weight:700;color:var(--tg)">${pos52}%</span>
             <span>고 ${fmtNum(high52)}</span>
@@ -366,11 +366,11 @@ function rpRenderReport() {
 
         <!-- 내 의견 -->
         <div style="display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--border);padding-right:12px">
-          <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px">내 투자 의견</div>
+          <div style="font-size:11px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:.8px">내 투자 의견</div>
           ${_rpOpinionBadge(opinion)}
           ${targetP ? `
             <div style="text-align:center">
-              <div style="font-size:11px;color:var(--text2)">목표주가</div>
+              <div style="font-size:11px;color:var(--text1)">목표주가</div>
               <div style="font-size:17px;font-weight:800;margin:2px 0">${fmtNum(targetP)}<span style="font-size:11px">원</span></div>
               ${upside != null ? `
               <div style="font-size:13px;font-weight:700;color:${upside>0?'var(--red)':'var(--blue)'}">
@@ -378,7 +378,7 @@ function rpRenderReport() {
               </div>` : ''}
             </div>` :
             `<div style="text-align:center;padding:6px;border-radius:var(--radius-sm);background:var(--bg3);
-              color:var(--text2);font-size:11px;line-height:1.5">
+              color:var(--text1);font-size:11px;line-height:1.5">
               투자노트에서<br>목표주가 설정
             </div>`}
           <a onclick="go('watchlist')" style="font-size:11px;text-align:center;color:var(--tg);
@@ -523,7 +523,7 @@ function rpRenderReport() {
               <div style="position:absolute;left:${t.xPct.toFixed(1)}%;
                 transform:translateX(-50%);text-align:center;white-space:nowrap">
                 <div style="width:1px;height:3px;background:var(--border);margin:0 auto 1px"></div>
-                <div style="font-size:9px;color:var(--text2)">${t.date.slice(0,7)}</div>
+                <div style="font-size:9px;color:var(--text1)">${t.date.slice(0,7)}</div>
               </div>`).join('')}
           </div>
         </div>`;
@@ -582,7 +582,7 @@ function rpRenderReport() {
             color:${i===0?'var(--tg)':'var(--text3)'};transition:all .2s">${t}</button>`).join('')}
     </div>
     <div id="rp-tab-body" style="padding:14px">
-      <div style="text-align:center;color:var(--text3);padding:40px"><span class="loading"></span></div>
+      <div style="text-align:center;color:var(--text2);padding:40px"><span class="loading"></span></div>
     </div>
   </div>
 
@@ -591,7 +591,7 @@ function rpRenderReport() {
     console.error('[rpRenderReport] 렌더 에러:', err);
     body.innerHTML = `<div style="padding:20px;color:var(--red);font-size:13px">
       렌더 오류: ${err.message}<br>
-      <small style="color:var(--text3)">콘솔에서 상세 확인</small>
+      <small style="color:var(--text2)">콘솔에서 상세 확인</small>
     </div>`;
     return;
   }
@@ -630,7 +630,7 @@ function _rpAnalystList(analysts, currentPrice) {
   const colMap = { BUY:'#22c55e', HOLD:'#f59e0b', SELL:'#ef4444' };
 
   if (!analysts?.length) return `
-    <div style="display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:12px">
+    <div style="display:flex;align-items:center;justify-content:center;color:var(--text1);font-size:12px">
       증권사 의견 없음
     </div>`;
 
@@ -642,8 +642,8 @@ function _rpAnalystList(analysts, currentPrice) {
 
   return `<div style="display:flex;flex-direction:column;gap:0;min-width:0;height:100%">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <span style="font-size:11px;font-weight:700;color:var(--text2)">증권사 목표주가</span>
-      ${avgTp ? `<span style="font-size:11px;color:var(--text2)">
+      <span style="font-size:11px;font-weight:700;color:var(--text1)">증권사 목표주가</span>
+      ${avgTp ? `<span style="font-size:11px;color:var(--text1)">
         평균 <b style="color:var(--text1)">${fmtNum(avgTp)}원</b>
         ${avgGap != null ? `<span style="font-weight:700;color:${avgGap>0?'var(--red)':'var(--blue)'}">
           ${avgGap>0?'▲':'▼'}${Math.abs(avgGap).toFixed(1)}%</span>` : ''}
@@ -681,8 +681,8 @@ function _rpAnalystGrid(analysts, currentPrice) {
 
   if (!analysts?.length) return `
     <div style="border-top:1px solid var(--border);padding-top:10px">
-      <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px">증권사 목표주가</div>
-      <div style="font-size:12px;color:var(--text2);padding:8px 0">등록된 증권사 의견이 없습니다</div>
+      <div style="font-size:11px;font-weight:700;color:var(--text1);margin-bottom:6px">증권사 목표주가</div>
+      <div style="font-size:12px;color:var(--text1);padding:8px 0">등록된 증권사 의견이 없습니다</div>
     </div>`;
 
   // 증권사별 최신 1건만
@@ -697,8 +697,8 @@ function _rpAnalystGrid(analysts, currentPrice) {
   return `
     <div style="border-top:1px solid var(--border);padding-top:10px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:11px;font-weight:700;color:var(--text2)">증권사 목표주가</span>
-        ${avgTp ? `<span style="font-size:11px;color:var(--text2)">
+        <span style="font-size:11px;font-weight:700;color:var(--text1)">증권사 목표주가</span>
+        ${avgTp ? `<span style="font-size:11px;color:var(--text1)">
           평균 <b style="color:var(--text1)">${fmtNum(avgTp)}원</b>
           ${avgGap != null ? `<span style="margin-left:4px;font-weight:700;
             color:${avgGap>0?'var(--red)':'var(--blue)'}">${avgGap>0?'▲':'▼'}${Math.abs(avgGap).toFixed(1)}%</span>` : ''}
@@ -715,13 +715,13 @@ function _rpAnalystGrid(analysts, currentPrice) {
           const dt  = a.opinion_date ? a.opinion_date.slice(2,10).replace(/-/g,'.') : '';
           return `<div style="padding:8px 6px;border-radius:var(--radius-sm);background:var(--bg3);
             border:1px solid ${col}30;text-align:center">
-            <div style="font-size:10px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;
+            <div style="font-size:10px;color:var(--text1);overflow:hidden;text-overflow:ellipsis;
               white-space:nowrap;margin-bottom:4px">${a.firm_name||''}</div>
             <div style="font-size:11px;font-weight:800;color:${col};margin-bottom:3px">${op}</div>
             <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:2px">${tp}</div>
-            ${tp !== '—' ? `<div style="font-size:10px;color:var(--text2);margin-bottom:1px">원</div>` : ''}
+            ${tp !== '—' ? `<div style="font-size:10px;color:var(--text1);margin-bottom:1px">원</div>` : ''}
             ${gStr ? `<div style="font-size:11px;font-weight:700;color:${gCol}">${gStr}</div>` : ''}
-            <div style="font-size:9px;color:var(--text2);margin-top:3px;opacity:.7">${dt}</div>
+            <div style="font-size:9px;color:var(--text1);margin-top:3px;opacity:.7">${dt}</div>
           </div>`;
         }).join('')}
       </div>
@@ -758,8 +758,8 @@ function _rpFormatNote(note) {
 function _rpEarningsCard(fin) {
   if (!fin?.length) return `
     <div class="card" style="padding:16px">
-      <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text2)">📊 실적 트렌드</div>
-      <div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">재무 데이터 없음</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text1)">📊 실적 트렌드</div>
+      <div style="padding:20px;text-align:center;color:var(--text2);font-size:12px">재무 데이터 없음</div>
     </div>`;
 
   // 최신순으로 정렬된 fin → 오래된 것부터 표시
@@ -779,7 +779,7 @@ function _rpEarningsCard(fin) {
   const chip = (label, value, color) => value != null ? `
     <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;
       border-radius:100px;background:${color}18;border:1px solid ${color}40;white-space:nowrap">
-      <span style="font-size:11px;color:var(--text2)">${label}</span>
+      <span style="font-size:11px;color:var(--text1)">${label}</span>
       <span style="font-size:12px;font-weight:700;color:${color}">${value}</span>
     </span>` : '';
 
@@ -815,13 +815,13 @@ function _rpEarningsCard(fin) {
     <div style="display:flex;gap:6px;margin-top:6px">
       ${items.map(f => `
         <div style="flex:1;min-width:0;text-align:center">
-          <div style="font-size:11px;font-weight:600;color:var(--text2)">${f.bsns_year||''}</div>
-          <div style="font-size:12px;color:var(--text2)">${f.quarter||''}</div>
+          <div style="font-size:11px;font-weight:600;color:var(--text1)">${f.bsns_year||''}</div>
+          <div style="font-size:12px;color:var(--text1)">${f.quarter||''}</div>
         </div>`).join('')}
     </div>
 
     <!-- 범례 -->
-    <div style="display:flex;gap:12px;font-size:11px;color:var(--text2);margin-top:8px">
+    <div style="display:flex;gap:12px;font-size:11px;color:var(--text1);margin-top:8px">
       <span style="display:flex;align-items:center;gap:4px">
         <span style="width:9px;height:9px;background:#4a9eff55;border-radius:2px;display:inline-block"></span>매출
       </span>
@@ -835,10 +835,10 @@ function _rpEarningsCard(fin) {
       <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
         <thead>
           <tr style="background:var(--bg3)">
-            <th style="padding:6px 8px;text-align:left;color:var(--text2);font-weight:600;
+            <th style="padding:6px 8px;text-align:left;color:var(--text1);font-weight:600;
               border-bottom:1px solid var(--border);width:80px">항목</th>
             ${items.map(f => `
-              <th style="padding:6px 8px;text-align:right;color:var(--text2);font-weight:600;
+              <th style="padding:6px 8px;text-align:right;color:var(--text1);font-weight:600;
                 border-bottom:1px solid var(--border)">
                 <div>${f.bsns_year||''}</div>
                 <div style="color:var(--tg);font-weight:700">${f.quarter||''}</div>
@@ -848,7 +848,7 @@ function _rpEarningsCard(fin) {
         <tbody>
           <!-- 매출 -->
           <tr>
-            <td style="padding:6px 8px;color:var(--text2);border-bottom:1px solid var(--border)10;
+            <td style="padding:6px 8px;color:var(--text1);border-bottom:1px solid var(--border)10;
               display:flex;align-items:center;gap:5px">
               <span style="width:8px;height:8px;border-radius:2px;background:#4a9eff55;flex-shrink:0"></span>매출
             </td>
@@ -860,7 +860,7 @@ function _rpEarningsCard(fin) {
           </tr>
           <!-- 영업이익 -->
           <tr>
-            <td style="padding:6px 8px;color:var(--text2);border-bottom:1px solid var(--border)10;
+            <td style="padding:6px 8px;color:var(--text1);border-bottom:1px solid var(--border)10;
               display:flex;align-items:center;gap:5px">
               <span style="width:8px;height:8px;border-radius:2px;background:#2AABEE;flex-shrink:0"></span>영업이익
             </td>
@@ -876,13 +876,13 @@ function _rpEarningsCard(fin) {
           <!-- 순이익 -->
           ${items.some(f => f.net_income != null) ? `
           <tr>
-            <td style="padding:6px 8px;color:var(--text2);border-bottom:1px solid var(--border)10;
+            <td style="padding:6px 8px;color:var(--text1);border-bottom:1px solid var(--border)10;
               display:flex;align-items:center;gap:5px">
               <span style="width:8px;height:8px;border-radius:2px;background:#a78bfa;flex-shrink:0"></span>순이익
             </td>
             ${items.map(f => {
               const ni = f.net_income;
-              if (ni == null) return `<td style="padding:6px 8px;text-align:right;color:var(--text2);
+              if (ni == null) return `<td style="padding:6px 8px;text-align:right;color:var(--text1);
                 border-bottom:1px solid var(--border)10">—</td>`;
               const col = ni >= 0 ? 'var(--text1)' : 'var(--blue)';
               return `<td style="padding:6px 8px;text-align:right;color:${col};font-weight:600;
@@ -893,7 +893,7 @@ function _rpEarningsCard(fin) {
           </tr>` : ''}
           <!-- 영업이익률 -->
           <tr>
-            <td style="padding:6px 8px;color:var(--text2);display:flex;align-items:center;gap:5px">
+            <td style="padding:6px 8px;color:var(--text1);display:flex;align-items:center;gap:5px">
               <span style="width:8px;height:8px;border-radius:2px;background:var(--border);flex-shrink:0"></span>영업이익률
             </td>
             ${items.map(f => {
@@ -1004,7 +1004,7 @@ function _rpSegmentCard(rows) {
   if (!rows?.length) return `
     <div class="card" style="padding:16px">
       <div style="font-size:14px;font-weight:700;color:var(--text1)">📦 제품·사업부별 매출</div>
-      <div style="color:var(--text2);font-size:12px;padding:20px;text-align:center">
+      <div style="color:var(--text1);font-size:12px;padding:20px;text-align:center">
         DART 파일을 업로드하면 제품별 매출 데이터가 표시됩니다
       </div>
     </div>`;
@@ -1106,7 +1106,7 @@ function _rpSegInner(cache, selected) {
             return { name, rev, ratio, color: COLORS[si % COLORS.length] };
           }).filter(s => s.rev > 0).reverse();
           return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;height:${CHART_H}px">
-            <div style="font-size:10px;font-weight:600;color:var(--text2);text-align:center;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmtCap(total*1e6)}</div>
+            <div style="font-size:10px;font-weight:600;color:var(--text1);text-align:center;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmtCap(total*1e6)}</div>
             <div style="height:${barH}px;border-radius:3px 3px 0 0;overflow:hidden;display:flex;flex-direction:column;
               ${isLatest?'box-shadow:0 0 0 2px rgba(255,255,255,.22)':''}">
               ${segs.map(s => `<div style="flex:${s.ratio};background:${s.color};min-height:2px"
@@ -1154,7 +1154,7 @@ function _rpSegInner(cache, selected) {
         <span style="font-size:${isTop?'13px':'12px'};font-weight:${isTop||isSel?700:500};color:var(--text1);
           flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
         ${sparkline(name, color)}
-        <span style="font-size:12px;color:var(--text2);white-space:nowrap">${fmtCap(revenue*1e6)}</span>
+        <span style="font-size:12px;color:var(--text1);white-space:nowrap">${fmtCap(revenue*1e6)}</span>
         <span style="font-size:${isTop?'13px':'12px'};font-weight:700;color:${color};min-width:38px;text-align:right">${pct.toFixed(1)}%</span>
         <span style="font-size:12px;font-weight:700;color:${trendColor};min-width:56px;text-align:right;white-space:nowrap">${trendIcon} ${qoqStr}</span>
       </div>
@@ -1166,15 +1166,15 @@ function _rpSegInner(cache, selected) {
 
   const headerRight = selected
     ? `<button onclick="rpSegFilter(null)" style="font-size:11px;padding:2px 10px;border:1px solid var(--border);
-        border-radius:100px;background:var(--bg3);color:var(--text2);cursor:pointer">전체 보기</button>`
-    : `<span style="font-size:10px;color:var(--text2)">스파크라인 · QoQ</span>`;
+        border-radius:100px;background:var(--bg3);color:var(--text1);cursor:pointer">전체 보기</button>`
+    : `<span style="font-size:10px;color:var(--text1)">스파크라인 · QoQ</span>`;
 
   return `
     <div>${chartHTML}</div>
     ${periodLabels}
     <div style="border-top:1px solid var(--border);padding-top:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <span style="font-size:11px;color:var(--text2)">최신 (${latestKey?.replace('.',' ')}) 구성</span>
+        <span style="font-size:11px;color:var(--text1)">최신 (${latestKey?.replace('.',' ')}) 구성</span>
         ${headerRight}
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">${listHTML}</div>
@@ -1199,7 +1199,7 @@ function _rpValuationCard(latestF, latest) {
   const trend = (cur, old) => {
     if (cur == null || old == null) return '';
     const d = cur - old;
-    if (Math.abs(d) < 0.1) return `<span style="font-size:10px;color:var(--text2)"> →</span>`;
+    if (Math.abs(d) < 0.1) return `<span style="font-size:10px;color:var(--text1)"> →</span>`;
     return d > 0
       ? `<span style="font-size:10px;color:#f87171"> ▲${d.toFixed(1)}</span>`
       : `<span style="font-size:10px;color:#60a5fa"> ▼${Math.abs(d).toFixed(1)}</span>`;
@@ -1233,8 +1233,8 @@ function _rpValuationCard(latestF, latest) {
     const bandColor = curPer > avg * 1.3 ? '#f87171' : curPer < avg * 0.8 ? '#4ade80' : '#f59e0b';
     return `<div style="margin-bottom:10px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <span style="font-size:11px;font-weight:700;color:var(--text2)">PER 히스토리 밴드 (최근 ${pts.length}거래일)</span>
-        <div style="display:flex;gap:10px;font-size:10px;color:var(--text2)">
+        <span style="font-size:11px;font-weight:700;color:var(--text1)">PER 히스토리 밴드 (최근 ${pts.length}거래일)</span>
+        <div style="display:flex;gap:10px;font-size:10px;color:var(--text1)">
           <span>최저 <b style="color:#4ade80">${mn.toFixed(1)}x</b></span>
           <span>평균 <b style="color:#f59e0b">${avg.toFixed(1)}x</b></span>
           <span>최고 <b style="color:#f87171">${mx.toFixed(1)}x</b></span>
@@ -1249,7 +1249,7 @@ function _rpValuationCard(latestF, latest) {
           <!-- 현재값 마커 -->
           <circle cx="${xs[xs.length-1].toFixed(1)}" cy="${curY}" r="3" fill="${bandColor}" stroke="var(--bg3)" stroke-width="1.5"/>
         </svg>
-        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:3px">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text1);margin-top:3px">
           <span>← ${pts.length}거래일 전</span>
           <span style="color:${bandColor};font-weight:700">현재 ${curPer.toFixed(1)}x (역사적 하위 ${pctPos}%)</span>
           <span>현재 →</span>
@@ -1276,12 +1276,12 @@ function _rpValuationCard(latestF, latest) {
   };
 
   const peerHeader = ps
-    ? `<div style="font-size:11px;color:var(--text2)">
+    ? `<div style="font-size:11px;color:var(--text1)">
         ${ps.industry} 동종 ${ps.count}개사 중앙값 비교
-        <span style="color:var(--text2);margin-left:4px">|</span>
-        <span style="color:var(--text2);margin-left:4px">🟢 유리 🟡 중립 🔴 불리</span>
+        <span style="color:var(--text1);margin-left:4px">|</span>
+        <span style="color:var(--text1);margin-left:4px">🟢 유리 🟡 중립 🔴 불리</span>
       </div>`
-    : `<div style="font-size:11px;color:var(--text2);opacity:.6">업종 비교 로딩 중...</div>`;
+    : `<div style="font-size:11px;color:var(--text1);opacity:.6">업종 비교 로딩 중...</div>`;
 
   return `<div id="rp-val-card" class="card" style="padding:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
@@ -1321,13 +1321,13 @@ function _rpValuationCard(latestF, latest) {
 
           <!-- 1줄: 지표 + 현재값 + 화살표 + 중앙값 + 판단 배지 -->
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            <span style="font-size:12px;font-weight:700;color:var(--text2);min-width:28px">${m.label}</span>
+            <span style="font-size:12px;font-weight:700;color:var(--text1);min-width:28px">${m.label}</span>
             <span style="font-size:20px;font-weight:800;color:var(--text1)">${m.val != null ? m.fmt(m.val)+m.unit : '—'}</span>${trend(m.val, m.prevVal)}
             ${m.peer != null ? `
-              <span style="font-size:12px;color:var(--text2)">vs</span>
+              <span style="font-size:12px;color:var(--text1)">vs</span>
               <div>
-                <div style="font-size:10px;color:var(--text2)">업종 중앙</div>
-                <div style="font-size:15px;font-weight:700;color:var(--text2)">${m.fmt(m.peer)}${m.unit}</div>
+                <div style="font-size:10px;color:var(--text1)">업종 중앙</div>
+                <div style="font-size:15px;font-weight:700;color:var(--text1)">${m.fmt(m.peer)}${m.unit}</div>
               </div>
               ${judge ? `
               <span style="margin-left:auto;font-size:11px;font-weight:700;
@@ -1336,7 +1336,7 @@ function _rpValuationCard(latestF, latest) {
                 border:1px solid ${judge.color}40;white-space:nowrap">
                 ${judge.diffStr}&nbsp;${judge.label.replace('업종 대비 ','')}
               </span>` : ''}` : `
-              <span style="flex:1;font-size:11px;color:var(--text2)">${m.desc}</span>
+              <span style="flex:1;font-size:11px;color:var(--text1)">${m.desc}</span>
               ${sig ? `<span style="font-size:11px;font-weight:700;color:${sig.color}">${sig.label}</span>` : ''}`}
           </div>
 
@@ -1358,7 +1358,7 @@ function _rpValuationCard(latestF, latest) {
               border:2px solid var(--bg3)"></div>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:10px;
-            color:var(--text2);margin-top:3px">
+            color:var(--text1);margin-top:3px">
             <span>${m.lowerBetter ? '◀ 저평가' : '◀ 저수익'}</span>
             <span style="opacity:.6">│ 업종 중앙</span>
             <span>${m.lowerBetter ? '고평가 ▶' : '고수익 ▶'}</span>
@@ -1408,7 +1408,7 @@ function _rpFinHealthCard(f) {
 
   if (!rows.length) return `<div class="card" style="padding:16px">
     <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text1)">🏦 재무 건전성</div>
-    <div style="color:var(--text2);font-size:12px;text-align:center;padding:12px">재무 데이터 없음</div>
+    <div style="color:var(--text1);font-size:12px;text-align:center;padding:12px">재무 데이터 없음</div>
   </div>`;
 
   // 재무 → 투자 연결 스토리
@@ -1428,7 +1428,7 @@ function _rpFinHealthCard(f) {
     return `<div style="display:flex;flex-direction:column;gap:4px;margin-top:10px;
       padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);
       border-left:3px solid var(--border)">
-      <div style="font-size:10px;font-weight:700;color:var(--text2);letter-spacing:.5px;margin-bottom:2px">투자 연결 시사점</div>
+      <div style="font-size:10px;font-weight:700;color:var(--text1);letter-spacing:.5px;margin-bottom:2px">투자 연결 시사점</div>
       ${stories.map(s => `<div style="font-size:11px;color:${s.color};line-height:1.5">${s.icon} ${s.text}</div>`).join('')}
     </div>`;
   };
@@ -1443,7 +1443,7 @@ function _rpFinHealthCard(f) {
           border-radius:var(--radius-sm);border-left:3px solid ${sig?.color||'var(--border)'};
           background:var(--bg3)">
           <div style="min-width:64px">
-            <div style="font-size:12px;color:var(--text2)">${k.label}</div>
+            <div style="font-size:12px;color:var(--text1)">${k.label}</div>
           </div>
           <div style="flex:1;min-width:0">
             ${k.hint ? `<div style="font-size:10px;color:${sig?.color||'var(--text2)'}">${k.hint}</div>` : ''}
@@ -1467,11 +1467,11 @@ function _rpFlowCard(latest) {
   const tv   = latest.trading_value;
 
   return `<div class="card" style="padding:16px">
-    <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text2)">🔄 수급 현황</div>
+    <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text1)">🔄 수급 현황</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">
       ${fr != null ? `
       <div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm)">
-        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">외국인 보유율</div>
+        <div style="font-size:12px;color:var(--text1);margin-bottom:4px">외국인 보유율</div>
         <div style="font-size:16px;font-weight:700">${fr.toFixed(1)}%</div>
         <div style="margin-top:5px;height:4px;border-radius:2px;background:var(--border);overflow:hidden">
           <div style="height:100%;width:${Math.min(100,fr)}%;background:var(--tg);border-radius:2px"></div>
@@ -1479,17 +1479,17 @@ function _rpFlowCard(latest) {
       </div>` : ''}
       ${vol ? `
       <div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm)">
-        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">당일 거래량</div>
+        <div style="font-size:12px;color:var(--text1);margin-bottom:4px">당일 거래량</div>
         <div style="font-size:16px;font-weight:700">${fmtNum(vol)}</div>
       </div>` : ''}
       ${tv ? `
       <div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm)">
-        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">당일 거래대금</div>
+        <div style="font-size:12px;color:var(--text1);margin-bottom:4px">당일 거래대금</div>
         <div style="font-size:16px;font-weight:700">${fmtCap(tv)}</div>
       </div>` : ''}
       <div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm)">
-        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">기관 누적</div>
-        <div style="font-size:13px;color:var(--text3)">별도 데이터 필요</div>
+        <div style="font-size:12px;color:var(--text1);margin-bottom:4px">기관 누적</div>
+        <div style="font-size:13px;color:var(--text2)">별도 데이터 필요</div>
       </div>
     </div>
   </div>`;
@@ -1502,7 +1502,7 @@ function _rpCatalystCard() {
     { horizon: '장기 (12M)', color: '#60a5fa', items: ['시장 점유율 확대', '해외 매출 성장'] },
   ];
   return `<div class="card" style="padding:16px">
-    <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text2)">⚡ 카탈리스트</div>
+    <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text1)">⚡ 카탈리스트</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
       ${catalysts.map(c => `
       <div style="padding:10px;border-radius:var(--radius-sm);border:1px solid ${c.color}30;background:${c.color}08">
@@ -1510,11 +1510,11 @@ function _rpCatalystCard() {
         ${c.items.map(item => `
         <div style="display:flex;align-items:flex-start;gap:5px;margin-bottom:5px">
           <span style="color:${c.color};font-size:10px;margin-top:2px">◦</span>
-          <span style="font-size:12px;color:var(--text2)">${item}</span>
+          <span style="font-size:12px;color:var(--text1)">${item}</span>
         </div>`).join('')}
       </div>`).join('')}
     </div>
-    <div style="margin-top:8px;font-size:12px;color:var(--text2);text-align:center">
+    <div style="margin-top:8px;font-size:12px;color:var(--text1);text-align:center">
       투자노트에 카탈리스트를 직접 입력하면 여기에 반영됩니다
     </div>
   </div>`;
@@ -1531,13 +1531,13 @@ async function rpSetTab(idx) {
 
   // 재무제표(0) → financials.js의 _renderFinancialTab 재활용
   if (idx === 0) {
-    body.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px"><span class="loading"></span></div>';
+    body.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px"><span class="loading"></span></div>';
     await _renderFinancialTab(body, _rpStock.code, _rpStock.name);
     return;
   }
 
   if (idx === 3) {
-    body.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px"><span class="loading"></span> DART 리포트 로딩 중...</div>';
+    body.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px"><span class="loading"></span> DART 리포트 로딩 중...</div>';
     await _rpLoadAndRenderDart(body);
     return;
   }
@@ -1551,11 +1551,11 @@ async function rpSetTab(idx) {
 }
 
 function _rpTabFlow(prices) {
-  if (!prices?.length) return `<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">수급 데이터 없음</div>`;
+  if (!prices?.length) return `<div style="padding:20px;text-align:center;color:var(--text2);font-size:12px">수급 데이터 없음</div>`;
   const recent = prices.slice(0, 20).reverse();
   const maxTV  = Math.max(...recent.map(r => r.trading_value || 0));
   return `
-  <div style="font-size:12px;color:var(--text2);margin-bottom:8px">최근 20일 거래대금</div>
+  <div style="font-size:12px;color:var(--text1);margin-bottom:8px">최근 20일 거래대금</div>
   <div style="display:flex;gap:2px;align-items:flex-end;height:60px">
     ${recent.map(r => {
       const tv  = r.trading_value || 0;
@@ -1567,13 +1567,13 @@ function _rpTabFlow(prices) {
     }).join('')}
   </div>
   <div style="margin-top:12px;padding:10px;background:var(--bg3);border-radius:var(--radius-sm);
-    font-size:12px;color:var(--text3);text-align:center">
+    font-size:12px;color:var(--text2);text-align:center">
     외국인/기관 상세 수급은 수급 분석 기능 연동 예정
   </div>`;
 }
 
 function _rpTabNews() {
-  return `<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">
+  return `<div style="padding:20px;text-align:center;color:var(--text2);font-size:12px">
     공시/뉴스 연동 예정 — 공시 탭 또는 기업 분석 페이지에서 확인 가능
   </div>`;
 }
@@ -1590,7 +1590,7 @@ async function _rpLoadAndRenderDart(body) {
 
   if (error || !data) {
     body.innerHTML = `
-      <div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">
+      <div style="padding:32px;text-align:center;color:var(--text2);font-size:13px">
         <div style="margin-bottom:12px;font-size:28px">📄</div>
         <div style="font-weight:600;margin-bottom:6px;font-size:15px">DART 분석 리포트 없음</div>
         <div style="font-size:12px;margin-bottom:16px">사업보고서 분석 MD 파일을 업로드하면 여기에 표시됩니다</div>
@@ -1612,16 +1612,16 @@ async function _rpLoadAndRenderDart(body) {
   const kv  = (k, v, c) => v ? `
     <div style="padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);
       border:1px solid var(--border);min-width:0">
-      <div style="font-size:12px;color:var(--text2);margin-bottom:3px;white-space:nowrap">${k}</div>
+      <div style="font-size:12px;color:var(--text1);margin-bottom:3px;white-space:nowrap">${k}</div>
       <div style="font-size:13px;font-weight:700;color:${c||'var(--text1)'}; word-break:break-all">${esc(v)}</div>
     </div>` : '';
   const sectionTitle = t => `
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
-      color:var(--text3);margin-bottom:10px">${t}</div>`;
+      color:var(--text2);margin-bottom:10px">${t}</div>`;
   const bullet = (text, color) => `
     <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;margin-bottom:4px;
       background:${color}08;border-radius:var(--radius-sm);border-left:2px solid ${color}50">
-      <span style="font-size:13px;color:var(--text2);line-height:1.6">${esc(text)}</span>
+      <span style="font-size:13px;color:var(--text1);line-height:1.6">${esc(text)}</span>
     </div>`;
 
   body.innerHTML = `
@@ -1633,16 +1633,16 @@ async function _rpLoadAndRenderDart(body) {
     <div>
       <div style="font-size:20px;font-weight:800;color:var(--text1)">${esc(dp.stockName || _rpStock?.name || '')}</div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap">
-        <span style="font-size:12px;color:var(--text3)">${esc(dp.stockCode || _rpStock?.code || '')}</span>
+        <span style="font-size:12px;color:var(--text2)">${esc(dp.stockCode || _rpStock?.code || '')}</span>
         <span style="font-size:12px;padding:2px 9px;border-radius:100px;
           background:var(--tg)20;color:var(--tg);font-weight:600">${esc(data.report_type||'')}</span>
-        <span style="font-size:12px;color:var(--text3)">접수 ${esc(data.receive_date||'')}</span>
-        ${dp.listedDate ? `<span style="font-size:12px;color:var(--text3)">상장 ${esc(dp.listedDate)}</span>` : ''}
+        <span style="font-size:12px;color:var(--text2)">접수 ${esc(data.receive_date||'')}</span>
+        ${dp.listedDate ? `<span style="font-size:12px;color:var(--text2)">상장 ${esc(dp.listedDate)}</span>` : ''}
       </div>
     </div>
     <button onclick="document.getElementById('rp-dart-file').click()"
       style="padding:5px 12px;font-size:11px;border:1px solid var(--border);
-        border-radius:var(--radius-sm);background:var(--bg3);color:var(--text3);cursor:pointer;white-space:nowrap">
+        border-radius:var(--radius-sm);background:var(--bg3);color:var(--text2);cursor:pointer;white-space:nowrap">
       최신 업로드
     </button>
   </div>
@@ -1667,13 +1667,13 @@ async function _rpLoadAndRenderDart(body) {
       ${sectionTitle('핵심 투자 포인트')}
       ${pts.length
         ? pts.map(t => bullet(t,'#4ade80')).join('')
-        : `<div style="font-size:12px;color:var(--text3);padding:8px">투자판단 항목 없음</div>`}
+        : `<div style="font-size:12px;color:var(--text2);padding:8px">투자판단 항목 없음</div>`}
     </div>
     <div style="background:var(--bg2);border:1px solid #f8717130;border-radius:var(--radius-sm);padding:14px">
       ${sectionTitle('주요 리스크')}
       ${risks.length
         ? risks.map(t => bullet(t,'#f87171')).join('')
-        : `<div style="font-size:12px;color:var(--text3);padding:8px">리스크 항목 없음</div>`}
+        : `<div style="font-size:12px;color:var(--text2);padding:8px">리스크 항목 없음</div>`}
     </div>
   </div>
 
@@ -1685,12 +1685,12 @@ async function _rpLoadAndRenderDart(body) {
       ${sectionTitle('기업 개요')}
       <div style="display:flex;flex-direction:column;gap:6px">
         ${dp.mainBusiness ? `
-          <div style="font-size:12px;color:var(--text2);line-height:1.6;padding:8px;
+          <div style="font-size:12px;color:var(--text1);line-height:1.6;padding:8px;
             background:var(--bg3);border-radius:var(--radius-sm)">${esc(dp.mainBusiness)}</div>` : ''}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
-          ${dp.established ? `<div style="font-size:12px;color:var(--text2)">설립 <span style="color:var(--text1);font-weight:600">${esc(dp.established)}</span></div>` : ''}
-          ${dp.listedDate  ? `<div style="font-size:12px;color:var(--text2)">상장 <span style="color:var(--text1);font-weight:600">${esc(dp.listedDate)}</span></div>` : ''}
-          ${dp.location    ? `<div style="font-size:12px;color:var(--text2);grid-column:1/-1">소재 <span style="color:var(--text1)">${esc(dp.location)}</span></div>` : ''}
+          ${dp.established ? `<div style="font-size:12px;color:var(--text1)">설립 <span style="color:var(--text1);font-weight:600">${esc(dp.established)}</span></div>` : ''}
+          ${dp.listedDate  ? `<div style="font-size:12px;color:var(--text1)">상장 <span style="color:var(--text1);font-weight:600">${esc(dp.listedDate)}</span></div>` : ''}
+          ${dp.location    ? `<div style="font-size:12px;color:var(--text1);grid-column:1/-1">소재 <span style="color:var(--text1)">${esc(dp.location)}</span></div>` : ''}
         </div>
       </div>
     </div>
@@ -1704,19 +1704,19 @@ async function _rpLoadAndRenderDart(body) {
             padding:7px 10px;background:var(--bg3);border-radius:var(--radius-sm)">
             <div>
               <div style="font-size:13px;font-weight:700;color:var(--text1)">${esc(dp.majorShareholder)}</div>
-              <div style="font-size:12px;color:var(--text2)">최대주주</div>
+              <div style="font-size:12px;color:var(--text1)">최대주주</div>
             </div>
             ${dp.majorShareholderRatio ? `<div style="font-size:16px;font-weight:800;color:var(--tg)">${esc(dp.majorShareholderRatio)}</div>` : ''}
           </div>` : ''}
         ${s.related_party_ratio ? `
           <div style="display:flex;justify-content:space-between;padding:6px 10px;
-            font-size:12px;color:var(--text2)">
+            font-size:12px;color:var(--text1)">
             <span>최대주주+특수관계인</span>
             <span style="font-weight:700;color:var(--text1)">${s.related_party_ratio.toFixed(1)}%</span>
           </div>` : ''}
         ${s.lockup_ratio ? `
           <div style="display:flex;justify-content:space-between;padding:6px 10px;
-            font-size:12px;color:var(--text2)">
+            font-size:12px;color:var(--text1)">
             <span>보호예수 (해제 ${esc(s.lockup_end||'-')})</span>
             <span style="font-weight:700;color:var(--text1)">${s.lockup_ratio.toFixed(1)}%</span>
           </div>` : ''}
@@ -1729,7 +1729,7 @@ async function _rpLoadAndRenderDart(body) {
                 <div style="position:absolute;left:0;top:0;height:100%;width:${total}%;
                   background:linear-gradient(90deg,var(--tg),var(--tg)80);border-radius:3px"></div>
               </div>
-              <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:12px;color:var(--text2)">
+              <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:12px;color:var(--text1)">
                 <span>0%</span><span style="color:var(--tg);font-weight:600">${total.toFixed(1)}%</span><span>100%</span>
               </div>
             </div>`;
@@ -1756,12 +1756,12 @@ async function _rpLoadAndRenderDart(body) {
           background:var(--bg3);border-radius:var(--radius-sm);flex-wrap:wrap">
           <div style="min-width:120px">
             <div style="font-size:13px;font-weight:700;color:var(--text1)">${esc(sub.name)}</div>
-            ${sub.role ? `<div style="font-size:12px;color:var(--text2)">${esc(sub.role)}</div>` : ''}
+            ${sub.role ? `<div style="font-size:12px;color:var(--text1)">${esc(sub.role)}</div>` : ''}
           </div>
           ${badge}
           <div style="margin-left:auto;display:flex;gap:16px;font-size:12px;flex-wrap:wrap">
-            ${sub.revenue    != null ? `<span style="color:var(--text3)">매출 <b style="color:var(--text1)">${_fmtBillions(sub.revenue)}</b></span>` : ''}
-            ${sub.netIncome  != null ? `<span style="color:var(--text3)">순손익 <b style="color:${isLoss?'var(--blue)':'var(--red)'}">${_fmtBillions(sub.netIncome)}</b></span>` : ''}
+            ${sub.revenue    != null ? `<span style="color:var(--text2)">매출 <b style="color:var(--text1)">${_fmtBillions(sub.revenue)}</b></span>` : ''}
+            ${sub.netIncome  != null ? `<span style="color:var(--text2)">순손익 <b style="color:${isLoss?'var(--blue)':'var(--red)'}">${_fmtBillions(sub.netIncome)}</b></span>` : ''}
           </div>
         </div>`;
       }).join('')}
@@ -2052,12 +2052,12 @@ function _mdToAccordion(md) {
     return `<div style="overflow-x:auto;margin:4px 0">
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead><tr style="background:var(--bg2)">
-          ${hdr.map(h=>`<th style="padding:5px 8px;text-align:left;font-weight:600;color:var(--text2);
+          ${hdr.map(h=>`<th style="padding:5px 8px;text-align:left;font-weight:600;color:var(--text1);
             border-bottom:1px solid var(--border);white-space:nowrap">${inl(h)}</th>`).join('')}
         </tr></thead>
         <tbody>
           ${rows.slice(1).map((r,ri)=>`<tr style="background:${ri%2?'var(--bg3)20':''}">
-            ${cols(r).map(c=>`<td style="padding:4px 8px;color:var(--text2);
+            ${cols(r).map(c=>`<td style="padding:4px 8px;color:var(--text1);
               border-bottom:1px solid var(--border)10;line-height:1.5;font-size:12px">${inl(c)}</td>`).join('')}
           </tr>`).join('')}
         </tbody>
@@ -2082,7 +2082,7 @@ function _mdToAccordion(md) {
               document.getElementById('${sid}'),this.querySelector('span'))"
             style="padding:9px 14px;background:var(--bg2);cursor:pointer;display:flex;
               align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text1);user-select:none">
-            <span style="font-size:9px;color:var(--text3);transition:transform .15s">▶</span>
+            <span style="font-size:9px;color:var(--text2);transition:transform .15s">▶</span>
             ${esc(title)}
           </div>
           <div id="${sid}" style="display:none;padding:12px 14px;flex-direction:column;gap:6px">`;
@@ -2096,11 +2096,11 @@ function _mdToAccordion(md) {
       i++; continue;
     }
     if (/^#### /.test(line)) {
-      html += `<div style="font-size:12px;font-weight:700;color:var(--text2);margin-top:6px">${esc(line.replace(/^#### /,'').trim())}</div>`;
+      html += `<div style="font-size:12px;font-weight:700;color:var(--text1);margin-top:6px">${esc(line.replace(/^#### /,'').trim())}</div>`;
       i++; continue;
     }
     if (/^##### /.test(line)) {
-      html += `<div style="font-size:11px;font-weight:600;color:var(--text3);margin-top:4px">${esc(line.replace(/^##### /,'').trim())}</div>`;
+      html += `<div style="font-size:11px;font-weight:600;color:var(--text2);margin-top:4px">${esc(line.replace(/^##### /,'').trim())}</div>`;
       i++; continue;
     }
     if (/^---+$/.test(line.trim())) { i++; continue; }
@@ -2115,14 +2115,14 @@ function _mdToAccordion(md) {
     if (/^[-*] /.test(line)) {
       const t = line.replace(/^[-*] /,'').trim();
       html += `<div style="display:flex;align-items:flex-start;gap:6px;padding:1px 0">
-        <span style="color:var(--text3);font-size:9px;margin-top:5px;flex-shrink:0">◦</span>
-        <span style="font-size:12px;color:var(--text2);line-height:1.6">${keyword(t)}</span>
+        <span style="color:var(--text2);font-size:9px;margin-top:5px;flex-shrink:0">◦</span>
+        <span style="font-size:12px;color:var(--text1);line-height:1.6">${keyword(t)}</span>
       </div>`;
       i++; continue;
     }
 
     if (!line.trim()) { i++; continue; }
-    html += `<div style="font-size:12px;color:var(--text2);line-height:1.6">${inl(line.trim())}</div>`;
+    html += `<div style="font-size:12px;color:var(--text1);line-height:1.6">${inl(line.trim())}</div>`;
     i++;
   }
 

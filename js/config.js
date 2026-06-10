@@ -1,4 +1,4 @@
-// config.js — Supabase 연결, 전역 상수, 앱 상태
+﻿// config.js — Supabase 연결, 전역 상수, 앱 상태
 // ══════════════════════════════════════════
 //  Supabase 연결 설정
 //  SB_URL, SB_KEY 두 줄만 본인 값으로 교체하세요
@@ -28,10 +28,10 @@ const CATS = { '바이오':'#2AABEE','뷰티':'#f5365c','로봇':'#2dce89','2차
 //  공통 HTML 유틸
 // ══════════════════════════════════════════
 const loadingHTML = (msg = '') =>
-  `<div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:13px"><span class="loading"></span>${msg ? ' ' + msg : ''}</div>`;
+  `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:13px"><span class="loading"></span>${msg ? ' ' + msg : ''}</div>`;
 
 const emptyHTML = (msg = '데이터 없음') =>
-  `<div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:13px">${msg}</div>`;
+  `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:13px">${msg}</div>`;
 
 const errorHTML = (msg = '') =>
   `<div style="padding:1rem;color:var(--red);font-size:13px">${msg}</div>`;

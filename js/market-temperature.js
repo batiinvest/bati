@@ -1,4 +1,4 @@
-/**
+﻿/**
  * market-temperature.js — 시장 온도계 (v3)
  *
  * 기존 로드된 데이터만으로 0~100점 시장 온도를 계산해 렌더링한다.
@@ -247,7 +247,7 @@ async function renderMarketTemperature() {
     const diffStr  = diff === 0 ? '전일 동일' : `전일比 ${diffSign} ${diffAbs}`;
     diffBadge = `<span style="font-size:11px;font-weight:600;color:${diffColor};
       margin-left:6px">${diffStr}</span>
-      <span style="font-size:10px;color:var(--text3);margin-left:4px">(전일 ${prev.score}점)</span>`;
+      <span style="font-size:10px;color:var(--text2);margin-left:4px">(전일 ${prev.score}점)</span>`;
   }
 
   el.innerHTML = `
@@ -257,7 +257,7 @@ async function renderMarketTemperature() {
     <div style="text-align:center;min-width:54px;flex-shrink:0">
       <div style="font-size:36px;font-weight:800;line-height:1;color:${t.gradeColor};
         font-variant-numeric:tabular-nums">${t.score}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:2px">/ 100</div>
+      <div style="font-size:10px;color:var(--text2);margin-top:2px">/ 100</div>
     </div>
 
     <!-- 게이지 + 등급 -->
@@ -284,14 +284,14 @@ async function renderMarketTemperature() {
         ).join('')}
       </div>
       <div style="display:flex;justify-content:space-between;
-        font-size:9px;color:var(--text3);margin-top:3px;padding:0 1px">
+        font-size:9px;color:var(--text2);margin-top:3px;padding:0 1px">
         <span>위험</span><span>경계</span><span>중립</span><span>우호</span><span>과열</span>
       </div>
     </div>
   </div>
 
   <!-- 전략 메모 -->
-  <div style="font-size:11px;color:var(--text2);margin-bottom:10px;
+  <div style="font-size:11px;color:var(--text1);margin-bottom:10px;
     padding:7px 10px;background:var(--bg3);border-radius:5px;
     border-left:2px solid ${t.gradeColor};line-height:1.6">
     ${t.strategy}
@@ -305,11 +305,11 @@ async function renderMarketTemperature() {
       const barColor = pct >= 70 ? '#2AABEE' : pct >= 40 ? '#f59e0b' : '#64748b';
       return `
       <div class="temp-detail-row">
-        <span style="min-width:140px;color:var(--text2);font-size:11px">${p.label}${p.hint ? ` <span style="color:var(--text3);font-size:10px">${p.hint}</span>` : ''}</span>
+        <span style="min-width:140px;color:var(--text1);font-size:11px">${p.label}${p.hint ? ` <span style="color:var(--text2);font-size:10px">${p.hint}</span>` : ''}</span>
         <div class="temp-detail-bar">
           <div class="temp-detail-fill" style="width:${pct}%;background:${barColor}"></div>
         </div>
-        <span style="min-width:34px;text-align:right;font-size:11px;font-weight:600;color:var(--text2)">${p.pts}<span style="color:var(--text3);font-weight:400">/${p.max}</span></span>
+        <span style="min-width:34px;text-align:right;font-size:11px;font-weight:600;color:var(--text1)">${p.pts}<span style="color:var(--text2);font-weight:400">/${p.max}</span></span>
       </div>`;
     }).join('')}
   </div>`;

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * sector-flow.js — 섹터 수급 트렌드 보드
  *
  * sector_daily_summary 테이블(백엔드 17:15 집계)에서 직접 읽어 렌더링.
@@ -22,7 +22,7 @@ async function loadSectorFlow() {
   const el = document.getElementById('sf-body');
   if (!el) return;
 
-  el.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px"><span class="loading"></span> 수급 집계 중...</div>';
+  el.innerHTML = '<div style="padding:1rem;color:var(--text2);font-size:12px"><span class="loading"></span> 수급 집계 중...</div>';
 
   try {
     // sector_daily_summary 자체 최신 날짜로 조회 (macro_data 날짜와 불일치 방지)
@@ -35,7 +35,7 @@ async function loadSectorFlow() {
     const latestDate = latest?.base_date;
     if (!latestDate) {
       el.innerHTML =
-        '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">' +
+        '<div style="padding:1rem;color:var(--text2);font-size:12px;text-align:center">' +
         '수급 데이터 없음 — 장 마감 후 (17:15) 자동 집계됩니다</div>';
       return;
     }
@@ -50,7 +50,7 @@ async function loadSectorFlow() {
     // 데이터 없으면 폴백 안내
     if (!rows?.length) {
       el.innerHTML =
-        '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">' +
+        '<div style="padding:1rem;color:var(--text2);font-size:12px;text-align:center">' +
         '수급 데이터 없음 — 장 마감 후 (17:15) 자동 집계됩니다</div>';
       return;
     }
@@ -82,7 +82,7 @@ async function loadSectorFlow() {
   } catch(e) {
     console.error('[SectorFlow]', e);
     if (el) el.innerHTML =
-      `<div style="padding:1rem;color:var(--text3);font-size:12px">집계 실패: ${e.message}</div>`;
+      `<div style="padding:1rem;color:var(--text2);font-size:12px">집계 실패: ${e.message}</div>`;
   }
 }
 
@@ -127,7 +127,7 @@ function renderSectorFlow() {
     .sort((a, b) => b.val - a.val);
 
   if (!entries.length) {
-    el.innerHTML = '<div style="padding:1rem;color:var(--text3);font-size:12px;text-align:center">데이터 없음</div>';
+    el.innerHTML = '<div style="padding:1rem;color:var(--text2);font-size:12px;text-align:center">데이터 없음</div>';
     return;
   }
 
@@ -141,7 +141,7 @@ function renderSectorFlow() {
     // 양방향 바: 중앙선 기준, 최대 50%씩
     const barPct = Math.min(Math.abs(val) / maxAbs * 50, 50);
     const valStr = fmtNet(val);
-    const cnt    = stockCount[ind] ? `<span style="font-size:9px;color:var(--text3)">(${stockCount[ind]})</span>` : '';
+    const cnt    = stockCount[ind] ? `<span style="font-size:9px;color:var(--text2)">(${stockCount[ind]})</span>` : '';
 
     // 합산일 때: 외국인/기관 방향 일치 여부 뱃지
     let signalBadge = '';
@@ -158,7 +158,7 @@ function renderSectorFlow() {
 
     return `
     <div style="display:flex;align-items:center;gap:8px;padding:5px 12px;border-bottom:1px solid var(--border)">
-      <span style="min-width:60px;font-size:12px;color:var(--text2);flex-shrink:0">${ind} ${cnt}</span>
+      <span style="min-width:60px;font-size:12px;color:var(--text1);flex-shrink:0">${ind} ${cnt}</span>
       <!-- 양방향 바: 중앙선 기준 -->
       <div style="flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.06);position:relative;overflow:hidden">
         <div style="position:absolute;top:0;height:100%;width:${barPct}%;background:${color};border-radius:3px;transition:width .4s ease;${isPos ? 'left:50%' : `right:50%`}"></div>

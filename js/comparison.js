@@ -1,4 +1,4 @@
-// comparison.js — 기업 비교 분석 페이지
+﻿// comparison.js — 기업 비교 분석 페이지
 // 의존: config.js (INDUSTRIES, CATS, fetchAllPages, fmtCap, chgColor, chgStr, loadingHTML, emptyHTML)
 
 // ── 비교 상태 ──
@@ -78,11 +78,11 @@ function pComparison() {
       <!-- 선택된 종목 -->
       <div class="card">
         <div class="card-header">
-          <span class="card-title">선택 종목 <span id="cmp-count" style="font-size:11px;color:var(--text3)">0개</span></span>
+          <span class="card-title">선택 종목 <span id="cmp-count" style="font-size:11px;color:var(--text2)">0개</span></span>
           <button class="btn btn-sm" onclick="clearCmpStocks()">전체 해제</button>
         </div>
         <div id="cmp-selected-list" style="padding:.5rem;min-height:60px;max-height:300px;overflow-y:auto">
-          <div style="padding:.5rem;text-align:center;color:var(--text3);font-size:12px">종목을 선택해주세요</div>
+          <div style="padding:.5rem;text-align:center;color:var(--text2);font-size:12px">종목을 선택해주세요</div>
         </div>
         <div style="padding:.5rem .75rem;border-top:1px solid var(--border)">
           <button class="btn btn-primary" style="width:100%" onclick="runComparison()">비교 분석 실행</button>
@@ -94,13 +94,13 @@ function pComparison() {
         <div class="card-header"><span class="card-title">지표 / 기간</span></div>
         <div style="padding:.75rem;display:flex;flex-direction:column;gap:8px">
           <div>
-            <div style="font-size:11px;color:var(--text2);margin-bottom:4px">재무 지표</div>
+            <div style="font-size:11px;color:var(--text1);margin-bottom:4px">재무 지표</div>
             <select class="form-select" id="cmp-metric" onchange="CMP.metric=this.value" style="width:100%">
               ${CMP_METRICS.map(m=>`<option value="${m.key}" ${CMP.metric===m.key?'selected':''}>${m.label}</option>`).join('')}
             </select>
           </div>
           <div>
-            <div style="font-size:11px;color:var(--text2);margin-bottom:4px">표시 분기</div>
+            <div style="font-size:11px;color:var(--text1);margin-bottom:4px">표시 분기</div>
             <select class="form-select" id="cmp-period" onchange="CMP.period=this.value" style="width:100%">
               <option value="4">최근 4분기</option>
               <option value="8" selected>최근 8분기</option>
@@ -114,10 +114,10 @@ function pComparison() {
 
     <!-- 우측: 차트/테이블 -->
     <div id="cmp-result">
-      <div style="padding:3rem;text-align:center;color:var(--text3);font-size:13px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius)">
+      <div style="padding:3rem;text-align:center;color:var(--text2);font-size:13px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius)">
         <div style="font-size:24px;margin-bottom:.5rem">📊</div>
         <div>좌측에서 종목을 선택하고 비교 분석을 실행해주세요</div>
-        <div style="font-size:11px;margin-top:.5rem;color:var(--text3)">산업 전체 추가 또는 개별 종목 검색으로 최대 10개까지 비교 가능합니다</div>
+        <div style="font-size:11px;margin-top:.5rem;color:var(--text2)">산업 전체 추가 또는 개별 종목 검색으로 최대 10개까지 비교 가능합니다</div>
       </div>
     </div>
 
@@ -255,7 +255,7 @@ async function onCmpSearch(q) {
       console.log('[종목검색] 결과:', rows?.length, '개, 에러:', error);
 
       if (error) { console.error('[종목검색] 에러:', error); dd.style.display = 'none'; return; }
-      if (!rows?.length) { dd.innerHTML = '<div style="padding:8px 12px;font-size:12px;color:var(--text3)">검색 결과 없음</div>'; dd.style.display = 'block'; return; }
+      if (!rows?.length) { dd.innerHTML = '<div style="padding:8px 12px;font-size:12px;color:var(--text2)">검색 결과 없음</div>'; dd.style.display = 'block'; return; }
 
       dd.innerHTML = rows.map(r => {
         const code = (r.code || '').split('.')[0];
@@ -267,7 +267,7 @@ async function onCmpSearch(q) {
           onclick="addCmpStockFromEl(this)"
           style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;
           border-bottom:1px solid var(--border);${already?'opacity:.4;pointer-events:none':''}">
-          <span style="font-weight:500">${r.name} <span style="font-size:11px;color:var(--text3);font-weight:400">${code}</span></span>
+          <span style="font-weight:500">${r.name} <span style="font-size:11px;color:var(--text2);font-weight:400">${code}</span></span>
           <span style="font-size:11px;color:${CATS[r.industry]||'var(--text3)'}">
             ${already?'추가됨':r.industry||''}
           </span>
@@ -338,7 +338,7 @@ function renderCmpSelected() {
   if (!el) return;
   if (cnt) cnt.textContent = `${CMP.selectedCodes.length}개`;
   if (!CMP.selectedCodes.length) {
-    el.innerHTML = '<div style="padding:.5rem;text-align:center;color:var(--text3);font-size:12px">종목을 선택해주세요</div>';
+    el.innerHTML = '<div style="padding:.5rem;text-align:center;color:var(--text2);font-size:12px">종목을 선택해주세요</div>';
     return;
   }
   el.innerHTML = CMP.selectedCodes.map((s, i) => `
@@ -346,11 +346,11 @@ function renderCmpSelected() {
       <span style="width:10px;height:10px;border-radius:50%;background:${CMP_COLORS[i%CMP_COLORS.length]};flex-shrink:0"></span>
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</div>
-        ${s.subIndustry ? `<div style="font-size:10px;color:var(--text3)">${s.subIndustry}</div>` : ''}
+        ${s.subIndustry ? `<div style="font-size:10px;color:var(--text2)">${s.subIndustry}</div>` : ''}
       </div>
-      <span style="font-size:10px;color:var(--text3)">${s.code}</span>
+      <span style="font-size:10px;color:var(--text2)">${s.code}</span>
       <button onclick="removeCmpStock('${s.code}')"
-        style="background:none;border:none;color:var(--text3);cursor:pointer;padding:0 2px;font-size:14px;line-height:1">×</button>
+        style="background:none;border:none;color:var(--text2);cursor:pointer;padding:0 2px;font-size:14px;line-height:1">×</button>
     </div>`).join('');
 }
 
@@ -486,23 +486,23 @@ async function runComparison() {
       <div class="card" style="margin-bottom:1rem">
         <div class="card-header">
           <span class="card-title">주가 동향</span>
-          <span style="font-size:11px;color:var(--text3)">기준: ${maxDate || '—'}</span>
+          <span style="font-size:11px;color:var(--text2)">기준: ${maxDate || '—'}</span>
         </div>
         <div style="overflow-x:auto">
           <table style="width:100%;border-collapse:collapse;font-size:13px">
             <thead>
               <tr>
-                <th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">종목</th>
-                <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">현재가</th>
-                <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">등락률</th>
-                <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">5일선</th>
-                <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">20일선</th>
-                <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">60일선</th>
-                <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">시총</th>
-                <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">PER</th>
-                <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">PBR</th>
-                <th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">52주 위치</th>
-                <th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)">액션</th>
+                <th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border)">종목</th>
+                <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border)">현재가</th>
+                <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border)">등락률</th>
+                <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border)">5일선</th>
+                <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border)">20일선</th>
+                <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border)">60일선</th>
+                <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border)">시총</th>
+                <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border)">PER</th>
+                <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border)">PBR</th>
+                <th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border)">52주 위치</th>
+                <th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border)">액션</th>
               </tr>
             </thead>
             <tbody>
@@ -511,7 +511,7 @@ async function runComparison() {
                 const mkt = mktMap[s.code];
                 const w52 = weekData[s.code];
                 const color = CMP_COLORS[i % CMP_COLORS.length];
-                if (!ma && !mkt) return `<tr><td colspan="11" style="padding:8px 12px;color:var(--text3);font-size:12px">${s.name} — 시장 데이터 없음</td></tr>`;
+                if (!ma && !mkt) return `<tr><td colspan="11" style="padding:8px 12px;color:var(--text2);font-size:12px">${s.name} — 시장 데이터 없음</td></tr>`;
                 const price = ma?.price || mkt?.price;
                 const chg = ma?.chg ?? mkt?.price_change_rate;
                 const ma5pos  = ma && price > ma.ma5  ? 'var(--red)' : 'var(--blue)';
@@ -522,7 +522,7 @@ async function runComparison() {
                 if (w52 && price) {
                   const pct = Math.round((price - w52.low) / (w52.high - w52.low) * 100);
                   const barColor = pct >= 80 ? 'var(--red)' : pct <= 20 ? 'var(--blue)' : 'var(--tg)';
-                  w52bar = `<div style="font-size:10px;color:var(--text3);margin-bottom:3px;display:flex;justify-content:space-between">
+                  w52bar = `<div style="font-size:10px;color:var(--text2);margin-bottom:3px;display:flex;justify-content:space-between">
                     <span>${w52.low.toLocaleString()}</span><span>${pct}%</span><span>${w52.high.toLocaleString()}</span>
                   </div>
                   <div style="background:var(--bg3);border-radius:3px;height:6px;position:relative;width:120px">
@@ -606,7 +606,7 @@ async function runComparison() {
       <div class="card" style="margin-bottom:1rem">
         <div class="card-header">
           <span class="card-title">종합 지표 레이더</span>
-          <span style="font-size:11px;color:var(--text3)">최신 분기 기준 — 종목 클릭 시 하이라이트</span>
+          <span style="font-size:11px;color:var(--text2)">최신 분기 기준 — 종목 클릭 시 하이라이트</span>
         </div>
         <div style="padding:1rem;display:flex;flex-direction:column;align-items:center;gap:12px">
           <div style="width:420px;height:420px;position:relative">
@@ -620,7 +620,7 @@ async function runComparison() {
       <div class="card" id="cmp-detail-card">
         <div class="card-header">
           <span class="card-title" id="cmp-detail-title">분기별 상세</span>
-          <span style="font-size:11px;color:var(--text3)">위 지표 탭 클릭 시 전환</span>
+          <span style="font-size:11px;color:var(--text2)">위 지표 탭 클릭 시 전환</span>
         </div>
         <div id="cmp-detail-body" style="overflow-x:auto"></div>
       </div>`;
@@ -654,7 +654,7 @@ function renderCmpDetailTable(metricKey) {
   if (title) title.textContent = `${metaDef.label} — 분기별 비교`;
 
   const fmtVal = (v) => {
-    if (v == null) return `<span style="color:var(--text3)">—</span>`;
+    if (v == null) return `<span style="color:var(--text2)">—</span>`;
     if (metaDef.scale === 1) {
       const color = metaDef.key === 'debt_ratio'
         ? (v > 200 ? 'var(--red)' : v > 100 ? 'var(--yellow)' : 'var(--green)')
@@ -693,13 +693,13 @@ function renderCmpDetailTable(metricKey) {
     <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:500px">
       <thead>
         <tr style="background:var(--bg3)">
-          <th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--text3);
+          <th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--text2);
             border-bottom:1px solid var(--border);position:sticky;left:0;background:var(--bg3);min-width:120px">종목</th>
           ${labels.map(lbl => `
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text3);
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text2);
               border-bottom:1px solid var(--border);white-space:nowrap">${lbl}</th>
           `).join('')}
-          <th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);white-space:nowrap;min-width:90px">추이</th>
+          <th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap;min-width:90px">추이</th>
         </tr>
       </thead>
       <tbody>
@@ -949,7 +949,7 @@ function drawCmpChart(canvas, datasets, labels, metaDef) {
         <span style="font-size:11px;font-weight:700;color:${rankColor};min-width:22px;text-align:center">${i+1}위</span>
         <span style="width:6px;height:6px;border-radius:50%;background:${x.color}"></span>
         <strong>${x.name}</strong>
-        <span style="color:var(--text3)">${dispVal}</span>
+        <span style="color:var(--text2)">${dispVal}</span>
       </span>`;
     }).join('');
   }
