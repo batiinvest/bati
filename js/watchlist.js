@@ -222,13 +222,14 @@ async function loadWatchlist() {
     const mkt   = priceMap[w.stock_code] || {};
     const price = mkt.price;
     const chg   = mkt.price_change_rate;
-    const cap   = mkt.market_cap;   // 억원 단위
-    const shares = (cap && price) ? Math.round(cap / price * 1e8) : null; // 주수
+    const cap   = mkt.market_cap;         // 원 단위 (BIGINT)
+    const capEok = cap ? cap / 1e8 : null; // 억원 단위 (표시용)
+    const shares = (cap && price) ? cap / price : null; // 주수 = 원/원
 
     // ── 매수 목표 시총 (watch_price 기준) ────────────────────────────────
     const buyCapEok = (w.watch_price && shares) ? Math.round(w.watch_price * shares / 1e8) : null;
-    const isBuyZone = cap != null && buyCapEok != null && cap <= buyCapEok;
-    const buyGap    = (buyCapEok && cap) ? ((cap - buyCapEok) / buyCapEok * 100) : null; // 양수=아직멀었음
+    const isBuyZone = capEok != null && buyCapEok != null && capEok <= buyCapEok;
+    const buyGap    = (buyCapEok && capEok) ? ((capEok - buyCapEok) / buyCapEok * 100) : null; // 양수=아직멀었음
 
     let buyCell;
     if (buyCapEok) {
@@ -277,7 +278,7 @@ async function loadWatchlist() {
       <td style="${tdStyle}">
         <div style="font-size:13px;font-weight:700">${price ? price.toLocaleString()+'원' : '—'}</div>
         <div style="font-size:11px;color:${chgColor(chg)}">${chg!=null?(chg>0?'+':'')+chg.toFixed(2)+'%':''}</div>
-        ${cap ? `<div style="font-size:11px;color:var(--text3)">${fmtEok(cap)}</div>` : ''}
+        ${capEok ? `<div style="font-size:11px;color:var(--text3)">${fmtEok(capEok)}</div>` : ''}
       </td>
       <td style="${tdStyle}">${buyCell}</td>
       <td style="${tdStyle}">${tgtCell}</td>
