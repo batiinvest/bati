@@ -196,147 +196,108 @@ async function loadWatchlist() {
 
   document.getElementById('wl-count').textContent = `${(data||[]).length}개`;
 
-  const groupColors = { '관심': '#4a9eff', '후보': '#ffc107', '보유중': 'var(--green)' };
+  const groupColors = { '관심': '#4a9eff', '후보': '#ffc107', '보유중': 'var(--tg)' };
 
   if (!data?.length) {
     listEl.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text3)">등록된 관심종목이 없어요.<br>+ 종목 추가 버튼을 눌러 추가해주세요.</div>';
     return;
   }
 
-  listEl.innerHTML = data.map(w => {
-    const mkt     = priceMap[w.stock_code] || {};
-    const price   = mkt.price;
-    const chg     = mkt.price_change_rate;
-    const cap     = mkt.market_cap;
-    // chgColor: config.js 전역 함수 사용 (상승=var(--red), 하락=var(--blue), 한국 주식 관행)
+  // ── 테이블 헤더 ───────────────────────────────────────────────────────────
+  const thStyle = 'font-size:11px;color:var(--text3);font-weight:500;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap';
+  const header = `
+    <tr>
+      <th style="${thStyle}">종목</th>
+      <th style="${thStyle}">현재가 / 시총</th>
+      <th style="${thStyle}">매수 목표 시총</th>
+      <th style="${thStyle}">업사이드 목표</th>
+      <th style="${thStyle}">투자포인트</th>
+      <th style="${thStyle}"></th>
+    </tr>`;
 
-    // 목표가 괴리율
-    const gapTarget = (w.target_price && price) ? ((w.target_price - price) / price * 100) : null;
-    const gapWatch  = (w.watch_price  && price) ? ((price - w.watch_price)  / price * 100) : null;
+  // ── 각 행 ─────────────────────────────────────────────────────────────────
+  const tdStyle = 'padding:10px 10px;border-bottom:1px solid var(--border);vertical-align:middle';
 
-    // 보유중 평가손익
-    const evalProfit = (w.avg_price && w.quantity && price)
-      ? (price - w.avg_price) * w.quantity : null;
-    const evalRate   = (w.avg_price && price)
-      ? ((price - w.avg_price) / w.avg_price * 100) : null;
+  const rows = data.map(w => {
+    const mkt   = priceMap[w.stock_code] || {};
+    const price = mkt.price;
+    const chg   = mkt.price_change_rate;
+    const cap   = mkt.market_cap;   // 억원 단위
+    const shares = (cap && price) ? Math.round(cap / price * 1e8) : null; // 주수
 
-    // 다음 확인 D-day
-    const dday = w.next_check_date ? Math.ceil((new Date(w.next_check_date) - new Date()) / 86400000) : null;
-    const ddayStr = dday != null
-      ? (dday === 0 ? 'D-Day' : dday > 0 ? `D-${dday}` : `D+${Math.abs(dday)}`)
-      : '';
-    const ddayColor = dday != null && dday <= 3 ? 'var(--red)' : 'var(--text3)';
+    // ── 매수 목표 시총 (watch_price 기준) ────────────────────────────────
+    const buyCapEok = (w.watch_price && shares) ? Math.round(w.watch_price * shares / 1e8) : null;
+    const isBuyZone = cap != null && buyCapEok != null && cap <= buyCapEok;
+    const buyGap    = (buyCapEok && cap) ? ((cap - buyCapEok) / buyCapEok * 100) : null; // 양수=아직멀었음
+
+    let buyCell;
+    if (buyCapEok) {
+      if (isBuyZone) {
+        buyCell = `<div style="color:var(--tg);font-weight:700;font-size:13px">✅ 매수 구간</div>
+                   <div style="font-size:11px;color:var(--text3)">${fmtEok(buyCapEok)} 이하</div>`;
+      } else {
+        buyCell = `<div style="font-size:13px;font-weight:600">${fmtEok(buyCapEok)}</div>
+                   <div style="font-size:11px;color:var(--text3)">현재보다 ${buyGap!=null?Math.abs(buyGap).toFixed(1)+'%':'—'} 하락 필요</div>`;
+      }
+    } else {
+      buyCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
+    }
+
+    // ── 업사이드 목표 (target_price 기준) ────────────────────────────────
+    const tgtCapEok = (w.target_price && shares) ? Math.round(w.target_price * shares / 1e8) : null;
+    const upside    = (w.target_price && price) ? ((w.target_price - price) / price * 100) : null;
+    let tgtCell;
+    if (tgtCapEok) {
+      tgtCell = `<div style="font-size:13px;font-weight:600">${fmtEok(tgtCapEok)}</div>
+                 ${upside != null ? `<div style="font-size:11px;color:${upside>0?'var(--tg)':'var(--red)'}">${upside>0?'▲':'▼'} ${Math.abs(upside).toFixed(1)}%</div>` : ''}`;
+    } else {
+      tgtCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
+    }
+
+    // ── 투자포인트 (최대 2개) ────────────────────────────────────────────
+    const theses = [w.thesis_1, w.thesis_2].filter(Boolean);
+    const thesisCell = theses.length
+      ? theses.map((t,i) => `<div style="font-size:11px;color:var(--text2);padding:1px 0;display:flex;gap:5px">
+          <span style="color:var(--tg);font-weight:700;flex-shrink:0">${i+1}.</span><span>${t}</span></div>`).join('')
+      : `<span style="font-size:11px;color:var(--text3)">—</span>`;
+
+    // ── 행 배경: 매수 구간이면 연초록 강조 ──────────────────────────────
+    const rowBg = isBuyZone ? 'background:rgba(45,206,137,.06)' : '';
 
     return `
-    <div class="card" style="margin-bottom:.75rem">
-      <div style="padding:1rem">
-
-        <!-- 헤더 -->
-        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:.875rem">
-          <div style="flex:1">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              <span style="font-size:15px;font-weight:700">${w.corp_name}</span>
-              <span style="font-size:11px;color:var(--text3)">${w.stock_code}</span>
-              <span style="font-size:11px;padding:2px 8px;border-radius:100px;background:${groupColors[w.group_name]||'#888'}22;color:${groupColors[w.group_name]||'#888'}">${w.group_name}</span>
-              ${w.industry ? `<span class="badge badge-cat">${w.industry}</span>` : ''}
-            </div>
-            ${w.catalyst ? `<div style="font-size:11px;color:var(--tg);margin-top:3px">⚡ ${w.catalyst}</div>` : ''}
-          </div>
-
-          <!-- 현재가 -->
-          <div style="text-align:right">
-            <div style="font-size:16px;font-weight:700">${price ? price.toLocaleString()+'원' : '—'}</div>
-            <div style="font-size:12px;color:${chgColor(chg)}">${chg != null ? (chg>0?'+':'')+chg.toFixed(2)+'%' : ''}</div>
-            ${cap ? `<div style="font-size:11px;color:var(--text3)">${fmtEok(cap)}</div>` : ''}
-          </div>
-
-          <!-- 액션 버튼 -->
-          <div style="display:flex;gap:6px;margin-left:4px">
-            <button class="btn btn-sm" onclick="openWatchlistModal(${w.id})">수정</button>
-            <button class="btn btn-sm" style="color:var(--red)" onclick="deleteWatchlist(${w.id},'${w.corp_name}')">삭제</button>
-          </div>
+    <tr style="${rowBg}">
+      <td style="${tdStyle}">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="font-size:13px;font-weight:700">${w.corp_name}</span>
+          <span style="font-size:10px;padding:1px 6px;border-radius:100px;background:${groupColors[w.group_name]||'#888'}22;color:${groupColors[w.group_name]||'#888'}">${w.group_name}</span>
         </div>
-
-        <!-- 가격 기준 -->
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:.875rem">
-          ${w.target_price ? `
-          <div style="background:var(--bg2);border-radius:8px;padding:8px 10px">
-            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">적정가</div>
-            <div style="font-size:13px;font-weight:600">${w.target_price.toLocaleString()}원</div>
-            ${(cap && w.target_price) ? `<div style="font-size:10px;color:var(--text3)">시총 ≈ ${fmtEok(w.target_price * Math.round(cap / (price||1)))}</div>` : ''}
-            ${gapTarget != null ? `<div style="font-size:11px;color:${gapTarget>0?'var(--green)':'var(--red)'}">${gapTarget>0?'▲':'▼'} ${Math.abs(gapTarget).toFixed(1)}% ${gapTarget>0?'상승여력':'하락위험'}</div>` : ''}
-          </div>` : ''}
-          ${w.watch_price ? `
-          <div style="background:var(--bg2);border-radius:8px;padding:8px 10px">
-            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">관심가격</div>
-            <div style="font-size:13px;font-weight:600">${w.watch_price.toLocaleString()}원</div>
-            ${(cap && w.watch_price) ? `<div style="font-size:10px;color:var(--text3)">시총 ≈ ${fmtEok(w.watch_price * Math.round(cap / (price||1)))}</div>` : ''}
-            ${gapWatch != null ? `<div style="font-size:11px;color:${gapWatch<=0?'var(--green)':'var(--text3)'}">
-              ${gapWatch <= 0 ? '✅ 매수 구간 (현재 ≤ 관심가)' : '관심가까지 +' + Math.abs(gapWatch).toFixed(1) + '%'}
-            </div>` : ''}
-          </div>` : ''}
-          ${w.avg_price ? `
-          <div style="background:var(--bg2);border-radius:8px;padding:8px 10px">
-            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">평균매수가</div>
-            <div style="font-size:13px;font-weight:600">${w.avg_price.toLocaleString()}원 ${w.quantity?'× '+w.quantity.toLocaleString()+'주':''}</div>
-            ${evalRate != null ? `<div style="font-size:11px;color:${evalRate>0?'var(--green)':'var(--red)'}">${evalRate>0?'+':''}${evalRate.toFixed(2)}% ${evalProfit!=null?'('+fmtEok(evalProfit/1e8)+')':''}</div>` : ''}
-          </div>` : ''}
-          ${w.per ? `
-          <div style="background:var(--bg2);border-radius:8px;padding:8px 10px">
-            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">PER / 업계평균</div>
-            <div style="font-size:13px;font-weight:600">${mkt.per?.toFixed(1)||'—'} / ${w.peer_per?.toFixed(1)||'—'}</div>
-            ${(mkt.per && w.peer_per) ? `<div style="font-size:11px;color:${mkt.per<w.peer_per?'var(--green)':'var(--red)'}">${mkt.per<w.peer_per?'저평가 (PER 기준)':'고평가 (PER 기준)'}</div>` : ''}
-          </div>` : ''}
+        ${w.industry ? `<div style="font-size:10px;color:var(--text3);margin-top:2px">${w.industry}</div>` : ''}
+        ${w.catalyst ? `<div style="font-size:10px;color:var(--tg);margin-top:2px">⚡ ${w.catalyst}</div>` : ''}
+      </td>
+      <td style="${tdStyle}">
+        <div style="font-size:13px;font-weight:700">${price ? price.toLocaleString()+'원' : '—'}</div>
+        <div style="font-size:11px;color:${chgColor(chg)}">${chg!=null?(chg>0?'+':'')+chg.toFixed(2)+'%':''}</div>
+        ${cap ? `<div style="font-size:11px;color:var(--text3)">${fmtEok(cap)}</div>` : ''}
+      </td>
+      <td style="${tdStyle}">${buyCell}</td>
+      <td style="${tdStyle}">${tgtCell}</td>
+      <td style="${tdStyle};max-width:220px">${thesisCell}</td>
+      <td style="${tdStyle};white-space:nowrap">
+        <div style="display:flex;gap:5px">
+          <button class="btn btn-sm" onclick="openWatchlistModal(${w.id})">수정</button>
+          <button class="btn btn-sm" style="color:var(--red)" onclick="deleteWatchlist(${w.id},'${w.corp_name}')">삭제</button>
         </div>
-
-        <!-- 투자포인트 / 리스크 / 붕괴조건 -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:.75rem">
-          <div>
-            ${[w.thesis_1, w.thesis_2, w.thesis_3].filter(Boolean).length ? `
-            <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:5px">💡 투자포인트</div>
-            ${[w.thesis_1, w.thesis_2, w.thesis_3].filter(Boolean).map((t,i)=>`
-              <div style="font-size:12px;color:var(--text1);padding:3px 0;display:flex;gap:6px">
-                <span style="color:var(--green);font-weight:600;flex-shrink:0">${i+1}.</span><span>${t}</span>
-              </div>`).join('')}` : ''}
-          </div>
-          <div>
-            ${[w.risk_1, w.risk_2, w.risk_3].filter(Boolean).length ? `
-            <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:5px">⚠️ 리스크</div>
-            ${[w.risk_1, w.risk_2, w.risk_3].filter(Boolean).map(r=>`
-              <div style="font-size:12px;color:var(--text1);padding:3px 0;display:flex;gap:6px">
-                <span style="color:var(--red);flex-shrink:0">•</span><span>${r}</span>
-              </div>`).join('')}` : ''}
-          </div>
-        </div>
-
-        <!-- 논리 붕괴 조건 -->
-        ${w.break_condition ? `
-        <div style="background:rgba(226,75,74,.08);border:1px solid rgba(226,75,74,.2);border-radius:8px;padding:8px 12px;margin-bottom:.75rem">
-          <div style="font-size:11px;font-weight:600;color:var(--red);margin-bottom:3px">🚫 논리 붕괴 조건</div>
-          <div style="font-size:12px;color:var(--text1)">${w.break_condition}</div>
-        </div>` : ''}
-
-        <!-- 밸류에이션 메모 -->
-        ${w.valuation_note ? `
-        <div style="background:var(--bg2);border-radius:8px;padding:8px 12px;margin-bottom:.75rem">
-          <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:3px">📊 밸류에이션 근거</div>
-          <div style="font-size:12px;color:var(--text2)">${w.valuation_note}</div>
-        </div>` : ''}
-
-        <!-- 하단: 다음 확인 / 경쟁사 -->
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          ${w.next_check_date ? `
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:11px;color:var(--text3)">📅 ${w.next_check_date}</span>
-            <span style="font-size:11px;font-weight:600;color:${ddayColor}">${ddayStr}</span>
-            ${w.next_check_memo ? `<span style="font-size:11px;color:var(--text3)">— ${w.next_check_memo}</span>` : ''}
-          </div>` : ''}
-          ${w.competitor ? `<span style="font-size:11px;color:var(--text3)">🏢 경쟁사: ${w.competitor}</span>` : ''}
-        </div>
-
-      </div>
-    </div>`;
+      </td>
+    </tr>`;
   }).join('');
+
+  listEl.innerHTML = `
+    <div class="card" style="overflow-x:auto;padding:0">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>${header}</thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
 async function deleteWatchlist(id, name) {
@@ -433,37 +394,37 @@ async function renderWatchlistForm(id) {
       </div>
 
       <!-- 가격 기준 (시총↔주가 연동) -->
-      <div style="font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:6px">💰 가격 기준</div>
+      <div style="font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);padding-bottom:6px">💰 매수 기준 · 목표</div>
       <div id="wl-shares-hint" style="font-size:11px;color:var(--text3);margin-top:-6px"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
         <div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">적정가 (원)</div>
-          <input type="number" class="form-input" id="wl-target_price" value="${w.target_price||''}"
-            placeholder="예: 280000"
-            oninput="syncWlPrice('price', this.value)"
-            style="width:100%;box-sizing:border-box">
-          <div id="wl-target-cap-hint" style="font-size:10px;color:var(--text3);margin-top:2px"></div>
-        </div>
-        <div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">적정 시총</div>
-          <input type="number" class="form-input" id="wl-target_cap"
-            placeholder="억원 단위"
-            oninput="syncWlPrice('cap', this.value)"
-            style="width:100%;box-sizing:border-box">
-        </div>
-        <div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">관심가격 (원)</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">매수 목표가 (원) <span style="color:var(--tg)">← 이 가격대에 매수</span></div>
           <input type="number" class="form-input" id="wl-watch_price" value="${w.watch_price||''}"
-            placeholder="매수 고려 가격"
+            placeholder="예: 60000"
             oninput="syncWlWatchPrice('price', this.value)"
             style="width:100%;box-sizing:border-box">
           <div id="wl-watch-cap-hint" style="font-size:10px;color:var(--text3);margin-top:2px"></div>
         </div>
         <div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">관심 시총</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">매수 목표 시총 (억원)</div>
           <input type="number" class="form-input" id="wl-watch_cap"
             placeholder="억원 단위"
             oninput="syncWlWatchPrice('cap', this.value)"
+            style="width:100%;box-sizing:border-box">
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">업사이드 목표가 (원) <span style="color:var(--text3)">← 매도 목표</span></div>
+          <input type="number" class="form-input" id="wl-target_price" value="${w.target_price||''}"
+            placeholder="예: 100000"
+            oninput="syncWlPrice('price', this.value)"
+            style="width:100%;box-sizing:border-box">
+          <div id="wl-target-cap-hint" style="font-size:10px;color:var(--text3);margin-top:2px"></div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">업사이드 목표 시총 (억원)</div>
+          <input type="number" class="form-input" id="wl-target_cap"
+            placeholder="억원 단위"
+            oninput="syncWlPrice('cap', this.value)"
             style="width:100%;box-sizing:border-box">
         </div>
       </div>
