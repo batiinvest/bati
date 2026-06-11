@@ -164,8 +164,8 @@ async function rpLoadReport() {
     const [priceRes, finRes, watchRes, dartRes, analystRes, segRes] = await Promise.all([
       sb.from('market_data').select('price,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low,per,pbr,base_date')
         .eq('stock_code', _rpStock.code).order('base_date', { ascending: false }).limit(500),
-      sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,debt_ratio,roe,roa,operating_margin,net_margin,ebitda,fcf,da')
-        .eq('stock_code', _rpStock.code).eq('fs_div','CFS').order('bsns_year', { ascending: false }).order('quarter', { ascending: false }).limit(8),
+      sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,debt_ratio,roe,roa,operating_margin,net_margin,ebitda,fcf,da,per,pbr')
+        .eq('stock_code', _rpStock.code).eq('fs_div','CFS').order('bsns_year', { ascending: false }).order('quarter', { ascending: false }).limit(12),
       sb.from('watchlist').select('note,target_price,opinion,buy_price,created_at')
         .eq('stock_code', _rpStock.code).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       sb.from('dart_reports').select('report_type,receive_date,summary')
@@ -1214,48 +1214,141 @@ function _rpValuationCard(latestF, latest) {
     { key:'roa', label:'ROA', desc:'총자산이익률',  val: latestF?.roa,  peer: ps?.roa, unit:'%', fmt: v=>v.toFixed(1), lowerBetter:false, prevVal: prev?.roa },
   ];
 
-  // ── PER 역사적 밴드 미니 차트 ──
-  const _perSparkline = () => {
-    const perHistory = prices.filter(p => p.per != null && p.per > 0 && p.per < 200).map(p => p.per);
-    if (perHistory.length < 10) return '';
+  // ── PER·PBR 12분기 밸류에이션 밴드 차트 ──
+  const _rpValBandChart = () => {
+    // 분기별 데이터 (오래된 순 정렬) — per/pbr이 있는 항목만
+    const qFin = [...fin].reverse().filter(r => r.quarter); // 분기만, 오래된→최신
+    const perQ  = qFin.filter(r => r.per  != null && r.per  > 0 && r.per  < 500);
+    const pbrQ  = qFin.filter(r => r.pbr  != null && r.pbr  > 0 && r.pbr  < 50);
+
     const curPer = latest?.per;
-    if (curPer == null) return '';
-    const mn = Math.min(...perHistory), mx = Math.max(...perHistory);
-    const avg = perHistory.reduce((s,v) => s+v, 0) / perHistory.length;
-    const range = mx - mn || 1;
-    const W = 200, H = 32, pts = perHistory.slice(0, 120).reverse(); // 최신 120개, 오래된 순
-    const xs = pts.map((_, i) => (i / (pts.length - 1)) * W);
-    const ys = pts.map(v => H - ((v - mn) / range) * H);
-    const path = xs.map((x,i) => `${i===0?'M':'L'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
-    const avgY = (H - ((avg - mn) / range) * H).toFixed(1);
-    const curY = (H - ((curPer - mn) / range) * H).toFixed(1);
-    const pctPos = ((curPer - mn) / range * 100).toFixed(0);
-    const bandColor = curPer > avg * 1.3 ? '#f87171' : curPer < avg * 0.8 ? '#4ade80' : '#f59e0b';
-    return `<div style="margin-bottom:10px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <span style="font-size:11px;font-weight:700;color:var(--text1)">PER 히스토리 밴드 (최근 ${pts.length}거래일)</span>
-        <div style="display:flex;gap:10px;font-size:10px;color:var(--text1)">
-          <span>최저 <b style="color:#4ade80">${mn.toFixed(1)}x</b></span>
-          <span>평균 <b style="color:#f59e0b">${avg.toFixed(1)}x</b></span>
-          <span>최고 <b style="color:#f87171">${mx.toFixed(1)}x</b></span>
+    const curPbr = latest?.pbr;
+
+    // 두 지표 모두 분기 데이터 없으면 일봉 fallback
+    if (perQ.length < 3 && pbrQ.length < 3) {
+      // 일봉 기반 간소 PER 차트 (기존 로직 유지)
+      const perHistory = prices.filter(p => p.per != null && p.per > 0 && p.per < 200).map(p => p.per);
+      if (perHistory.length < 10 || curPer == null) return '';
+      const mn = Math.min(...perHistory), mx = Math.max(...perHistory);
+      const avg = perHistory.reduce((s,v)=>s+v,0)/perHistory.length;
+      const range = mx - mn || 1;
+      const W=200,H=32,pts=perHistory.slice(0,120).reverse();
+      const xs=pts.map((_,i)=>(i/(pts.length-1))*W);
+      const ys=pts.map(v=>H-((v-mn)/range)*H);
+      const path=xs.map((x,i)=>`${i===0?'M':'L'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
+      const avgY=(H-((avg-mn)/range)*H).toFixed(1);
+      const curY=(H-((curPer-mn)/range)*H).toFixed(1);
+      const pctPos=((curPer-mn)/range*100).toFixed(0);
+      const bandColor=curPer>avg*1.3?'#f87171':curPer<avg*0.8?'#4ade80':'#f59e0b';
+      return `<div style="margin-bottom:10px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:11px;font-weight:700;color:var(--text1)">PER 히스토리 (최근 ${pts.length}거래일)</span>
+          <div style="display:flex;gap:10px;font-size:10px;color:var(--text1)">
+            <span>최저 <b style="color:#4ade80">${mn.toFixed(1)}x</b></span>
+            <span>평균 <b style="color:#f59e0b">${avg.toFixed(1)}x</b></span>
+            <span>최고 <b style="color:#f87171">${mx.toFixed(1)}x</b></span>
+          </div>
         </div>
-      </div>
-      <div style="position:relative">
         <svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="display:block;height:32px">
-          <!-- 평균선 -->
           <line x1="0" y1="${avgY}" x2="${W}" y2="${avgY}" stroke="#f59e0b" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
-          <!-- PER 라인 -->
           <path d="${path}" fill="none" stroke="var(--border)" stroke-width="1.2" opacity="0.7"/>
-          <!-- 현재값 마커 -->
           <circle cx="${xs[xs.length-1].toFixed(1)}" cy="${curY}" r="3" fill="${bandColor}" stroke="var(--bg3)" stroke-width="1.5"/>
         </svg>
         <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text1);margin-top:3px">
           <span>← ${pts.length}거래일 전</span>
-          <span style="color:${bandColor};font-weight:700">현재 ${curPer.toFixed(1)}x (역사적 하위 ${pctPos}%)</span>
+          <span style="color:${bandColor};font-weight:700">현재 ${curPer.toFixed(1)}x (하위 ${pctPos}%)</span>
           <span>현재 →</span>
         </div>
-      </div>
-    </div>`;
+      </div>`;
+    }
+
+    // ── 분기별 밴드 차트 생성 헬퍼 ──
+    const makeBandChart = (data, curVal, label, unit, maxCap) => {
+      if (data.length < 2) return '';
+      const vals   = data.map(r => r[label === 'PER' ? 'per' : 'pbr']);
+      const labels = data.map(r => `${String(r.bsns_year).slice(2)}/${r.quarter||'Y'}`);
+      const mn     = Math.min(...vals);
+      const mx     = Math.max(...vals);
+      const avg    = vals.reduce((s,v)=>s+v,0)/vals.length;
+      const range  = mx - mn || 1;
+      const W = 360, H = 60, PAD = 4;
+      const n = vals.length;
+      const barW  = Math.floor((W - PAD * 2) / n) - 2;
+      const barGap = Math.floor((W - PAD * 2) / n);
+
+      // y 좌표 (아래=0, 위=H)
+      const toY = v => PAD + (H - PAD * 2) * (1 - (v - mn) / range);
+      const avgY = toY(avg).toFixed(1);
+      const minY = toY(mn).toFixed(1);
+      const maxY = toY(mx).toFixed(1);
+
+      const pct  = curVal != null ? ((curVal - mn) / range * 100).toFixed(0) : null;
+      const curColor = curVal == null ? '#888'
+        : (label === 'PER' || label === 'PBR')
+          ? (curVal > avg * 1.2 ? '#f87171' : curVal < avg * 0.85 ? '#4ade80' : '#f59e0b')
+          : (curVal > avg * 1.1 ? '#4ade80' : curVal < avg * 0.9 ? '#f87171' : '#f59e0b');
+
+      const bars = vals.map((v, i) => {
+        const x   = PAD + i * barGap;
+        const y   = toY(v);
+        const bH  = Math.max(2, (H - PAD) - y);
+        const isLast = i === n - 1;
+        const col = isLast ? curColor : 'rgba(255,255,255,0.12)';
+        return `<rect x="${x}" y="${y.toFixed(1)}" width="${barW}" height="${bH.toFixed(1)}"
+          rx="1" fill="${col}" opacity="${isLast ? 1 : 0.8}"/>`;
+      }).join('');
+
+      // x축 레이블 (첫/중간/마지막만)
+      const xLabels = [0, Math.floor(n/2), n-1].map(i => {
+        const x = PAD + i * barGap + barW / 2;
+        return `<text x="${x.toFixed(1)}" y="${H + 10}" font-size="7" fill="var(--text2)"
+          text-anchor="middle">${labels[i]||''}</text>`;
+      }).join('');
+
+      return `
+      <div style="margin-bottom:8px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px">
+          <span style="font-size:11px;font-weight:700;color:var(--text1)">${label} 분기별 밴드 (${n}분기)</span>
+          <div style="display:flex;gap:10px;font-size:10px;color:var(--text1)">
+            <span>최저 <b style="color:#4ade80">${mn.toFixed(unit==='x'?1:2)}${unit}</b></span>
+            <span>평균 <b style="color:#f59e0b">${avg.toFixed(unit==='x'?1:2)}${unit}</b></span>
+            <span>최고 <b style="color:#f87171">${mx.toFixed(unit==='x'?1:2)}${unit}</b></span>
+          </div>
+        </div>
+        <svg width="100%" viewBox="0 0 ${W} ${H+14}" style="display:block;overflow:visible">
+          <!-- 밴드 배경 (min~max) -->
+          <rect x="${PAD}" y="${maxY}" width="${W - PAD*2}" height="${((H - PAD) - parseFloat(maxY)).toFixed(1)}"
+            fill="rgba(255,255,255,0.03)" rx="2"/>
+          <!-- 바 -->
+          ${bars}
+          <!-- 평균선 -->
+          <line x1="${PAD}" y1="${avgY}" x2="${W-PAD}" y2="${avgY}"
+            stroke="#f59e0b" stroke-width="1" stroke-dasharray="4,3" opacity="0.7"/>
+          <!-- 최저선 -->
+          <line x1="${PAD}" y1="${minY}" x2="${W-PAD}" y2="${minY}"
+            stroke="#4ade80" stroke-width="0.7" stroke-dasharray="2,3" opacity="0.5"/>
+          <!-- 최고선 -->
+          <line x1="${PAD}" y1="${maxY}" x2="${W-PAD}" y2="${maxY}"
+            stroke="#f87171" stroke-width="0.7" stroke-dasharray="2,3" opacity="0.5"/>
+          <!-- x축 레이블 -->
+          ${xLabels}
+        </svg>
+        ${curVal != null ? `
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text1);margin-top:2px">
+          <span>← ${n}분기 이전</span>
+          <span style="color:${curColor};font-weight:700">
+            현재 ${curVal.toFixed(unit==='x'?1:2)}${unit}
+            ${pct != null ? `(역사적 하위 ${pct}%)` : ''}
+          </span>
+          <span>최근 →</span>
+        </div>` : ''}
+      </div>`;
+    };
+
+    return `
+      ${makeBandChart(perQ, curPer, 'PER', 'x', 200)}
+      ${makeBandChart(pbrQ, curPbr, 'PBR', 'x', 50)}
+    `;
   };
 
   // 종합 판단
@@ -1302,8 +1395,8 @@ function _rpValuationCard(latestF, latest) {
       }).join('')}
     </div>
 
-    <!-- PER 역사적 밴드 -->
-    ${_perSparkline()}
+    <!-- PER·PBR 밸류에이션 밴드 -->
+    ${_rpValBandChart()}
 
     <div style="display:flex;flex-direction:column;gap:8px">
       ${metrics.map(m => {
