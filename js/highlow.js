@@ -51,15 +51,23 @@ async function loadHighLow() {
 
     document.getElementById('hl-date').textContent = maxDate + ' 기준';
 
-    const rows = await fetchAllPages(
-      sb.from('market_data')
+    const monCodes = Object.keys(indMap);
+    if (!monCodes.length) { el.innerHTML = emptyHTML('모니터링 종목 없음'); return; }
+
+    // 모니터링 종목만 조회 (전체 상장사 포함 시 폭락 종목이 잘못 노출됨)
+    const allRows = [];
+    for (let i = 0; i < monCodes.length; i += 500) {
+      const { data } = await sb.from('market_data')
         .select('stock_code,corp_name,market,price,price_change_rate,market_cap,w52_high,w52_low')
         .eq('base_date', maxDate)
         .not('w52_high', 'is', null)
         .not('w52_low',  'is', null)
         .not('price',    'is', null)
-        .order('market_cap', { ascending: false })
-    );
+        .in('stock_code', monCodes.slice(i, i + 500))
+        .order('market_cap', { ascending: false });
+      if (data) allRows.push(...data);
+    }
+    const rows = allRows;
 
     const high = [], low = [];
     for (const r of rows) {
