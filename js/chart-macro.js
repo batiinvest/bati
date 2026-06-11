@@ -247,25 +247,47 @@ async function loadMacroData() {
 // ── 탑바 시장 스트립 렌더 ──
 function _renderTopbarStrip() {
   const strip = document.getElementById('topbar-market-strip');
-  if (!strip) return;
   const m = window._macroData || {};
   const items = [
-    { name: '코스피',  val: m.kospi,   chg: m.kospi_chg },
-    { name: '코스닥',  val: m.kosdaq,  chg: m.kosdaq_chg },
-    { name: 'S&P500', val: m.sp500,   chg: m.sp500_chg },
-    { name: '나스닥',  val: m.nasdaq,  chg: m.nasdaq_chg },
-    { name: '달러',    val: m.usd_krw, chg: m.usd_krw_chg },
+    { name: '코스피',  val: m.kospi,   chg: m.kospi_chg,   color:'var(--green)' },
+    { name: '코스닥',  val: m.kosdaq,  chg: m.kosdaq_chg,  color:'var(--yellow)' },
+    { name: 'S&P500', val: m.sp500,   chg: m.sp500_chg,   color:'var(--tg)' },
+    { name: '나스닥',  val: m.nasdaq,  chg: m.nasdaq_chg,  color:'#ff6b35' },
+    { name: 'VIX',    val: m.vix,     chg: m.vix_chg,     color:'var(--neutral)' },
+    { name: '달러',    val: m.usd_krw, chg: m.usd_krw_chg, color:'var(--accent)' },
   ].filter(i => i.val != null);
-  if (!items.length) { strip.style.display = 'none'; return; }
-  strip.style.display = 'flex';
-  strip.innerHTML = items.map((item, i) =>
-    (i > 0 ? '<span class="market-strip-sep">│</span>' : '') +
-    `<div class="market-strip-item">` +
-      `<span class="market-strip-name">${item.name}</span>` +
-      `<span class="market-strip-val">${Number(item.val).toLocaleString(undefined,{maximumFractionDigits:2})}</span>` +
-      `<span style="color:${chgColor(item.chg)};font-size:11px">${chgStr(item.chg)}</span>` +
-    `</div>`
-  ).join('');
+
+  // 탑바 스트립 (5개 이하)
+  if (strip) {
+    if (!items.length) { strip.style.display = 'none'; return; }
+    strip.style.display = 'flex';
+    strip.innerHTML = items.slice(0,6).map((item, i) =>
+      (i > 0 ? '<span class="market-strip-sep" style="color:var(--border2)">│</span>' : '') +
+      `<div class="market-strip-item">` +
+        `<span class="market-strip-name" style="font-size:10px;color:var(--text3)">${item.name}</span>` +
+        `<span class="market-strip-val">${Number(item.val).toLocaleString(undefined,{maximumFractionDigits:2})}</span>` +
+        `<span class="market-strip-chg" style="color:${chgColor(item.chg)}">${chgStr(item.chg)}</span>` +
+      `</div>`
+    ).join('');
+  }
+
+  // 페이지 내 매크로 스트립 카드 (inv-macro-strip)
+  const macroStrip = document.getElementById('inv-macro-strip');
+  if (macroStrip && items.length) {
+    macroStrip.innerHTML = items.map(item => {
+      const up = item.chg != null && item.chg >= 0;
+      const val = Number(item.val).toLocaleString(undefined,{maximumFractionDigits:2});
+      const chgAbs = item.chg != null ? Math.abs(item.chg).toFixed(2) : '—';
+      return `
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid ${item.color}">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">${item.name}</div>
+        <div style="font-size:15px;font-weight:700;font-variant-numeric:tabular-nums">${val}</div>
+        <div style="font-size:11px;color:${item.chg!=null?(up?'var(--up)':'var(--down)'):'var(--text3)'};margin-top:2px">
+          ${item.chg!=null?(up?'▲':'▼')+' '+chgAbs+'%':'—'}
+        </div>
+      </div>`;
+    }).join('');
+  }
 }
 
 // ── US ETF 배너: us_market 테이블에서 최신 산업별 평균 등락률 조회 ──

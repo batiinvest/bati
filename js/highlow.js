@@ -12,8 +12,8 @@ function pHighLow() {
   return `
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-      <button class="chip active" data-hl-tab="high" onclick="switchHlTab('high')">📈 신고가 근접</button>
-      <button class="chip"        data-hl-tab="low"  onclick="switchHlTab('low')">📉 신저가 근접</button>
+      <button class="chip active" data-hl-tab="high" onclick="switchHlTab('high')">📈 52주 고가 근접</button>
+      <button class="chip"        data-hl-tab="low"  onclick="switchHlTab('low')">📉 52주 저가 근접</button>
       <span style="width:1px;height:14px;background:var(--border2);margin:0 4px"></span>
       <button class="chip active" data-hl-grp="all"  onclick="switchHlGrp(this,'all')">전체</button>
       ${INDUSTRIES.map(i => `<button class="chip" data-hl-grp="${i}" onclick="switchHlGrp(this,'${i}')">${i}</button>`).join('')}
@@ -119,8 +119,8 @@ function renderHighLow() {
 
   if (desc) {
     desc.textContent = isHigh
-      ? `52주 고가의 95% 이상 근접 또는 돌파 — 상단 모멘텀 종목 (${rows.length}개)`
-      : `52주 저가의 105% 이하 — 역발상 투자 후보 (${rows.length}개)`;
+      ? `52주 고가 대비 5% 이내 근접 종목 — 오늘 갱신 여부와 무관하게 현재 고가권에 있는 종목 (${rows.length}개)`
+      : `52주 저가 대비 5% 이내 근접 종목 — 역발상 저점 투자 후보 (${rows.length}개)`;
   }
 
   // 산업별 그루핑 (전체 탭일 때)

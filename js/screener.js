@@ -292,39 +292,61 @@ async function runScreener() {
     ? `재무 기준: ${finPeriodSample.bsns_year} ${finPeriodSample.quarter || ''}`
     : '';
 
+  // 신호 배지 계산
+  const _sig = r => {
+    if (r.per != null && r.per < 10 && r.roe != null && r.roe > 15)
+      return '<span class="sig sig-buy">매수검토</span>';
+    if (r.per != null && r.per > 40 && r.roe != null && r.roe < 5)
+      return '<span class="sig sig-sell">고평가</span>';
+    if (r.peg != null && r.peg <= 1 && r.roe != null && r.roe > 10)
+      return '<span class="sig sig-watch">성장유망</span>';
+    return '<span class="sig sig-neutral">중립</span>';
+  };
+
   el.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:8px">
       <div>
-        <span style="font-size:13px;font-weight:600">${combined.length}개 종목</span>
+        <span style="font-size:13px;font-weight:600">총 ${combined.length}개 종목 검색됨</span>
         ${finPeriodLabel ? `<span style="font-size:11px;color:var(--text2);margin-left:8px">${finPeriodLabel}</span>` : ''}
       </div>
       <button class="btn btn-sm" onclick="exportScreener()">CSV 다운로드</button>
     </div>
     <div class="table-wrap"><table class="screener-result-table">
       <thead><tr>
-        <th></th><th>종목명</th><th>산업</th><th>시장</th><th>시가총액</th>
-        <th>현재가</th><th>등락률</th><th>PER</th><th>PBR</th>
-        <th>PEG</th><th>EV/EBITDA</th>
-        <th>영업이익률</th><th>ROE</th><th>ROA</th><th>부채비율</th>
+        <th style="width:28px">#</th>
+        <th>종목명</th>
+        <th>산업</th>
+        <th class="num">현재가</th>
+        <th class="num">등락률</th>
+        <th class="num">시총</th>
+        <th class="num">PER</th>
+        <th class="num">PBR</th>
+        <th class="num">ROE</th>
+        <th class="num">영업이익률</th>
+        <th class="num">외국인%</th>
+        <th>신호</th>
+        <th></th>
       </tr></thead>
-      <tbody>${combined.map(r => `<tr>
-        <td style="padding:4px 6px;white-space:nowrap">
-          <button onclick="scAddToWatchlist('${r.stock_code}','${r.corp_name.replace(/'/g,"\\'")}');event.stopPropagation()"
-            style="font-size:11px;padding:2px 7px;border-radius:4px;background:rgba(45,206,137,.15);color:#2dce89;border:1px solid rgba(45,206,137,.3);cursor:pointer;white-space:nowrap"
-            title="워치리스트에 추가">+ WL</button></td>
-        <td style="font-weight:600;cursor:pointer;color:var(--tg)"
-            onclick="openFinTrend('${r.stock_code}','${r.corp_name}')">${r.corp_name}</td>
+      <tbody>${combined.map((r, i) => `<tr>
+        <td style="color:var(--text3);font-size:11px;text-align:right;padding:6px 8px">${i+1}</td>
+        <td style="cursor:pointer" onclick="go('report');setTimeout(()=>rpQuickSearch&&rpQuickSearch('${r.corp_name}'),200)">
+          <div class="stock-name" style="color:var(--tg)">${r.corp_name}</div>
+          <div class="stock-code">${r.stock_code} · ${r.market||''}</div>
+        </td>
         <td><span class="badge badge-cat">${r.industry || '—'}</span></td>
-        <td style="font-size:11px;color:var(--text2)">${r.market || '—'}</td>
-        <td style="font-size:12px">${fmtCap(r.market_cap)}</td>
-        <td style="font-size:12px">${r.price ? r.price.toLocaleString() + '원' : '—'}</td>
-        <td style="font-size:12px;color:${chgColor(r.price_change_rate)}">${chgStr(r.price_change_rate)}</td>
-        <td>${num(r.per)}</td><td>${num(r.pbr)}</td>
-        <td style="color:${r.peg != null && r.peg <= 1 ? 'var(--green)' : r.peg != null && r.peg <= 1.5 ? 'var(--yellow,#ffd600)' : 'var(--text2)'}">${r.peg != null ? r.peg.toFixed(2) : '—'}</td>
-        <td style="font-size:12px">${r.evEbitda != null ? r.evEbitda.toFixed(1) : '—'}</td>
-        <td style="color:${r.operating_margin > 0 ? 'var(--green)' : 'var(--text2)'}">
-          ${pct(r.operating_margin)}</td>
-        <td>${pct(r.roe)}</td><td>${pct(r.roa)}</td><td>${pct(r.debt_ratio)}</td>
+        <td class="num">${r.price ? r.price.toLocaleString()+'원' : '—'}</td>
+        <td class="num" style="color:${chgColor(r.price_change_rate)}">${chgStr(r.price_change_rate)}</td>
+        <td class="num">${fmtCap(r.market_cap)}</td>
+        <td class="num ${r.per!=null&&r.per<15?'num-up':''}">${num(r.per)}</td>
+        <td class="num">${num(r.pbr)}</td>
+        <td class="num ${r.roe!=null&&r.roe>15?'num-up':r.roe!=null&&r.roe<0?'num-down':''}">${pct(r.roe)}</td>
+        <td class="num ${r.operating_margin!=null&&r.operating_margin>10?'num-up':r.operating_margin!=null&&r.operating_margin<0?'num-down':''}">${pct(r.operating_margin)}</td>
+        <td class="num">${r.foreign_ownership!=null ? r.foreign_ownership.toFixed(1)+'%' : '—'}</td>
+        <td>${_sig(r)}</td>
+        <td style="padding:4px 6px">
+          <button onclick="scAddToWatchlist('${r.stock_code}','${r.corp_name.replace(/'/g,"\\'")}');event.stopPropagation()"
+            style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(45,206,137,.15);color:#2dce89;border:1px solid rgba(45,206,137,.3);cursor:pointer;white-space:nowrap">+WL</button>
+        </td>
       </tr>`).join('')}</tbody>
     </table></div>`;
   window._screenerData = combined;

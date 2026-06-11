@@ -18,7 +18,7 @@ const PAGE_META = {
   company:    { title: '모니터링 종목',  fn: 'pCompany',     onLoad: 'loadCompanyPage' },
   watchlist:  { title: '투자노트',      fn: 'pWatchlist',   onLoad: '_initWatchlist' },
   screener:   { title: '종목 스크리너', fn: 'pScreener',    onLoad: null },
-  highlow:    { title: '52주 고저가',   fn: 'pHighLow',     onLoad: 'loadHighLow' },
+  highlow:    { title: '고가/저가 근접', fn: 'pHighLow',     onLoad: 'loadHighLow' },
   financials: { title: '기업 분석',     fn: 'pFinancials',  onLoad: 'initFinancials' },
   report:     { title: '분석 리포트',   fn: 'pReport',      onLoad: null },
   comparison: { title: '기업 비교 분석',fn: 'pComparison',  onLoad: 'initCmpPage' },

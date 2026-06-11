@@ -276,26 +276,52 @@ async function loadWatchlist() {
       return mkt.market_cap <= buyCap;
     }).length;
 
-    const pnlColor = totalPnl >= 0 ? 'var(--green)' : 'var(--red)';
-    const statBox  = (label, value, sub='', valueColor='var(--text1)') =>
-      `<div style="flex:1;min-width:100px;padding:10px 14px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
-        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">${label}</div>
-        <div style="font-size:15px;font-weight:700;color:${valueColor}">${value}</div>
-        ${sub ? `<div style="font-size:11px;color:var(--text2);margin-top:2px">${sub}</div>` : ''}
+    // 평균 업사이드/손익비/PER 계산
+    const withTarget = (data||[]).filter(w => w.target_price && priceMap[w.stock_code]?.price);
+    const withStopAndTarget = withTarget.filter(w => w.stop_price && w.stop_price < priceMap[w.stock_code]?.price);
+    const avgUpside = withTarget.length
+      ? withTarget.reduce((s,w) => s + (w.target_price - priceMap[w.stock_code].price) / priceMap[w.stock_code].price * 100, 0) / withTarget.length
+      : null;
+    const avgRR = withStopAndTarget.length
+      ? withStopAndTarget.reduce((s,w) => {
+          const cur = priceMap[w.stock_code].price;
+          return s + (w.target_price - cur) / (cur - w.stop_price);
+        }, 0) / withStopAndTarget.length
+      : null;
+    const codesWithPer = (data||[]).filter(w => priceMap[w.stock_code]?.per != null);
+    const avgPer = codesWithPer.length
+      ? codesWithPer.reduce((s,w) => s + priceMap[w.stock_code].per, 0) / codesWithPer.length
+      : null;
+
+    const pnlColor = totalPnl >= 0 ? 'var(--up)' : 'var(--down)';
+    const kpiCard  = (label, value, sub='', valueColor='var(--text)') =>
+      `<div style="flex:1;min-width:130px;padding:12px 14px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
+        <div style="font-size:var(--fs-label);color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${label}</div>
+        <div style="font-size:var(--fs-big);font-weight:700;color:${valueColor};font-variant-numeric:tabular-nums;line-height:1">${value}</div>
+        ${sub ? `<div style="font-size:10px;color:var(--text3);margin-top:4px">${sub}</div>` : ''}
       </div>`;
 
     summaryEl.innerHTML = `
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:stretch">
-        ${statBox('관심종목', `${(data||[]).length}개`, holding.length ? `보유중 ${holding.length}개` : '')}
-        ${holding.length ? statBox('평가손익',
-          `${totalPnl >= 0 ? '+' : ''}${fmtNet(totalPnl)}`,
-          totalPnlPct != null ? `${totalPnlPct >= 0 ? '+' : ''}${totalPnlPct.toFixed(1)}%` : '',
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:.75rem">
+        ${kpiCard('평균 업사이드',
+          avgUpside!=null ? `${avgUpside>=0?'+':''}${avgUpside.toFixed(1)}%` : '—',
+          `목표가 보유 ${withTarget.length}개`,
+          avgUpside!=null&&avgUpside>0 ? 'var(--up)' : 'var(--text)')}
+        ${kpiCard('평균 PER',
+          avgPer!=null ? avgPer.toFixed(1)+'x' : '—',
+          `${codesWithPer.length}개 기준`)}
+        ${kpiCard('총 종목 수',
+          `${(data||[]).length}개`,
+          holding.length ? `보유중 ${holding.length}개` : '관심/후보')}
+        ${kpiCard('손익비 평균',
+          avgRR!=null ? `${avgRR.toFixed(1)} : 1` : '—',
+          `손절가 설정 ${withStopAndTarget.length}개`,
+          avgRR!=null&&avgRR>=2 ? 'var(--up)' : avgRR!=null&&avgRR>=1 ? 'var(--accent)' : 'var(--text)')}
+        ${holding.length ? kpiCard('평가손익',
+          `${totalPnl>=0?'+':''}${fmtNet(totalPnl)}`,
+          totalPnlPct!=null ? `${totalPnlPct>=0?'+':''}${totalPnlPct.toFixed(1)}%` : '',
           pnlColor) : ''}
-        ${holding.length ? statBox('평가금액', fmtNet(totalVal), `투자원금 ${fmtNet(totalCost)}`) : ''}
-        ${tgtCount ? statBox('목표가 기준 업사이드',
-          tgtUpside != null ? `${tgtUpside >= 0 ? '+' : ''}${tgtUpside.toFixed(1)}%` : '—',
-          `${tgtCount}개 종목 기준`, tgtUpside != null && tgtUpside > 0 ? 'var(--green)' : 'var(--text1)') : ''}
-        ${buyZoneCount ? statBox('매수 구간 진입', `${buyZoneCount}개`, '관심가 이하 도달', 'var(--green)') : ''}
+        ${buyZoneCount ? kpiCard('매수구간 진입', `${buyZoneCount}개`, '관심가 이하 도달', 'var(--up)') : ''}
       </div>`;
   }
 

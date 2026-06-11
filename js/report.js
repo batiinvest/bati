@@ -14,40 +14,53 @@ function pReport() {
   return `
   <div style="display:flex;flex-direction:column;gap:0;min-height:100%">
 
-    <!-- 종목 검색 헤더 -->
-    <div style="padding:12px 16px;border-bottom:1px solid var(--border);
-      background:var(--bg2);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <!-- 검색 바 -->
+    <div style="padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <input type="file" id="rp-dart-file" accept=".md" style="display:none" onchange="rpUploadDart(this)">
-      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:200px">
-        <div style="position:relative;flex:1;max-width:320px">
-          <input id="rp-search" type="text" placeholder="종목명 또는 코드 입력 (예: 삼성전자, 005930)"
-            oninput="rpSearchInput(this.value)"
-            style="width:100%;padding:7px 32px 7px 10px;border:1px solid var(--border);
-              border-radius:var(--radius-sm);background:var(--bg3);color:var(--text1);font-size:13px">
-          <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);
-            width:14px;height:14px;color:var(--text2);pointer-events:none"
-            viewBox="0 0 16 16" fill="none">
-            <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" stroke-width="1.5"/>
-            <path d="M10 10l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-          <div id="rp-dropdown" style="display:none;position:absolute;top:calc(100%+4px);left:0;right:0;
-            background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);
-            z-index:100;max-height:240px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.3)"></div>
-        </div>
-        <button onclick="rpLoadReport()" class="btn-primary"
-          style="padding:7px 14px;font-size:12px;white-space:nowrap">분석 리포트</button>
-        <button onclick="document.getElementById('rp-dart-file').click()"
-          style="padding:7px 12px;font-size:12px;white-space:nowrap;border:1px solid var(--border);
-            border-radius:var(--radius-sm);background:var(--bg3);color:var(--text1);cursor:pointer"
-          title="사업보고서 MD 파일 업로드">DART 업로드</button>
+      <div style="position:relative;flex:1;max-width:320px">
+        <input id="rp-search" type="text" placeholder="종목명 또는 코드 입력 (예: 삼성전자, 005930)"
+          oninput="rpSearchInput(this.value)"
+          style="width:100%;padding:6px 30px 6px 10px;border:1px solid var(--border);
+            border-radius:var(--radius-sm);background:var(--bg3);color:var(--text);font-size:13px">
+        <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--text3);pointer-events:none"
+          viewBox="0 0 16 16" fill="none">
+          <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M10 10l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <div id="rp-dropdown" style="display:none;position:absolute;top:calc(100%+4px);left:0;right:0;
+          background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);
+          z-index:100;max-height:240px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.3)"></div>
       </div>
-      ${_rpStock ? `
-      <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-weight:700;font-size:14px">${_rpStock.name}</span>
-        <span style="font-size:12px;color:var(--text1)">${_rpStock.code}</span>
-        <span id="rp-price-badge" style="font-size:12px;color:var(--text1)">로딩중...</span>
-      </div>` : ''}
+      <button onclick="rpLoadReport()" class="btn btn-primary btn-sm">분석 리포트</button>
+      <button onclick="document.getElementById('rp-dart-file').click()" class="btn btn-sm">DART 업로드</button>
     </div>
+
+    ${_rpStock ? `
+    <!-- 종목 헤더 바 -->
+    <div id="rp-stock-header" style="padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg2)">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+        <span style="font-size:18px;font-weight:700">${_rpStock.name}</span>
+        <span style="font-size:12px;color:var(--text3);font-family:monospace">${_rpStock.code}</span>
+        <span id="rp-industry-badge" style="font-size:11px;padding:2px 8px;border-radius:100px;background:var(--bg3);color:var(--text2)">—</span>
+        <span id="rp-market-badge"   style="font-size:11px;padding:2px 8px;border-radius:100px;background:var(--bg3);color:var(--text2)">—</span>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+          <span id="rp-price-badge" style="font-size:var(--fs-value);font-weight:700;font-variant-numeric:tabular-nums">—</span>
+          <span id="rp-chg-badge"   style="font-size:12px">—</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px">
+        <span style="font-size:11px;color:var(--text3)">시총 <span id="rp-cap-val" style="color:var(--text);font-weight:600">—</span></span>
+        <span style="font-size:11px;color:var(--text3)">PER <span id="rp-per-val" style="color:var(--text);font-weight:600">—</span></span>
+        <span style="font-size:11px;color:var(--text3)">PBR <span id="rp-pbr-val" style="color:var(--text);font-weight:600">—</span></span>
+        <span style="font-size:11px;color:var(--text3)">ROE <span id="rp-roe-val" style="color:var(--text);font-weight:600">—</span></span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-primary" onclick="rpLoadReport()">분석 리포트</button>
+        <button class="btn btn-sm" onclick="openFinTrend&&openFinTrend('${_rpStock.code}','${_rpStock.name}')">재무추이</button>
+        <button class="btn btn-sm" onclick="go('comparison')">기업비교에 추가</button>
+        <button class="btn btn-sm" onclick="scAddToWatchlist&&scAddToWatchlist('${_rpStock.code}','${_rpStock.name}')">투자노트에 추가</button>
+      </div>
+    </div>` : ''}
 
     <!-- 리포트 본문 -->
     <div id="rp-body" style="flex:1;padding:16px;display:flex;flex-direction:column;gap:14px">
@@ -599,12 +612,41 @@ function rpRenderReport() {
   // 재무제표 탭 자동 로드
   rpSetTab(0);
 
-  // 주가 배지 업데이트
-  const badge = document.getElementById('rp-price-badge');
-  if (badge && price) {
-    badge.innerHTML = `<span style="font-weight:600">${fmtNum(price)}원</span>
-      <span style="color:${chgColor};margin-left:4px">${chgStr}</span>`;
-  }
+  // 종목 헤더 바 업데이트
+  const priceBadge = document.getElementById('rp-price-badge');
+  const chgBadge   = document.getElementById('rp-chg-badge');
+  if (priceBadge && price) priceBadge.textContent = fmtNum(price) + '원';
+  if (chgBadge) chgBadge.innerHTML = `<span style="color:${chgColor}">${chgStr}</span>`;
+
+  // 헤더 바 추가 정보 (시총, PER, PBR, ROE, 산업, 시장)
+  try {
+    const { data: mkt } = await sb.from('market_data')
+      .select('market_cap,per,pbr,market')
+      .eq('stock_code', _rpStock.code)
+      .order('base_date', { ascending: false }).limit(1);
+    if (mkt?.[0]) {
+      const m = mkt[0];
+      const _set = (id, txt) => { const el = document.getElementById(id); if(el) el.textContent = txt; };
+      _set('rp-cap-val', m.market_cap ? fmtCap(m.market_cap) : '—');
+      _set('rp-per-val', m.per ? m.per.toFixed(1)+'x' : '—');
+      _set('rp-pbr-val', m.pbr ? m.pbr.toFixed(2) : '—');
+      const mktBadge = document.getElementById('rp-market-badge');
+      if (mktBadge && m.market) mktBadge.textContent = m.market;
+    }
+    const { data: fin } = await sb.from('financials')
+      .select('roe').eq('stock_code', _rpStock.code)
+      .order('bsns_year', { ascending: false }).order('quarter', { ascending: false }).limit(1);
+    if (fin?.[0]?.roe != null) {
+      const el = document.getElementById('rp-roe-val');
+      if (el) el.textContent = fin[0].roe.toFixed(1) + '%';
+    }
+    const { data: comp } = await sb.from('companies')
+      .select('industry').eq('code', _rpStock.code).limit(1);
+    if (comp?.[0]?.industry) {
+      const el = document.getElementById('rp-industry-badge');
+      if (el) el.textContent = comp[0].industry;
+    }
+  } catch(e) {}
 }
 
 // ── 서브 컴포넌트 ─────────────────────────────────────────────────────────────

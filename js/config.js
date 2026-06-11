@@ -30,11 +30,18 @@ const CATS = { '바이오':'#2AABEE','뷰티':'#f5365c','로봇':'#2dce89','2차
 const loadingHTML = (msg = '') =>
   `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:13px"><span class="loading"></span>${msg ? ' ' + msg : ''}</div>`;
 
-const emptyHTML = (msg = '데이터 없음') =>
-  `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:13px">${msg}</div>`;
+const emptyHTML = (msg = '데이터 없음', hint = '') =>
+  `<div style="padding:2.5rem;text-align:center">
+    <div style="font-size:32px;margin-bottom:.75rem;opacity:.3">📊</div>
+    <div style="font-size:13px;color:var(--text2)">${msg}</div>
+    ${hint ? `<div style="font-size:11px;color:var(--text3);margin-top:6px">${hint}</div>` : ''}
+  </div>`;
 
 const errorHTML = (msg = '') =>
-  `<div style="padding:1rem;color:var(--red);font-size:13px">${msg}</div>`;
+  `<div style="padding:1.5rem;text-align:center">
+    <div style="font-size:28px;margin-bottom:.5rem;opacity:.4">⚠️</div>
+    <div style="font-size:13px;color:var(--red)">${msg}</div>
+  </div>`;
 
 // ══════════════════════════════════════════
 //  공통 페이징 유틸
