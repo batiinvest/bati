@@ -33,6 +33,8 @@ function pScreener() {
           ${[
             ['sc-per-min','sc-per-max','PER','저평가 기준: 0~15'],
             ['sc-pbr-min','sc-pbr-max','PBR','순자산 대비: 0~1 저평가'],
+            ['sc-peg-min','sc-peg-max','PEG','성장 대비 밸류: 1 이하 매력'],
+            ['sc-eveb-min','sc-eveb-max','EV/EBITDA','적정: 8~12배'],
           ].map(([a,b,l,hint])=>`
             <div style="margin-bottom:.75rem">
               <div style="font-size:12px;color:var(--text1);margin-bottom:4px">${l}</div>
@@ -91,6 +93,8 @@ function pScreener() {
             <button class="btn btn-sm" onclick="applyPreset('value')">가치주</button>
             <button class="btn btn-sm" onclick="applyPreset('growth')">성장주</button>
             <button class="btn btn-sm" onclick="applyPreset('quality')">우량주</button>
+            <button class="btn btn-sm" onclick="applyPreset('peg')">성장주(PEG)</button>
+            <button class="btn btn-sm" onclick="applyPreset('deepvalue')">딥밸류</button>
             <button class="btn btn-sm" onclick="applyPreset('reset')">초기화</button>
           </div>
         </div>
@@ -109,10 +113,13 @@ function applyPreset(type) {
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
   ['sc-per-min','sc-per-max','sc-pbr-min','sc-pbr-max','sc-margin-min','sc-margin-max',
    'sc-roe-min','sc-roe-max','sc-roa-min','sc-roa-max','sc-debt-min','sc-debt-max',
-   'sc-cr-min','sc-cr-max','sc-cap-min','sc-cap-max'].forEach(id => set(id, ''));
+   'sc-cr-min','sc-cr-max','sc-cap-min','sc-cap-max','sc-peg-min','sc-peg-max',
+   'sc-eveb-min','sc-eveb-max'].forEach(id => set(id, ''));
   if (type === 'value')        { set('sc-per-max','15'); set('sc-pbr-max','1.5'); set('sc-margin-min','5'); set('sc-debt-max','100'); }
   else if (type === 'growth')  { set('sc-margin-min','15'); set('sc-roe-min','15'); set('sc-per-max','50'); }
   else if (type === 'quality') { set('sc-margin-min','10'); set('sc-roe-min','10'); set('sc-debt-max','100'); set('sc-cr-min','150'); }
+  else if (type === 'peg')     { set('sc-peg-max','1.5'); set('sc-roe-min','10'); }
+  else if (type === 'deepvalue') { set('sc-pbr-max','0.5'); set('sc-per-max','8'); }
 }
 
 async function runScreener() {
@@ -131,6 +138,8 @@ async function runScreener() {
     debtMin:   g('sc-debt-min'),   debtMax:   g('sc-debt-max'),
     crMin:     g('sc-cr-min'),     crMax:     g('sc-cr-max'),
     capMin:    g('sc-cap-min'),    capMax:    g('sc-cap-max'),
+    pegMin:    g('sc-peg-min'),    pegMax:    g('sc-peg-max'),
+    ebebMin:   g('sc-eveb-min'),   ebebMax:   g('sc-eveb-max'),
   };
 
   // ── 최신 base_date — config.js 전역 캐시 사용 ──
@@ -155,22 +164,28 @@ async function runScreener() {
   if (!mktRows.length) { el.innerHTML = emptyHTML('조건에 맞는 종목이 없습니다.'); return; }
 
   // ── Step 2: financials 필터가 있을 때만 추가 조회 (DB 레벨) ──
+  const hasPegFilter  = f.pegMin != null || f.pegMax != null;
+  const hasEvebFilter = f.ebebMin != null || f.ebebMax != null;
   const hasFinFilter = [f.marginMin, f.marginMax, f.roeMin, f.roeMax,
                         f.roaMin,    f.roaMax,    f.debtMin, f.debtMax,
-                        f.crMin,     f.crMax].some(v => v != null);
+                        f.crMin,     f.crMax].some(v => v != null)
+                    || hasPegFilter || hasEvebFilter;
   const hasIndFilter = !!industry;
 
   let finMap = {}, indMap = {};
 
   if (hasFinFilter) {
-    // 최신 분기 재무 데이터 (해당 조건 종목만) — DB 필터 적용
     const codes = mktRows.map(r => r.stock_code);
 
-    // 최신 분기 조회 (bsns_year+quarter 기준 최신 1건씩)
+    // PEG/EVEB 계산에는 net_income, operating_income, total_debt도 필요
+    const finSelect = hasPegFilter || hasEvebFilter
+      ? 'stock_code,operating_margin,roe,roa,debt_ratio,current_ratio,bsns_year,quarter,net_income,operating_income,total_debt'
+      : 'stock_code,operating_margin,roe,roa,debt_ratio,current_ratio,bsns_year,quarter';
+
     let finQuery = sb.from('financials')
-      .select('stock_code,operating_margin,roe,roa,debt_ratio,current_ratio,bsns_year,quarter')
+      .select(finSelect)
       .eq('fs_div', 'CFS')
-      .in('stock_code', codes.slice(0, 500))  // PostgREST in() 제한 대응
+      .in('stock_code', codes.slice(0, 500))
       .order('bsns_year', { ascending: false })
       .order('quarter',   { ascending: false });
 
@@ -185,9 +200,28 @@ async function runScreener() {
     if (f.crMin     != null) finQuery = finQuery.gte('current_ratio',    f.crMin);
     if (f.crMax     != null) finQuery = finQuery.lte('current_ratio',    f.crMax);
 
-    const { data: finRows } = await finQuery.limit(2000);
-    // 종목별 최신 분기 1건만 유지
-    (finRows || []).forEach(r => { if (!finMap[r.stock_code]) finMap[r.stock_code] = r; });
+    // PEG 계산: 종목별 최신 2개 연간 행 필요 → limit 높여서 JS에서 처리
+    const limit = hasPegFilter ? 4000 : 2000;
+    const { data: finRows } = await finQuery.limit(limit);
+
+    if (hasPegFilter) {
+      // 종목별 최신 2개 연간 행 수집 → YoY net_income 성장률로 PEG 계산
+      const annualByCode = {};
+      (finRows || []).filter(r => !r.quarter).forEach(r => {
+        if (!annualByCode[r.stock_code]) annualByCode[r.stock_code] = [];
+        if (annualByCode[r.stock_code].length < 2) annualByCode[r.stock_code].push(r);
+      });
+      (finRows || []).forEach(r => { if (!finMap[r.stock_code]) finMap[r.stock_code] = r; });
+      Object.entries(annualByCode).forEach(([code, rows]) => {
+        if (!finMap[code]) return;
+        if (rows.length >= 2 && rows[1].net_income && rows[1].net_income !== 0) {
+          const growth = ((rows[0].net_income - rows[1].net_income) / Math.abs(rows[1].net_income)) * 100;
+          finMap[code]._epsGrowth = growth;
+        }
+      });
+    } else {
+      (finRows || []).forEach(r => { if (!finMap[r.stock_code]) finMap[r.stock_code] = r; });
+    }
   }
 
   // getIndustryMap은 캐시된 경우 즉시 반환 — 1회 호출로 통합
@@ -203,21 +237,49 @@ async function runScreener() {
   // ── Step 3: JS에서 남은 조인 처리 (재무 필터 종목 교집합) ──
   let combined = mktRows
     .filter(m => {
-      // 산업 필터
       if (hasIndFilter) return indMap[m.stock_code] != null;
       return true;
     })
     .filter(m => {
-      // 재무 필터: finMap에 없으면 제외 (필터가 있을 때만)
       if (hasFinFilter) return finMap[m.stock_code] != null;
       return true;
     })
-    .map(m => ({
-      ...m,
-      industry: indMap[m.stock_code] || '',
-      capEok:   m.market_cap ? Math.round(m.market_cap / 1e8) : null,
-      ...(finMap[m.stock_code] || {}),
-    }));
+    .map(m => {
+      const fin = finMap[m.stock_code] || {};
+      // PEG = PER / EPS성장률(%) — 성장률이 양수일 때만 유효
+      let peg = null;
+      const per = m.per;
+      const epsGrowth = fin._epsGrowth;
+      if (per != null && epsGrowth != null && epsGrowth > 0) {
+        peg = per / epsGrowth;
+      }
+      // EV/EBITDA ≈ (시총 + total_debt) / operating_income (근사)
+      let evEbitda = null;
+      if (m.market_cap != null && fin.total_debt != null && fin.operating_income != null && fin.operating_income > 0) {
+        evEbitda = (m.market_cap + fin.total_debt) / fin.operating_income;
+      }
+      return {
+        ...m,
+        industry: indMap[m.stock_code] || '',
+        capEok:   m.market_cap ? Math.round(m.market_cap / 1e8) : null,
+        ...fin,
+        peg,
+        evEbitda,
+      };
+    })
+    .filter(r => {
+      if (hasPegFilter) {
+        if (r.peg == null) return false;
+        if (f.pegMin != null && r.peg < f.pegMin) return false;
+        if (f.pegMax != null && r.peg > f.pegMax) return false;
+      }
+      if (hasEvebFilter) {
+        if (r.evEbitda == null) return false;
+        if (f.ebebMin != null && r.evEbitda < f.ebebMin) return false;
+        if (f.ebebMax != null && r.evEbitda > f.ebebMax) return false;
+      }
+      return true;
+    });
 
   if (!combined.length) { el.innerHTML = emptyHTML('조건에 맞는 종목이 없습니다.'); return; }
 
@@ -242,6 +304,7 @@ async function runScreener() {
       <thead><tr>
         <th>종목명</th><th>산업</th><th>시장</th><th>시가총액</th>
         <th>현재가</th><th>등락률</th><th>PER</th><th>PBR</th>
+        <th>PEG</th><th>EV/EBITDA</th>
         <th>영업이익률</th><th>ROE</th><th>ROA</th><th>부채비율</th>
       </tr></thead>
       <tbody>${combined.map(r => `<tr>
@@ -253,6 +316,8 @@ async function runScreener() {
         <td style="font-size:12px">${r.price ? r.price.toLocaleString() + '원' : '—'}</td>
         <td style="font-size:12px;color:${chgColor(r.price_change_rate)}">${chgStr(r.price_change_rate)}</td>
         <td>${num(r.per)}</td><td>${num(r.pbr)}</td>
+        <td style="color:${r.peg != null && r.peg <= 1 ? 'var(--green)' : r.peg != null && r.peg <= 1.5 ? 'var(--yellow,#ffd600)' : 'var(--text2)'}">${r.peg != null ? r.peg.toFixed(2) : '—'}</td>
+        <td style="font-size:12px">${r.evEbitda != null ? r.evEbitda.toFixed(1) : '—'}</td>
         <td style="color:${r.operating_margin > 0 ? 'var(--green)' : 'var(--text2)'}">
           ${pct(r.operating_margin)}</td>
         <td>${pct(r.roe)}</td><td>${pct(r.roa)}</td><td>${pct(r.debt_ratio)}</td>
@@ -263,8 +328,8 @@ async function runScreener() {
 
 function exportScreener() {
   if (!window._screenerData?.length) return;
-  const keys    = ['corp_name','industry','market','capEok','price','price_change_rate','per','pbr','operating_margin','roe','roa','debt_ratio'];
-  const headers = ['종목명','산업','시장','시총(억)','현재가','등락률','PER','PBR','영업이익률','ROE','ROA','부채비율'];
+  const keys    = ['corp_name','industry','market','capEok','price','price_change_rate','per','pbr','peg','evEbitda','operating_margin','roe','roa','debt_ratio'];
+  const headers = ['종목명','산업','시장','시총(억)','현재가','등락률','PER','PBR','PEG','EV/EBITDA','영업이익률','ROE','ROA','부채비율'];
   const csv = [headers.join(','), ...window._screenerData.map(r => keys.map(k => r[k] ?? '').join(','))].join('\n');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
