@@ -8,6 +8,65 @@ function fmtPriceKr(price) {
   return `${price.toLocaleString()}원`;
 }
 
+// ── 손익비(R/R) + 포지션 크기 계산기 ──────────────────────────────────────
+function _calcRR() {
+  const gn = id => { const v = document.getElementById(id)?.value; return v !== '' && v != null ? parseFloat(v) : null; };
+  const curPrice  = gn('wl-rr-cur');
+  const tgtPrice  = gn('wl-rr-tgt');
+  const stopPrice = gn('wl-rr-stop');
+  const account   = gn('wl-rr-account');
+  const riskPct   = gn('wl-rr-risk');
+  const out       = document.getElementById('wl-rr-output');
+  if (!out) return;
+
+  const rows = [];
+
+  // 손익비
+  if (curPrice && tgtPrice && stopPrice && stopPrice < curPrice) {
+    const gain = tgtPrice - curPrice;
+    const risk = curPrice - stopPrice;
+    const rr   = gain / risk;
+    const color = rr >= 2 ? 'var(--green)' : rr >= 1 ? 'var(--yellow,#ffd600)' : 'var(--red)';
+    rows.push(`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:12px;color:var(--text2)">손익비 (R:R)</span>
+      <span style="font-size:13px;font-weight:700;color:${color}">1 : ${rr.toFixed(2)}</span>
+    </div>`);
+
+    // 포지션 크기
+    if (account && riskPct && risk > 0) {
+      const maxLoss  = account * 10000 * (riskPct / 100);  // account는 만원 단위
+      const qty      = Math.floor(maxLoss / risk);
+      const lossAmt  = qty * risk;
+      const gainAmt  = qty * gain;
+      rows.push(`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:12px;color:var(--text2)">추천 매수 수량</span>
+        <span style="font-size:13px;font-weight:700">${qty.toLocaleString()}주</span>
+      </div>`);
+      rows.push(`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:12px;color:var(--text2)">예상 손실 (손절 시)</span>
+        <span style="font-size:13px;font-weight:600;color:var(--red)">-${Math.round(lossAmt).toLocaleString()}원</span>
+      </div>`);
+      rows.push(`<div style="display:flex;justify-content:space-between;padding:5px 0">
+        <span style="font-size:12px;color:var(--text2)">예상 수익 (목표 시)</span>
+        <span style="font-size:13px;font-weight:600;color:var(--green)">+${Math.round(gainAmt).toLocaleString()}원</span>
+      </div>`);
+    }
+  } else if (curPrice && tgtPrice && stopPrice) {
+    rows.push(`<div style="font-size:12px;color:var(--red);padding:5px 0">손절가는 현재가보다 낮아야 합니다.</div>`);
+  }
+
+  out.innerHTML = rows.length
+    ? `<div style="background:var(--bg3);border-radius:6px;padding:8px 12px">${rows.join('')}</div>`
+    : `<div style="font-size:12px;color:var(--text2);padding:5px 0">현재가·목표가·손절가를 입력하면 자동 계산됩니다.</div>`;
+}
+
+// 목표가 입력 시 RR 자동 연동
+function syncRRTarget(val) {
+  const el = document.getElementById('wl-rr-tgt');
+  if (el && val) el.value = val;
+  _calcRR();
+}
+
 function _syncPriceCap(prefix, from, val) {
   const shares = window._wlShares;
   const hint = document.getElementById(`${prefix}-cap-hint`);
@@ -93,6 +152,10 @@ async function selectWatchlistStock(code, name, industry, market) {
     document.getElementById('wl-auto-cap').textContent = m.market_cap ? fmtEok(m.market_cap / 1e8) : '—';
     document.getElementById('wl-auto-per').textContent = m.per ? m.per.toFixed(1) : '—';
     document.getElementById('wl-auto-pbr').textContent = m.pbr ? m.pbr.toFixed(2) : '—';
+
+    // RR 계산기 현재가 자동 연동
+    const rrCur = document.getElementById('wl-rr-cur');
+    if (rrCur && m.price) { rrCur.value = m.price; _calcRR(); }
 
     // 주식수 = 시총 / 현재가 (계산용 저장)
     if (m.market_cap && m.price) {
@@ -414,7 +477,7 @@ async function renderWatchlistForm(id) {
             <div>
               <div style="font-size:10px;color:var(--text2);margin-bottom:3px">주가 (원)</div>
               <input type="number" class="form-input" id="wl-target_price" value="${w.target_price||''}"
-                placeholder="예: 100,000" oninput="syncWlPrice('price',this.value)"
+                placeholder="예: 100,000" oninput="syncWlPrice('price',this.value);syncRRTarget(this.value)"
                 style="width:100%;box-sizing:border-box;font-size:12px">
               <div id="wl-target-cap-hint" style="font-size:10px;color:var(--text2);margin-top:3px"></div>
             </div>
@@ -440,6 +503,44 @@ async function renderWatchlistForm(id) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         ${ta('thesis_1','💡 투자 근거','핵심 투자 이유')}
         ${ta('risk_1','⚠️ 핵심 리스크','가장 큰 하방 리스크')}
+      </div>
+
+      <!-- 손익비 + 포지션 크기 계산기 -->
+      <div style="border:1px solid var(--border);border-radius:8px;padding:12px">
+        <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:10px">📐 손익비 · 포지션 크기 계산기</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px">
+          <div>
+            <div style="font-size:10px;color:var(--text2);margin-bottom:3px">현재가 (원)</div>
+            <input type="number" class="form-input" id="wl-rr-cur" placeholder="자동 입력"
+              oninput="_calcRR()" style="width:100%;box-sizing:border-box;font-size:12px">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text2);margin-bottom:3px">목표가 (원)</div>
+            <input type="number" class="form-input" id="wl-rr-tgt"
+              value="${w.target_price||''}" placeholder="업사이드와 연동"
+              oninput="_calcRR()" style="width:100%;box-sizing:border-box;font-size:12px">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text2);margin-bottom:3px">손절가 (원)</div>
+            <input type="number" class="form-input" id="wl-rr-stop" placeholder="예: 45,000"
+              oninput="_calcRR()" style="width:100%;box-sizing:border-box;font-size:12px">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <div style="font-size:10px;color:var(--text2);margin-bottom:3px">계좌 총액 (만원)</div>
+            <input type="number" class="form-input" id="wl-rr-account" placeholder="예: 5000"
+              oninput="_calcRR()" style="width:100%;box-sizing:border-box;font-size:12px">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text2);margin-bottom:3px">리스크 허용 비율 (%)</div>
+            <input type="number" class="form-input" id="wl-rr-risk" placeholder="예: 1" step="0.5" min="0.1" max="10"
+              oninput="_calcRR()" style="width:100%;box-sizing:border-box;font-size:12px">
+          </div>
+        </div>
+        <div id="wl-rr-output">
+          <div style="font-size:12px;color:var(--text2);padding:5px 0">현재가·목표가·손절가를 입력하면 자동 계산됩니다.</div>
+        </div>
       </div>
 
       <!-- 상승 트리거 -->
