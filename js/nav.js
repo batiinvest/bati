@@ -14,13 +14,10 @@ function go(page) {
   const meta = PAGE_META[page];
   document.getElementById('page-title').textContent = meta?.title || '';
 
-  // 채팅방 관련 버튼은 전체현황(overview) 페이지에서만 표시
-  const chatBtns = ['btn-notice', 'btn-add', 'sync-btn'];
-  const showChatBtns = page === 'overview';
-  chatBtns.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = showChatBtns ? '' : 'none';
-  });
+  // ADMIN 페이지에서만 탑바 채널 운영 버튼 표시
+  const adminPages = ['overview','rooms','notice','logs','company','stocks','pro','botconfig','team','settings'];
+  const adminActions = document.getElementById('topbar-admin-actions');
+  if (adminActions) adminActions.style.display = adminPages.includes(page) ? '' : 'none';
 
   draw();
 }

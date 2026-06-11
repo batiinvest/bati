@@ -304,3 +304,21 @@ const IND_COLORS = {
   '조선':   '#00d4aa', '로봇':   '#fb6340', '우주':    '#4fc3f7',
   '신재생': '#aed581', '테크':   '#e040fb',
 };
+
+
+// ADMIN 섹션 접기/펼치기
+function toggleAdminNav() {
+  const sec = document.getElementById('nav-sec-admin');
+  const items = document.getElementById('nav-admin-items');
+  if (!sec || !items) return;
+  sec.classList.toggle('open');
+  items.classList.toggle('open');
+}
+
+// 키보드 단축키 (Task 8-2)
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  const map = { '1':'investment','2':'screener','3':'watchlist','4':'report','5':'comparison' };
+  if (map[e.key]) go(map[e.key]);
+  if (e.key === '/') { e.preventDefault(); document.querySelector('.search-box')?.focus(); }
+});
