@@ -45,9 +45,9 @@ body { background:var(--bg); color:var(--text); font-family:'Pretendard','Apple 
 /* ── Layout ── */
 .app { display:flex; min-height:100vh; }
 .sidebar { width:240px; flex-shrink:0; background:var(--bg2); border-right:1px solid var(--border); display:flex; flex-direction:column; position:fixed; top:0; left:0; height:100vh; z-index:50; }
-.main { margin-left:240px; flex:1; display:flex; flex-direction:column; }
+.main { margin-left:240px; flex:1; min-width:0; display:flex; flex-direction:column; overflow-x:hidden; }
 .topbar { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 1.5rem; height:56px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:40; }
-.content { padding:1.5rem; flex:1; }
+.content { padding:1.5rem; flex:1; width:100%; box-sizing:border-box; }
 .logo { padding:1.25rem 1.25rem 1rem; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border); }
 .logo-icon { width:32px; height:32px; border-radius:8px; background:var(--tg); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:15px; }
 .logo-text { font-size:13px; font-weight:600; }
@@ -533,8 +533,8 @@ td { padding:7px 10px; font-size:var(--fs-data); }
 .sidebar { width:var(--sidebar-w); }
 .main { margin-left:var(--sidebar-w); }
 
-/* 콘텐츠 최대 너비 */
-.content { padding:1.25rem 1.5rem; max-width:var(--content-max); }
+/* 콘텐츠 패딩 오버라이드 */
+.content { padding:1.25rem 1.5rem; }
 
 /* ── Task 9: 모바일 반응형 ── */
 @media (max-width: 900px) {
