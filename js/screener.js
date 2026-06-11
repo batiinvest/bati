@@ -300,14 +300,18 @@ async function runScreener() {
       </div>
       <button class="btn btn-sm" onclick="exportScreener()">CSV 다운로드</button>
     </div>
-    <div class="table-wrap"><table>
+    <div class="table-wrap"><table class="screener-result-table">
       <thead><tr>
-        <th>종목명</th><th>산업</th><th>시장</th><th>시가총액</th>
+        <th></th><th>종목명</th><th>산업</th><th>시장</th><th>시가총액</th>
         <th>현재가</th><th>등락률</th><th>PER</th><th>PBR</th>
         <th>PEG</th><th>EV/EBITDA</th>
         <th>영업이익률</th><th>ROE</th><th>ROA</th><th>부채비율</th>
       </tr></thead>
       <tbody>${combined.map(r => `<tr>
+        <td style="padding:4px 6px;white-space:nowrap">
+          <button onclick="scAddToWatchlist('${r.stock_code}','${r.corp_name.replace(/'/g,"\\'")}');event.stopPropagation()"
+            style="font-size:11px;padding:2px 7px;border-radius:4px;background:rgba(45,206,137,.15);color:#2dce89;border:1px solid rgba(45,206,137,.3);cursor:pointer;white-space:nowrap"
+            title="워치리스트에 추가">+ WL</button></td>
         <td style="font-weight:600;cursor:pointer;color:var(--tg)"
             onclick="openFinTrend('${r.stock_code}','${r.corp_name}')">${r.corp_name}</td>
         <td><span class="badge badge-cat">${r.industry || '—'}</span></td>
@@ -324,6 +328,15 @@ async function runScreener() {
       </tr>`).join('')}</tbody>
     </table></div>`;
   window._screenerData = combined;
+}
+
+function scAddToWatchlist(code, name) {
+  window._wlPrefill = { stock_code: code, corp_name: name };
+  if (typeof openWatchlistModal === 'function') {
+    openWatchlistModal(null);
+  } else {
+    alert('워치리스트 모듈이 로드되지 않았습니다.');
+  }
 }
 
 function exportScreener() {

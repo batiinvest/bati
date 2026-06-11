@@ -242,6 +242,47 @@ textarea.form-input { resize:vertical; min-height:100px; }
   .stock-col-keyword { display:none; }
 }
 
+/* ── 모바일 반응형: 스크리너·워치리스트·주도주 (P3-3) ─────────────── */
+@media(max-width:900px){
+  /* 스크리너 결과 테이블 — ROA·부채비율 숨김 */
+  .screener-result-table th:nth-child(15),
+  .screener-result-table td:nth-child(15),
+  .screener-result-table th:nth-child(14),
+  .screener-result-table td:nth-child(14) { display:none; }
+
+  /* 워치리스트 테이블 — 매수목표시총·투자포인트 숨김 (핵심만 유지) */
+  .wl-table th:nth-child(4),
+  .wl-table td:nth-child(4),
+  .wl-table th:nth-child(6),
+  .wl-table td:nth-child(6) { display:none; }
+
+  /* 주도주 카드 그리드 2열 → 1열 */
+  .leading-grid { grid-template-columns:1fr !important; }
+
+  /* 공시 테이블 — 접수시각 숨김 */
+  .disc-table th:nth-child(3),
+  .disc-table td:nth-child(3) { display:none; }
+
+  /* 포트폴리오 요약 카드 — 가로 스크롤 대신 2열 랩 */
+  #wl-summary > div { flex-wrap:wrap; }
+  #wl-summary > div > div { min-width:calc(50% - 4px); flex:1 1 calc(50% - 4px); }
+}
+
+@media(max-width:480px){
+  /* 스크리너 테이블 — PEG·EV/EBITDA 추가 숨김 */
+  .screener-result-table th:nth-child(9),
+  .screener-result-table td:nth-child(9),
+  .screener-result-table th:nth-child(10),
+  .screener-result-table td:nth-child(10) { display:none; }
+
+  /* 워치리스트 테이블 — 업사이드도 숨기고 핵심(종목·현재가·시총)만 */
+  .wl-table th:nth-child(5),
+  .wl-table td:nth-child(5) { display:none; }
+
+  /* 포트폴리오 요약 1열 */
+  #wl-summary > div > div { min-width:100%; flex:1 1 100%; }
+}
+
 @media(min-width:901px){
   .menu-btn { display:none !important; }
 }

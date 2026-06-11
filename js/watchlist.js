@@ -215,6 +215,7 @@ function pWatchlist() {
     </div>
     <button class="btn btn-primary" onclick="openWatchlistModal(null)">+ 종목 추가</button>
   </div>
+  <div id="wl-summary" style="margin-bottom:.75rem"></div>
   <div id="wl-list"></div>`;
 }
 
@@ -248,6 +249,55 @@ async function loadWatchlist() {
   }
 
   document.getElementById('wl-count').textContent = `${(data||[]).length}개`;
+
+  // ── 포트폴리오 요약 카드 ─────────────────────────────────────────────────
+  const summaryEl = document.getElementById('wl-summary');
+  if (summaryEl) {
+    const holding = (data || []).filter(w => w.avg_price && w.quantity && priceMap[w.stock_code]?.price);
+    let totalCost = 0, totalVal = 0, totalTgtVal = 0, tgtCount = 0;
+    for (const w of holding) {
+      const mkt = priceMap[w.stock_code];
+      const cost = w.avg_price * w.quantity;
+      const val  = mkt.price  * w.quantity;
+      totalCost += cost;
+      totalVal  += val;
+      if (w.target_price) { totalTgtVal += w.target_price * w.quantity; tgtCount++; }
+    }
+    const totalPnl    = totalVal - totalCost;
+    const totalPnlPct = totalCost > 0 ? totalPnl / totalCost * 100 : null;
+    const tgtUpside   = totalTgtVal > 0 && totalVal > 0 ? (totalTgtVal - totalVal) / totalVal * 100 : null;
+
+    // 매수 구간 종목 수
+    const buyZoneCount = (data || []).filter(w => {
+      const mkt = priceMap[w.stock_code];
+      if (!mkt?.price || !mkt?.market_cap || !w.watch_price) return false;
+      const shares = mkt.market_cap / mkt.price;
+      const buyCap = w.watch_price * shares;
+      return mkt.market_cap <= buyCap;
+    }).length;
+
+    const pnlColor = totalPnl >= 0 ? 'var(--green)' : 'var(--red)';
+    const statBox  = (label, value, sub='', valueColor='var(--text1)') =>
+      `<div style="flex:1;min-width:100px;padding:10px 14px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">${label}</div>
+        <div style="font-size:15px;font-weight:700;color:${valueColor}">${value}</div>
+        ${sub ? `<div style="font-size:11px;color:var(--text2);margin-top:2px">${sub}</div>` : ''}
+      </div>`;
+
+    summaryEl.innerHTML = `
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:stretch">
+        ${statBox('관심종목', `${(data||[]).length}개`, holding.length ? `보유중 ${holding.length}개` : '')}
+        ${holding.length ? statBox('평가손익',
+          `${totalPnl >= 0 ? '+' : ''}${fmtNet(totalPnl)}`,
+          totalPnlPct != null ? `${totalPnlPct >= 0 ? '+' : ''}${totalPnlPct.toFixed(1)}%` : '',
+          pnlColor) : ''}
+        ${holding.length ? statBox('평가금액', fmtNet(totalVal), `투자원금 ${fmtNet(totalCost)}`) : ''}
+        ${tgtCount ? statBox('목표가 기준 업사이드',
+          tgtUpside != null ? `${tgtUpside >= 0 ? '+' : ''}${tgtUpside.toFixed(1)}%` : '—',
+          `${tgtCount}개 종목 기준`, tgtUpside != null && tgtUpside > 0 ? 'var(--green)' : 'var(--text1)') : ''}
+        ${buyZoneCount ? statBox('매수 구간 진입', `${buyZoneCount}개`, '관심가 이하 도달', 'var(--green)') : ''}
+      </div>`;
+  }
 
   const groupColors = { '관심': '#4a9eff', '후보': '#ffc107', '보유중': 'var(--tg)' };
 
@@ -354,7 +404,7 @@ async function loadWatchlist() {
 
   listEl.innerHTML = `
     <div class="card" style="overflow-x:auto;padding:0">
-      <table style="width:100%;border-collapse:collapse">
+      <table class="wl-table" style="width:100%;border-collapse:collapse">
         <thead>${header}</thead>
         <tbody>${rows}</tbody>
       </table>
@@ -395,6 +445,11 @@ async function renderWatchlistForm(id) {
   if (id) {
     const { data } = await sb.from('watchlist').select('*').eq('id', id).single();
     w = data || {};
+  }
+  // 스크리너 원클릭 추가: prefill 적용 (stock_code/corp_name만 미리 채움)
+  if (!id && window._wlPrefill) {
+    Object.assign(w, window._wlPrefill);
+    window._wlPrefill = null;
   }
 
   const inp = (field, label, placeholder='', type='text', readonly=false) => `
