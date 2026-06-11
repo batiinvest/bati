@@ -97,13 +97,13 @@ async function loadEarningsSurge() {
     return;
   }
 
-  // ── 3. 해당 종목들의 financials 히스토리 (미니바 + 등급 흐름용) ──
+  // ── 3. 해당 종목들의 financials 히스토리 (미니바 + 등급 흐름용) + trend_flags ──
   const codes = [...new Set(gradeRows.map(r => r.stock_code))];
   const histRows = [];
   for (let i = 0; i < codes.length; i += 200) {
     const batch = codes.slice(i, i + 200);
     const { data } = await sb.from('financials')
-      .select('stock_code,bsns_year,quarter,revenue,operating_profit,revenue_yoy,revenue_qoq,op_profit_yoy,op_profit_qoq')
+      .select('stock_code,bsns_year,quarter,revenue,operating_profit,revenue_yoy,revenue_qoq,op_profit_yoy,op_profit_qoq,trend_flags')
       .eq('fs_div', 'CFS')
       .in('stock_code', batch)
       .order('bsns_year', { ascending: false })
@@ -116,6 +116,18 @@ async function loadEarningsSurge() {
     if (!histMap[r.stock_code]) histMap[r.stock_code] = [];
     histMap[r.stock_code].push(r);
   });
+
+  // trend_flags: 현재 분기 기준 (filterYear/filterQuarter 또는 최신 분기)
+  const trendFlagMap = {};
+  histRows.forEach(r => {
+    if (!r.trend_flags) return;
+    const tf = r.trend_flags;
+    if (!tf.rev_slowdown && !tf.op_leverage_fail && !tf.debt_surge) return;
+    // 가장 최근 분기의 플래그만 사용
+    const key = r.stock_code;
+    if (!trendFlagMap[key]) trendFlagMap[key] = r.trend_flags;
+  });
+  window._surgeTrendFlagMap = trendFlagMap;
 
   // ── 4. 등급 이력 (신규/향상/강등/연속 배지용) ──
   const { data: gradeHist } = await sb.from('earnings_grade_history')
@@ -257,6 +269,12 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
         else if (p1 != null && p2 != null && cur2 > p1 && p1 > p2) qoqSig = '🔥';
 
         const gradeMeta = getGradeMeta(r);
+        const trendFlags = (window._surgeTrendFlagMap || {})[r.stock_code] || {};
+        const trendBadges = [
+          trendFlags.rev_slowdown     && `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(245,158,11,.15);color:#f59e0b;font-weight:600" title="매출 성장 둔화 3분기 연속">⚠️성장둔화</span>`,
+          trendFlags.op_leverage_fail && `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(245,54,92,.12);color:#f5365c;font-weight:600" title="매출↑ 영업이익↓ (레버리지 역전)">🔴레버리지역전</span>`,
+          trendFlags.debt_surge       && `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(139,144,167,.15);color:#8b90a7;font-weight:600" title="부채비율 급증 (+30%p↑)">📛부채급증</span>`,
+        ].filter(Boolean).join('');
 
         return `<div style="display:grid;grid-template-columns:200px 1fr 1fr;align-items:stretch;padding:8px 14px;border-bottom:1px solid var(--border);cursor:pointer"
           onclick="openFinTrend('${r.stock_code}','${r.corp_name}')"
@@ -268,6 +286,7 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
               <span style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.corp_name}</span>
               ${gradeMeta.statusBadge}
             </div>
+            ${trendBadges ? `<div style="display:flex;gap:3px;flex-wrap:wrap">${trendBadges}</div>` : ''}
             <div style="font-size:10px;color:var(--text2)">${r.bsns_year} ${r.quarter}</div>
             ${gradeMeta.histLine}
             <div style="display:flex;flex-direction:column;gap:2px;margin-top:2px">
