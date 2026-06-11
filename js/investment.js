@@ -194,6 +194,22 @@ function pInvestment() {
 
     </div>
 
+    <!-- ③-b 종목별 수급 순위 (외국인/기관 10거래일 누적) -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+        <span class="card-title">🏦 종목별 수급 순위 <span style="font-size:10px;font-weight:400;color:var(--text2)">(10거래일 누적)</span></span>
+        <span style="font-size:10px;color:var(--text2)" id="stockflow-date"></span>
+        <div style="display:flex;gap:4px;margin-left:auto">
+          <button class="chip active" data-sflow-type="foreign" onclick="switchStockFlowType('foreign')" style="font-size:11px;padding:2px 8px">외국인</button>
+          <button class="chip"        data-sflow-type="inst"    onclick="switchStockFlowType('inst')"    style="font-size:11px;padding:2px 8px">기관</button>
+          <button class="chip"        data-sflow-type="combined" onclick="switchStockFlowType('combined')" style="font-size:11px;padding:2px 8px">합산</button>
+        </div>
+      </div>
+      <div id="stockflow-body" style="padding:.25rem 0">
+        ${_skelList(6, true)}
+      </div>
+    </div>
+
     <!-- ④ 시장 온도계 -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-header">
@@ -707,6 +723,7 @@ async function loadInvestment() {
   loadLeadingStocks();
   loadLeadingBacktest();
   loadSectorFlow();
+  loadStockFlow();
   loadIndustryMatrix();
 
   // 모니터링 종목 목록 — getIndustryMap() 캐시 재활용 (companies 중복 조회 방지)
