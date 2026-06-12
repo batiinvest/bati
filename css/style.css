@@ -44,10 +44,10 @@ body { background:var(--bg); color:var(--text); font-family:'Pretendard','Apple 
 
 /* ── Layout ── */
 .app { display:flex; min-height:100vh; }
-.sidebar { width:240px; flex-shrink:0; background:var(--bg2); border-right:1px solid var(--border); display:flex; flex-direction:column; position:fixed; top:0; left:0; height:100vh; z-index:50; }
-.main { margin-left:240px; flex:1; min-width:0; display:flex; flex-direction:column; overflow-x:hidden; }
-.topbar { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 1.5rem; height:56px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:40; }
-.content { padding:1.5rem; flex:1; width:100%; box-sizing:border-box; }
+.sidebar { width:var(--sidebar-w); flex-shrink:0; background:var(--bg2); border-right:1px solid var(--border); display:flex; flex-direction:column; position:fixed; top:0; left:0; height:100vh; z-index:50; }
+.main { margin-left:var(--sidebar-w); flex:1; min-width:0; display:flex; flex-direction:column; overflow-x:hidden; }
+.topbar { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 1.25rem; height:var(--topbar-h); display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:40; }
+.content { padding:1.25rem 1.5rem; flex:1; width:100%; max-width:var(--content-max); box-sizing:border-box; }
 .logo { padding:1.25rem 1.25rem 1rem; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border); }
 .logo-icon { width:32px; height:32px; border-radius:8px; background:var(--tg); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:15px; }
 .logo-text { font-size:13px; font-weight:600; }
@@ -91,9 +91,9 @@ body { background:var(--bg); color:var(--text); font-family:'Pretendard','Apple 
 .metric-value { font-size:28px; font-weight:600; line-height:1.1; }
 .metric-sub { font-size:11px; color:var(--text3); margin-top:4px; }
 .card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:1rem; }
-.card-header { padding:1rem 1.125rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.card-header { padding:8px 12px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
 .card-title { font-size:13px; font-weight:600; }
-.card-body { padding:1.125rem; }
+.card-body { padding:10px 12px; }
 
 /* ── Table ── */
 .table-wrap {
@@ -113,7 +113,7 @@ table { width:100%; border-collapse:collapse; font-size:13px; }
 th { text-align:left; padding:9px 12px; font-size:11px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:.06em; border-bottom:1px solid var(--border); white-space:nowrap; }
 td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; white-space:nowrap; }
 tr:last-child td { border-bottom:none; }
-tr:hover td { background:rgba(255,255,255,.02); }
+tr:hover td { background:rgba(255,255,255,.04); }
 
 /* ── Misc ── */
 .badge { display:inline-flex; padding:2px 8px; border-radius:100px; font-size:11px; font-weight:500; }
@@ -248,6 +248,18 @@ textarea.form-input { resize:vertical; min-height:100px; }
   /* ── 재무조회 컨트롤 ── */
   .fin-controls { flex-wrap:wrap; }
   .fin-controls .btn-group { margin-left:0 !important; width:100%; justify-content:flex-end; }
+
+  /* ── 투자페이지 2-col → 1-col ── */
+  [style*="grid-template-columns:2fr 3fr"] { grid-template-columns:1fr !important; }
+
+  /* ── 마켓 스트립 — 4개 이상 숨김 ── */
+  .market-strip-item:nth-child(n+4) { display:none; }
+
+  /* ── 테이블 밀도 ── */
+  td, th { padding:6px 8px; font-size:11px; }
+
+  /* ── 버튼 레이블 숨김 ── */
+  .btn-label { display:none; }
 }
 
 @media(max-width:480px){
@@ -521,36 +533,14 @@ td { padding:7px 10px; font-size:var(--fs-data); }
 .nav-sec-admin.open::after { transform:rotate(90deg); }
 .nav-admin-items { display:none; }
 .nav-admin-items.open { display:block; }
+.nav-admin-items .nav-item { padding-left:2.25rem; font-size:12px; opacity:.8; }
 
-/* ── Task 2: 탑바 슬림 & market-strip ── */
-.topbar { height:var(--topbar-h); padding:0 1.25rem; }
+/* ── market-strip 추가 스타일 ── */
 .market-strip { display:flex !important; gap:16px; font-size:var(--fs-data); }
 .market-strip-item { display:flex; align-items:center; gap:4px; cursor:pointer; }
 .market-strip-val { font-weight:600; font-size:13px; }
 .market-strip-chg { font-size:11px; }
 
-/* 사이드바 너비 220px */
-.sidebar { width:var(--sidebar-w); }
-.main { margin-left:var(--sidebar-w); }
-
-/* 콘텐츠 패딩 오버라이드 */
-.content { padding:1.25rem 1.5rem; }
-
-/* ── Task 9: 모바일 반응형 ── */
-@media (max-width: 900px) {
-  .sidebar { transform:translateX(-100%); transition:transform .25s; }
-  .sidebar.open { transform:translateX(0); }
-  .main { margin-left:0; }
-  .menu-btn { display:flex; }
-  .metrics-grid { grid-template-columns:repeat(2,1fr); }
-  .content { padding:1rem; }
-  .screener-layout { grid-template-columns:1fr !important; }
-  [style*="grid-template-columns:2fr 3fr"] { grid-template-columns:1fr !important; }
-  .market-strip-item:nth-child(n+4) { display:none; }
-  td, th { padding:6px 8px; font-size:11px; }
-  .btn-label { display:none; }
-}
 @media (max-width: 480px) {
-  .metrics-grid { grid-template-columns:1fr; }
   .market-strip-item:nth-child(n+3) { display:none; }
 }
