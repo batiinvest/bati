@@ -521,23 +521,6 @@ function _renderInsightCard(data) {
         ${f.market_regime ? `<span style="color:${regimeColor};font-size:12px">${f.market_regime}</span>` : ''}
       </div>
     </div>
-    <div class="insight-row">
-      <div class="insight-row-label">국내</div>
-      <div class="insight-row-val">
-        코스피 <span style="color:${chgColor(f.kospi_chg)};font-weight:600">${_fmt(f.kospi_chg)}</span>
-        <span style="color:var(--text2)">|</span>
-        코스닥 <span style="color:${chgColor(f.kosdaq_chg)};font-weight:600">${_fmt(f.kosdaq_chg)}</span>
-      </div>
-    </div>
-    <div class="insight-row">
-      <div class="insight-row-label">미국</div>
-      <div class="insight-row-val">
-        S&P <span style="color:${chgColor(f.sp500_chg)};font-weight:600">${_fmt(f.sp500_chg)}</span>
-        <span style="color:var(--text2)">|</span>
-        NDX <span style="color:${chgColor(f.nasdaq_chg)};font-weight:600">${_fmt(f.nasdaq_chg)}</span>
-        ${f.vix != null ? `<span style="color:var(--text2)">|</span> VIX <span style="color:${vixColor};font-weight:600">${Number(f.vix).toFixed(0)}</span>` : ''}
-      </div>
-    </div>
     ${indTagsHTML ? `
     <div class="insight-row">
       <div class="insight-row-label">산업</div>
