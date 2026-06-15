@@ -98,15 +98,15 @@ function pInvestment() {
 
 
   <!-- 상단 2열: 온도계 | 증시동향 -->
-  <div style="display:grid;grid-template-columns:1fr 2fr;gap:1rem;align-items:start;margin-bottom:1rem">
+  <div style="display:grid;grid-template-columns:1fr 2fr;gap:1rem;align-items:stretch;margin-bottom:1rem">
 
     <!-- 시장 온도계 -->
-    <div class="card" style="margin-bottom:0">
+    <div class="card" style="margin-bottom:0;display:flex;flex-direction:column">
       <div class="card-header">
         <span class="card-title">${_ICO.temp}시장 온도계</span>
         <span style="font-size:11px;color:var(--text2);margin-left:auto" id="market-temp-date"></span>
       </div>
-      <div class="card-body" style="padding:.75rem 1rem" id="market-temp-body">
+      <div class="card-body" style="padding:.75rem 1rem;flex:1" id="market-temp-body">
         <span class="skeleton" style="width:100%;height:60px;border-radius:6px;display:block"></span>
       </div>
     </div>
