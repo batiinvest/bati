@@ -98,21 +98,21 @@ function pInvestment() {
 
 
   <!-- 온도계 + 증시동향 같은 행 -->
-  <div style="display:grid;grid-template-columns:1fr 2fr;gap:1rem;align-items:start;margin-bottom:1rem">
+  <div style="display:grid;grid-template-columns:1fr 2fr;gap:1rem;align-items:stretch;margin-bottom:1rem">
 
     <!-- 시장 온도계 -->
-    <div class="card" style="margin-bottom:0">
+    <div class="card" style="margin-bottom:0;display:flex;flex-direction:column">
       <div class="card-header">
         <span class="card-title">${_ICO.temp}시장 온도계</span>
         <span style="font-size:11px;color:var(--text2);margin-left:auto" id="market-temp-date"></span>
       </div>
-      <div class="card-body" style="padding:.75rem 1rem" id="market-temp-body">
+      <div class="card-body" style="padding:.75rem 1rem;flex:1" id="market-temp-body">
         <span class="skeleton" style="width:100%;height:60px;border-radius:6px;display:block"></span>
       </div>
     </div>
 
     <!-- 증시 동향 -->
-    <div class="card" style="margin-bottom:0">
+    <div class="card" style="margin-bottom:0;display:flex;flex-direction:column">
       <div class="card-header" style="flex-wrap:wrap;gap:6px">
         <span class="card-title">${_ICO.bar}증시 동향</span>
         <div id="inv-banner-content" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-left:auto">
@@ -120,7 +120,7 @@ function pInvestment() {
         </div>
       </div>
       <div id="inv-total-summary" style="padding:.75rem 1rem;border-bottom:1px solid var(--border)"></div>
-      <div id="inv-industry-grid"></div>
+      <div id="inv-industry-grid" style="flex:1"></div>
     </div>
 
   </div>
