@@ -97,8 +97,8 @@ function pInvestment() {
   </div>
 
 
-  <!-- 온도계 + 증시동향 같은 행 -->
-  <div style="display:grid;grid-template-columns:1fr 2fr;gap:1rem;align-items:stretch;margin-bottom:1rem">
+  <!-- 상단 3열 그리드: 온도계 | 증시동향 | 투자포인트 -->
+  <div style="display:grid;grid-template-columns:1fr 1.3fr 1.3fr;gap:1rem;align-items:stretch;margin-bottom:1rem">
 
     <!-- 시장 온도계 -->
     <div class="card" style="margin-bottom:0;display:flex;flex-direction:column">
@@ -121,6 +121,32 @@ function pInvestment() {
       </div>
       <div id="inv-total-summary" style="padding:.75rem 1rem;border-bottom:1px solid var(--border)"></div>
       <div id="inv-industry-grid" style="flex:1"></div>
+    </div>
+
+    <!-- 투자포인트 요약 -->
+    <div class="card insight-card" style="margin-bottom:0;display:flex;flex-direction:column">
+      <div class="card-header" style="justify-content:space-between;flex-wrap:wrap;gap:4px">
+        <span class="card-title">${_ICO.bulb}투자포인트 요약</span>
+        <div style="display:flex;gap:5px">
+          <button class="chip" id="btn-insight-hist" style="font-size:11px;padding:2px 8px"
+            onclick="toggleInsightHistory()">${_ICO.history}히스토리</button>
+          <button class="chip" style="font-size:11px;padding:2px 8px"
+            onclick="loadMarketInsight()">${_ICO.refresh}재분석</button>
+        </div>
+      </div>
+      <div class="card-body" style="padding:.75rem 1rem;flex:1;overflow-y:auto" id="market-insight-card">
+        <div style="color:var(--text2);font-size:12px"><span class="loading"></span> 분석 중...</div>
+      </div>
+      <div id="insight-history" style="display:none;border-top:1px solid var(--border)">
+        <div style="padding:7px 1rem 4px;font-size:11px;font-weight:600;color:var(--text2);
+          letter-spacing:.04em;display:flex;align-items:center;gap:6px">
+          최근 시장 국면
+          <span style="font-size:10px;font-weight:400;opacity:.7">(DB 저장 기준)</span>
+        </div>
+        <div id="insight-history-body" style="padding:0 1rem .75rem">
+          <div style="color:var(--text2);font-size:12px;padding:.5rem 0"><span class="loading"></span></div>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -284,32 +310,6 @@ function pInvestment() {
       </div>
     </div>
 
-    <!-- ⑤ 투자포인트 요약 -->
-    <div class="card insight-card" style="margin-bottom:12px">
-      <div class="card-header" style="justify-content:space-between;flex-wrap:wrap;gap:4px">
-        <span class="card-title">${_ICO.bulb}투자포인트 요약</span>
-        <div style="display:flex;gap:5px">
-          <button class="chip" id="btn-insight-hist" style="font-size:11px;padding:2px 8px"
-            onclick="toggleInsightHistory()">${_ICO.history}히스토리</button>
-          <button class="chip" style="font-size:11px;padding:2px 8px"
-            onclick="loadMarketInsight()">${_ICO.refresh}재분석</button>
-        </div>
-      </div>
-      <div class="card-body" style="padding:.75rem 1rem" id="market-insight-card">
-        <div style="color:var(--text2);font-size:12px"><span class="loading"></span> 분석 중...</div>
-      </div>
-      <!-- 히스토리 패널 (접힘) -->
-      <div id="insight-history" style="display:none;border-top:1px solid var(--border)">
-        <div style="padding:7px 1rem 4px;font-size:11px;font-weight:600;color:var(--text2);
-          letter-spacing:.04em;display:flex;align-items:center;gap:6px">
-          최근 시장 국면
-          <span style="font-size:10px;font-weight:400;opacity:.7">(DB 저장 기준)</span>
-        </div>
-        <div id="insight-history-body" style="padding:0 1rem .75rem">
-          <div style="color:var(--text2);font-size:12px;padding:.5rem 0"><span class="loading"></span></div>
-        </div>
-      </div>
-    </div>
 
 
     <!-- ⑦ 산업 동향 -->
