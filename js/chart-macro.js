@@ -271,23 +271,6 @@ function _renderTopbarStrip() {
     ).join('');
   }
 
-  // 페이지 내 매크로 스트립 카드 (inv-macro-strip)
-  const macroStrip = document.getElementById('inv-macro-strip');
-  if (macroStrip && items.length) {
-    macroStrip.innerHTML = items.map(item => {
-      const up = item.chg != null && item.chg >= 0;
-      const val = Number(item.val).toLocaleString(undefined,{maximumFractionDigits:2});
-      const chgAbs = item.chg != null ? Math.abs(item.chg).toFixed(2) : '—';
-      return `
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid ${item.color}">
-        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">${item.name}</div>
-        <div style="font-size:15px;font-weight:700;font-variant-numeric:tabular-nums">${val}</div>
-        <div style="font-size:11px;color:${item.chg!=null?(up?'var(--up)':'var(--down)'):'var(--text3)'};margin-top:2px">
-          ${item.chg!=null?(up?'▲':'▼')+' '+chgAbs+'%':'—'}
-        </div>
-      </div>`;
-    }).join('');
-  }
 }
 
 // ── US ETF 배너: us_market 테이블에서 최신 산업별 평균 등락률 조회 ──

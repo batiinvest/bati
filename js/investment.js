@@ -96,16 +96,6 @@ function pInvestment() {
     </div>
   </div>
 
-  <!-- 매크로 스트립 -->
-  <div id="inv-macro-strip" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:1rem">
-    ${['S&P500','나스닥','코스피','VIX','USD/KRW'].map(l =>
-      `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:3px solid var(--tg)">
-        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">${l}</div>
-        <span class="skeleton" style="width:70%;height:15px;border-radius:4px;display:block"></span>
-        <span class="skeleton" style="width:50%;height:10px;border-radius:4px;display:block;margin-top:4px"></span>
-      </div>`
-    ).join('')}
-  </div>
 
   <!-- 2단 레이아웃: 좌(시황 요약) + 우(공시/신호) -->
   <div style="display:grid;grid-template-columns:2fr 3fr;gap:1rem;align-items:start;margin-bottom:1rem">
