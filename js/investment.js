@@ -98,7 +98,7 @@ function pInvestment() {
 
 
   <!-- 상단 2열: 온도계 | 증시동향 -->
-  <div style="display:grid;grid-template-columns:1fr 2fr;gap:1rem;align-items:stretch;margin-bottom:1rem">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:stretch;margin-bottom:1rem">
 
     <!-- 시장 온도계 -->
     <div class="card" style="margin-bottom:0;display:flex;flex-direction:column">
