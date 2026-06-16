@@ -100,7 +100,7 @@ function renderLeadingStocks() {
     const miniBar = (label, val, max, color) => {
       const pct = Math.round((val || 0) / max * 100);
       return `<div style="display:flex;align-items:center;gap:3px">
-        <span style="font-size:9px;color:var(--text2);width:28px;flex-shrink:0">${label}</span>
+        <span style="font-size:9px;color:var(--text2);width:34px;flex-shrink:0;white-space:nowrap">${label}</span>
         <div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden;min-width:20px">
           <div style="height:100%;width:${pct}%;background:${color};border-radius:2px"></div>
         </div>
