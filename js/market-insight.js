@@ -205,14 +205,18 @@ window._insightSaveDB = async function() {
 
   if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
 
+  // core_points(기회/리스크 각 1개)를 구 스키마 컬럼에 매핑 — 테이블 구조 변경 없이 호환
+  const _up   = (data.core_points || []).find(p => p.type === 'up');
+  const _down = (data.core_points || []).find(p => p.type === 'down');
+
   const record = {
     market_date:       data.market_date,
     market_type:       'KR',
     one_line_summary:  data.one_line_summary,
-    flow_summary:      JSON.stringify(data.flow    || {}),
-    key_points:        JSON.stringify(data.key_points   || []),
-    risk_factors:      JSON.stringify(data.risk_factors || []),
-    watch_events:      JSON.stringify(data.watch_events || []),
+    flow_summary:      JSON.stringify(data.flow || {}),
+    key_points:        JSON.stringify(_up   ? [_up.text]   : []),
+    risk_factors:      JSON.stringify(_down ? [_down.text] : []),
+    watch_events:      JSON.stringify([]),
     strong_industries: JSON.stringify((data.flow?.strong_industries) || []),
     weak_industries:   JSON.stringify((data.flow?.weak_industries)   || []),
     top_stocks:        JSON.stringify(data.top_stocks || []),
@@ -254,13 +258,19 @@ async function _loadSummaryFromDB() {
     const diffMs = Date.now() - new Date(data.market_date).getTime();
     if (diffMs > 3 * 24 * 60 * 60 * 1000) return null;
 
+    // 구 스키마(key_points/risk_factors 배열) 호환 — 핵심 1개씩만 추출
+    const kp = data.key_points   || [];
+    const rf = data.risk_factors || [];
+    const corePoints = [];
+    if (kp[0]) corePoints.push({ type: 'up',   text: kp[0] });
+    if (rf[0]) corePoints.push({ type: 'down', text: rf[0] });
+    if (!corePoints.length) corePoints.push({ type: 'flat', text: '뚜렷한 신호 없음 — 관망 유지' });
+
     return {
       ...data,
       generated_by: 'db',
       flow:          data.flow_summary   || {},
-      key_points:    data.key_points     || [],
-      risk_factors:  data.risk_factors   || [],
-      watch_events:  data.watch_events   || [],
+      core_points:   corePoints,
     };
   } catch(e) {
     console.warn('[Insight] DB 조회 실패:', e);
@@ -338,89 +348,49 @@ async function _buildLiveSections() {
   const riskSigs     = a.crossSignals.filter(s => s.type === 'decouple-risk');
   const syncDownSigs = a.crossSignals.filter(s => s.type === 'sync-down');
 
-  // ── ② 주목할 투자포인트 (전문가 어조) ──
-  const keyPoints = [];
-
-  // 미국 업종 → 한국 업종 연결 해석
-  if (syncUpSigs.length >= 2) {
-    const inds = syncUpSigs.slice(0, 2).map(s => {
-      const etf = USKR_LABELS[s.ind] || '';
-      return `${s.ind}(${etf ? etf+' ' : ''}미국 ${_fmt(s.usChg)}·국내 ${_fmt(s.krChg)})`;
-    }).join(', ');
-    keyPoints.push(`미·한 동반 강세 업종 — ${inds}: 추세 지속 여부 확인하며 비중 확대 검토`);
-  }
+  // ── ② 핵심 포인트 — 기회 1 · 리스크 1 만 선별 (펀드매니저가 보는 요약) ──
+  // 후보를 우선순위대로 쌓고 가장 중요한 1개만 채택
+  let opportunity = null;
   if (lagSigs.length) {
     const best = lagSigs[0];
     const etf = USKR_LABELS[best.ind] || '';
-    keyPoints.push(`후행 선점 기회 — ${best.ind}(${etf ? etf+', ' : ''}미국 ${_fmt(best.usChg)} 선행·국내 ${_fmt(best.krChg)}): 수급 유입 시 빠른 대응 필요`);
+    opportunity = `${best.ind}${etf ? '('+etf+')' : ''} 후행 선점 — 미국 ${_fmt(best.usChg)} 선행·국내 ${_fmt(best.krChg)}, 수급 유입 시 진입`;
+  } else if (syncUpSigs.length >= 2) {
+    const inds = syncUpSigs.slice(0, 2).map(s => s.ind).join('·');
+    opportunity = `${inds} 미·한 동반 강세 — 추세 추종 검토`;
+  } else if (a.krRising.length >= 2) {
+    const inds = a.krRising.slice(0, 2).map(x => x.ind).join('·');
+    opportunity = `${inds} 모멘텀 강화 — 5일 대비 순위 상승, 매집 신호`;
+  } else if (surgeStocks.length >= 2) {
+    const names = surgeStocks.slice(0, 2).map(r => `${r.corp_name}(${_fmt(r.price_change_rate)})`).join(' · ');
+    opportunity = `${names} 급등 — 추격 자제, 다음날 지속성 확인`;
+  } else if (topFrgnBuy.length >= 2 && (a.kospiChg ?? 0) > 0) {
+    opportunity = `${topFrgnBuy.slice(0, 2).map(r => r.corp_name).join('·')} 외국인 집중 매수`;
   }
-  if (a.krRising.length >= 2) {
-    const inds = a.krRising.slice(0, 2).map(x => x.ind).join(' · ');
-    keyPoints.push(`모멘텀 강화 업종 — ${inds}: 5일 대비 순위 상승, 매집 초기 신호 가능`);
-  }
-  if (hgprCount >= 3) {
-    const nm = hgprNames.slice(0, 2).join(' · ');
-    keyPoints.push(`52주 신고가 돌파 ${hgprCount}개(${nm}${hgprNames.length > 2 ? ' 등' : ''}) — 시장 강도 확인, 추격보다 눌림목 대기`);
-  }
-  if (topFrgnBuy.length >= 2 && (a.kospiChg ?? 0) > 0) {
-    keyPoints.push(`외국인 집중 매수 — ${topFrgnBuy.slice(0, 2).map(r => r.corp_name).join(' · ')}: 수급 주도 종목, 매도 전환 시 빠른 익절 필요`);
-  }
-  // 급등 종목 투자포인트
-  if (surgeStocks.length >= 2) {
-    const names = surgeStocks.slice(0, 3).map(r => `${r.corp_name}(${_fmt(r.price_change_rate)})`).join(' · ');
-    keyPoints.push(`급등 종목 — ${names}: 추격 진입 자제, 다음 날 갭업 여부로 지속성 판단`);
-  }
-  if (!keyPoints.length) keyPoints.push('현재 데이터 기준 뚜렷한 기회 신호 미감지 — 관망 유지 권고');
 
-  // ── ③ 리스크 요인 ──
-  const risks = [];
-
-  if ((m.vix ?? 0) >= THR.VIX_HIGH)
-    risks.push(`⚠️ VIX ${Number(m.vix).toFixed(0)} 공포 구간 진입 — 헤지 비중 확대, 신규 매수 중단`);
-  else if ((m.vix ?? 0) >= THR.VIX_FEAR)
-    risks.push(`⚠️ VIX ${Number(m.vix).toFixed(0)} 경계 구간 — 포지션 축소 검토`);
-
-  if (riskSigs.length)
-    risks.push(`⚡ 디커플링 위험 — ${riskSigs.slice(0,2).map(s => `${s.ind}(한국 ${_fmt(s.krChg)} 상승 중이나 미국 ${_fmt(s.usChg)} 부진)`).join(' · ')}: 단기 차익 실현 우선`);
-
-  if (syncDownSigs.length)
-    risks.push(`🔻 미·한 동반 약세 — ${syncDownSigs.map(s => s.ind).join(' · ')}: 반등 매수 금지, 손절 라인 재확인`);
-
-  if (a.krFalling.length >= 2)
-    risks.push(`📉 모멘텀 소멸 업종 — ${a.krFalling.slice(0, 3).map(x => x.ind).join(' · ')}: 5일 대비 순위 급락, 비중 축소 검토`);
-
-  if ((m.us10y ?? 0) >= 4.5)
-    risks.push(`📊 미 10년 금리 ${Number(m.us10y).toFixed(3)}% — 밸류에이션 부담 구간, 성장주 멀티플 압박`);
-
-  if (plungeStocks.length >= 2) {
+  let risk = null;
+  if ((m.vix ?? 0) >= THR.VIX_HIGH) {
+    risk = `VIX ${Number(m.vix).toFixed(0)} 공포 구간 — 신규 매수 중단, 헤지 확대`;
+  } else if (riskSigs.length) {
+    const s = riskSigs[0];
+    risk = `${s.ind} 디커플링 — 한국 ${_fmt(s.krChg)} 상승 중 미국 ${_fmt(s.usChg)} 부진, 차익 실현 우선`;
+  } else if (syncDownSigs.length) {
+    risk = `${syncDownSigs.map(s => s.ind).join('·')} 미·한 동반 약세 — 반등 매수 금지`;
+  } else if (plungeStocks.length >= 2) {
     const names = plungeStocks.slice(0, 2).map(r => `${r.corp_name}(${_fmt(r.price_change_rate)})`).join(' · ');
-    risks.push(`🔻 급락 종목 — ${names}: 실적·공시 이슈 여부 확인 필수, 저가 매수 신중`);
+    risk = `${names} 급락 — 실적·공시 이슈 확인 필요`;
+  } else if (a.krFalling.length >= 2) {
+    risk = `${a.krFalling.slice(0, 2).map(x => x.ind).join('·')} 모멘텀 소멸 — 비중 축소 검토`;
+  } else if ((m.us10y ?? 0) >= 4.5) {
+    risk = `미 10년 금리 ${Number(m.us10y).toFixed(3)}% — 밸류에이션 부담`;
+  } else if ((m.vix ?? 0) >= THR.VIX_FEAR) {
+    risk = `VIX ${Number(m.vix).toFixed(0)} 경계 구간 — 포지션 점검`;
   }
 
-  if (!risks.length) risks.push('✅ 현재 주요 리스크 신호 미감지');
-
-  // ── ④ 확인할 이벤트 ──
-  const events = [];
-  if (discInfo.count > 0) {
-    const catStr = discInfo.categories.length ? ` (${discInfo.categories.join(' · ')})` : '';
-    events.push(`📋 오늘 공시 ${discInfo.count}건${catStr}`);
-  }
-  if (m.sp500_fut_chg != null) {
-    const dir = m.sp500_fut_chg >= 0.3 ? '상승' : m.sp500_fut_chg <= -0.3 ? '하락' : '보합';
-    events.push(`🇺🇸 S&P500 선물 ${_fmt(m.sp500_fut_chg)} ${dir} — 국내 장 방향성 선행 지표`);
-  }
-  if (m.vix != null)
-    events.push(`📊 VIX ${Number(m.vix).toFixed(1)} · 미 10년 금리 ${m.us10y != null ? Number(m.us10y).toFixed(3)+'%' : '—'}`);
-  // 업종 전일 대비 변화 요약
-  if (a.krRising.length || a.krFalling.length) {
-    const risingStr  = a.krRising.slice(0,2).map(x=>x.ind).join('·');
-    const fallingStr = a.krFalling.slice(0,2).map(x=>x.ind).join('·');
-    const parts = [];
-    if (risingStr)  parts.push(`순위 상승: ${risingStr}`);
-    if (fallingStr) parts.push(`순위 하락: ${fallingStr}`);
-    if (parts.length) events.push(`🔄 전일 대비 업종 변화 — ${parts.join(' / ')}`);
-  }
-  if (!events.length) events.push('확인 이벤트 없음');
+  const corePoints = [];
+  if (opportunity) corePoints.push({ type: 'up',   text: opportunity });
+  if (risk)        corePoints.push({ type: 'down', text: risk });
+  if (!corePoints.length) corePoints.push({ type: 'flat', text: '뚜렷한 신호 없음 — 관망 유지' });
 
   // ── ⑤ 한 줄 총평 (전문가 어조) ──
   const moodStr    = moodMap[a.krMarketState] || '혼조';
@@ -465,9 +435,7 @@ async function _buildLiveSections() {
       weak_industries:   weakInds,
       top_frgn_buy:      topFrgnBuy.map(r => r.corp_name),
     },
-    key_points:   keyPoints.slice(0, 5),
-    risk_factors: risks.slice(0, 5),
-    watch_events: events.slice(0, 4),
+    core_points:  corePoints,
     top_stocks:   {
       surge:  surgeStocks.slice(0,3).map(r => ({ name: r.corp_name, chg: r.price_change_rate })),
       plunge: plungeStocks.slice(0,3).map(r => ({ name: r.corp_name, chg: r.price_change_rate })),
@@ -479,7 +447,7 @@ async function _buildLiveSections() {
 
 
 // ════════════════════════════════════════════════════════════
-// ⑤ 5섹션 렌더링
+// ⑤ 압축 렌더링 — 한 줄 총평 + 장세/업종 배지 + 핵심 포인트 최대 2개
 // ════════════════════════════════════════════════════════════
 function _renderInsightCard(data) {
   const el = document.getElementById('market-insight-card');
@@ -502,85 +470,50 @@ function _renderInsightCard(data) {
     '방어주 장세':'#60a5fa','성장주 장세':'var(--tg)',
     '관망':'#f59e0b','혼조':'var(--text3)',
   }[f.market_regime] || 'var(--text3)';
-  const vixColor = (f.vix ?? 0) >= THR.VIX_HIGH ? 'var(--red)' : (f.vix ?? 0) >= THR.VIX_FEAR ? '#f59e0b' : 'var(--text2)';
 
-  // ─── 섹션 1: 오늘의 핵심 흐름 ─────────────────────────────────────────────
-  const indTagsHTML =
-    (f.strong_industries || []).slice(0, 3).map(ind =>
-      `<span class="insight-tag up">${ind}</span>`).join('') +
-    (f.weak_industries || []).slice(0, 3).map(ind =>
-      `<span class="insight-tag dn">${ind}</span>`).join('');
-
-  const sec1 = `
-  <div class="insight-sec">
-    <div class="insight-sec-title" style="color:#2AABEE">오늘의 핵심 흐름</div>
-    <div class="insight-row">
-      <div class="insight-row-label">장세</div>
-      <div class="insight-row-val">
-        <span style="font-weight:700;color:${moodColor}">${f.market_mood_label || '—'}</span>
-        ${f.market_regime ? `<span style="color:${regimeColor};font-size:12px">${f.market_regime}</span>` : ''}
-      </div>
-    </div>
-    ${indTagsHTML ? `
-    <div class="insight-row">
-      <div class="insight-row-label">산업</div>
-      <div class="insight-row-val">${indTagsHTML}</div>
-    </div>` : ''}
-    ${(f.top_frgn_buy || []).length >= 2 ? `
-    <div class="insight-row">
-      <div class="insight-row-label">외국인</div>
-      <div class="insight-row-val" style="color:var(--tg)">${(f.top_frgn_buy || []).slice(0,3).join(' · ')} 순매수</div>
-    </div>` : ''}
-  </div>`;
-
-  // ─── 섹션 2: 주목할 투자포인트 ───────────────────────────────────────────
-  const sec2 = `
-  <div class="insight-sec">
-    <div class="insight-sec-title" style="color:#34d399">투자 포인트 &amp; 업종 해석</div>
-    ${(data.key_points || []).map((text, i) => `
-      <div class="insight-point-row">
-        <span class="insight-point-num">${i + 1}</span>
-        <span class="insight-point-text">${text}</span>
-      </div>`).join('')}
-  </div>`;
-
-  // ─── 섹션 3: 리스크 요인 ────────────────────────────────────────────────
-  const sec3 = `
-  <div class="insight-sec">
-    <div class="insight-sec-title" style="color:#f59e0b">리스크 요인</div>
-    ${(data.risk_factors || []).map(text => `
-      <div class="insight-risk-row">
-        <span class="insight-risk-icon">${text.slice(0,2)}</span>
-        <span style="font-size:13px;color:var(--text)">${text.slice(2).trim()}</span>
-      </div>`).join('')}
-  </div>`;
-
-  // ─── 섹션 4: 확인할 이벤트 ──────────────────────────────────────────────
-  const sec4 = `
-  <div class="insight-sec">
-    <div class="insight-sec-title" style="color:#a78bfa">확인할 이벤트</div>
-    ${(data.watch_events || []).map(text => `
-      <div class="insight-event-row">
-        <span class="insight-risk-icon">${text.slice(0,2)}</span>
-        <span style="font-size:13px;color:var(--text1)">${text.slice(2).trim()}</span>
-      </div>`).join('')}
-  </div>`;
-
-  // ─── 섹션 5: 한 줄 요약 ─────────────────────────────────────────────────
-  const sec5 = `
-  <div class="insight-oneliner">
-    <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:5px;letter-spacing:.05em">한 줄 요약</div>
-    <div style="font-size:14px;font-weight:600;color:var(--text);line-height:1.55">
+  // ─── 한 줄 총평 (최상단, 강조) ───
+  const oneLiner = `
+  <div class="insight-oneliner" style="margin-bottom:10px">
+    <div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.5">
       ${data.one_line_summary || '—'}
     </div>
   </div>`;
 
-  // ─── 푸터 ────────────────────────────────────────────────────────────────
+  // ─── 장세 + 업종 배지 (1행) ───
+  const indBadges =
+    (f.strong_industries || []).slice(0, 3).map(ind =>
+      `<span class="insight-tag up">${ind}</span>`).join('') +
+    (f.weak_industries || []).slice(0, 2).map(ind =>
+      `<span class="insight-tag dn">${ind}</span>`).join('');
+
+  const moodRow = `
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+    <span style="font-weight:700;font-size:13px;color:${moodColor}">${f.market_mood_label || '—'}</span>
+    ${f.market_regime ? `<span style="font-size:11px;color:${regimeColor}">${f.market_regime}</span>` : ''}
+    ${indBadges ? `<span style="width:1px;height:12px;background:var(--border)"></span>${indBadges}` : ''}
+  </div>`;
+
+  // ─── 핵심 포인트 (기회 1 · 리스크 1 만) ───
+  const typeStyle = {
+    up:   { color: '#34d399', icon: '▲' },
+    down: { color: '#f59e0b', icon: '▼' },
+    flat: { color: 'var(--text2)', icon: '—' },
+  };
+  const pointsHTML = (data.core_points || []).map(p => {
+    const ts = typeStyle[p.type] || typeStyle.flat;
+    return `
+    <div style="display:flex;gap:7px;align-items:flex-start;margin-bottom:7px">
+      <span style="color:${ts.color};font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px">${ts.icon}</span>
+      <span style="font-size:12.5px;color:var(--text1);line-height:1.5">${p.text}</span>
+    </div>`;
+  }).join('');
+
+  // ─── 푸터 ───
   const source = data.generated_by === 'db' ? '백엔드 분석' : '실시간 계산';
   const _isAdm = typeof isAdmin === 'function' && isAdmin();
 
   const adminBtns = _isAdm ? `
-  <div style="display:flex;gap:5px;justify-content:flex-end;margin-top:6px">
+  <div style="display:flex;gap:5px;justify-content:flex-end;margin-top:8px">
     ${data.generated_by === 'live' ? `
     <button id="insight-save-btn" onclick="window._insightSaveDB()"
       style="font-size:10px;padding:2px 9px;border-radius:4px;border:1px solid var(--border);
@@ -595,12 +528,12 @@ function _renderInsightCard(data) {
   </div>` : '';
 
   const footer = `
-  <div style="text-align:right;font-size:10px;color:var(--text2);margin-top:6px">
+  <div style="text-align:right;font-size:10px;color:var(--text2);margin-top:8px">
     ${source} · ${data.data_basis || ''}
   </div>
   ${adminBtns}`;
 
-  el.innerHTML = sec1 + sec2 + sec3 + sec4 + sec5 + footer;
+  el.innerHTML = oneLiner + moodRow + pointsHTML + footer;
 }
 
 
