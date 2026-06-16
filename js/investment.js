@@ -104,6 +104,7 @@ function pInvestment() {
     <div class="card" style="margin-bottom:0;display:flex;flex-direction:column">
       <div class="card-header">
         <span class="card-title">${_ICO.temp}시장 온도계</span>
+        <span style="font-size:10px;color:var(--text2);margin-left:8px;font-weight:400">지금 들어가도 되는 환경인가</span>
         <span style="font-size:11px;color:var(--text2);margin-left:auto" id="market-temp-date"></span>
       </div>
       <div class="card-body" style="padding:.75rem 1rem;flex:1" id="market-temp-body">
@@ -135,7 +136,8 @@ function pInvestment() {
       <div class="card insight-card" style="margin-bottom:0">
         <div class="card-header" style="justify-content:space-between;flex-wrap:wrap;gap:4px">
           <span class="card-title">${_ICO.bulb}투자포인트 요약</span>
-          <div style="display:flex;gap:5px">
+          <span style="font-size:10px;color:var(--text2);font-weight:400">어떤 업종·종목에 기회·리스크가 있나</span>
+          <div style="display:flex;gap:5px;margin-left:auto">
             <button class="chip" id="btn-insight-hist" style="font-size:11px;padding:2px 8px"
               onclick="toggleInsightHistory()">${_ICO.history}히스토리</button>
             <button class="chip" style="font-size:11px;padding:2px 8px"

@@ -458,19 +458,6 @@ function _renderInsightCard(data) {
 
   const f = data.flow || {};
 
-  // 장세 색상
-  const moodColors = {
-    'strong':    'var(--red)',    'mild-up':  '#2dce89',
-    'flat':      'var(--text3)', 'mild-down': '#f59e0b',
-    'weak':      'var(--blue)',  'risk-off':  'var(--red)',
-  };
-  const moodColor = moodColors[f.market_mood] || 'var(--text2)';
-  const regimeColor = {
-    'risk-on':'#2dce89','risk-off':'var(--red)',
-    '방어주 장세':'#60a5fa','성장주 장세':'var(--tg)',
-    '관망':'#f59e0b','혼조':'var(--text3)',
-  }[f.market_regime] || 'var(--text3)';
-
   // ─── 한 줄 총평 (최상단, 강조) ───
   const oneLiner = `
   <div class="insight-oneliner" style="margin-bottom:10px">
@@ -479,19 +466,18 @@ function _renderInsightCard(data) {
     </div>
   </div>`;
 
-  // ─── 장세 + 업종 배지 (1행) ───
+  // ─── 영향 업종 배지 (시장 전체 등급은 온도계 카드 역할 — 여기선 업종 단위만) ───
   const indBadges =
     (f.strong_industries || []).slice(0, 3).map(ind =>
       `<span class="insight-tag up">${ind}</span>`).join('') +
     (f.weak_industries || []).slice(0, 2).map(ind =>
       `<span class="insight-tag dn">${ind}</span>`).join('');
 
-  const moodRow = `
-  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
-    <span style="font-weight:700;font-size:13px;color:${moodColor}">${f.market_mood_label || '—'}</span>
-    ${f.market_regime ? `<span style="font-size:11px;color:${regimeColor}">${f.market_regime}</span>` : ''}
-    ${indBadges ? `<span style="width:1px;height:12px;background:var(--border)"></span>${indBadges}` : ''}
-  </div>`;
+  const moodRow = indBadges ? `
+  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+    <span style="font-size:10px;color:var(--text2);font-weight:600">영향 업종</span>
+    ${indBadges}
+  </div>` : '';
 
   // ─── 핵심 포인트 (기회 1 · 리스크 1 만) ───
   const typeStyle = {
