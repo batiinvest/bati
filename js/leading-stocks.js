@@ -34,11 +34,22 @@ async function loadLeadingStocks() {
       return;
     }
 
-    const { data, error } = await sb.from('leading_stocks')
-      .select('stock_code,corp_name,market,industry,total_score,price_momentum,volume_surge,foreign_flow,sector_strength,hgpr_score,price_chg_5d,price_chg_20d,volume_ratio,foreign_3d_sum,market_cap,rank')
+    const _baseCols = 'stock_code,corp_name,market,industry,total_score,price_momentum,volume_surge,foreign_flow,hgpr_score,price_chg_5d,price_chg_20d,volume_ratio,foreign_3d_sum,market_cap,rank';
+
+    // sector_strength 컬럼 시도 → DB 마이그레이션 전이면(42703) 구 스키마로 폴백
+    let { data, error } = await sb.from('leading_stocks')
+      .select(_baseCols + ',sector_strength')
       .eq('base_date', dateRow.base_date)
       .order('rank', { ascending: true })
       .limit(50);
+
+    if (error?.code === '42703') {
+      ({ data, error } = await sb.from('leading_stocks')
+        .select(_baseCols)
+        .eq('base_date', dateRow.base_date)
+        .order('rank', { ascending: true })
+        .limit(50));
+    }
 
     if (error) throw error;
 
@@ -125,11 +136,17 @@ function renderLeadingStocks() {
           ${chg5dStr}${indTag}${volRatio}${frgnTag}
         </div>
         <div style="display:flex;flex-direction:column;gap:2px">
-          ${miniBar('가격', r.price_momentum, 25, '#4a9eff')}
-          ${miniBar('거래대금', r.volume_surge, 15, '#f59e0b')}
-          ${miniBar('동반수급', r.foreign_flow, 30, '#2AABEE')}
-          ${miniBar('업종강도', r.sector_strength, 20, '#a78bfa')}
-          ${miniBar('신고가', r.hgpr_score, 10, '#2dce89')}
+          ${r.sector_strength != null
+            ? `${miniBar('가격', r.price_momentum, 25, '#4a9eff')}
+               ${miniBar('거래대금', r.volume_surge, 15, '#f59e0b')}
+               ${miniBar('동반수급', r.foreign_flow, 30, '#2AABEE')}
+               ${miniBar('업종강도', r.sector_strength, 20, '#a78bfa')}
+               ${miniBar('신고가', r.hgpr_score, 10, '#2dce89')}`
+            : `${miniBar('가격', r.price_momentum, 30, '#4a9eff')}
+               ${miniBar('거래대금', r.volume_surge, 25, '#f59e0b')}
+               ${miniBar('외국인', r.foreign_flow, 25, '#2AABEE')}
+               ${miniBar('신고가', r.hgpr_score, 20, '#2dce89')}`
+          }
         </div>
       </div>
       <!-- 총점 -->
