@@ -425,7 +425,7 @@ td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
   padding:3px 10px; white-space:nowrap;
 }
 .market-strip-name {
-  font-size:12px; color:var(--text2); font-weight:500;
+  font-size:12px; color:var(--text1); font-weight:600;
 }
 .market-strip-val {
   font-size:13px; font-weight:700; color:var(--text);
