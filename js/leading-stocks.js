@@ -4,11 +4,12 @@
  * leading_stocks 테이블(백엔드 일배치 생성)에서 오늘의 주도주 Top 10 렌더링.
  * 데이터 없으면 "백엔드 미실행" 안내 + 어드민 전용 실행 트리거 버튼.
  *
- * 스코어 구성 (합계 100):
- *   price_momentum (max 30) : 5일/20일 수익률 복합 백분위
- *   volume_surge   (max 25) : 당일 거래대금 / 20일 평균 배율 (최대 5배 캡)
- *   foreign_flow   (max 25) : 3일 누적 외국인 순매수 백분위
- *   hgpr_score     (max 20) : 52주 신고가 여부
+ * 스코어 구성 (합계 100, leading_stocks_generator.py 기준):
+ *   price_momentum  (max 25) : 5일·20일·60일 수익률 백분위 + 추세 일관성
+ *   volume_surge    (max 15) : 거래대금 배율 × 방향성 × 3일 지속성
+ *   foreign_flow    (max 30) : 외국인+기관 동반 수급 10일 누적 백분위 (DB 컬럼명 그대로 재활용)
+ *   sector_strength (max 20) : 업종 평균 대비 초과 수익률 백분위
+ *   hgpr_score      (max 10) : 52주 고가 근접도
  *
  * 의존: sb (config.js), chgColor/chgStr/isAdmin (config.js)
  */
@@ -34,7 +35,7 @@ async function loadLeadingStocks() {
     }
 
     const { data, error } = await sb.from('leading_stocks')
-      .select('stock_code,corp_name,market,industry,total_score,price_momentum,volume_surge,foreign_flow,hgpr_score,price_chg_5d,price_chg_20d,volume_ratio,foreign_3d_sum,market_cap,rank')
+      .select('stock_code,corp_name,market,industry,total_score,price_momentum,volume_surge,foreign_flow,sector_strength,hgpr_score,price_chg_5d,price_chg_20d,volume_ratio,foreign_3d_sum,market_cap,rank')
       .eq('base_date', dateRow.base_date)
       .order('rank', { ascending: true })
       .limit(50);
@@ -124,10 +125,11 @@ function renderLeadingStocks() {
           ${chg5dStr}${indTag}${volRatio}${frgnTag}
         </div>
         <div style="display:flex;flex-direction:column;gap:2px">
-          ${miniBar('가격', r.price_momentum, 30, '#4a9eff')}
-          ${miniBar('거래대금', r.volume_surge, 25, '#f59e0b')}
-          ${miniBar('외국인', r.foreign_flow, 25, '#2AABEE')}
-          ${miniBar('신고가', r.hgpr_score, 20, '#2dce89')}
+          ${miniBar('가격', r.price_momentum, 25, '#4a9eff')}
+          ${miniBar('거래대금', r.volume_surge, 15, '#f59e0b')}
+          ${miniBar('동반수급', r.foreign_flow, 30, '#2AABEE')}
+          ${miniBar('업종강도', r.sector_strength, 20, '#a78bfa')}
+          ${miniBar('신고가', r.hgpr_score, 10, '#2dce89')}
         </div>
       </div>
       <!-- 총점 -->
