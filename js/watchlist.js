@@ -388,9 +388,9 @@ async function loadWatchlist() {
       const watchCapStr = capOfPrice(w.watch_price);
       if (isAtBuy) {
         watchCell = `<div style="color:var(--up);font-weight:700;font-size:12px">✅ 매수 구간</div>
-                     <div style="font-size:11px;color:var(--text2)">${w.watch_price.toLocaleString()}원${watchCapStr ? ` · ${watchCapStr}억` : ''}</div>`;
+                     <div style="font-size:11px;color:var(--text1)">${w.watch_price.toLocaleString()}원${watchCapStr ? ` · ${watchCapStr}억` : ''}</div>`;
       } else {
-        watchCell = `<div style="font-size:12px;font-weight:600">${w.watch_price.toLocaleString()}원${watchCapStr ? ` <span style="font-size:10px;color:var(--text2);font-weight:400">${watchCapStr}억</span>` : ''}</div>
+        watchCell = `<div style="font-size:12px;font-weight:600">${w.watch_price.toLocaleString()}원${watchCapStr ? ` <span style="font-size:11px;color:var(--text1);font-weight:500">${watchCapStr}억</span>` : ''}</div>
                      <div style="font-size:11px;color:var(--down)">▼ ${gap} 하락 시 진입</div>`;
       }
     } else {
@@ -403,7 +403,7 @@ async function loadWatchlist() {
     if (w.target_price) {
       const color = upsidePct > 0 ? 'var(--up)' : 'var(--down)';
       const tgtCapStr = capOfPrice(w.target_price);
-      tgtCell = `<div style="font-size:12px;font-weight:600">${w.target_price.toLocaleString()}원${tgtCapStr ? ` <span style="font-size:10px;color:var(--text2);font-weight:400">${tgtCapStr}억</span>` : ''}</div>
+      tgtCell = `<div style="font-size:12px;font-weight:600">${w.target_price.toLocaleString()}원${tgtCapStr ? ` <span style="font-size:11px;color:var(--text1);font-weight:500">${tgtCapStr}억</span>` : ''}</div>
                  <div style="font-size:12px;font-weight:700;color:${color}">${upsidePct!=null?(upsidePct>0?'+':'')+upsidePct.toFixed(1)+'%':'—'}</div>`;
     } else {
       tgtCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
