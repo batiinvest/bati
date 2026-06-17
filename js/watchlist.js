@@ -360,19 +360,22 @@ async function loadWatchlist() {
     const per   = mkt.per;
     const pbr   = mkt.pbr;
 
+    // 발행주식수 추정 (시총/현재가)
+    const shares = (cap && price) ? cap / price : null;
+    const capOfPrice = p => (shares && p) ? fmtEok(p * shares / 1e8) : null;
+
     // ── 관심가 (watch_price): 현재가 대비 갭% ───────────────────────────
     const watchGap = (w.watch_price && price) ? (w.watch_price - price) / price * 100 : null;
-    const isBuyZone = watchGap != null && watchGap >= 0; // 관심가 > 현재가 → 아직 안 도달
-    // 실제 매수 구간 = 현재가 ≤ 관심가
     const isAtBuy = w.watch_price && price && price <= w.watch_price;
     let watchCell;
     if (w.watch_price) {
       const gap = watchGap != null ? Math.abs(watchGap).toFixed(1) + '%' : '—';
+      const watchCapStr = capOfPrice(w.watch_price);
       if (isAtBuy) {
         watchCell = `<div style="color:var(--up);font-weight:700;font-size:12px">✅ 매수 구간</div>
-                     <div style="font-size:11px;color:var(--text2)">${w.watch_price.toLocaleString()}원</div>`;
+                     <div style="font-size:11px;color:var(--text2)">${w.watch_price.toLocaleString()}원${watchCapStr ? ` · ${watchCapStr}억` : ''}</div>`;
       } else {
-        watchCell = `<div style="font-size:12px;font-weight:600">${w.watch_price.toLocaleString()}원</div>
+        watchCell = `<div style="font-size:12px;font-weight:600">${w.watch_price.toLocaleString()}원${watchCapStr ? ` <span style="font-size:10px;color:var(--text2);font-weight:400">${watchCapStr}억</span>` : ''}</div>
                      <div style="font-size:11px;color:var(--down)">▼ ${gap} 하락 시 진입</div>`;
       }
     } else {
@@ -384,7 +387,8 @@ async function loadWatchlist() {
     let tgtCell;
     if (w.target_price) {
       const color = upsidePct > 0 ? 'var(--up)' : 'var(--down)';
-      tgtCell = `<div style="font-size:12px;font-weight:600">${w.target_price.toLocaleString()}원</div>
+      const tgtCapStr = capOfPrice(w.target_price);
+      tgtCell = `<div style="font-size:12px;font-weight:600">${w.target_price.toLocaleString()}원${tgtCapStr ? ` <span style="font-size:10px;color:var(--text2);font-weight:400">${tgtCapStr}억</span>` : ''}</div>
                  <div style="font-size:12px;font-weight:700;color:${color}">${upsidePct!=null?(upsidePct>0?'+':'')+upsidePct.toFixed(1)+'%':'—'}</div>`;
     } else {
       tgtCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
