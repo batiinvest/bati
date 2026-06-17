@@ -506,35 +506,22 @@ async function renderWatchlistForm(id) {
   }
 
   // 수정 모드: stock_code로 market data 선로드 → _wlShares 세팅 (시총↔주가 연동)
+  // await으로 폼 렌더 전에 완료 → race condition 방지
   window._wlShares = null;
+  let _mktCache = null;
   if (w.stock_code) {
-    sb.from('market_data')
+    const { data: mkt } = await sb.from('market_data')
       .select('price,price_change_rate,market_cap,per,pbr')
       .eq('stock_code', w.stock_code)
       .order('base_date', { ascending: false })
-      .limit(1)
-      .then(({ data: mkt }) => {
-        const m = mkt?.[0];
-        if (!m) return;
-        const priceEl = document.getElementById('wl-auto-price');
-        const chgEl   = document.getElementById('wl-auto-chg');
-        const capEl   = document.getElementById('wl-auto-cap');
-        const perEl   = document.getElementById('wl-auto-per');
-        const pbrEl   = document.getElementById('wl-auto-pbr');
-        const hint    = document.getElementById('wl-shares-hint');
-        const rrCur   = document.getElementById('wl-rr-cur');
-        if (priceEl) priceEl.textContent = m.price ? m.price.toLocaleString()+'원' : '—';
-        if (chgEl)   chgEl.innerHTML = m.price_change_rate != null
-          ? `<span style="color:${chgColor(m.price_change_rate)}">${m.price_change_rate>0?'+':''}${m.price_change_rate.toFixed(2)}%</span>` : '—';
-        if (capEl)   capEl.textContent = m.market_cap ? fmtEok(m.market_cap / 1e8) : '—';
-        if (perEl)   perEl.textContent = m.per ? m.per.toFixed(1) : '—';
-        if (pbrEl)   pbrEl.textContent = m.pbr ? m.pbr.toFixed(2) : '—';
-        if (rrCur && m.price && !rrCur.value) { rrCur.value = m.price; _calcRR(); }
-        if (m.market_cap && m.price) {
-          window._wlShares = Math.round(m.market_cap / m.price);
-          if (hint) hint.textContent = `발행주식수 약 ${Math.round(window._wlShares/10000).toLocaleString()}만주 기준`;
-        }
-      });
+      .limit(1);
+    const m = mkt?.[0];
+    if (m) {
+      _mktCache = m;
+      if (m.market_cap && m.price) {
+        window._wlShares = Math.round(m.market_cap / m.price);
+      }
+    }
   }
 
   const inp = (field, label, placeholder='', type='text', readonly=false) => `
@@ -691,6 +678,24 @@ async function renderWatchlistForm(id) {
         <button class="btn btn-primary" onclick="saveWatchlist(${id||'null'})">저장</button>
       </div>
     </div>`;
+
+  // _mktCache로 auto-info 영역 채우기 (await 완료 후 폼이 DOM에 들어갔으므로 안전)
+  if (_mktCache) {
+    const m = _mktCache;
+    const priceEl = document.getElementById('wl-auto-price');
+    const chgEl   = document.getElementById('wl-auto-chg');
+    const capEl   = document.getElementById('wl-auto-cap');
+    const perEl   = document.getElementById('wl-auto-per');
+    const hint    = document.getElementById('wl-shares-hint');
+    const rrCur   = document.getElementById('wl-rr-cur');
+    if (priceEl) priceEl.textContent = m.price ? m.price.toLocaleString()+'원' : '—';
+    if (chgEl)   chgEl.innerHTML = m.price_change_rate != null
+      ? `<span style="color:${chgColor(m.price_change_rate)}">${m.price_change_rate>0?'+':''}${m.price_change_rate.toFixed(2)}%</span>` : '—';
+    if (capEl)   capEl.textContent = m.market_cap ? fmtEok(m.market_cap / 1e8) : '—';
+    if (perEl)   perEl.textContent = m.per ? m.per.toFixed(1) : '—';
+    if (hint && window._wlShares) hint.textContent = `발행주식수 약 ${Math.round(window._wlShares/10000).toLocaleString()}만주 기준`;
+    if (rrCur && m.price && !rrCur.value) { rrCur.value = m.price; _calcRR(); }
+  }
 }
 
 async function saveWatchlist(id) {
