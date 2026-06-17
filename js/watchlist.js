@@ -604,7 +604,11 @@ async function wlInlineEdit(td, id, field, curVal, type = 'number') {
     if (e.key === 'Enter' && !isText) { e.preventDefault(); save(); }
     if (e.key === 'Escape') loadWatchlist();
   });
-  el.addEventListener('blur', save);
+  if (isDate) {
+    el.addEventListener('change', save); // date picker는 change 이벤트로 저장
+  } else {
+    el.addEventListener('blur', save);
+  }
 }
 
 function wlSortBy(key) {
