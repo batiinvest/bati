@@ -548,11 +548,11 @@ async function loadWatchlist() {
       <td style="${tdStyle}">
         <div style="font-size:12px;font-weight:600">${capEok ? fmtEok(capEok) : '—'}</div>
       </td>
-      <td style="${tdStyle}">${watchCell}</td>
-      <td style="${tdStyle}">${tgtCell}</td>
-      <td style="${tdStyle}">${costCell}</td>
-      <td style="${tdStyle};max-width:210px">${thesisCell}</td>
-      <td style="${tdStyle}">${checkCell}</td>
+      <td style="${tdStyle};cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'watch_price',${w.watch_price||'null'},'number')">${watchCell}</td>
+      <td style="${tdStyle};cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'target_price',${w.target_price||'null'},'number')">${tgtCell}</td>
+      <td style="${tdStyle};cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'avg_price',${w.avg_price||'null'},'number')">${costCell}</td>
+      <td style="${tdStyle};max-width:210px;cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'thesis_1',${JSON.stringify(w.thesis_1||'')},'text')">${thesisCell}</td>
+      <td style="${tdStyle};cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'next_check_date',${JSON.stringify(w.next_check_date||'')},'date')">${checkCell}</td>
       <td style="${tdStyle};white-space:nowrap">
         <div style="display:flex;gap:5px">
           <button class="btn btn-sm" onclick="openWatchlistModal(${w.id})">수정</button>
@@ -569,6 +569,42 @@ async function loadWatchlist() {
         <tbody>${rows}</tbody>
       </table>
     </div>`;
+}
+
+// ── 인라인 편집 ──────────────────────────────────────────────────────────────
+async function wlInlineEdit(td, id, field, curVal, type = 'number') {
+  if (td.querySelector('input,textarea')) return; // 이미 편집 중
+  const isDate = type === 'date';
+  const isText = type === 'text';
+
+  const el = document.createElement(isText ? 'textarea' : 'input');
+  el.type = isDate ? 'date' : isText ? undefined : 'number';
+  el.value = curVal ?? '';
+  el.style.cssText = `width:100%;box-sizing:border-box;background:var(--bg2);color:var(--text1);
+    border:1px solid var(--tg);border-radius:4px;padding:4px 6px;font-size:12px;
+    ${isText ? 'height:60px;resize:vertical' : ''}`;
+
+  td.innerHTML = '';
+  td.appendChild(el);
+  el.focus();
+  if (!isDate) el.select();
+
+  const save = async () => {
+    let val = el.value.trim();
+    if (val === String(curVal ?? '')) { loadWatchlist(); return; } // 변경 없음
+    const payload = {};
+    if (type === 'number') payload[field] = val ? parseFloat(val) : null;
+    else payload[field] = val || null;
+    payload.updated_at = new Date().toISOString();
+    await sb.from('watchlist').update(payload).eq('id', id);
+    loadWatchlist();
+  };
+
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !isText) { e.preventDefault(); save(); }
+    if (e.key === 'Escape') loadWatchlist();
+  });
+  el.addEventListener('blur', save);
 }
 
 function wlSortBy(key) {
