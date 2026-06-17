@@ -263,23 +263,38 @@ async function loadWatchlist() {
     (mkt || []).forEach(r => { if (!priceMap[r.stock_code]) priceMap[r.stock_code] = r; });
   }
 
-  // ROE·OPM 일괄 조회 (financials 최신 분기) — 실패해도 priceMap 렌더링에 영향 없음
-  let roeMap = {}, opmMap = {};
+  // ROE 조회 (financials) — 실패해도 무시
+  let roeMap = {};
   if (codes.length) {
     try {
-      const { data: fins } = await sb.from('financials')
-        .select('stock_code,revenue,operating_income,operating_profit,roe')
+      const { data: fins, error: roeErr } = await sb.from('financials')
+        .select('stock_code,roe')
         .in('stock_code', codes)
+        .not('roe', 'is', null)
         .order('period', { ascending: false });
-      (fins || []).forEach(r => {
-        if (!roeMap[r.stock_code] && r.roe != null) roeMap[r.stock_code] = r.roe;
-        const opIncome = r.operating_income ?? r.operating_profit;
-        if (!opmMap[r.stock_code] && r.revenue && opIncome) {
-          opmMap[r.stock_code] = opIncome / r.revenue * 100;
-        }
-      });
-    } catch (e) {
-      console.warn('financials 조회 실패 (ROE/OPM 미표시):', e);
+      if (roeErr) throw roeErr;
+      (fins || []).forEach(r => { if (!roeMap[r.stock_code]) roeMap[r.stock_code] = r.roe; });
+    } catch (e) { console.warn('ROE 조회 실패:', e?.message || e); }
+  }
+
+  // OPM 조회 — operating_profit 우선, 없으면 operating_income 시도
+  let opmMap = {};
+  if (codes.length) {
+    for (const col of ['operating_profit', 'operating_income']) {
+      try {
+        const { data: fins, error: opmErr } = await sb.from('financials')
+          .select(`stock_code,revenue,${col}`)
+          .in('stock_code', codes)
+          .not(col, 'is', null)
+          .order('period', { ascending: false });
+        if (opmErr) throw opmErr;
+        (fins || []).forEach(r => {
+          if (!opmMap[r.stock_code] && r.revenue && r[col]) {
+            opmMap[r.stock_code] = r[col] / r.revenue * 100;
+          }
+        });
+        break; // 성공하면 다음 컬럼 시도 안 함
+      } catch (e) { console.warn(`OPM(${col}) 조회 실패:`, e?.message || e); }
     }
   }
 
