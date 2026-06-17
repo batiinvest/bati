@@ -161,12 +161,14 @@ async function selectWatchlistStock(code, name, industry, market) {
 
   if (mkt?.[0]) {
     const m = mkt[0];
-    document.getElementById('wl-auto-price').textContent = m.price ? m.price.toLocaleString()+'원' : '—';
-    document.getElementById('wl-auto-chg').innerHTML = m.price_change_rate != null
-      ? `<span style="color:${chgColor(m.price_change_rate)}">${m.price_change_rate>0?'+':''}${m.price_change_rate.toFixed(2)}%</span>` : '—';
-    document.getElementById('wl-auto-cap').textContent = m.market_cap ? fmtEok(m.market_cap / 1e8) : '—';
-    document.getElementById('wl-auto-per').textContent = m.per ? m.per.toFixed(1) : '—';
-    document.getElementById('wl-auto-pbr').textContent = m.pbr ? m.pbr.toFixed(2) : '—';
+    const _set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    const _html = (id, val) => { const el = document.getElementById(id); if (el) el.innerHTML = val; };
+    _set('wl-auto-price', m.price ? m.price.toLocaleString()+'원' : '—');
+    _html('wl-auto-chg', m.price_change_rate != null
+      ? `<span style="color:${chgColor(m.price_change_rate)}">${m.price_change_rate>0?'+':''}${m.price_change_rate.toFixed(2)}%</span>` : '—');
+    _set('wl-auto-cap', m.market_cap ? fmtEok(m.market_cap / 1e8) : '—');
+    _set('wl-auto-per', m.per ? m.per.toFixed(1) : '—');
+    _set('wl-auto-pbr', m.pbr ? m.pbr.toFixed(2) : '—');
 
     // RR 계산기 현재가 자동 연동
     const rrCur = document.getElementById('wl-rr-cur');
