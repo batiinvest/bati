@@ -354,7 +354,8 @@ async function loadWatchlist() {
       </div>`;
   }
 
-  const groupColors = { '관심': '#4a9eff', '후보': '#ffc107', '보유중': 'var(--tg)' };
+  const groupColors    = { '관심': '#4a9eff', '후보': '#ffc107', '보유중': 'var(--tg)' };
+  const groupTextColors = { '관심': '#0a1f3d', '후보': '#2d1f00', '보유중': '#002b1e' };
 
   if (!data?.length) {
     listEl.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text2)">등록된 관심종목이 없어요.<br>+ 종목 추가 버튼을 눌러 추가해주세요.</div>';
@@ -503,7 +504,7 @@ async function loadWatchlist() {
       <td style="${tdStyle}">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
           <span style="font-size:13px;font-weight:700">${w.corp_name}</span>
-          <span style="font-size:12px;padding:2px 9px;border-radius:100px;background:${groupColors[w.group_name]||'#888'};color:#fff;font-weight:700">${w.group_name}</span>
+          <span style="font-size:12px;padding:2px 9px;border-radius:100px;background:${groupColors[w.group_name]||'#888'};color:${groupTextColors[w.group_name]||'#111'};font-weight:700">${w.group_name}</span>
         </div>
         ${w.industry ? `<div style="font-size:11px;color:var(--text2);margin-top:1px">${w.industry}</div>` : ''}
         ${w.catalyst ? `<div style="font-size:11px;color:var(--tg);margin-top:1px">⚡ ${w.catalyst}</div>` : ''}
