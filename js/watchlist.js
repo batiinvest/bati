@@ -257,20 +257,21 @@ async function loadWatchlist() {
   let priceMap = {};
   if (codes.length) {
     const { data: mkt } = await sb.from('market_data')
-      .select('stock_code,price,price_change_rate,per,pbr,roe,market_cap')
+      .select('stock_code,price,price_change_rate,per,pbr,market_cap')
       .in('stock_code', codes)
       .order('base_date', { ascending: false });
     (mkt || []).forEach(r => { if (!priceMap[r.stock_code]) priceMap[r.stock_code] = r; });
   }
 
-  // OPM 일괄 조회 (최신 분기 operating_income/revenue)
-  let opmMap = {};
+  // ROE·OPM 일괄 조회 (financials 최신 분기)
+  let roeMap = {}, opmMap = {};
   if (codes.length) {
     const { data: fins } = await sb.from('financials')
-      .select('stock_code,revenue,operating_income')
+      .select('stock_code,revenue,operating_income,roe')
       .in('stock_code', codes)
       .order('period', { ascending: false });
     (fins || []).forEach(r => {
+      if (!roeMap[r.stock_code] && r.roe != null) roeMap[r.stock_code] = r.roe;
       if (!opmMap[r.stock_code] && r.revenue && r.operating_income) {
         opmMap[r.stock_code] = r.operating_income / r.revenue * 100;
       }
@@ -373,7 +374,7 @@ async function loadWatchlist() {
       case 'price':    return mkt.price || 0;
       case 'per':      return mkt.per || 0;
       case 'pbr':      return mkt.pbr || 0;
-      case 'roe':      return mkt.roe || 0;
+      case 'roe':      return roeMap[w.stock_code] || 0;
       case 'opm':      return opmMap[w.stock_code] || 0;
       case 'cap':      return mkt.market_cap || 0;
       case 'watch':    return w.watch_price || 0;
@@ -429,7 +430,7 @@ async function loadWatchlist() {
     const capEok = cap ? cap / 1e8 : null;
     const per   = mkt.per;
     const pbr   = mkt.pbr;
-    const roe   = mkt.roe;
+    const roe   = roeMap[w.stock_code] ?? null;
     const opm   = opmMap[w.stock_code] ?? null;
 
     // 발행주식수 추정 (시총/현재가)
