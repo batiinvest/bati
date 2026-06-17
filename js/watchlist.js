@@ -440,7 +440,12 @@ async function loadWatchlist() {
 
     // 발행주식수 추정 (시총/현재가)
     const shares = (cap && price) ? cap / price : null;
-    const capOfPrice = p => (shares && p) ? fmtEok(p * shares / 1e8) : null;
+    const capOfPrice = p => {
+      if (!shares || !p) return null;
+      const eok = p * shares / 1e8;
+      if (eok > 50000000) return null; // 5경 이상은 데이터 이상으로 간주
+      return fmtEok(eok);
+    };
 
     // ── 관심가 (watch_price): 현재가 대비 갭% ───────────────────────────
     const watchGap = (w.watch_price && price) ? (w.watch_price - price) / price * 100 : null;
