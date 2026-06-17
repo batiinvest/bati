@@ -338,87 +338,114 @@ async function loadWatchlist() {
     <tr>
       <th style="${thStyle}">종목</th>
       <th style="${thStyle}">현재가</th>
+      <th style="${thStyle}">PER · PBR</th>
       <th style="${thStyle}">시총</th>
-      <th style="${thStyle}">매수 목표 시총</th>
-      <th style="${thStyle}">업사이드</th>
+      <th style="${thStyle}">관심가</th>
+      <th style="${thStyle}">목표가 · 업사이드</th>
+      <th style="${thStyle}">매수가 · 손익</th>
       <th style="${thStyle}">투자포인트</th>
+      <th style="${thStyle}">다음 점검</th>
       <th style="${thStyle}"></th>
     </tr>`;
 
   // ── 각 행 ─────────────────────────────────────────────────────────────────
-  const tdStyle = 'padding:10px 10px;border-bottom:1px solid var(--border);vertical-align:middle';
+  const tdStyle = 'padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle';
 
   const rows = data.map(w => {
     const mkt   = priceMap[w.stock_code] || {};
     const price = mkt.price;
     const chg   = mkt.price_change_rate;
-    const cap   = mkt.market_cap;         // 원 단위 (BIGINT)
-    const capEok = cap ? cap / 1e8 : null; // 억원 단위 (표시용)
-    const shares = (cap && price) ? cap / price : null; // 주수 = 원/원
+    const cap   = mkt.market_cap;
+    const capEok = cap ? cap / 1e8 : null;
+    const per   = mkt.per;
+    const pbr   = mkt.pbr;
 
-    // ── 매수 목표 시총 (watch_price 기준) ────────────────────────────────
-    const buyCapEok = (w.watch_price && shares) ? Math.round(w.watch_price * shares / 1e8) : null;
-    const isBuyZone = capEok != null && buyCapEok != null && capEok <= buyCapEok;
-    const buyGap    = (buyCapEok && capEok) ? ((capEok - buyCapEok) / buyCapEok * 100) : null; // 양수=아직멀었음
-
-    let buyCell;
-    if (buyCapEok) {
-      if (isBuyZone) {
-        buyCell = `<div style="color:var(--tg);font-weight:700;font-size:13px">✅ 매수 구간</div>
-                   <div style="font-size:12px;color:var(--text1)">${fmtEok(buyCapEok)} 이하</div>`;
+    // ── 관심가 (watch_price): 현재가 대비 갭% ───────────────────────────
+    const watchGap = (w.watch_price && price) ? (w.watch_price - price) / price * 100 : null;
+    const isBuyZone = watchGap != null && watchGap >= 0; // 관심가 > 현재가 → 아직 안 도달
+    // 실제 매수 구간 = 현재가 ≤ 관심가
+    const isAtBuy = w.watch_price && price && price <= w.watch_price;
+    let watchCell;
+    if (w.watch_price) {
+      const gap = watchGap != null ? Math.abs(watchGap).toFixed(1) + '%' : '—';
+      if (isAtBuy) {
+        watchCell = `<div style="color:var(--up);font-weight:700;font-size:12px">✅ 매수 구간</div>
+                     <div style="font-size:11px;color:var(--text2)">${w.watch_price.toLocaleString()}원</div>`;
       } else {
-        buyCell = `<div style="font-size:13px;font-weight:600">${fmtEok(buyCapEok)}</div>
-                   <div style="font-size:12px;color:var(--text1)">현재보다 ${buyGap!=null?Math.abs(buyGap).toFixed(1)+'%':'—'} 하락 필요</div>`;
+        watchCell = `<div style="font-size:12px;font-weight:600">${w.watch_price.toLocaleString()}원</div>
+                     <div style="font-size:11px;color:var(--down)">▼ ${gap} 하락 시 진입</div>`;
       }
     } else {
-      buyCell = `<span style="color:var(--text1);font-size:12px">—</span>`;
+      watchCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
     }
 
-    // ── 업사이드 (target_price 기준, 현재 대비) ──────────────────────────
-    const tgtCapEok  = (w.target_price && shares) ? Math.round(w.target_price * shares / 1e8) : null;
-    const upsidePct  = (w.target_price && price)  ? ((w.target_price - price) / price * 100)  : null;
-    const upsideMult = (tgtCapEok && capEok)       ? (tgtCapEok / capEok)                      : null;
+    // ── 목표가 · 업사이드 ────────────────────────────────────────────────
+    const upsidePct = (w.target_price && price) ? (w.target_price - price) / price * 100 : null;
     let tgtCell;
-    if (tgtCapEok) {
-      const pctStr  = upsidePct  != null ? `${upsidePct>0?'+':''}${upsidePct.toFixed(0)}%`   : '';
-      const multStr = upsideMult != null ? `${upsideMult.toFixed(1)}배` : '';
-      const color   = upsidePct > 0 ? 'var(--tg)' : 'var(--red)';
-      tgtCell = `<div style="font-size:13px;font-weight:600">${fmtEok(tgtCapEok)}</div>
-                 <div style="font-size:12px;font-weight:600;color:${color}">${pctStr}${multStr ? ' · '+multStr : ''}</div>`;
+    if (w.target_price) {
+      const color = upsidePct > 0 ? 'var(--up)' : 'var(--down)';
+      tgtCell = `<div style="font-size:12px;font-weight:600">${w.target_price.toLocaleString()}원</div>
+                 <div style="font-size:12px;font-weight:700;color:${color}">${upsidePct!=null?(upsidePct>0?'+':'')+upsidePct.toFixed(1)+'%':'—'}</div>`;
     } else {
-      tgtCell = `<span style="color:var(--text1);font-size:12px">—</span>`;
+      tgtCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
     }
 
-    // ── 투자포인트 (최대 2개) ────────────────────────────────────────────
-    const theses = [w.thesis_1, w.thesis_2].filter(Boolean);
-    const thesisCell = theses.length
-      ? theses.map((t,i) => `<div style="font-size:12px;color:var(--text1);padding:1px 0;display:flex;gap:5px">
-          <span style="color:var(--tg);font-weight:700;flex-shrink:0">${i+1}.</span><span>${t}</span></div>`).join('')
-      : `<span style="font-size:12px;color:var(--text1)">—</span>`;
+    // ── 매수가 · 평가손익 ────────────────────────────────────────────────
+    let costCell;
+    if (w.avg_price && price) {
+      const pnlPct = (price - w.avg_price) / w.avg_price * 100;
+      const color  = pnlPct >= 0 ? 'var(--up)' : 'var(--down)';
+      const pnlStr = (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(1) + '%';
+      costCell = `<div style="font-size:12px">${w.avg_price.toLocaleString()}원</div>
+                  <div style="font-size:12px;font-weight:700;color:${color}">${pnlStr}${w.quantity ? ` · ${fmtNet((price-w.avg_price)*w.quantity)}` : ''}</div>`;
+    } else {
+      costCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
+    }
 
-    // ── 행 배경: 매수 구간이면 연초록 강조 ──────────────────────────────
-    const rowBg = isBuyZone ? 'background:rgba(45,206,137,.06)' : '';
+    // ── 투자포인트 (1개) ─────────────────────────────────────────────────
+    const thesisCell = w.thesis_1
+      ? `<div style="font-size:12px;color:var(--text1);max-width:200px;white-space:normal;line-height:1.4">${w.thesis_1}</div>
+         ${w.thesis_2 ? `<div style="font-size:11px;color:var(--text2);margin-top:2px;max-width:200px;white-space:normal">${w.thesis_2}</div>` : ''}`
+      : `<span style="color:var(--text3);font-size:12px">—</span>`;
+
+    // ── 다음 점검일 ──────────────────────────────────────────────────────
+    let checkCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
+    if (w.next_check_date) {
+      const daysLeft = Math.ceil((new Date(w.next_check_date) - new Date()) / 86400000);
+      const dateColor = daysLeft <= 3 ? 'var(--accent)' : daysLeft < 0 ? 'var(--down)' : 'var(--text2)';
+      checkCell = `<div style="font-size:12px;color:${dateColor};font-weight:${daysLeft<=3?'700':'400'}">${w.next_check_date}</div>
+                   <div style="font-size:11px;color:${dateColor}">${daysLeft<0?`${Math.abs(daysLeft)}일 초과`:daysLeft===0?'오늘':`D-${daysLeft}`}</div>`;
+    }
+
+    // ── 행 배경: 매수 구간 강조 ─────────────────────────────────────────
+    const rowBg = isAtBuy ? 'background:rgba(0,192,135,.05)' : '';
 
     return `
-    <tr style="${rowBg}">
+    <tr style="${rowBg}" onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background='${isAtBuy?'rgba(0,192,135,.05)':''}'">
       <td style="${tdStyle}">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
           <span style="font-size:13px;font-weight:700">${w.corp_name}</span>
           <span style="font-size:10px;padding:1px 6px;border-radius:100px;background:${groupColors[w.group_name]||'#888'}22;color:${groupColors[w.group_name]||'#888'}">${w.group_name}</span>
         </div>
-        ${w.industry ? `<div style="font-size:11px;color:var(--text1);margin-top:2px">${w.industry}</div>` : ''}
-        ${w.catalyst ? `<div style="font-size:11px;color:var(--tg);margin-top:2px">⚡ ${w.catalyst}</div>` : ''}
+        ${w.industry ? `<div style="font-size:11px;color:var(--text2);margin-top:1px">${w.industry}</div>` : ''}
+        ${w.catalyst ? `<div style="font-size:11px;color:var(--tg);margin-top:1px">⚡ ${w.catalyst}</div>` : ''}
       </td>
       <td style="${tdStyle}">
         <div style="font-size:13px;font-weight:700">${price ? price.toLocaleString()+'원' : '—'}</div>
-        <div style="font-size:11px;color:${chgColor(chg)}">${chg!=null?(chg>0?'+':'')+chg.toFixed(2)+'%':''}</div>
+        <div style="font-size:11px;font-weight:600;color:${chgColor(chg)}">${chg!=null?(chg>=0?'+':'')+chg.toFixed(2)+'%':''}</div>
       </td>
       <td style="${tdStyle}">
-        <div style="font-size:13px;font-weight:600">${capEok ? fmtEok(capEok) : '—'}</div>
+        <div style="font-size:12px">${per!=null ? per.toFixed(1)+'x' : '—'}</div>
+        <div style="font-size:11px;color:var(--text2)">${pbr!=null ? 'PBR '+pbr.toFixed(2) : ''}</div>
       </td>
-      <td style="${tdStyle}">${buyCell}</td>
+      <td style="${tdStyle}">
+        <div style="font-size:12px;font-weight:600">${capEok ? fmtEok(capEok) : '—'}</div>
+      </td>
+      <td style="${tdStyle}">${watchCell}</td>
       <td style="${tdStyle}">${tgtCell}</td>
-      <td style="${tdStyle};max-width:220px">${thesisCell}</td>
+      <td style="${tdStyle}">${costCell}</td>
+      <td style="${tdStyle};max-width:210px">${thesisCell}</td>
+      <td style="${tdStyle}">${checkCell}</td>
       <td style="${tdStyle};white-space:nowrap">
         <div style="display:flex;gap:5px">
           <button class="btn btn-sm" onclick="openWatchlistModal(${w.id})">수정</button>

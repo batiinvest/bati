@@ -281,11 +281,13 @@ textarea.form-input { resize:vertical; min-height:100px; }
   .screener-result-table th:nth-child(14),
   .screener-result-table td:nth-child(14) { display:none; }
 
-  /* 워치리스트 테이블 — 매수목표시총·투자포인트 숨김 (핵심만 유지) */
+  /* 워치리스트 테이블 ≤900px — 시총·매수가손익·다음점검 숨김 */
   .wl-table th:nth-child(4),
   .wl-table td:nth-child(4),
-  .wl-table th:nth-child(6),
-  .wl-table td:nth-child(6) { display:none; }
+  .wl-table th:nth-child(7),
+  .wl-table td:nth-child(7),
+  .wl-table th:nth-child(9),
+  .wl-table td:nth-child(9) { display:none; }
 
   /* 주도주 카드 그리드 2열 → 1열 */
   .leading-grid { grid-template-columns:1fr !important; }
@@ -306,9 +308,13 @@ textarea.form-input { resize:vertical; min-height:100px; }
   .screener-result-table th:nth-child(10),
   .screener-result-table td:nth-child(10) { display:none; }
 
-  /* 워치리스트 테이블 — 업사이드도 숨기고 핵심(종목·현재가·시총)만 */
+  /* 워치리스트 테이블 ≤480px — PER·관심가·투자포인트 추가 숨김 */
+  .wl-table th:nth-child(3),
+  .wl-table td:nth-child(3),
   .wl-table th:nth-child(5),
-  .wl-table td:nth-child(5) { display:none; }
+  .wl-table td:nth-child(5),
+  .wl-table th:nth-child(8),
+  .wl-table td:nth-child(8) { display:none; }
 
   /* 포트폴리오 요약 1열 */
   #wl-summary > div > div { min-width:100%; flex:1 1 100%; }
