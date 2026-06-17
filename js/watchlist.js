@@ -92,6 +92,21 @@ function _syncPriceCap(prefix, from, val) {
 function syncWlPrice(from, val)      { _syncPriceCap('wl-target', from, val); }
 function syncWlWatchPrice(from, val) { _syncPriceCap('wl-watch',  from, val); }
 
+// 억원 입력 시 조·억 단위 힌트 표시
+function _showCapUnit(elId, val) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const eok = parseFloat(val);
+  if (!val || isNaN(eok) || eok <= 0) { el.textContent = ''; return; }
+  if (eok >= 10000) {
+    const jo = Math.floor(eok / 10000);
+    const rem = Math.round(eok % 10000);
+    el.textContent = rem > 0 ? `${jo}조 ${rem.toLocaleString()}억` : `${jo}조`;
+  } else {
+    el.textContent = `${eok.toLocaleString()}억`;
+  }
+}
+
 let _wlCompanies = null;
 
 async function searchWatchlistStock(query) {
@@ -597,8 +612,9 @@ async function renderWatchlistForm(id) {
             <div>
               <div style="font-size:10px;color:var(--text2);margin-bottom:3px">시총 (억원)</div>
               <input type="number" class="form-input" id="wl-watch_cap"
-                placeholder="억원" oninput="syncWlWatchPrice('cap',this.value)"
+                placeholder="억원" oninput="syncWlWatchPrice('cap',this.value);_showCapUnit('wl-watch-cap-unit',this.value)"
                 style="width:100%;box-sizing:border-box;font-size:12px">
+              <div id="wl-watch-cap-unit" style="font-size:11px;color:var(--tg);margin-top:3px;font-weight:600"></div>
             </div>
           </div>
         </div>
@@ -615,8 +631,9 @@ async function renderWatchlistForm(id) {
             <div>
               <div style="font-size:10px;color:var(--text2);margin-bottom:3px">시총 (억원)</div>
               <input type="number" class="form-input" id="wl-target_cap"
-                placeholder="억원" oninput="syncWlPrice('cap',this.value)"
+                placeholder="억원" oninput="syncWlPrice('cap',this.value);_showCapUnit('wl-target-cap-unit',this.value)"
                 style="width:100%;box-sizing:border-box;font-size:12px">
+              <div id="wl-target-cap-unit" style="font-size:11px;color:var(--text2);margin-top:3px;font-weight:600"></div>
             </div>
           </div>
         </div>
@@ -699,6 +716,19 @@ async function renderWatchlistForm(id) {
     if (perEl)   perEl.textContent = m.per ? m.per.toFixed(1) : '—';
     if (hint && window._wlShares) hint.textContent = `발행주식수 약 ${Math.round(window._wlShares/10000).toLocaleString()}만주 기준`;
     if (rrCur && m.price && !rrCur.value) { rrCur.value = m.price; _calcRR(); }
+    // 기존 저장값 있으면 시총 단위 힌트 미리 표시
+    if (w.watch_price && window._wlShares) {
+      const wCap = Math.round(w.watch_price * window._wlShares / 1e8);
+      const wcEl = document.getElementById('wl-watch_cap');
+      if (wcEl && !wcEl.value) wcEl.value = wCap;
+      _showCapUnit('wl-watch-cap-unit', wCap);
+    }
+    if (w.target_price && window._wlShares) {
+      const tCap = Math.round(w.target_price * window._wlShares / 1e8);
+      const tcEl = document.getElementById('wl-target_cap');
+      if (tcEl && !tcEl.value) tcEl.value = tCap;
+      _showCapUnit('wl-target-cap-unit', tCap);
+    }
   }
 }
 
