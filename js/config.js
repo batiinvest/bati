@@ -123,15 +123,14 @@ function fmtCap(won) {
 // 억 단위 입력값 표시 (예: 15000 → "1조 5,000억") — fmtCap의 억 단위 버전
 function fmtEok(eok) {
   if (eok == null || isNaN(eok)) return '—';
-  if (eok >= 10000) {
-    let jo  = Math.floor(eok / 10000);
-    let rem = Math.round(eok % 10000);
-    if (rem >= 10000) { jo += 1; rem = 0; } // 반올림으로 rem=10000이 되는 경우 방지
-    // 잔여 억이 100억 미만이면 생략 (예: 1조 11억 → 1조)
-    if (rem > 0 && rem < 100) return `${jo}조`;
+  const rounded = Math.round(eok); // 먼저 반올림 후 분기
+  if (rounded >= 10000) {
+    const jo  = Math.floor(rounded / 10000);
+    const rem = rounded % 10000;
+    if (rem > 0 && rem < 100) return `${jo}조`; // 100억 미만 잔여 생략
     return rem > 0 ? `${jo}조 ${rem.toLocaleString()}억` : `${jo}조`;
   }
-  return `${Math.round(eok).toLocaleString()}억`;
+  return `${rounded.toLocaleString()}억`;
 }
 
 // 등락률 색상 — 한국 주식 관행 (상승=빨강, 하락=파랑)
