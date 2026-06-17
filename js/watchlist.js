@@ -263,19 +263,24 @@ async function loadWatchlist() {
     (mkt || []).forEach(r => { if (!priceMap[r.stock_code]) priceMap[r.stock_code] = r; });
   }
 
-  // ROE·OPM 일괄 조회 (financials 최신 분기)
+  // ROE·OPM 일괄 조회 (financials 최신 분기) — 실패해도 priceMap 렌더링에 영향 없음
   let roeMap = {}, opmMap = {};
   if (codes.length) {
-    const { data: fins } = await sb.from('financials')
-      .select('stock_code,revenue,operating_income,roe')
-      .in('stock_code', codes)
-      .order('period', { ascending: false });
-    (fins || []).forEach(r => {
-      if (!roeMap[r.stock_code] && r.roe != null) roeMap[r.stock_code] = r.roe;
-      if (!opmMap[r.stock_code] && r.revenue && r.operating_income) {
-        opmMap[r.stock_code] = r.operating_income / r.revenue * 100;
-      }
-    });
+    try {
+      const { data: fins } = await sb.from('financials')
+        .select('stock_code,revenue,operating_income,operating_profit,roe')
+        .in('stock_code', codes)
+        .order('period', { ascending: false });
+      (fins || []).forEach(r => {
+        if (!roeMap[r.stock_code] && r.roe != null) roeMap[r.stock_code] = r.roe;
+        const opIncome = r.operating_income ?? r.operating_profit;
+        if (!opmMap[r.stock_code] && r.revenue && opIncome) {
+          opmMap[r.stock_code] = opIncome / r.revenue * 100;
+        }
+      });
+    } catch (e) {
+      console.warn('financials 조회 실패 (ROE/OPM 미표시):', e);
+    }
   }
 
   document.getElementById('wl-count').textContent = `${(data||[]).length}개`;
