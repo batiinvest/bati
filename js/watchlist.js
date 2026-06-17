@@ -257,10 +257,24 @@ async function loadWatchlist() {
   let priceMap = {};
   if (codes.length) {
     const { data: mkt } = await sb.from('market_data')
-      .select('stock_code,price,price_change_rate,per,pbr,market_cap')
+      .select('stock_code,price,price_change_rate,per,pbr,roe,market_cap')
       .in('stock_code', codes)
       .order('base_date', { ascending: false });
     (mkt || []).forEach(r => { if (!priceMap[r.stock_code]) priceMap[r.stock_code] = r; });
+  }
+
+  // OPM 일괄 조회 (최신 분기 operating_income/revenue)
+  let opmMap = {};
+  if (codes.length) {
+    const { data: fins } = await sb.from('financials')
+      .select('stock_code,revenue,operating_income')
+      .in('stock_code', codes)
+      .order('period', { ascending: false });
+    (fins || []).forEach(r => {
+      if (!opmMap[r.stock_code] && r.revenue && r.operating_income) {
+        opmMap[r.stock_code] = r.operating_income / r.revenue * 100;
+      }
+    });
   }
 
   document.getElementById('wl-count').textContent = `${(data||[]).length}개`;
@@ -357,6 +371,9 @@ async function loadWatchlist() {
       case 'name':     return w.corp_name || '';
       case 'price':    return mkt.price || 0;
       case 'per':      return mkt.per || 0;
+      case 'pbr':      return mkt.pbr || 0;
+      case 'roe':      return mkt.roe || 0;
+      case 'opm':      return opmMap[w.stock_code] || 0;
       case 'cap':      return mkt.market_cap || 0;
       case 'watch':    return w.watch_price || 0;
       case 'target':   return (w.target_price && mkt.price) ? (w.target_price - mkt.price) / mkt.price : 0;
@@ -387,7 +404,10 @@ async function loadWatchlist() {
     <tr>
       ${th('name',   '종목')}
       ${th('price',  '현재가')}
-      ${th('per',    'PER · PBR')}
+      ${th('per',    'PER')}
+      ${th('pbr',    'PBR')}
+      ${th('roe',    'ROE')}
+      ${th('opm',    'OPM')}
       ${th('cap',    '시총')}
       ${th('watch',  '관심가')}
       ${th('target', '목표가 · 업사이드')}
@@ -408,6 +428,8 @@ async function loadWatchlist() {
     const capEok = cap ? cap / 1e8 : null;
     const per   = mkt.per;
     const pbr   = mkt.pbr;
+    const roe   = mkt.roe;
+    const opm   = opmMap[w.stock_code] ?? null;
 
     // 발행주식수 추정 (시총/현재가)
     const shares = (cap && price) ? cap / price : null;
@@ -490,10 +512,10 @@ async function loadWatchlist() {
         <div style="font-size:13px;font-weight:700">${price ? price.toLocaleString()+'원' : '—'}</div>
         <div style="font-size:11px;font-weight:600;color:${chgColor(chg)}">${chg!=null?(chg>=0?'+':'')+chg.toFixed(2)+'%':''}</div>
       </td>
-      <td style="${tdStyle}">
-        <div style="font-size:12px">${per!=null ? per.toFixed(1)+'x' : '—'}</div>
-        <div style="font-size:11px;color:var(--text2)">${pbr!=null ? 'PBR '+pbr.toFixed(2) : ''}</div>
-      </td>
+      <td style="${tdStyle}"><div style="font-size:12px;font-weight:600">${per!=null ? per.toFixed(1)+'x' : '—'}</div></td>
+      <td style="${tdStyle}"><div style="font-size:12px;font-weight:600">${pbr!=null ? pbr.toFixed(2)+'x' : '—'}</div></td>
+      <td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${roe!=null?(roe>=0?'var(--up)':'var(--down)'):'inherit'}">${roe!=null ? roe.toFixed(1)+'%' : '—'}</div></td>
+      <td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${opm!=null?(opm>=0?'var(--up)':'var(--down)'):'inherit'}">${opm!=null ? opm.toFixed(1)+'%' : '—'}</div></td>
       <td style="${tdStyle}">
         <div style="font-size:12px;font-weight:600">${capEok ? fmtEok(capEok) : '—'}</div>
       </td>
