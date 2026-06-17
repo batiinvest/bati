@@ -504,8 +504,8 @@ async function loadWatchlist() {
     <tr style="${rowBg}" onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background='${isAtBuy?'rgba(0,192,135,.05)':''}'">
       <td style="${tdStyle}">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-          <span style="font-size:13px;font-weight:700">${w.corp_name}</span>
-          <span style="font-size:12px;padding:2px 9px;border-radius:100px;background:${groupColors[w.group_name]||'#888'};color:${groupTextColors[w.group_name]||'#111'};font-weight:700">${w.group_name}</span>
+          <span style="font-size:15px;font-weight:700">${w.corp_name}</span>
+          <span style="font-size:11px;padding:1px 6px;border-radius:100px;background:${groupColors[w.group_name]||'#888'};color:${groupTextColors[w.group_name]||'#111'};font-weight:700">${w.group_name}</span>
         </div>
         ${w.industry ? `<div style="font-size:11px;color:var(--text2);margin-top:1px">${w.industry}</div>` : ''}
         ${w.catalyst ? `<div style="font-size:11px;color:var(--tg);margin-top:1px">⚡ ${w.catalyst}</div>` : ''}
