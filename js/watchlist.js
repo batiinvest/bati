@@ -347,26 +347,60 @@ async function loadWatchlist() {
     return;
   }
 
+  // ── 정렬 ─────────────────────────────────────────────────────────────────
+  if (!window._wlSort) window._wlSort = { key: null, asc: true };
+  const { key: sortKey, asc: sortAsc } = window._wlSort;
+
+  const sortVal = (w) => {
+    const mkt = priceMap[w.stock_code] || {};
+    switch (sortKey) {
+      case 'name':     return w.corp_name || '';
+      case 'price':    return mkt.price || 0;
+      case 'per':      return mkt.per || 0;
+      case 'cap':      return mkt.market_cap || 0;
+      case 'watch':    return w.watch_price || 0;
+      case 'target':   return (w.target_price && mkt.price) ? (w.target_price - mkt.price) / mkt.price : 0;
+      case 'pnl':      return (w.avg_price && mkt.price) ? (mkt.price - w.avg_price) / w.avg_price : 0;
+      case 'check':    return w.next_check_date || 'zzzz';
+      default:         return 0;
+    }
+  };
+  const sorted = sortKey
+    ? [...data].sort((a, b) => {
+        const va = sortVal(a), vb = sortVal(b);
+        if (va < vb) return sortAsc ? -1 : 1;
+        if (va > vb) return sortAsc ? 1 : -1;
+        return 0;
+      })
+    : data;
+
   // ── 테이블 헤더 ───────────────────────────────────────────────────────────
-  const thStyle = 'font-size:11px;color:var(--text2);font-weight:500;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap';
+  const thBase = 'font-size:11px;color:var(--text2);font-weight:500;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none';
+  const thActive = 'color:var(--text1);font-weight:700';
+  const arrow = (k) => sortKey === k ? (sortAsc ? ' ↑' : ' ↓') : '';
+  const th = (k, label) => {
+    const active = sortKey === k ? thActive : '';
+    return `<th style="${thBase};${active}" onclick="wlSortBy('${k}')">${label}${arrow(k)}</th>`;
+  };
+  const thStyle = thBase; // 버튼 없는 빈 컬럼용
   const header = `
     <tr>
-      <th style="${thStyle}">종목</th>
-      <th style="${thStyle}">현재가</th>
-      <th style="${thStyle}">PER · PBR</th>
-      <th style="${thStyle}">시총</th>
-      <th style="${thStyle}">관심가</th>
-      <th style="${thStyle}">목표가 · 업사이드</th>
-      <th style="${thStyle}">매수가 · 손익</th>
-      <th style="${thStyle}">투자포인트</th>
-      <th style="${thStyle}">다음 점검</th>
-      <th style="${thStyle}"></th>
+      ${th('name',   '종목')}
+      ${th('price',  '현재가')}
+      ${th('per',    'PER · PBR')}
+      ${th('cap',    '시총')}
+      ${th('watch',  '관심가')}
+      ${th('target', '목표가 · 업사이드')}
+      ${th('pnl',    '매수가 · 손익')}
+      <th style="${thStyle};cursor:default">투자포인트</th>
+      ${th('check',  '다음 점검')}
+      <th style="${thStyle};cursor:default"></th>
     </tr>`;
 
   // ── 각 행 ─────────────────────────────────────────────────────────────────
   const tdStyle = 'padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle';
 
-  const rows = data.map(w => {
+  const rows = sorted.map(w => {
     const mkt   = priceMap[w.stock_code] || {};
     const price = mkt.price;
     const chg   = mkt.price_change_rate;
@@ -481,6 +515,15 @@ async function loadWatchlist() {
         <tbody>${rows}</tbody>
       </table>
     </div>`;
+}
+
+function wlSortBy(key) {
+  if (window._wlSort.key === key) {
+    window._wlSort.asc = !window._wlSort.asc;
+  } else {
+    window._wlSort = { key, asc: true };
+  }
+  loadWatchlist();
 }
 
 async function deleteWatchlist(id, name) {
