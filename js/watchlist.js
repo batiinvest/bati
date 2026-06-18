@@ -217,6 +217,253 @@ document.addEventListener('click', e => {
 
 
 // =============================================
+//  매수 / 매도 거래 기록 (portfolio_transactions)
+// =============================================
+
+// 거래 내역 → 현재 포지션(수량/평단/실현손익) 계산 (이동평균법)
+function computePosition(txs) {
+  let qty = 0, avgCost = 0, realized = 0, buyQty = 0, sellQty = 0;
+  const sorted = [...txs].sort((a, b) => {
+    const d = (a.trade_date || '').localeCompare(b.trade_date || '');
+    return d !== 0 ? d : (a.id || 0) - (b.id || 0);
+  });
+  for (const t of sorted) {
+    const px  = Number(t.price)    || 0;
+    const q   = Number(t.quantity) || 0;
+    const fee = Number(t.fee)      || 0;
+    if (t.trade_type === 'buy') {
+      const totalCost = avgCost * qty + px * q + fee;
+      qty += q; buyQty += q;
+      avgCost = qty > 0 ? totalCost / qty : 0;
+    } else { // sell — 이동평균 유지, 실현손익만 누적
+      const sq = Math.min(q, qty);
+      realized += (px - avgCost) * sq - fee;
+      qty -= sq; sellQty += sq;
+      if (qty <= 0) qty = 0;
+    }
+  }
+  return { qty, avgCost: Math.round(avgCost), realized: Math.round(realized), buyQty, sellQty, count: txs.length };
+}
+
+let _wlTxAvailable = true; // portfolio_transactions 테이블 존재 여부 (없으면 수동 평단 모드)
+
+// 종목들의 거래내역 일괄 조회 → { stock_code: [txs] }
+async function fetchTransactions(codes) {
+  if (!codes.length || !_wlTxAvailable) return {};
+  try {
+    const { data, error } = await sb.from('portfolio_transactions')
+      .select('*')
+      .in('stock_code', codes)
+      .order('trade_date', { ascending: true });
+    if (error) throw error;
+    const map = {};
+    (data || []).forEach(t => { (map[t.stock_code] = map[t.stock_code] || []).push(t); });
+    return map;
+  } catch (e) {
+    _wlTxAvailable = false;
+    console.warn('portfolio_transactions 테이블 미설정 — 수동 평단 모드로 동작:', e?.message || e);
+    return {};
+  }
+}
+
+// 매수/매도 입력 모달
+function openTradeModal(watchlistId, stockCode, corpName, type, curPrice) {
+  document.getElementById('m-trade')?.remove();
+  const isBuy = type === 'buy';
+  const today = new Date().toISOString().slice(0, 10);
+  const nm = (corpName || '').replace(/'/g, "\\'");
+  const overlay = document.createElement('div');
+  overlay.id = 'm-trade';
+  overlay.className = 'modal-overlay open';
+  overlay.innerHTML = `
+    <div class="modal" style="width:430px;max-width:94vw">
+      <div class="modal-header">
+        <span class="modal-title">${corpName} · <span style="color:${isBuy?'var(--up)':'var(--down)'}">${isBuy ? '매수' : '매도'}</span> 기록</span>
+        <button class="modal-close" onclick="document.getElementById('m-trade').remove()">×</button>
+      </div>
+      <div style="padding:1.25rem;display:flex;flex-direction:column;gap:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <div style="font-size:12px;color:var(--text1);margin-bottom:4px">거래일</div>
+            <input type="date" class="form-input" id="trade-date" value="${today}" style="width:100%;box-sizing:border-box">
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--text1);margin-bottom:4px">${isBuy?'매수':'매도'}가 (원)</div>
+            <input type="number" class="form-input" id="trade-price" value="${curPrice||''}" placeholder="체결가"
+              oninput="_tradePreview()" style="width:100%;box-sizing:border-box">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <div style="font-size:12px;color:var(--text1);margin-bottom:4px">수량 (주)</div>
+            <input type="number" class="form-input" id="trade-qty" placeholder="수량"
+              oninput="_tradePreview()" style="width:100%;box-sizing:border-box">
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--text1);margin-bottom:4px">수수료·세금 (원)</div>
+            <input type="number" class="form-input" id="trade-fee" value="0"
+              oninput="_tradePreview()" style="width:100%;box-sizing:border-box">
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text1);margin-bottom:4px">메모 (선택)</div>
+          <input type="text" class="form-input" id="trade-memo" placeholder="예: 분할 1차, 실적 발표 후"
+            style="width:100%;box-sizing:border-box">
+        </div>
+        <div id="trade-preview" style="font-size:12px;color:var(--text2);background:var(--bg2);border-radius:6px;padding:8px 12px"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" onclick="document.getElementById('m-trade').remove()">취소</button>
+          <button class="btn btn-primary" style="background:${isBuy?'var(--up)':'var(--down)'};border-color:transparent;color:#fff"
+            onclick="saveTrade(${watchlistId},'${stockCode}','${nm}','${type}')">${isBuy?'매수 기록':'매도 기록'}</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.getElementById('trade-qty').focus();
+  _tradePreview();
+}
+
+function _tradePreview() {
+  const price = parseFloat(document.getElementById('trade-price')?.value) || 0;
+  const qty   = parseFloat(document.getElementById('trade-qty')?.value)   || 0;
+  const fee   = parseFloat(document.getElementById('trade-fee')?.value)   || 0;
+  const el = document.getElementById('trade-preview');
+  if (!el) return;
+  if (!price || !qty) { el.textContent = '체결가와 수량을 입력하면 거래대금이 계산됩니다.'; return; }
+  const amt = price * qty + fee;
+  el.innerHTML = `거래대금 <b style="color:var(--text1)">${Math.round(amt).toLocaleString()}원</b>
+    <span style="color:var(--text3)">(${qty.toLocaleString()}주 × ${price.toLocaleString()}원${fee?` + 비용 ${fee.toLocaleString()}원`:''})</span>`;
+}
+
+async function saveTrade(watchlistId, stockCode, corpName, type) {
+  const price = parseFloat(document.getElementById('trade-price')?.value);
+  const qty   = parseInt(document.getElementById('trade-qty')?.value);
+  const fee   = parseFloat(document.getElementById('trade-fee')?.value) || 0;
+  const date  = document.getElementById('trade-date')?.value;
+  const memo  = document.getElementById('trade-memo')?.value?.trim() || null;
+  if (!price || !qty || qty <= 0) { alert('체결가와 수량을 정확히 입력해주세요.'); return; }
+  if (!date) { alert('거래일을 입력해주세요.'); return; }
+
+  const { error } = await sb.from('portfolio_transactions').insert({
+    watchlist_id: watchlistId, stock_code: stockCode, corp_name: corpName,
+    trade_type: type, trade_date: date, price, quantity: qty, fee, memo,
+  });
+  if (error) {
+    alert('거래 기록 저장 실패 — portfolio_transactions 테이블이 필요합니다.\n\n' + error.message);
+    return;
+  }
+
+  await syncPositionToWatchlist(watchlistId, stockCode); // 평단·수량·그룹 캐시 갱신
+  document.getElementById('m-trade')?.remove();
+  loadWatchlist();
+}
+
+// 거래내역 기반 포지션을 watchlist 행에 반영 (avg_price/quantity/group 캐시 동기화)
+async function syncPositionToWatchlist(watchlistId, stockCode) {
+  let wid = watchlistId;
+  if (!wid && stockCode) {
+    const { data } = await sb.from('watchlist').select('id').eq('stock_code', stockCode).limit(1);
+    wid = data?.[0]?.id;
+  }
+  if (!wid) return;
+  const { data: txs } = await sb.from('portfolio_transactions')
+    .select('*').eq('stock_code', stockCode).order('trade_date', { ascending: true });
+  const pos = computePosition(txs || []);
+  const patch = {
+    avg_price:  pos.qty > 0 ? pos.avgCost : null,
+    quantity:   pos.qty > 0 ? pos.qty     : null,
+    updated_at: new Date().toISOString(),
+  };
+  if (pos.qty > 0) patch.group_name = '보유중';
+  await sb.from('watchlist').update(patch).eq('id', wid);
+}
+
+// 거래 이력 조회 모달
+async function openTradeHistory(stockCode, corpName) {
+  document.getElementById('m-tradehist')?.remove();
+  const nm = (corpName || '').replace(/'/g, "\\'");
+  const overlay = document.createElement('div');
+  overlay.id = 'm-tradehist';
+  overlay.className = 'modal-overlay open';
+  overlay.innerHTML = `
+    <div class="modal" style="width:600px;max-width:96vw;max-height:88vh;overflow-y:auto">
+      <div class="modal-header">
+        <span class="modal-title">${corpName} · 거래 이력</span>
+        <button class="modal-close" onclick="document.getElementById('m-tradehist').remove()">×</button>
+      </div>
+      <div id="tradehist-body" style="padding:1.25rem">
+        <div style="text-align:center;color:var(--text2)"><span class="loading"></span></div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  const { data: txs, error } = await sb.from('portfolio_transactions')
+    .select('*').eq('stock_code', stockCode)
+    .order('trade_date', { ascending: false }).order('id', { ascending: false });
+  const body = document.getElementById('tradehist-body');
+  if (!body) return;
+  if (error)        { body.innerHTML = `<div style="color:var(--red)">조회 실패: ${error.message}</div>`; return; }
+  if (!txs?.length) { body.innerHTML = `<div style="color:var(--text2);text-align:center;padding:1rem">거래 내역이 없습니다.</div>`; return; }
+
+  const pos = computePosition(txs);
+  const rows = txs.map(t => {
+    const isBuy = t.trade_type === 'buy';
+    const amt = Number(t.price) * Number(t.quantity) + (Number(t.fee) || 0);
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 8px;font-size:12px">${t.trade_date}</td>
+      <td style="padding:7px 8px;font-size:12px;font-weight:700;color:${isBuy?'var(--up)':'var(--down)'}">${isBuy?'매수':'매도'}</td>
+      <td style="padding:7px 8px;font-size:12px;text-align:right">${Number(t.price).toLocaleString()}원</td>
+      <td style="padding:7px 8px;font-size:12px;text-align:right">${Number(t.quantity).toLocaleString()}주</td>
+      <td style="padding:7px 8px;font-size:12px;text-align:right">${Math.round(amt).toLocaleString()}원</td>
+      <td style="padding:7px 8px;font-size:11px;color:var(--text2)">${t.memo||''}</td>
+      <td style="padding:7px 8px;text-align:right">
+        <button class="btn btn-sm" style="color:var(--red)" title="삭제"
+          onclick="deleteTrade(${t.id},'${stockCode}','${nm}')">×</button></td>
+    </tr>`;
+  }).join('');
+
+  const card = (label, val, color='var(--text)') =>
+    `<div style="flex:1;min-width:120px;background:var(--bg2);border-radius:8px;padding:10px 12px">
+       <div style="font-size:10px;color:var(--text2)">${label}</div>
+       <div style="font-size:15px;font-weight:700;color:${color}">${val}</div>
+     </div>`;
+  body.innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      ${card('현재 보유', pos.qty.toLocaleString()+'주')}
+      ${card('평균 매수가', pos.qty>0 ? pos.avgCost.toLocaleString()+'원' : '청산')}
+      ${card('실현손익', `${pos.realized>=0?'+':''}${pos.realized.toLocaleString()}원`, pos.realized>=0?'var(--up)':'var(--down)')}
+    </div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid var(--border2)">
+        <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text2)">거래일</th>
+        <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text2)">구분</th>
+        <th style="padding:6px 8px;text-align:right;font-size:11px;color:var(--text2)">단가</th>
+        <th style="padding:6px 8px;text-align:right;font-size:11px;color:var(--text2)">수량</th>
+        <th style="padding:6px 8px;text-align:right;font-size:11px;color:var(--text2)">금액</th>
+        <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text2)">메모</th>
+        <th style="padding:6px 8px"></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:12px;text-align:right">
+      <button class="btn btn-sm" style="color:var(--up)" onclick="openTradeModal(${txs[0].watchlist_id},'${stockCode}','${nm}','buy',null)">+ 매수</button>
+      <button class="btn btn-sm" style="color:var(--down)" onclick="openTradeModal(${txs[0].watchlist_id},'${stockCode}','${nm}','sell',null)">+ 매도</button>
+    </div>`;
+}
+
+async function deleteTrade(txId, stockCode, corpName) {
+  if (!confirm('이 거래 기록을 삭제할까요?')) return;
+  const { data: tx } = await sb.from('portfolio_transactions').select('watchlist_id').eq('id', txId).single();
+  await sb.from('portfolio_transactions').delete().eq('id', txId);
+  await syncPositionToWatchlist(tx?.watchlist_id, stockCode);
+  openTradeHistory(stockCode, corpName); // 모달 갱신
+  loadWatchlist();
+}
+
+
+// =============================================
 //  관심종목 (Watchlist) 페이지
 // =============================================
 
@@ -294,24 +541,45 @@ async function loadWatchlist() {
     } catch (e) { console.warn('financials 조회 실패:', e?.message || e); }
   }
 
+  // 거래 내역 조회 → 포지션(평단/수량/실현손익) 자동 계산
+  const txMap = await fetchTransactions(codes);
+  const positionMap = {};
+  Object.keys(txMap).forEach(code => { positionMap[code] = computePosition(txMap[code]); });
+
+  // 거래내역 있으면 그 값을, 없으면 watchlist 수동 입력값을 사용
+  const effPos = (w) => {
+    const p = positionMap[w.stock_code];
+    if (p && p.count) return {
+      avg: p.qty > 0 ? p.avgCost : null,
+      qty: p.qty > 0 ? p.qty : null,
+      realized: p.realized,
+      hasTx: true,
+      closed: p.qty === 0 && p.count > 0,
+    };
+    return { avg: w.avg_price, qty: w.quantity, realized: 0, hasTx: false, closed: false };
+  };
+
   document.getElementById('wl-count').textContent = `${(data||[]).length}개`;
 
   // ── 포트폴리오 요약 카드 ─────────────────────────────────────────────────
   const summaryEl = document.getElementById('wl-summary');
   if (summaryEl) {
-    const holding = (data || []).filter(w => w.avg_price && w.quantity && priceMap[w.stock_code]?.price);
+    const holding = (data || []).filter(w => { const e = effPos(w); return e.avg && e.qty && priceMap[w.stock_code]?.price; });
     let totalCost = 0, totalVal = 0, totalTgtVal = 0, tgtCount = 0;
     for (const w of holding) {
       const mkt = priceMap[w.stock_code];
-      const cost = w.avg_price * w.quantity;
-      const val  = mkt.price  * w.quantity;
+      const e   = effPos(w);
+      const cost = e.avg   * e.qty;
+      const val  = mkt.price * e.qty;
       totalCost += cost;
       totalVal  += val;
-      if (w.target_price) { totalTgtVal += w.target_price * w.quantity; tgtCount++; }
+      if (w.target_price) { totalTgtVal += w.target_price * e.qty; tgtCount++; }
     }
     const totalPnl    = totalVal - totalCost;
     const totalPnlPct = totalCost > 0 ? totalPnl / totalCost * 100 : null;
     const tgtUpside   = totalTgtVal > 0 && totalVal > 0 ? (totalTgtVal - totalVal) / totalVal * 100 : null;
+    // 실현손익(매도 확정분) 합산 — 청산 종목 포함 전체
+    const totalRealized = (data || []).reduce((s, w) => s + effPos(w).realized, 0);
 
     // 매수 구간 종목 수
     const buyZoneCount = (data || []).filter(w => {
@@ -367,15 +635,26 @@ async function loadWatchlist() {
           `${totalPnl>=0?'+':''}${fmtNet(totalPnl)}`,
           totalPnlPct!=null ? `${totalPnlPct>=0?'+':''}${totalPnlPct.toFixed(1)}%` : '',
           pnlColor) : ''}
+        ${totalRealized ? kpiCard('실현손익',
+          `${totalRealized>=0?'+':''}${fmtNet(totalRealized)}`,
+          '매도 확정분',
+          totalRealized>=0 ? 'var(--up)' : 'var(--down)') : ''}
+        ${totalRealized && holding.length ? kpiCard('총손익 (실현+평가)',
+          `${(totalRealized+totalPnl)>=0?'+':''}${fmtNet(totalRealized+totalPnl)}`,
+          '확정+미실현',
+          (totalRealized+totalPnl)>=0 ? 'var(--up)' : 'var(--down)') : ''}
         ${buyZoneCount ? kpiCard('매수구간 진입', `${buyZoneCount}개`, '관심가 이하 도달', 'var(--up)') : ''}
       </div>
       ${holding.length >= 2 ? (() => {
         // 보유 종목 비중 바
-        const positions = holding.map(w => ({
-          name: w.corp_name,
-          val:  priceMap[w.stock_code].price * w.quantity,
-          cost: w.avg_price * w.quantity,
-        })).sort((a, b) => b.val - a.val);
+        const positions = holding.map(w => {
+          const e = effPos(w);
+          return {
+            name: w.corp_name,
+            val:  priceMap[w.stock_code].price * e.qty,
+            cost: e.avg * e.qty,
+          };
+        }).sort((a, b) => b.val - a.val);
         const barColors = ['#4a9eff','#ffc107','var(--tg)','#e879f9','#f97316','#22d3ee','#a3e635','#f43f5e'];
         const rows = positions.map((p, i) => {
           const pct   = totalVal > 0 ? p.val / totalVal * 100 : 0;
@@ -426,7 +705,7 @@ async function loadWatchlist() {
       case 'cap':      return mkt.market_cap || 0;
       case 'watch':    return w.watch_price || 0;
       case 'target':   return (w.target_price && mkt.price) ? (w.target_price - mkt.price) / mkt.price : 0;
-      case 'pnl':      return (w.avg_price && mkt.price) ? (mkt.price - w.avg_price) / w.avg_price : 0;
+      case 'pnl':      { const e = effPos(w); return (e.avg && mkt.price) ? (mkt.price - e.avg) / e.avg : -9999; }
       case 'check':    return w.next_check_date || 'zzzz';
       default:         return 0;
     }
@@ -527,14 +806,22 @@ async function loadWatchlist() {
       tgtCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
     }
 
-    // ── 매수가 · 평가손익 ────────────────────────────────────────────────
+    // ── 매수가 · 평가손익 (거래기록 기반 effPos) ──────────────────────────
+    const e = effPos(w);
+    const isStopHit = e.avg && e.qty && price && w.stop_price && price <= w.stop_price;
     let costCell;
-    if (w.avg_price && price) {
-      const pnlPct = (price - w.avg_price) / w.avg_price * 100;
+    if (e.avg && e.qty && price) {
+      const pnlPct = (price - e.avg) / e.avg * 100;
       const color  = pnlPct >= 0 ? 'var(--up)' : 'var(--down)';
       const pnlStr = (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(1) + '%';
-      costCell = `<div style="font-size:12px">${w.avg_price.toLocaleString()}원</div>
-                  <div style="font-size:12px;font-weight:700;color:${color}">${pnlStr}${w.quantity ? ` · ${fmtNet((price-w.avg_price)*w.quantity)}` : ''}</div>`;
+      const stopPct = w.stop_price && price ? (w.stop_price - price) / price * 100 : null;
+      costCell = `<div style="font-size:12px">${e.avg.toLocaleString()}원 <span style="color:var(--text2)">· ${e.qty.toLocaleString()}주</span></div>
+                  <div style="font-size:12px;font-weight:700;color:${color}">${pnlStr} · ${fmtNet((price-e.avg)*e.qty)}</div>
+                  ${e.realized ? `<div style="font-size:11px;color:${e.realized>=0?'var(--up)':'var(--down)'}">실현 ${e.realized>=0?'+':''}${fmtNet(e.realized)}</div>` : ''}
+                  ${w.stop_price ? `<div style="font-size:11px;color:${isStopHit?'var(--down)':'var(--text2)'};font-weight:${isStopHit?'700':'400'}">${isStopHit?'⚠️ ':''}손절 ${w.stop_price.toLocaleString()}원${stopPct!=null?` (${stopPct.toFixed(1)}%)`:''}</div>` : ''}`;
+    } else if (e.closed) {
+      costCell = `<div style="font-size:12px;color:var(--text2);font-weight:600">청산 완료</div>
+                  <div style="font-size:12px;font-weight:700;color:${e.realized>=0?'var(--up)':'var(--down)'}">실현 ${e.realized>=0?'+':''}${fmtNet(e.realized)}</div>`;
     } else {
       costCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
     }
@@ -554,11 +841,13 @@ async function loadWatchlist() {
                    <div style="font-size:11px;color:${dateColor}">${daysLeft<0?`${Math.abs(daysLeft)}일 초과`:daysLeft===0?'오늘':`D-${daysLeft}`}</div>`;
     }
 
-    // ── 행 배경: 매수 구간 강조 ─────────────────────────────────────────
-    const rowBg = isAtBuy ? 'background:rgba(0,192,135,.05)' : '';
+    // ── 행 배경: 손절 도달(적색) > 매수 구간(녹색) ───────────────────────
+    const baseBg = isStopHit ? 'rgba(255,59,92,.08)' : isAtBuy ? 'rgba(0,192,135,.05)' : '';
+    const rowBg = baseBg ? `background:${baseBg}` : '';
+    const nameEsc = (w.corp_name || '').replace(/'/g, "\\'");
 
     return `
-    <tr style="${rowBg}" onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background='${isAtBuy?'rgba(0,192,135,.05)':''}'">
+    <tr style="${rowBg}" onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background='${baseBg}'">
       <td style="${tdStyle}">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
           <span style="font-size:15px;font-weight:700">${w.corp_name}</span>
@@ -594,13 +883,19 @@ async function loadWatchlist() {
       </td>
       <td style="${tdStyle};cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'watch_price',${w.watch_price||'null'},'number')">${watchCell}</td>
       <td style="${tdStyle};cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'target_price',${w.target_price||'null'},'number')">${tgtCell}</td>
-      <td style="${tdStyle};cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEditCost(this,${w.id},${w.avg_price||'null'},${w.quantity||'null'})">${costCell}</td>
+      <td style="${tdStyle};${e.hasTx?'':'cursor:pointer'}" title="${e.hasTx?'거래기록으로 자동 계산 — 이력 버튼으로 관리':'더블클릭으로 편집'}"
+        ondblclick="${e.hasTx?`openTradeHistory('${w.stock_code}','${nameEsc}')`:`wlInlineEditCost(this,${w.id},${w.avg_price||'null'},${w.quantity||'null'})`}">${costCell}</td>
       <td style="${tdStyle};max-width:210px;cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'thesis_1',${JSON.stringify(w.thesis_1||'')},'text')">${thesisCell}</td>
       <td style="${tdStyle};cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'next_check_date',${JSON.stringify(w.next_check_date||'')},'date')">${checkCell}</td>
       <td style="${tdStyle};white-space:nowrap">
-        <div style="display:flex;gap:5px">
+        <div style="display:flex;gap:4px;flex-wrap:wrap;max-width:170px">
+          <button class="btn btn-sm" style="color:var(--up);font-weight:700" title="매수 기록"
+            onclick="openTradeModal(${w.id},'${w.stock_code}','${nameEsc}','buy',${price||'null'})">매수</button>
+          <button class="btn btn-sm" style="color:var(--down);font-weight:700" title="매도 기록"
+            onclick="openTradeModal(${w.id},'${w.stock_code}','${nameEsc}','sell',${price||'null'})">매도</button>
+          ${e.hasTx ? `<button class="btn btn-sm" title="거래 이력" onclick="openTradeHistory('${w.stock_code}','${nameEsc}')">이력</button>` : ''}
           <button class="btn btn-sm" onclick="openWatchlistModal(${w.id})">수정</button>
-          <button class="btn btn-sm" style="color:var(--red)" onclick="deleteWatchlist(${w.id},'${w.corp_name}')">삭제</button>
+          <button class="btn btn-sm" style="color:var(--red)" onclick="deleteWatchlist(${w.id},'${nameEsc}')">삭제</button>
         </div>
       </td>
     </tr>`;
@@ -866,9 +1161,13 @@ async function renderWatchlistForm(id) {
 
       <!-- 보유중 전용 -->
       <div id="wl-holding-section" style="display:${isHolding?'':'none'}">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
           ${inp('avg_price','평균 매수가 (원)','','number')}
           ${inp('quantity','보유 수량 (주)','','number')}
+          ${inp('stop_price','🛑 손절가 (원)','','number')}
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-top:6px">
+          💡 평단·수량은 테이블의 <b style="color:var(--up)">매수</b>/<b style="color:var(--down)">매도</b> 버튼으로 거래를 기록하면 자동 계산됩니다. (수동 입력도 가능)
         </div>
       </div>
 
@@ -978,6 +1277,7 @@ async function saveWatchlist(id) {
     watch_price:     n('watch_price'),
     avg_price:       n('avg_price'),
     quantity:        i('quantity'),
+    stop_price:      n('stop_price'),
     valuation_note:  g('valuation_note'),
     competitor:      g('competitor'),
     peer_per:        n('peer_per'),
