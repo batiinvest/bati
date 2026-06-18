@@ -577,7 +577,7 @@ async function loadWatchlist() {
       </td>
       <td style="${tdStyle};cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'watch_price',${w.watch_price||'null'},'number')">${watchCell}</td>
       <td style="${tdStyle};cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'target_price',${w.target_price||'null'},'number')">${tgtCell}</td>
-      <td style="${tdStyle};cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'avg_price',${w.avg_price||'null'},'number')">${costCell}</td>
+      <td style="${tdStyle};cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEditCost(this,${w.id},${w.avg_price||'null'},${w.quantity||'null'})">${costCell}</td>
       <td style="${tdStyle};max-width:210px;cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'thesis_1',${JSON.stringify(w.thesis_1||'')},'text')">${thesisCell}</td>
       <td style="${tdStyle};cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'next_check_date',${JSON.stringify(w.next_check_date||'')},'date')">${checkCell}</td>
       <td style="${tdStyle};white-space:nowrap">
@@ -636,6 +636,49 @@ async function wlInlineEdit(td, id, field, curVal, type = 'number') {
   } else {
     el.addEventListener('blur', save);
   }
+}
+
+async function wlInlineEditCost(td, id, curAvg, curQty) {
+  if (td.querySelector('input')) return;
+  td.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div>
+        <div style="font-size:10px;color:var(--text2);margin-bottom:2px">매수가 (원)</div>
+        <input id="_ieCost" type="number" value="${curAvg||''}" placeholder="매수가"
+          style="width:100%;box-sizing:border-box;background:var(--bg2);color:var(--text1);border:1px solid var(--tg);border-radius:4px;padding:3px 6px;font-size:12px">
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--text2);margin-bottom:2px">수량 (주)</div>
+        <input id="_ieQty" type="number" value="${curQty||''}" placeholder="수량"
+          style="width:100%;box-sizing:border-box;background:var(--bg2);color:var(--text1);border:1px solid var(--tg);border-radius:4px;padding:3px 6px;font-size:12px">
+      </div>
+    </div>`;
+  const costEl = document.getElementById('_ieCost');
+  const qtyEl  = document.getElementById('_ieQty');
+  costEl.focus();
+
+  let saved = false;
+  const save = async () => {
+    if (saved) return;
+    saved = true;
+    const avg = costEl.value.trim();
+    const qty = qtyEl.value.trim();
+    if (avg === String(curAvg??'') && qty === String(curQty??'')) { loadWatchlist(); return; }
+    await sb.from('watchlist').update({
+      avg_price: avg ? parseFloat(avg) : null,
+      quantity:  qty ? parseInt(qty)   : null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', id);
+    loadWatchlist();
+  };
+
+  [costEl, qtyEl].forEach(el => {
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); save(); }
+      if (e.key === 'Escape') loadWatchlist();
+    });
+    el.addEventListener('blur', () => setTimeout(save, 150)); // 다른 필드 클릭 허용
+  });
 }
 
 function wlSortBy(key) {
