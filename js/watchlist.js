@@ -265,6 +265,15 @@ async function loadWatchlist() {
     (mkt || []).forEach(r => { if (!priceMap[r.stock_code]) priceMap[r.stock_code] = r; });
   }
 
+  // 산업명 조회 (companies 테이블)
+  let industryMap = {};
+  if (codes.length) {
+    const { data: comps } = await sb.from('companies')
+      .select('code,industry')
+      .in('code', codes);
+    (comps || []).forEach(r => { industryMap[r.code] = r.industry; });
+  }
+
   // financials 조회 (bsns_year + quarter DESC = 최신 분기 우선)
   let roeMap = {}, opmMap = {}, revMap = {}, opMap = {};
   if (codes.length) {
@@ -378,7 +387,7 @@ async function loadWatchlist() {
     const mkt = priceMap[w.stock_code] || {};
     switch (sortKey) {
       case 'name':     return w.corp_name || '';
-      case 'industry': return w.industry || '';
+      case 'industry': return industryMap[w.stock_code] || w.industry || '';
       case 'price':    return mkt.price || 0;
       case 'rev':      return revMap[w.stock_code] || 0;
       case 'op':       return opMap[w.stock_code] || 0;
@@ -524,7 +533,7 @@ async function loadWatchlist() {
         ${w.catalyst ? `<div style="font-size:11px;color:var(--tg);margin-top:2px">⚡ ${w.catalyst}</div>` : ''}
       </td>
       <td style="${tdStyle}">
-        <div style="font-size:12px;color:var(--text1)">${w.industry || '—'}</div>
+        <div style="font-size:12px;color:var(--text1)">${industryMap[w.stock_code] || w.industry || '—'}</div>
       </td>
       <td style="${tdStyle}">
         <div style="font-size:13px;font-weight:700">${price ? price.toLocaleString()+'원' : '—'}</div>
