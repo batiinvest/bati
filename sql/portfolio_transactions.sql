@@ -21,5 +21,13 @@ create table if not exists portfolio_transactions (
 create index if not exists idx_ptx_stock on portfolio_transactions (stock_code);
 create index if not exists idx_ptx_wl    on portfolio_transactions (watchlist_id);
 
+-- RLS: 클라이언트(anon/authenticated)에서 읽기·쓰기 허용
+-- (Table Editor로 만들면 RLS가 켜진 채 정책이 없어 insert가 막힘 → 아래 정책 필요)
+alter table portfolio_transactions enable row level security;
+drop policy if exists "ptx_all" on portfolio_transactions;
+create policy "ptx_all" on portfolio_transactions
+  for all to anon, authenticated
+  using (true) with check (true);
+
 -- 손절가 컬럼 (watchlist) — 리스크 관리용. 이미 있으면 무시됨.
 alter table watchlist add column if not exists stop_price numeric;
