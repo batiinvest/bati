@@ -506,6 +506,13 @@ function setWlGroup(el, group) {
   document.querySelectorAll('.chip[data-group]').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   window._wlGroup = group;
+  window._wlActionFilter = null; // 탭 전환 시 액션 필터 초기화
+  loadWatchlist();
+}
+
+// '오늘의 액션' 필터 토글 (손절 도달 / 매수구간 / 점검 임박) — 같은 칩 재클릭 시 해제
+function wlSetActionFilter(type) {
+  window._wlActionFilter = (window._wlActionFilter === type) ? null : type;
   loadWatchlist();
 }
 
@@ -597,20 +604,29 @@ async function loadWatchlist() {
   const totalAssets   = totalVal + cash;
   const cashRatio     = totalAssets > 0 ? cash / totalAssets * 100 : 0;
 
+  // ── 액션 필요 항목 (손절 도달 / 매수구간 / 점검 임박 D-3) — '오늘의 액션' 바 + 필터 공용 ──
+  const stopHitCodes = new Set(), buyZoneCodes = new Set(), checkDueCodes = new Set();
+  const _now = new Date();
+  for (const w of (data || [])) {
+    const price = priceMap[w.stock_code]?.price;
+    const e = effPos(w);
+    if (e.avg && e.qty && price && w.stop_price && price <= w.stop_price) stopHitCodes.add(w.stock_code);
+    if (price && w.watch_price && price <= w.watch_price) buyZoneCodes.add(w.stock_code);
+    if (w.next_check_date && Math.ceil((new Date(w.next_check_date) - _now) / 86400000) <= 3) checkDueCodes.add(w.stock_code);
+  }
+  // 활성 필터가 가리키는 집합이 비면 자동 해제 (예: 거래 기록 후 손절 해소)
+  if (window._wlActionFilter) {
+    const _s = window._wlActionFilter === 'stop'  ? stopHitCodes
+             : window._wlActionFilter === 'buy'   ? buyZoneCodes
+             : window._wlActionFilter === 'check' ? checkDueCodes : null;
+    if (!_s || _s.size === 0) window._wlActionFilter = null;
+  }
+
   document.getElementById('wl-count').textContent = `${(data||[]).length}개`;
 
   // ── 포트폴리오 요약 카드 ─────────────────────────────────────────────────
   const summaryEl = document.getElementById('wl-summary');
   if (summaryEl) {
-    // 매수 구간 종목 수
-    const buyZoneCount = (data || []).filter(w => {
-      const mkt = priceMap[w.stock_code];
-      if (!mkt?.price || !mkt?.market_cap || !w.watch_price) return false;
-      const shares = mkt.market_cap / mkt.price;
-      const buyCap = w.watch_price * shares;
-      return mkt.market_cap <= buyCap;
-    }).length;
-
     // 평균 업사이드/손익비/PER 계산
     const withTarget = (data||[]).filter(w => w.target_price && priceMap[w.stock_code]?.price);
     const withStopAndTarget = withTarget.filter(w => w.stop_price && w.stop_price < priceMap[w.stock_code]?.price);
@@ -687,11 +703,30 @@ async function loadWatchlist() {
       avgUpside!=null ? statChip('평균 업사이드', `${avgUpside>=0?'+':''}${avgUpside.toFixed(1)}%`, chgColor(avgUpside)) : '',
       avgRR!=null     ? statChip('손익비', `${avgRR.toFixed(1)} : 1`, avgRR>=2?'var(--up)':avgRR>=1?'var(--accent)':'var(--text1)') : '',
       avgPer!=null    ? statChip('평균 PER', `${avgPer.toFixed(1)}x`) : '',
-      buyZoneCount    ? statChip('매수구간', `${buyZoneCount}개`, 'var(--up)') : '',
       ...concChips,
     ].filter(Boolean).join('');
 
+    // ── '오늘의 액션' 바 — 손절 도달·매수구간·점검 임박 (클릭 시 해당 종목만 필터) ──
+    const _af = window._wlActionFilter || null;
+    const actionChip = (type, emoji, label, count, color) => {
+      if (!count) return '';
+      const on = _af === type;
+      return `<button onclick="wlSetActionFilter('${type}')" title="클릭하면 해당 종목만 보기 (다시 누르면 해제)"
+        style="display:inline-flex;align-items:center;gap:5px;padding:4px 11px;font-size:12px;border-radius:100px;cursor:pointer;font-family:inherit;transition:all .15s;
+        border:1px solid ${on?color:'var(--border2)'};background:${on?color:'var(--bg3)'};color:${on?'#0f1117':'var(--text1)'};font-weight:${on?'700':'500'}">
+        ${emoji} ${label} <b style="color:${on?'#0f1117':color};font-weight:800">${count}</b></button>`;
+    };
+    const _actionBar = (stopHitCodes.size || buyZoneCodes.size || checkDueCodes.size) ? `
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:.6rem">
+        <span style="font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.06em">오늘의 액션</span>
+        ${actionChip('stop','🛑','손절 도달',stopHitCodes.size,'var(--red)')}
+        ${actionChip('buy','✅','매수 구간',buyZoneCodes.size,'var(--up)')}
+        ${actionChip('check','📅','점검 임박',checkDueCodes.size,'var(--accent)')}
+        ${_af?`<button onclick="wlSetActionFilter('${_af}')" style="background:none;border:none;color:var(--text2);font-size:11px;cursor:pointer;text-decoration:underline;padding:2px 4px">필터 해제</button>`:''}
+      </div>` : '';
+
     summaryEl.innerHTML = `
+      ${_actionBar}
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:.6rem">
         ${totalAssets > 0 ? bigCard('총자산',
           fmtWon(totalAssets),
@@ -828,12 +863,20 @@ async function loadWatchlist() {
     check:    th('check',   '다음 점검'),
     actions:  `<th style="${thStyle};cursor:default"></th>`,
   };
-  const header = `<tr>${cols.map(k => thMap[k]).join('')}</tr>`;
+  // 셀에 data-col 부여 → 좁은 화면에서 CSS로 컬럼별 숨김/고정 (탭별 컬럼 구성 무관)
+  const colTag = (html, k) => html.replace(/^<t([hd])/, `<t$1 data-col="${k}"`);
+  const header = `<tr>${cols.map(k => colTag(thMap[k], k)).join('')}</tr>`;
+
+  // ── '오늘의 액션' 필터 적용 ──
+  const _afCodes = window._wlActionFilter === 'stop'  ? stopHitCodes
+                 : window._wlActionFilter === 'buy'   ? buyZoneCodes
+                 : window._wlActionFilter === 'check' ? checkDueCodes : null;
+  const visRows = _afCodes ? sorted.filter(w => _afCodes.has(w.stock_code)) : sorted;
 
   // ── 각 행 ─────────────────────────────────────────────────────────────────
   const tdStyle = 'padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle';
 
-  const rows = sorted.map(w => {
+  const rows = visRows.map(w => {
     const mkt   = priceMap[w.stock_code] || {};
     const price = mkt.price;
     const chg   = mkt.price_change_rate;
@@ -977,7 +1020,7 @@ async function loadWatchlist() {
       </td>`,
     };
 
-    return `<tr style="${rowBg}" onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background='${baseBg}'">${cols.map(k => tdMap[k]).join('')}</tr>`;
+    return `<tr style="${rowBg}" onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background='${baseBg}'">${cols.map(k => colTag(tdMap[k], k)).join('')}</tr>`;
   }).join('');
 
   listEl.innerHTML = `

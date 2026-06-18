@@ -304,6 +304,28 @@ textarea.form-input { resize:vertical; min-height:100px; }
   #wl-summary > div > div { min-width:calc(50% - 4px); flex:1 1 calc(50% - 4px); }
 }
 
+/* ── 투자노트 테이블: 좁은 화면에서 컬럼 우선순위 + 종목명 고정 (data-col 기반) ── */
+@media(max-width:900px){
+  /* 펀더멘털·산업 등 저우선 컬럼 숨김 — 진입가·목표가·손익·비중·액션은 유지 */
+  .wl-table [data-col="industry"],
+  .wl-table [data-col="rev"],
+  .wl-table [data-col="op"],
+  .wl-table [data-col="roe"],
+  .wl-table [data-col="opm"],
+  .wl-table [data-col="cap"] { display:none; }
+  /* 종목명 컬럼 고정 — 가로 스크롤 시 어느 종목인지 유지 */
+  .wl-table [data-col="name"] {
+    position:sticky; left:0; z-index:2;
+    background:var(--bg2); box-shadow:1px 0 0 var(--border2);
+  }
+}
+@media(max-width:600px){
+  /* 더 좁은 화면: 등락 추이·투자포인트·다음점검 추가 숨김 */
+  .wl-table [data-col="ret"],
+  .wl-table [data-col="thesis"],
+  .wl-table [data-col="check"] { display:none; }
+}
+
 @media(max-width:480px){
   /* 스크리너 테이블 — PEG·EV/EBITDA 추가 숨김 */
   .screener-result-table th:nth-child(9),
