@@ -266,7 +266,7 @@ async function _rpLoadPeerStats() {
 }
 
 // ── 리포트 렌더링 ─────────────────────────────────────────────────────────────
-function rpRenderReport() {
+async function rpRenderReport() {
   const body = document.getElementById('rp-body');
   if (!body || !_rpStock) return;
 
