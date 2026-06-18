@@ -956,6 +956,53 @@ async function loadWatchlist() {
         ${_af?`<button onclick="wlSetActionFilter('${_af}')" style="background:none;border:none;color:var(--text2);font-size:11px;cursor:pointer;text-decoration:underline;padding:2px 4px">필터 해제</button>`:''}
       </div>` : '';
 
+    // ── 청산 탭: 매매 복기 통계 대시보드 (무관한 일반 요약 대신) ──
+    if (group === '청산' && _journalAvailable) {
+      const journals = Object.values(journalMap);
+      const n        = journals.length;
+      const avg      = (arr, k) => arr.length ? arr.reduce((s,j)=>s+Number(j[k]),0)/arr.length : null;
+      const withRet  = journals.filter(j => j.return_pct != null);
+      const wins     = withRet.filter(j => j.return_pct > 0);
+      const losses   = withRet.filter(j => j.return_pct <= 0);
+      const winRate  = withRet.length ? wins.length / withRet.length * 100 : null;
+      const avgRet   = avg(withRet, 'return_pct');
+      const avgWin   = avg(wins, 'return_pct');
+      const avgLoss  = avg(losses, 'return_pct');
+      const withHold = journals.filter(j => j.hold_days != null);
+      const avgHold  = withHold.length ? Math.round(avg(withHold, 'hold_days')) : null;
+      const avgScore = avg(journals.filter(j => j.process_score != null), 'process_score');
+      const realizedSum = journals.reduce((s,j)=>s+(Number(j.realized)||0),0);
+      const reasonCnt = {};
+      journals.forEach(j => { if (j.sell_reason) reasonCnt[j.sell_reason] = (reasonCnt[j.sell_reason]||0)+1; });
+      const reasonRows = Object.entries(reasonCnt).sort((a,b)=>b[1]-a[1]);
+
+      const dcard = (label, val, sub='', color='var(--text)') =>
+        `<div style="padding:10px 12px;background:var(--bg2);border-radius:8px;border:1px solid var(--border);min-width:108px;flex:1">
+           <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.05em">${label}</div>
+           <div style="font-size:18px;font-weight:700;color:${color};line-height:1.1;margin-top:2px;font-variant-numeric:tabular-nums">${val}</div>
+           ${sub?`<div style="font-size:10px;color:var(--text2);margin-top:2px">${sub}</div>`:''}
+         </div>`;
+
+      const dash = n === 0
+        ? `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;color:var(--text2);font-size:13px;margin-bottom:.6rem">
+             청산 종목을 복기하면 승률·수익률·보유기간·프로세스 통계가 쌓입니다.${needJournalCodes.size?` <b style="color:var(--accent)">미작성 ${needJournalCodes.size}건</b>`:''}
+           </div>`
+        : `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:.6rem">
+             <div style="font-size:11px;color:var(--text1);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">매매 복기 통계 <span style="color:var(--text2);font-weight:400;text-transform:none">· 복기 ${n}건${needJournalCodes.size?` · 미작성 ${needJournalCodes.size}`:''}</span></div>
+             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:${reasonRows.length?'12px':'0'}">
+               ${dcard('승률', winRate!=null?`${winRate.toFixed(0)}%`:'—', withRet.length?`승 ${wins.length} · 패 ${losses.length}`:'', winRate!=null?(winRate>=50?'var(--red)':'var(--blue)'):'var(--text)')}
+               ${dcard('평균 수익률', avgRet!=null?`${avgRet>=0?'+':''}${avgRet.toFixed(1)}%`:'—', (avgWin!=null||avgLoss!=null)?`승 ${avgWin!=null?'+'+avgWin.toFixed(1):'—'}% · 패 ${avgLoss!=null?avgLoss.toFixed(1):'—'}%`:'', chgColor(avgRet))}
+               ${dcard('누적 실현', fmtWon(realizedSum, true), '', chgColor(realizedSum))}
+               ${dcard('평균 보유', avgHold!=null?`${avgHold}일`:'—')}
+               ${dcard('평균 프로세스', avgScore!=null?`★ ${avgScore.toFixed(1)}`:'—', '', avgScore!=null?'var(--accent)':'var(--text)')}
+             </div>
+             ${reasonRows.length?`<div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">매도 사유</div>
+               <div style="display:flex;gap:6px;flex-wrap:wrap">
+                 ${reasonRows.map(([r,c])=>`<span style="font-size:11px;background:var(--bg3);border-radius:100px;padding:3px 9px;color:var(--text1)">${r} <b style="color:var(--tg)">${c}</b></span>`).join('')}
+               </div>`:''}
+           </div>`;
+      summaryEl.innerHTML = `${_actionBar}${dash}`;
+    } else {
     summaryEl.innerHTML = `
       ${_actionBar}
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:.6rem">
@@ -1014,6 +1061,7 @@ async function loadWatchlist() {
           ${rows}${cashRow}
         </div>`;
       })() : ''}`;
+    }
   }
 
   const groupColors    = { '관심': '#4a9eff', '후보': '#ffc107', '보유중': 'var(--tg)', '청산': '#6b7694' };
