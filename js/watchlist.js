@@ -266,6 +266,199 @@ async function fetchTransactions(codes) {
   }
 }
 
+// =============================================
+//  매매 복기 (트레이드 저널) — trade_journal 테이블
+// =============================================
+
+// 거래내역 → 라운드트립 복기 지표 (보유기간·진입/청산가·수익률)
+function computeRoundTrip(txs) {
+  const pos = computePosition(txs);
+  let buyAmt = 0, buyQty = 0, sellAmt = 0, sellQty = 0, buyCost = 0;
+  let firstBuy = null, lastSell = null;
+  const sorted = [...txs].sort((a, b) =>
+    (a.trade_date || '').localeCompare(b.trade_date || '') || (a.id || 0) - (b.id || 0));
+  for (const t of sorted) {
+    const px = Number(t.price) || 0, q = Number(t.quantity) || 0, fee = Number(t.fee) || 0;
+    if (t.trade_type === 'buy') {
+      buyAmt += px * q; buyQty += q; buyCost += px * q + fee;
+      if (!firstBuy) firstBuy = t.trade_date;
+    } else {
+      sellAmt += px * q; sellQty += q; lastSell = t.trade_date;
+    }
+  }
+  return {
+    ...pos,
+    avgBuy:    buyQty  ? Math.round(buyAmt / buyQty)   : null,
+    avgSell:   sellQty ? Math.round(sellAmt / sellQty) : null,
+    returnPct: buyCost ? pos.realized / buyCost * 100  : null,
+    holdDays:  (firstBuy && lastSell) ? Math.max(0, Math.round((new Date(lastSell) - new Date(firstBuy)) / 86400000)) : null,
+    closedDate: lastSell,
+  };
+}
+
+let _journalAvailable = true; // trade_journal 테이블 존재 여부 (없으면 복기 기능 비활성)
+
+// 종목들의 복기 일괄 조회 → { stock_code: journal } (종목당 최신 1건)
+async function fetchJournals(codes) {
+  if (!codes.length || !_journalAvailable) return {};
+  try {
+    const { data, error } = await sb.from('trade_journal')
+      .select('*').in('stock_code', codes).order('updated_at', { ascending: false });
+    if (error) throw error;
+    const map = {};
+    (data || []).forEach(j => { if (!map[j.stock_code]) map[j.stock_code] = j; });
+    return map;
+  } catch (e) {
+    _journalAvailable = false;
+    console.warn('trade_journal 테이블 미설정 — 복기 기능 비활성:', e?.message || e);
+    return {};
+  }
+}
+
+async function saveJournal(payload) {
+  try {
+    const { data: existing } = await sb.from('trade_journal')
+      .select('id').eq('stock_code', payload.stock_code)
+      .order('updated_at', { ascending: false }).limit(1);
+    payload.updated_at = new Date().toISOString();
+    let error;
+    if (existing?.[0]?.id) ({ error } = await sb.from('trade_journal').update(payload).eq('id', existing[0].id));
+    else                   ({ error } = await sb.from('trade_journal').insert(payload));
+    if (error) throw error;
+  } catch (e) {
+    alert('복기 저장 실패 — trade_journal 테이블이 필요합니다.\n\n'
+      + 'Supabase SQL Editor에서 sql/trade_journal.sql 을 1회 실행하세요.\n\n' + (e?.message || e));
+    return;
+  }
+  document.getElementById('m-journal')?.remove();
+  loadWatchlist();
+}
+
+// 복기 모달 — 자동 지표 + 회고 입력
+async function openJournalModal(stockCode, corpName) {
+  document.getElementById('m-journal')?.remove();
+  const nm = (corpName || '').replace(/'/g, "\\'");
+
+  const { data: txs } = await sb.from('portfolio_transactions')
+    .select('*').eq('stock_code', stockCode).order('trade_date', { ascending: true });
+  const rt = computeRoundTrip(txs || []);
+  const { data: wlRows } = await sb.from('watchlist')
+    .select('id,thesis_1,risk_1,target_price,stop_price').eq('stock_code', stockCode).limit(1);
+  const w = wlRows?.[0] || {};
+  let j = {};
+  if (_journalAvailable) {
+    try {
+      const { data: jr } = await sb.from('trade_journal')
+        .select('*').eq('stock_code', stockCode).order('updated_at', { ascending: false }).limit(1);
+      j = jr?.[0] || {};
+    } catch (e) { _journalAvailable = false; }
+  }
+
+  // 거래내역이 나중에 바뀌어도 복기 시점 값 보존 (저장 스냅샷)
+  window._journalSnap = {
+    watchlist_id: w.id || null,
+    closed_date:  rt.closedDate || null,
+    realized:     rt.realized ?? null,
+    return_pct:   rt.returnPct != null ? Math.round(rt.returnPct * 10) / 10 : null,
+    hold_days:    rt.holdDays ?? null,
+    avg_buy:      rt.avgBuy ?? null,
+    avg_sell:     rt.avgSell ?? null,
+    thesis:       w.thesis_1 || null,
+  };
+
+  const targetHitPct = (w.target_price && rt.avgSell) ? rt.avgSell / w.target_price * 100 : null;
+  const reasons = ['목표 달성','손절 룰','펀더멘털 훼손','더 좋은 기회','패닉·감정','자금 필요','기타'];
+  const auto = (label, val, color = 'var(--text1)') =>
+    `<div style="flex:1;min-width:90px;background:var(--bg2);border-radius:8px;padding:8px 10px">
+       <div style="font-size:10px;color:var(--text2)">${label}</div>
+       <div style="font-size:14px;font-weight:700;color:${color}">${val}</div></div>`;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'm-journal';
+  overlay.className = 'modal-overlay open';
+  overlay.innerHTML = `
+    <div class="modal" style="width:520px;max-width:95vw;max-height:90vh;overflow-y:auto">
+      <div class="modal-header">
+        <span class="modal-title">${corpName} · 📝 매매 복기</span>
+        <button class="modal-close" onclick="document.getElementById('m-journal').remove()">×</button>
+      </div>
+      <div style="padding:1.25rem;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${auto('실현손익', rt.realized!=null?fmtWon(rt.realized,true):'—', chgColor(rt.realized))}
+          ${auto('수익률', rt.returnPct!=null?`${rt.returnPct>=0?'+':''}${rt.returnPct.toFixed(1)}%`:'—', chgColor(rt.returnPct))}
+          ${auto('보유기간', rt.holdDays!=null?`${rt.holdDays}일`:'—')}
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${auto('진입 → 청산', `${rt.avgBuy?rt.avgBuy.toLocaleString():'—'} → ${rt.avgSell?rt.avgSell.toLocaleString():'—'}`)}
+          ${auto('목표가 대비', targetHitPct!=null?`${targetHitPct.toFixed(0)}% 도달`:'—')}
+        </div>
+        ${w.thesis_1 ? `<div style="font-size:12px;background:var(--bg3);border-radius:6px;padding:8px 10px;line-height:1.5">
+          <span style="color:var(--text2)">당시 근거 · </span>${w.thesis_1}${w.risk_1?`<br><span style="color:var(--text2)">리스크 · </span>${w.risk_1}`:''}</div>` : ''}
+        <div>
+          <div style="font-size:12px;color:var(--text1);margin-bottom:4px">매도 사유</div>
+          <select class="form-select" id="j-reason" style="width:100%">
+            <option value="">선택…</option>
+            ${reasons.map(r=>`<option value="${r}" ${j.sell_reason===r?'selected':''}>${r}</option>`).join('')}
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <div style="font-size:12px;color:var(--text1);margin-bottom:4px">잘한 점</div>
+            <textarea class="form-input" id="j-well" placeholder="예: 분할 매수로 평단 낮춤" style="width:100%;box-sizing:border-box;height:54px;resize:vertical">${j.did_well||''}</textarea>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--text1);margin-bottom:4px">아쉬운 점</div>
+            <textarea class="form-input" id="j-poorly" placeholder="예: 목표 직전 조기 청산" style="width:100%;box-sizing:border-box;height:54px;resize:vertical">${j.did_poorly||''}</textarea>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text1);margin-bottom:4px">교훈 (다음 거래에 적용)</div>
+          <input type="text" class="form-input" id="j-lesson" placeholder="예: 목표가 80%부터 분할 매도 룰화" value="${(j.lesson||'').replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box">
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text1);margin-bottom:4px">프로세스 점수 <span style="color:var(--text2);font-weight:400">(결과와 무관하게 판단·실행의 질)</span></div>
+          <span id="j-stars">${[1,2,3,4,5].map(n=>`<span onclick="_setJournalScore(${n})" data-star="${n}" style="cursor:pointer;font-size:22px;color:${(j.process_score||0)>=n?'var(--accent)':'var(--text3)'}">★</span>`).join('')}</span>
+          <input type="hidden" id="j-process" value="${j.process_score||''}">
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" onclick="document.getElementById('m-journal').remove()">취소</button>
+          <button class="btn btn-primary" onclick="saveJournalFromForm('${stockCode}','${nm}')">복기 저장</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+function _setJournalScore(n) {
+  const inp = document.getElementById('j-process'); if (inp) inp.value = n;
+  document.querySelectorAll('#j-stars [data-star]').forEach(s => {
+    s.style.color = Number(s.dataset.star) <= n ? 'var(--accent)' : 'var(--text3)';
+  });
+}
+
+function saveJournalFromForm(stockCode, corpName) {
+  const g = id => document.getElementById(id)?.value?.trim() || null;
+  const snap = window._journalSnap || {};
+  saveJournal({
+    stock_code:    stockCode,
+    corp_name:     corpName,
+    watchlist_id:  snap.watchlist_id || null,
+    closed_date:   snap.closed_date || null,
+    sell_reason:   g('j-reason'),
+    did_well:      g('j-well'),
+    did_poorly:    g('j-poorly'),
+    lesson:        g('j-lesson'),
+    process_score: parseInt(document.getElementById('j-process')?.value) || null,
+    realized:      snap.realized ?? null,
+    return_pct:    snap.return_pct ?? null,
+    hold_days:     snap.hold_days ?? null,
+    avg_buy:       snap.avg_buy ?? null,
+    avg_sell:      snap.avg_sell ?? null,
+    thesis:        snap.thesis || null,
+  });
+}
+
 // 매수/매도 입력 모달
 function openTradeModal(watchlistId, stockCode, corpName, type, curPrice) {
   document.getElementById('m-trade')?.remove();
@@ -635,11 +828,12 @@ async function loadWatchlist() {
   const totalRealized = (data || []).reduce((s, w) => s + effPos(w).realized, 0);
   const cash          = await getPortfolioCash();
   const targetWeights = await getTargetWeights();
+  const journalMap    = await fetchJournals(codes);
   const totalAssets   = totalVal + cash;
   const cashRatio     = totalAssets > 0 ? cash / totalAssets * 100 : 0;
 
   // ── 액션 필요 항목 (손절 도달 / 매수구간 / 점검 임박 D-3) — '오늘의 액션' 바 + 필터 공용 ──
-  const stopHitCodes = new Set(), buyZoneCodes = new Set(), checkDueCodes = new Set();
+  const stopHitCodes = new Set(), buyZoneCodes = new Set(), checkDueCodes = new Set(), needJournalCodes = new Set();
   const _now = new Date();
   for (const w of (data || [])) {
     const price = priceMap[w.stock_code]?.price;
@@ -647,12 +841,14 @@ async function loadWatchlist() {
     if (e.avg && e.qty && price && w.stop_price && price <= w.stop_price) stopHitCodes.add(w.stock_code);
     if (price && w.watch_price && price <= w.watch_price) buyZoneCodes.add(w.stock_code);
     if (w.next_check_date && Math.ceil((new Date(w.next_check_date) - _now) / 86400000) <= 3) checkDueCodes.add(w.stock_code);
+    if (_journalAvailable && e.closed && !journalMap[w.stock_code]) needJournalCodes.add(w.stock_code);
   }
   // 활성 필터가 가리키는 집합이 비면 자동 해제 (예: 거래 기록 후 손절 해소)
   if (window._wlActionFilter) {
-    const _s = window._wlActionFilter === 'stop'  ? stopHitCodes
-             : window._wlActionFilter === 'buy'   ? buyZoneCodes
-             : window._wlActionFilter === 'check' ? checkDueCodes : null;
+    const _s = window._wlActionFilter === 'stop'    ? stopHitCodes
+             : window._wlActionFilter === 'buy'     ? buyZoneCodes
+             : window._wlActionFilter === 'check'   ? checkDueCodes
+             : window._wlActionFilter === 'journal' ? needJournalCodes : null;
     if (!_s || _s.size === 0) window._wlActionFilter = null;
   }
 
@@ -750,12 +946,13 @@ async function loadWatchlist() {
         border:1px solid ${on?color:'var(--border2)'};background:${on?color:'var(--bg3)'};color:${on?'#0f1117':'var(--text1)'};font-weight:${on?'700':'500'}">
         ${emoji} ${label} <b style="color:${on?'#0f1117':color};font-weight:800">${count}</b></button>`;
     };
-    const _actionBar = (stopHitCodes.size || buyZoneCodes.size || checkDueCodes.size) ? `
+    const _actionBar = (stopHitCodes.size || buyZoneCodes.size || checkDueCodes.size || needJournalCodes.size) ? `
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:.6rem">
         <span style="font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.06em">오늘의 액션</span>
         ${actionChip('stop','🛑','손절 도달',stopHitCodes.size,'var(--red)')}
         ${actionChip('buy','✅','매수 구간',buyZoneCodes.size,'var(--up)')}
         ${actionChip('check','📅','점검 임박',checkDueCodes.size,'var(--accent)')}
+        ${_journalAvailable ? actionChip('journal','📝','복기 안 함',needJournalCodes.size,'var(--tg)') : ''}
         ${_af?`<button onclick="wlSetActionFilter('${_af}')" style="background:none;border:none;color:var(--text2);font-size:11px;cursor:pointer;text-decoration:underline;padding:2px 4px">필터 해제</button>`:''}
       </div>` : '';
 
@@ -907,9 +1104,10 @@ async function loadWatchlist() {
   const header = `<tr>${cols.map(k => colTag(thMap[k], k)).join('')}</tr>`;
 
   // ── '오늘의 액션' 필터 적용 ──
-  const _afCodes = window._wlActionFilter === 'stop'  ? stopHitCodes
-                 : window._wlActionFilter === 'buy'   ? buyZoneCodes
-                 : window._wlActionFilter === 'check' ? checkDueCodes : null;
+  const _afCodes = window._wlActionFilter === 'stop'    ? stopHitCodes
+                 : window._wlActionFilter === 'buy'     ? buyZoneCodes
+                 : window._wlActionFilter === 'check'   ? checkDueCodes
+                 : window._wlActionFilter === 'journal' ? needJournalCodes : null;
   const visRows = _afCodes ? sorted.filter(w => _afCodes.has(w.stock_code)) : sorted;
 
   // ── 각 행 ─────────────────────────────────────────────────────────────────
@@ -985,8 +1183,14 @@ async function loadWatchlist() {
                   ${e.realized ? `<div style="font-size:11px;color:${chgColor(e.realized)}">실현 ${fmtWon(e.realized, true)}</div>` : ''}
                   ${w.stop_price ? `<div style="font-size:11px;color:${isStopHit?'var(--down)':'var(--text2)'};font-weight:${isStopHit?'700':'400'}">${isStopHit?'⚠️ ':''}손절 ${w.stop_price.toLocaleString()}원${stopPct!=null?` (${stopPct.toFixed(1)}%)`:''}</div>` : ''}`;
     } else if (e.closed) {
+      const jr = _journalAvailable ? journalMap[w.stock_code] : null;
+      const jName = (w.corp_name || '').replace(/'/g, "\\'");
+      const jLine = !_journalAvailable ? ''
+        : jr ? `<div style="font-size:11px;color:var(--accent);cursor:pointer" title="복기 보기/수정" onclick="event.stopPropagation();openJournalModal('${w.stock_code}','${jName}')">📝 ${'★'.repeat(jr.process_score||0)||'기록'}${jr.lesson?` · ${jr.lesson.length>16?jr.lesson.slice(0,16)+'…':jr.lesson}`:''}</div>`
+             : `<div style="font-size:11px;color:var(--text3);cursor:pointer" title="복기 작성" onclick="event.stopPropagation();openJournalModal('${w.stock_code}','${jName}')">📝 복기 필요</div>`;
       costCell = `<div style="font-size:12px;color:var(--text2);font-weight:600">청산 완료</div>
-                  <div style="font-size:12px;font-weight:700;color:${chgColor(e.realized)}">실현 ${fmtWon(e.realized, true)}</div>`;
+                  <div style="font-size:12px;font-weight:700;color:${chgColor(e.realized)}">실현 ${fmtWon(e.realized, true)}</div>
+                  ${jLine}`;
     } else {
       costCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
     }
@@ -1076,7 +1280,7 @@ async function loadWatchlist() {
           <button class="btn btn-sm" style="color:var(--down);font-weight:700" title="매도 기록"
             onclick="openTradeModal(${w.id},'${w.stock_code}','${nameEsc}','sell',${price||'null'})">매도</button>
           <button class="btn btn-sm" title="더보기"
-            onclick="wlToggleRowMenu(this,${w.id},'${w.stock_code}','${nameEsc}',${e.hasTx})">⋯</button>
+            onclick="wlToggleRowMenu(this,${w.id},'${w.stock_code}','${nameEsc}',${e.hasTx},${e.closed})">⋯</button>
         </div>
       </td>`,
     };
@@ -1211,7 +1415,7 @@ function wlSortBy(key) {
 }
 
 // 행 더보기 메뉴 (이력 / 수정 / 삭제)
-function wlToggleRowMenu(btn, id, code, name, hasTx) {
+function wlToggleRowMenu(btn, id, code, name, hasTx, isClosed) {
   const open = btn.parentElement.querySelector('.wl-rowmenu');
   document.querySelectorAll('.wl-rowmenu').forEach(m => m.remove());
   if (open) return; // 토글 닫기
@@ -1223,6 +1427,7 @@ function wlToggleRowMenu(btn, id, code, name, hasTx) {
        onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">${label}</div>`;
   menu.innerHTML =
     (hasTx ? item('거래 이력', `openTradeHistory('${code}','${name}')`) : '') +
+    (isClosed && _journalAvailable ? item('📝 복기', `openJournalModal('${code}','${name}')`, 'var(--accent)') : '') +
     item('수정', `openWatchlistModal(${id})`) +
     item('삭제', `deleteWatchlist(${id},'${name}')`, 'var(--red)');
   btn.parentElement.appendChild(menu);
