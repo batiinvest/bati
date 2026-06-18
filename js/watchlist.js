@@ -342,9 +342,9 @@ async function loadWatchlist() {
     const pnlColor = totalPnl >= 0 ? 'var(--up)' : 'var(--down)';
     const kpiCard  = (label, value, sub='', valueColor='var(--text)') =>
       `<div style="flex:1;min-width:130px;padding:12px 14px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
-        <div style="font-size:var(--fs-label);color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${label}</div>
+        <div style="font-size:var(--fs-label);color:var(--text1);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${label}</div>
         <div style="font-size:var(--fs-big);font-weight:700;color:${valueColor};font-variant-numeric:tabular-nums;line-height:1">${value}</div>
-        ${sub ? `<div style="font-size:10px;color:var(--text3);margin-top:4px">${sub}</div>` : ''}
+        ${sub ? `<div style="font-size:11px;color:var(--text2);margin-top:4px">${sub}</div>` : ''}
       </div>`;
 
     summaryEl.innerHTML = `
