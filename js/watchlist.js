@@ -494,6 +494,7 @@ function pWatchlist() {
       <button class="chip"        data-group="보유중"  onclick="setWlGroup(this,'보유중')">보유중</button>
       <button class="chip"        data-group="관심"    onclick="setWlGroup(this,'관심')">관심</button>
       <button class="chip"        data-group="후보"    onclick="setWlGroup(this,'후보')">후보</button>
+      <button class="chip"        data-group="청산"    onclick="setWlGroup(this,'청산')">청산</button>
       <span id="wl-count" style="font-size:12px;color:var(--text2);margin-left:4px"></span>
     </div>
     <button class="btn btn-primary" onclick="openWatchlistModal(null)">+ 종목 추가</button>
@@ -522,13 +523,12 @@ async function loadWatchlist() {
   if (!listEl) return;
   listEl.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text2)"><span class="loading"></span></div>';
 
-  let q = sb.from('watchlist').select('*').order('created_at', { ascending: false });
-  if (group !== 'all') q = q.eq('group_name', group);
-  const { data, error } = await q;
+  // 전체 행을 불러온 뒤 거래내역 기반으로 '청산' 여부를 파생 (탭 필터는 effPos 계산 후 JS에서)
+  const { data: allRows, error } = await sb.from('watchlist').select('*').order('created_at', { ascending: false });
   if (error) { listEl.innerHTML = '<div style="color:var(--red);padding:1rem">로드 실패</div>'; return; }
 
   // 현재가 일괄 조회
-  const codes = (data || []).map(r => r.stock_code);
+  const codes = (allRows || []).map(r => r.stock_code);
   let priceMap = {};
   if (codes.length) {
     const { data: mkt } = await sb.from('market_data')
@@ -584,6 +584,17 @@ async function loadWatchlist() {
     };
     return { avg: w.avg_price, qty: w.quantity, realized: 0, hasTx: false, closed: false };
   };
+
+  // ── 탭별 표시 집합 파생: 전량 매도(closed) + 저장 그룹 '보유중' → '청산'으로 분류 ──
+  // 사용자가 수동으로 관심/후보로 되돌렸으면 그 의도 존중(청산으로 강제하지 않음).
+  const wlCategory = (w) => {
+    const e = effPos(w);
+    return (e.closed && w.group_name === '보유중') ? '청산' : w.group_name;
+  };
+  // 보유중 탭은 청산 제외, 청산 탭은 청산만, 전체 탭은 모두 표시(누적 실현손익 보존)
+  const data = group === 'all'
+    ? (allRows || [])
+    : (allRows || []).filter(w => wlCategory(w) === group);
 
   // ── 포트폴리오 집계 (요약 카드 + 비중 컬럼 공용) ──────────────────────────
   const holding = (data || []).filter(w => { const e = effPos(w); return e.avg && e.qty && priceMap[w.stock_code]?.price; });
@@ -731,7 +742,7 @@ async function loadWatchlist() {
         ${totalAssets > 0 ? bigCard('총자산',
           fmtWon(totalAssets),
           `보유 ${fmtWon(totalVal)} + 현금 ${fmtWon(cash)}`) : ''}
-        ${holding.length ? bigCard('총손익',
+        ${(holding.length || totalRealized) ? bigCard('총손익',
           fmtWon(totalRealized+totalPnl, true),
           `${totalPnlPct!=null?`평가 ${totalPnlPct>=0?'+':''}${totalPnlPct.toFixed(1)}%`:''}${totalRealized?` · 실현 ${fmtWon(totalRealized, true)}`:''}`,
           chgColor(totalRealized+totalPnl)) : ''}
@@ -785,11 +796,14 @@ async function loadWatchlist() {
       })() : ''}`;
   }
 
-  const groupColors    = { '관심': '#4a9eff', '후보': '#ffc107', '보유중': 'var(--tg)' };
-  const groupTextColors = { '관심': '#0a1f3d', '후보': '#2d1f00', '보유중': '#002b1e' };
+  const groupColors    = { '관심': '#4a9eff', '후보': '#ffc107', '보유중': 'var(--tg)', '청산': '#6b7694' };
+  const groupTextColors = { '관심': '#0a1f3d', '후보': '#2d1f00', '보유중': '#002b1e', '청산': '#0f1117' };
 
   if (!data?.length) {
-    listEl.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text2)">등록된 관심종목이 없어요.<br>+ 종목 추가 버튼을 눌러 추가해주세요.</div>';
+    const emptyMsg = group === '청산'
+      ? '청산 완료된 종목이 없어요.'
+      : '등록된 관심종목이 없어요.<br>+ 종목 추가 버튼을 눌러 추가해주세요.';
+    listEl.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--text2)">${emptyMsg}</div>`;
     return;
   }
 
@@ -827,12 +841,14 @@ async function loadWatchlist() {
 
   // ── 탭별 컬럼 셋 (보유중=포지션 / 관심·후보=밸류·진입 / 전체=혼합) ──────────
   const view = group === '보유중' ? 'holding'
+             : group === '청산' ? 'closed'
              : (group === '관심' || group === '후보') ? 'watch'
              : 'all';
   const COLVIEWS = {
     holding: ['name','price','ret','cost','weight','target','check','actions'],
     watch:   ['name','industry','price','ret','cap','rev','op','roe','opm','watch','target','thesis','check','actions'],
     all:     ['name','industry','price','ret','cap','watch','target','cost','weight','thesis','check','actions'],
+    closed:  ['name','industry','price','cost','thesis','actions'],
   };
   const cols = COLVIEWS[view];
 
@@ -974,12 +990,13 @@ async function loadWatchlist() {
 
     // 비중 (총자산 대비)
     const wPct = (valMap[w.stock_code] && totalAssets) ? valMap[w.stock_code] / totalAssets * 100 : null;
+    const cat = wlCategory(w); // 표시용 그룹 (전량 매도 시 '청산' 파생)
 
     const tdMap = {
       name: `<td style="${tdStyle}">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
           <span style="font-size:15px;font-weight:700">${w.corp_name}</span>
-          <span style="font-size:11px;padding:1px 6px;border-radius:100px;background:${groupColors[w.group_name]||'#888'};color:${groupTextColors[w.group_name]||'#111'};font-weight:700">${w.group_name}</span>
+          <span style="font-size:11px;padding:1px 6px;border-radius:100px;background:${groupColors[cat]||'#888'};color:${groupTextColors[cat]||'#111'};font-weight:700">${cat}</span>
         </div>
         ${w.catalyst ? `<div style="font-size:11px;color:var(--tg);margin-top:2px">⚡ ${w.catalyst}</div>` : ''}
       </td>`,
@@ -1218,7 +1235,7 @@ async function renderWatchlistForm(id) {
         style="width:100%;box-sizing:border-box;height:60px;resize:vertical">${w[field]||''}</textarea>
     </div>`;
 
-  const defaultGroup = w.group_name || (window._wlGroup !== 'all' ? window._wlGroup : '관심');
+  const defaultGroup = w.group_name || ((window._wlGroup !== 'all' && window._wlGroup !== '청산') ? window._wlGroup : '관심');
   const isHolding = (defaultGroup === '보유중');
 
   body.innerHTML = `
@@ -1244,7 +1261,7 @@ async function renderWatchlistForm(id) {
           <div style="font-size:12px;color:var(--text1);margin-bottom:4px">그룹</div>
           <select class="form-select" id="wl-group_name" style="width:100px"
             onchange="document.getElementById('wl-holding-section').style.display=this.value==='보유중'?'':'none'">
-            ${['관심','후보','보유중'].map(g=>`<option value="${g}" ${(w.group_name||(window._wlGroup!=='all'?window._wlGroup:'관심'))===g?'selected':''}>${g}</option>`).join('')}
+            ${['관심','후보','보유중'].map(g=>`<option value="${g}" ${defaultGroup===g?'selected':''}>${g}</option>`).join('')}
           </select>
         </div>
       </div>
