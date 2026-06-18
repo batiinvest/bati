@@ -462,6 +462,25 @@ async function deleteTrade(txId, stockCode, corpName) {
   loadWatchlist();
 }
 
+// ── 현금 잔고 (app_config key: portfolio_cash) ────────────────────────────────
+async function getPortfolioCash() {
+  try {
+    const { data } = await sb.from('app_config').select('value').eq('key', 'portfolio_cash').limit(1);
+    const v = parseFloat(data?.[0]?.value);
+    return isNaN(v) ? 0 : v;
+  } catch (e) { return 0; }
+}
+
+async function savePortfolioCash(raw) {
+  const num = Math.max(0, parseFloat(String(raw).replace(/[^0-9.]/g, '')) || 0);
+  const { error } = await sb.from('app_config').upsert(
+    { key: 'portfolio_cash', value: String(Math.round(num)), updated_at: new Date().toISOString() },
+    { onConflict: 'key' }
+  );
+  if (error) { alert('현금 저장 실패: ' + error.message); return; }
+  loadWatchlist();
+}
+
 
 // =============================================
 //  관심종목 (Watchlist) 페이지
@@ -581,6 +600,11 @@ async function loadWatchlist() {
     // 실현손익(매도 확정분) 합산 — 청산 종목 포함 전체
     const totalRealized = (data || []).reduce((s, w) => s + effPos(w).realized, 0);
 
+    // 현금 · 총자산 · 기동률
+    const cash        = await getPortfolioCash();
+    const totalAssets = totalVal + cash;
+    const cashRatio   = totalAssets > 0 ? cash / totalAssets * 100 : 0;
+
     // 매수 구간 종목 수
     const buyZoneCount = (data || []).filter(w => {
       const mkt = priceMap[w.stock_code];
@@ -615,8 +639,28 @@ async function loadWatchlist() {
         ${sub ? `<div style="font-size:11px;color:var(--text2);margin-top:4px">${sub}</div>` : ''}
       </div>`;
 
+    // 현금 KPI — 인라인 편집 가능
+    const cashCard = `
+      <div style="flex:1;min-width:140px;padding:12px 14px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
+        <div style="font-size:var(--fs-label);color:var(--text1);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">현금 · 기동률</div>
+        <div style="display:flex;align-items:baseline;gap:3px">
+          <input id="wl-cash-input" type="text" inputmode="numeric" value="${cash.toLocaleString()}"
+            onfocus="this.value=this.value.replace(/[^0-9]/g,'');this.select()"
+            onblur="savePortfolioCash(this.value)"
+            onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape')loadWatchlist()"
+            title="클릭해서 현금 잔고 입력"
+            style="width:100%;background:transparent;border:none;border-bottom:1px dashed var(--border2);color:var(--text);font-size:var(--fs-big);font-weight:700;font-variant-numeric:tabular-nums;padding:0 0 1px;outline:none">
+          <span style="font-size:13px;color:var(--text2);font-weight:600">원</span>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px">기동률 ${cashRatio.toFixed(1)}%</div>
+      </div>`;
+
     summaryEl.innerHTML = `
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:.75rem">
+        ${totalAssets > 0 ? kpiCard('총자산',
+          fmtNet(totalAssets),
+          `보유 ${fmtNet(totalVal)} + 현금 ${fmtNet(cash)}`) : ''}
+        ${cashCard}
         ${kpiCard('평균 업사이드',
           avgUpside!=null ? `${avgUpside>=0?'+':''}${avgUpside.toFixed(1)}%` : '—',
           `목표가 보유 ${withTarget.length}개`,
@@ -645,8 +689,9 @@ async function loadWatchlist() {
           (totalRealized+totalPnl)>=0 ? 'var(--up)' : 'var(--down)') : ''}
         ${buyZoneCount ? kpiCard('매수구간 진입', `${buyZoneCount}개`, '관심가 이하 도달', 'var(--up)') : ''}
       </div>
-      ${holding.length >= 2 ? (() => {
-        // 보유 종목 비중 바
+      ${((holding.length >= 1 && cash > 0) || holding.length >= 2) && totalAssets > 0 ? (() => {
+        // 자산 배분 바 — 현금 포함 총자산 기준
+        const denom = totalAssets;
         const positions = holding.map(w => {
           const e = effPos(w);
           return {
@@ -657,7 +702,7 @@ async function loadWatchlist() {
         }).sort((a, b) => b.val - a.val);
         const barColors = ['#4a9eff','#ffc107','var(--tg)','#e879f9','#f97316','#22d3ee','#a3e635','#f43f5e'];
         const rows = positions.map((p, i) => {
-          const pct   = totalVal > 0 ? p.val / totalVal * 100 : 0;
+          const pct   = denom > 0 ? p.val / denom * 100 : 0;
           const pnl   = p.val - p.cost;
           const pnlPct = p.cost > 0 ? pnl / p.cost * 100 : 0;
           const color = barColors[i % barColors.length];
@@ -672,9 +717,19 @@ async function loadWatchlist() {
               <div style="font-size:11px;font-weight:600;color:${pnlColor};text-align:right">${pnl>=0?'+':''}${pnlPct.toFixed(1)}%</div>
             </div>`;
         }).join('');
+        const cashPct = denom > 0 ? cash / denom * 100 : 0;
+        const cashRow = cash > 0 ? `
+          <div style="display:grid;grid-template-columns:100px 1fr 60px 70px;align-items:center;gap:8px;padding:4px 0;border-top:1px dashed var(--border);margin-top:4px">
+            <div style="font-size:12px;font-weight:600;color:var(--text2)">💰 현금</div>
+            <div style="background:var(--bg3);border-radius:4px;height:8px;overflow:hidden">
+              <div style="height:100%;width:${cashPct.toFixed(1)}%;background:repeating-linear-gradient(45deg,var(--text3),var(--text3) 4px,transparent 4px,transparent 8px);border-radius:4px"></div>
+            </div>
+            <div style="font-size:12px;font-weight:700;text-align:right">${cashPct.toFixed(1)}%</div>
+            <div></div>
+          </div>` : '';
         return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:.75rem">
-          <div style="font-size:11px;color:var(--text1);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">포지션 비중</div>
-          ${rows}
+          <div style="font-size:11px;color:var(--text1);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">자산 배분 <span style="color:var(--text2);font-weight:400;text-transform:none">(현금 포함 총자산 기준)</span></div>
+          ${rows}${cashRow}
         </div>`;
       })() : ''}`;
   }
