@@ -265,15 +265,31 @@ async function loadWatchlist() {
     (mkt || []).forEach(r => { if (!priceMap[r.stock_code]) priceMap[r.stock_code] = r; });
   }
 
-  // ROE 조회 (financials) — 실패해도 무시
+  // financials 정렬 기준 컬럼 탐색 (year+quarter > created_at > 없음)
+  let _finOrderCol = null;
+  try {
+    const { error: e1 } = await sb.from('financials').select('year,quarter').limit(1);
+    if (!e1) _finOrderCol = 'year_quarter';
+  } catch {}
+  if (!_finOrderCol) {
+    try {
+      const { error: e2 } = await sb.from('financials').select('created_at').limit(1);
+      if (!e2) _finOrderCol = 'created_at';
+    } catch {}
+  }
+
+  const _finQuery = (sel) => {
+    let q = sb.from('financials').select(sel).in('stock_code', codes);
+    if (_finOrderCol === 'year_quarter') q = q.order('year', { ascending: false }).order('quarter', { ascending: false });
+    else if (_finOrderCol === 'created_at') q = q.order('created_at', { ascending: false });
+    return q;
+  };
+
+  // ROE 조회
   let roeMap = {};
   if (codes.length) {
     try {
-      const { data: fins, error: roeErr } = await sb.from('financials')
-        .select('stock_code,roe')
-        .in('stock_code', codes)
-        .not('roe', 'is', null)
-        .order('period', { ascending: false });
+      const { data: fins, error: roeErr } = await _finQuery('stock_code,roe').not('roe', 'is', null);
       if (roeErr) throw roeErr;
       (fins || []).forEach(r => { if (!roeMap[r.stock_code]) roeMap[r.stock_code] = r.roe; });
     } catch (e) { console.warn('ROE 조회 실패:', e?.message || e); }
@@ -284,10 +300,7 @@ async function loadWatchlist() {
   if (codes.length) {
     for (const col of ['operating_profit', 'operating_income']) {
       try {
-        const { data: fins, error: opmErr } = await sb.from('financials')
-          .select(`stock_code,period,revenue,${col}`)
-          .in('stock_code', codes)
-          .order('period', { ascending: false });
+        const { data: fins, error: opmErr } = await _finQuery(`stock_code,revenue,${col}`);
         if (opmErr) throw opmErr;
         (fins || []).forEach(r => {
           if (!revMap[r.stock_code] && r.revenue) revMap[r.stock_code] = r.revenue;
