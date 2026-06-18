@@ -542,7 +542,7 @@ async function loadWatchlist() {
       <td style="${tdStyle}"><div style="font-size:12px;font-weight:600">${rev!=null ? fmtEok(rev/1e8) : '—'}</div></td>
       <td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${op!=null?(op>=0?'var(--up)':'var(--down)'):'inherit'}">${op!=null ? fmtEok(op/1e8) : '—'}</div></td>
       <td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${roe!=null?(roe>=0?'var(--up)':'var(--down)'):'inherit'}">${roe!=null ? roe.toFixed(1)+'%' : '—'}</div></td>
-      <td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${opm!=null?(opm>=0?'var(--up)':'var(--down)'):'inherit'}">${opm!=null ? opm.toFixed(1)+'%' : '—'}</div></td>
+      <td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${opm!=null&&opm>=0?'var(--up)':'inherit'}">${opm!=null&&opm>=0 ? opm.toFixed(1)+'%' : '—'}</div></td>
       <td style="${tdStyle}">
         <div style="font-size:12px;font-weight:600">${capEok ? fmtEok(capEok) : '—'}</div>
       </td>
