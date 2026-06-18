@@ -259,7 +259,7 @@ async function loadWatchlist() {
   let priceMap = {};
   if (codes.length) {
     const { data: mkt } = await sb.from('market_data')
-      .select('stock_code,price,price_change_rate,per,pbr,market_cap')
+      .select('stock_code,price,price_change_rate,per,pbr,market_cap,week_return,month_return,quarter_return')
       .in('stock_code', codes)
       .order('base_date', { ascending: false });
     (mkt || []).forEach(r => { if (!priceMap[r.stock_code]) priceMap[r.stock_code] = r; });
@@ -422,6 +422,7 @@ async function loadWatchlist() {
       case 'op':       return opMap[w.stock_code] || 0;
       case 'roe':      return roeMap[w.stock_code] || 0;
       case 'opm':      return opmMap[w.stock_code] || 0;
+      case 'ret':      return mkt.week_return ?? -9999;
       case 'cap':      return mkt.market_cap || 0;
       case 'watch':    return w.watch_price || 0;
       case 'target':   return (w.target_price && mkt.price) ? (w.target_price - mkt.price) / mkt.price : 0;
@@ -453,6 +454,7 @@ async function loadWatchlist() {
       ${th('name',     '종목')}
       ${th('industry', '산업')}
       ${th('price',    '현재가')}
+      ${th('ret',    '등락률')}
       ${th('rev',    '매출')}
       ${th('op',     '영업이익')}
       ${th('roe',    'ROE')}
@@ -474,6 +476,9 @@ async function loadWatchlist() {
     const price = mkt.price;
     const chg   = mkt.price_change_rate;
     const cap   = mkt.market_cap;
+    const wkRet = mkt.week_return ?? null;
+    const moRet = mkt.month_return ?? null;
+    const qtRet = mkt.quarter_return ?? null;
     const capEok = cap ? cap / 1e8 : null;
     const rev   = revMap[w.stock_code] ?? null;
     const op    = opMap[w.stock_code]  ?? null;
@@ -567,6 +572,18 @@ async function loadWatchlist() {
       <td style="${tdStyle}">
         <div style="font-size:13px;font-weight:700">${price ? price.toLocaleString()+'원' : '—'}</div>
         <div style="font-size:11px;font-weight:600;color:${chgColor(chg)}">${chg!=null?(chg>=0?'+':'')+chg.toFixed(2)+'%':''}</div>
+      </td>
+      <td style="${tdStyle}">
+        ${[['1주',wkRet],['1개월',moRet],['3개월',qtRet]].map(([lbl,v]) =>
+          v != null
+            ? `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;line-height:1.6">
+                 <span style="color:var(--text2)">${lbl}</span>
+                 <span style="font-weight:600;color:${chgColor(v)}">${v>=0?'+':''}${v.toFixed(1)}%</span>
+               </div>`
+            : `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;line-height:1.6">
+                 <span style="color:var(--text2)">${lbl}</span><span style="color:var(--text3)">—</span>
+               </div>`
+        ).join('')}
       </td>
       <td style="${tdStyle}"><div style="font-size:12px;font-weight:600">${rev!=null ? fmtEok(rev/1e8) : '—'}</div></td>
       <td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${op!=null?(op>=0?'var(--up)':'var(--down)'):'inherit'}">${op!=null ? fmtEok(op/1e8) : '—'}</div></td>

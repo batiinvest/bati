@@ -282,18 +282,18 @@ textarea.form-input { resize:vertical; min-height:100px; }
   .screener-result-table td:nth-child(14) { display:none; }
 
   /* 워치리스트 테이블 ≤900px — 매출·영업이익·ROE·OPM·매수가손익·다음점검 숨김 */
-  .wl-table th:nth-child(4),
-  .wl-table td:nth-child(4),
   .wl-table th:nth-child(5),
   .wl-table td:nth-child(5),
   .wl-table th:nth-child(6),
   .wl-table td:nth-child(6),
   .wl-table th:nth-child(7),
   .wl-table td:nth-child(7),
-  .wl-table th:nth-child(11),
-  .wl-table td:nth-child(11),
-  .wl-table th:nth-child(13),
-  .wl-table td:nth-child(13) { display:none; }
+  .wl-table th:nth-child(8),
+  .wl-table td:nth-child(8),
+  .wl-table th:nth-child(12),
+  .wl-table td:nth-child(12),
+  .wl-table th:nth-child(14),
+  .wl-table td:nth-child(14) { display:none; }
 
   /* 주도주 카드 그리드 2열 → 1열 */
   .leading-grid { grid-template-columns:1fr !important; }
@@ -317,12 +317,12 @@ textarea.form-input { resize:vertical; min-height:100px; }
   /* 워치리스트 테이블 ≤480px — 산업·매출·관심가·투자포인트 추가 숨김 */
   .wl-table th:nth-child(2),
   .wl-table td:nth-child(2),
-  .wl-table th:nth-child(4),
-  .wl-table td:nth-child(4),
-  .wl-table th:nth-child(9),
-  .wl-table td:nth-child(9),
-  .wl-table th:nth-child(12),
-  .wl-table td:nth-child(12) { display:none; }
+  .wl-table th:nth-child(5),
+  .wl-table td:nth-child(5),
+  .wl-table th:nth-child(10),
+  .wl-table td:nth-child(10),
+  .wl-table th:nth-child(13),
+  .wl-table td:nth-child(13) { display:none; }
 
   /* 포트폴리오 요약 1열 */
   #wl-summary > div > div { min-width:100%; flex:1 1 100%; }
