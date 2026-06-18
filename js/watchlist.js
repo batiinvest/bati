@@ -433,7 +433,7 @@ async function openTradeHistory(stockCode, corpName) {
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
       ${card('현재 보유', pos.qty.toLocaleString()+'주')}
       ${card('평균 매수가', pos.qty>0 ? pos.avgCost.toLocaleString()+'원' : '청산')}
-      ${card('실현손익', `${pos.realized>=0?'+':''}${pos.realized.toLocaleString()}원`, pos.realized>=0?'var(--up)':'var(--down)')}
+      ${card('실현손익', `${pos.realized>=0?'+':''}${pos.realized.toLocaleString()}원`, chgColor(pos.realized))}
     </div>
     <table style="width:100%;border-collapse:collapse">
       <thead><tr style="border-bottom:1px solid var(--border2)">
@@ -655,7 +655,7 @@ async function loadWatchlist() {
 
     const secondaryStats = [
       statChip('종목', `${(data||[]).length}개${holding.length?` · 보유 ${holding.length}`:''}`),
-      avgUpside!=null ? statChip('평균 업사이드', `${avgUpside>=0?'+':''}${avgUpside.toFixed(1)}%`, avgUpside>0?'var(--up)':'var(--text1)') : '',
+      avgUpside!=null ? statChip('평균 업사이드', `${avgUpside>=0?'+':''}${avgUpside.toFixed(1)}%`, chgColor(avgUpside)) : '',
       avgRR!=null     ? statChip('손익비', `${avgRR.toFixed(1)} : 1`, avgRR>=2?'var(--up)':avgRR>=1?'var(--accent)':'var(--text1)') : '',
       avgPer!=null    ? statChip('평균 PER', `${avgPer.toFixed(1)}x`) : '',
       buyZoneCount    ? statChip('매수구간', `${buyZoneCount}개`, 'var(--up)') : '',
@@ -669,7 +669,7 @@ async function loadWatchlist() {
         ${holding.length ? bigCard('총손익',
           fmtWon(totalRealized+totalPnl, true),
           `${totalPnlPct!=null?`평가 ${totalPnlPct>=0?'+':''}${totalPnlPct.toFixed(1)}%`:''}${totalRealized?` · 실현 ${fmtWon(totalRealized, true)}`:''}`,
-          (totalRealized+totalPnl)>=0 ? 'var(--up)' : 'var(--down)') : ''}
+          chgColor(totalRealized+totalPnl)) : ''}
         ${cashCard}
       </div>
       <div style="display:flex;gap:8px 18px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-bottom:.75rem;padding:0 2px">
@@ -692,7 +692,7 @@ async function loadWatchlist() {
           const pnl   = p.val - p.cost;
           const pnlPct = p.cost > 0 ? pnl / p.cost * 100 : 0;
           const color = barColors[i % barColors.length];
-          const pnlColor = pnl >= 0 ? 'var(--up)' : 'var(--down)';
+          const pnlColor = chgColor(pnl);
           return `
             <div style="display:grid;grid-template-columns:100px 1fr 60px 70px;align-items:center;gap:8px;padding:4px 0">
               <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
@@ -840,7 +840,7 @@ async function loadWatchlist() {
       } else {
         watchCell = `<div style="font-size:12px;font-weight:600"><span style="font-size:10px;font-weight:700;color:#4a9eff">진입 </span>${w.watch_price.toLocaleString()}원</div>
                      ${watchCapStr ? `<div style="font-size:11px;color:var(--text1)">${watchCapStr}</div>` : ''}
-                     <div style="font-size:11px;color:var(--down)">▼ ${gap} 하락 시 진입</div>`;
+                     <div style="font-size:11px;color:var(--blue)">▼ ${gap} 하락 시 진입</div>`;
       }
     } else {
       watchCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
@@ -850,7 +850,7 @@ async function loadWatchlist() {
     const upsidePct = (w.target_price && price) ? (w.target_price - price) / price * 100 : null;
     let tgtCell;
     if (w.target_price) {
-      const color = upsidePct > 0 ? 'var(--up)' : 'var(--down)';
+      const color = chgColor(upsidePct);
       const tgtCapStr = capOfPrice(w.target_price);
       tgtCell = `<div style="font-size:12px;font-weight:600"><span style="font-size:10px;font-weight:700;color:#a78bfa">목표 </span>${w.target_price.toLocaleString()}원</div>
                  ${tgtCapStr ? `<div style="font-size:11px;color:var(--text1)">${tgtCapStr}</div>` : ''}
@@ -865,16 +865,16 @@ async function loadWatchlist() {
     let costCell;
     if (e.avg && e.qty && price) {
       const pnlPct = (price - e.avg) / e.avg * 100;
-      const color  = pnlPct >= 0 ? 'var(--up)' : 'var(--down)';
+      const color  = chgColor(pnlPct);
       const pnlStr = (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(1) + '%';
       const stopPct = w.stop_price && price ? (w.stop_price - price) / price * 100 : null;
       costCell = `<div style="font-size:12px"><span style="font-size:10px;font-weight:700;color:var(--accent)">평단 </span>${e.avg.toLocaleString()}원 <span style="color:var(--text2)">· ${e.qty.toLocaleString()}주</span></div>
                   <div style="font-size:12px;font-weight:700;color:${color}">${pnlStr} · ${fmtWon((price-e.avg)*e.qty, true)}</div>
-                  ${e.realized ? `<div style="font-size:11px;color:${e.realized>=0?'var(--up)':'var(--down)'}">실현 ${fmtWon(e.realized, true)}</div>` : ''}
+                  ${e.realized ? `<div style="font-size:11px;color:${chgColor(e.realized)}">실현 ${fmtWon(e.realized, true)}</div>` : ''}
                   ${w.stop_price ? `<div style="font-size:11px;color:${isStopHit?'var(--down)':'var(--text2)'};font-weight:${isStopHit?'700':'400'}">${isStopHit?'⚠️ ':''}손절 ${w.stop_price.toLocaleString()}원${stopPct!=null?` (${stopPct.toFixed(1)}%)`:''}</div>` : ''}`;
     } else if (e.closed) {
       costCell = `<div style="font-size:12px;color:var(--text2);font-weight:600">청산 완료</div>
-                  <div style="font-size:12px;font-weight:700;color:${e.realized>=0?'var(--up)':'var(--down)'}">실현 ${fmtWon(e.realized, true)}</div>`;
+                  <div style="font-size:12px;font-weight:700;color:${chgColor(e.realized)}">실현 ${fmtWon(e.realized, true)}</div>`;
     } else {
       costCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
     }
@@ -924,9 +924,9 @@ async function loadWatchlist() {
         ).join('')}
       </td>`,
       rev: `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600">${rev!=null ? fmtEok(rev/1e8) : '—'}</div></td>`,
-      op:  `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${op!=null?(op>=0?'var(--up)':'var(--down)'):'inherit'}">${op!=null ? fmtEok(op/1e8) : '—'}</div></td>`,
-      roe: `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${roe!=null?(roe>=0?'var(--up)':'var(--down)'):'inherit'}">${roe!=null ? roe.toFixed(1)+'%' : '—'}</div></td>`,
-      opm: `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${opm!=null&&opm>=0?'var(--up)':'inherit'}">${opm!=null&&opm>=0 ? opm.toFixed(1)+'%' : '—'}</div></td>`,
+      op:  `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${op!=null?chgColor(op):'inherit'}">${op!=null ? fmtEok(op/1e8) : '—'}</div></td>`,
+      roe: `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${roe!=null?chgColor(roe):'inherit'}">${roe!=null ? roe.toFixed(1)+'%' : '—'}</div></td>`,
+      opm: `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${opm!=null&&opm>=0?chgColor(opm):'inherit'}">${opm!=null&&opm>=0 ? opm.toFixed(1)+'%' : '—'}</div></td>`,
       cap: `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600">${capEok ? fmtEok(capEok) : '—'}</div></td>`,
       watch: `<td class="wl-editable" style="${tdStyle};border-left:2px solid #4a9eff" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'watch_price',${w.watch_price||'null'},'number')">${watchCell}</td>`,
       target: `<td class="wl-editable" style="${tdStyle};border-left:2px solid #a78bfa" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'target_price',${w.target_price||'null'},'number')">${tgtCell}</td>`,
