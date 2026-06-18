@@ -653,12 +653,42 @@ async function loadWatchlist() {
         <div style="font-size:11px;color:var(--text2);margin-top:4px">기동률 ${cashRatio.toFixed(1)}%</div>
       </div>`;
 
+    // ── 집중도 (최대 단일 종목 / 상위 섹터) — 총자산 대비, 임계 초과 시 ⚠️ ──
+    const concChips = [];
+    if (holding.length && totalAssets > 0) {
+      const STOCK_WARN = 25, SECTOR_WARN = 40; // 단일 종목 25% / 섹터 40% 초과 시 경고
+      const topPos = holding
+        .map(w => ({ name: w.corp_name, pct: (valMap[w.stock_code] || 0) / totalAssets * 100 }))
+        .sort((a, b) => b.pct - a.pct)[0];
+      if (topPos) {
+        const warn = topPos.pct >= STOCK_WARN;
+        concChips.push(statChip(`${warn ? '⚠️ ' : ''}최대 종목`,
+          `${topPos.name} ${topPos.pct.toFixed(1)}%`, warn ? 'var(--accent)' : 'var(--text1)'));
+      }
+      const sectorVal = {}, sectorCnt = {};
+      holding.forEach(w => {
+        const sec = industryMap[w.stock_code] || w.industry || '기타';
+        sectorVal[sec] = (sectorVal[sec] || 0) + (valMap[w.stock_code] || 0);
+        sectorCnt[sec] = (sectorCnt[sec] || 0) + 1;
+      });
+      const topSec = Object.entries(sectorVal)
+        .map(([name, v]) => ({ name, pct: v / totalAssets * 100, cnt: sectorCnt[name] }))
+        .sort((a, b) => b.pct - a.pct)[0];
+      // 섹터에 2종목 이상일 때만 표시 (단일 종목 칩과 중복 방지)
+      if (topSec && topSec.cnt >= 2) {
+        const warn = topSec.pct >= SECTOR_WARN;
+        concChips.push(statChip(`${warn ? '⚠️ ' : ''}상위 섹터`,
+          `${topSec.name} ${topSec.pct.toFixed(1)}% · ${topSec.cnt}종목`, warn ? 'var(--accent)' : 'var(--text1)'));
+      }
+    }
+
     const secondaryStats = [
       statChip('종목', `${(data||[]).length}개${holding.length?` · 보유 ${holding.length}`:''}`),
       avgUpside!=null ? statChip('평균 업사이드', `${avgUpside>=0?'+':''}${avgUpside.toFixed(1)}%`, chgColor(avgUpside)) : '',
       avgRR!=null     ? statChip('손익비', `${avgRR.toFixed(1)} : 1`, avgRR>=2?'var(--up)':avgRR>=1?'var(--accent)':'var(--text1)') : '',
       avgPer!=null    ? statChip('평균 PER', `${avgPer.toFixed(1)}x`) : '',
       buyZoneCount    ? statChip('매수구간', `${buyZoneCount}개`, 'var(--up)') : '',
+      ...concChips,
     ].filter(Boolean).join('');
 
     summaryEl.innerHTML = `
