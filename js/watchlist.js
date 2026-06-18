@@ -265,6 +265,12 @@ async function loadWatchlist() {
     (mkt || []).forEach(r => { if (!priceMap[r.stock_code]) priceMap[r.stock_code] = r; });
   }
 
+  // ── financials 컬럼 진단 (개발용) ──────────────────────────────────────────
+  try {
+    const { data: sample } = await sb.from('financials').select('*').limit(1);
+    if (sample?.[0]) console.log('[financials 컬럼 목록]', Object.keys(sample[0]));
+  } catch (e) { console.warn('financials 진단 실패:', e?.message); }
+
   // financials 정렬 기준 컬럼 탐색 (year+quarter > created_at > 없음)
   let _finOrderCol = null;
   try {
