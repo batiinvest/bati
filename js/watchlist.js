@@ -279,24 +279,25 @@ async function loadWatchlist() {
     } catch (e) { console.warn('ROE 조회 실패:', e?.message || e); }
   }
 
-  // OPM 조회 — operating_profit 우선, 없으면 operating_income 시도
-  let opmMap = {};
+  // 매출·영업이익 조회 — operating_profit 우선, 없으면 operating_income 시도
+  let opmMap = {}, revMap = {}, opMap = {};
   if (codes.length) {
     for (const col of ['operating_profit', 'operating_income']) {
       try {
         const { data: fins, error: opmErr } = await sb.from('financials')
-          .select(`stock_code,revenue,${col}`)
+          .select(`stock_code,period,revenue,${col}`)
           .in('stock_code', codes)
-          .not(col, 'is', null)
           .order('period', { ascending: false });
         if (opmErr) throw opmErr;
         (fins || []).forEach(r => {
+          if (!revMap[r.stock_code] && r.revenue) revMap[r.stock_code] = r.revenue;
+          if (!opMap[r.stock_code] && r[col])     opMap[r.stock_code]  = r[col];
           if (!opmMap[r.stock_code] && r.revenue && r[col]) {
             opmMap[r.stock_code] = r[col] / r.revenue * 100;
           }
         });
-        break; // 성공하면 다음 컬럼 시도 안 함
-      } catch (e) { console.warn(`OPM(${col}) 조회 실패:`, e?.message || e); }
+        break;
+      } catch (e) { console.warn(`financials(${col}) 조회 실패:`, e?.message || e); }
     }
   }
 
@@ -394,8 +395,8 @@ async function loadWatchlist() {
     switch (sortKey) {
       case 'name':     return w.corp_name || '';
       case 'price':    return mkt.price || 0;
-      case 'per':      return mkt.per || 0;
-      case 'pbr':      return mkt.pbr || 0;
+      case 'rev':      return revMap[w.stock_code] || 0;
+      case 'op':       return opMap[w.stock_code] || 0;
       case 'roe':      return roeMap[w.stock_code] || 0;
       case 'opm':      return opmMap[w.stock_code] || 0;
       case 'cap':      return mkt.market_cap || 0;
@@ -428,8 +429,8 @@ async function loadWatchlist() {
     <tr>
       ${th('name',   '종목')}
       ${th('price',  '현재가')}
-      ${th('per',    'PER')}
-      ${th('pbr',    'PBR')}
+      ${th('rev',    '매출')}
+      ${th('op',     '영업이익')}
       ${th('roe',    'ROE')}
       ${th('opm',    'OPM')}
       ${th('cap',    '시총')}
@@ -450,8 +451,8 @@ async function loadWatchlist() {
     const chg   = mkt.price_change_rate;
     const cap   = mkt.market_cap;
     const capEok = cap ? cap / 1e8 : null;
-    const per   = mkt.per;
-    const pbr   = mkt.pbr;
+    const rev   = revMap[w.stock_code] ?? null;
+    const op    = opMap[w.stock_code]  ?? null;
     const roe   = roeMap[w.stock_code] ?? null;
     const opm   = opmMap[w.stock_code] ?? null;
 
@@ -541,8 +542,8 @@ async function loadWatchlist() {
         <div style="font-size:13px;font-weight:700">${price ? price.toLocaleString()+'원' : '—'}</div>
         <div style="font-size:11px;font-weight:600;color:${chgColor(chg)}">${chg!=null?(chg>=0?'+':'')+chg.toFixed(2)+'%':''}</div>
       </td>
-      <td style="${tdStyle}"><div style="font-size:12px;font-weight:600">${per!=null ? per.toFixed(1)+'x' : '—'}</div></td>
-      <td style="${tdStyle}"><div style="font-size:12px;font-weight:600">${pbr!=null ? pbr.toFixed(2)+'x' : '—'}</div></td>
+      <td style="${tdStyle}"><div style="font-size:12px;font-weight:600">${rev!=null ? fmtEok(rev/1e8) : '—'}</div></td>
+      <td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${op!=null?(op>=0?'var(--up)':'var(--down)'):'inherit'}">${op!=null ? fmtEok(op/1e8) : '—'}</div></td>
       <td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${roe!=null?(roe>=0?'var(--up)':'var(--down)'):'inherit'}">${roe!=null ? roe.toFixed(1)+'%' : '—'}</div></td>
       <td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${opm!=null?(opm>=0?'var(--up)':'var(--down)'):'inherit'}">${opm!=null ? opm.toFixed(1)+'%' : '—'}</div></td>
       <td style="${tdStyle}">
