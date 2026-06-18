@@ -720,7 +720,8 @@ async function renderWatchlistForm(id) {
         style="width:100%;box-sizing:border-box;height:60px;resize:vertical">${w[field]||''}</textarea>
     </div>`;
 
-  const isHolding = (w.group_name === '보유중');
+  const defaultGroup = w.group_name || (window._wlGroup !== 'all' ? window._wlGroup : '관심');
+  const isHolding = (defaultGroup === '보유중');
 
   body.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:1rem">
