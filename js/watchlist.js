@@ -790,9 +790,9 @@ async function loadWatchlist() {
     roe:      th('roe',     'ROE'),
     opm:      th('opm',     'OPM'),
     cap:      th('cap',     '시총'),
-    watch:    th('watch',   '관심가'),
-    target:   th('target',  '목표가 · 업사이드'),
-    cost:     th('pnl',     '평단 · 손익'),
+    watch:    th('watch',   '<span style="color:#4a9eff">●</span> 관심가'),
+    target:   th('target',  '<span style="color:#a78bfa">●</span> 목표가 · 업사이드'),
+    cost:     th('pnl',     '<span style="color:var(--accent)">●</span> 평단 · 손익'),
     weight:   `<th style="${thStyle};cursor:default">비중</th>`,
     thesis:   `<th style="${thStyle};cursor:default">투자포인트</th>`,
     check:    th('check',   '다음 점검'),
@@ -835,10 +835,10 @@ async function loadWatchlist() {
       const watchCapStr = capOfPrice(w.watch_price);
       if (isAtBuy) {
         watchCell = `<div style="color:var(--up);font-weight:700;font-size:12px">✅ 매수 구간</div>
-                     <div style="font-size:12px;font-weight:600">${w.watch_price.toLocaleString()}원</div>
+                     <div style="font-size:12px;font-weight:600"><span style="font-size:10px;font-weight:700;color:#4a9eff">진입 </span>${w.watch_price.toLocaleString()}원</div>
                      ${watchCapStr ? `<div style="font-size:11px;color:var(--text1)">${watchCapStr}</div>` : ''}`;
       } else {
-        watchCell = `<div style="font-size:12px;font-weight:600">${w.watch_price.toLocaleString()}원</div>
+        watchCell = `<div style="font-size:12px;font-weight:600"><span style="font-size:10px;font-weight:700;color:#4a9eff">진입 </span>${w.watch_price.toLocaleString()}원</div>
                      ${watchCapStr ? `<div style="font-size:11px;color:var(--text1)">${watchCapStr}</div>` : ''}
                      <div style="font-size:11px;color:var(--down)">▼ ${gap} 하락 시 진입</div>`;
       }
@@ -852,7 +852,7 @@ async function loadWatchlist() {
     if (w.target_price) {
       const color = upsidePct > 0 ? 'var(--up)' : 'var(--down)';
       const tgtCapStr = capOfPrice(w.target_price);
-      tgtCell = `<div style="font-size:12px;font-weight:600">${w.target_price.toLocaleString()}원</div>
+      tgtCell = `<div style="font-size:12px;font-weight:600"><span style="font-size:10px;font-weight:700;color:#a78bfa">목표 </span>${w.target_price.toLocaleString()}원</div>
                  ${tgtCapStr ? `<div style="font-size:11px;color:var(--text1)">${tgtCapStr}</div>` : ''}
                  <div style="font-size:12px;font-weight:700;color:${color}">${upsidePct!=null?(upsidePct>0?'+':'')+upsidePct.toFixed(1)+'%':'—'}</div>`;
     } else {
@@ -868,7 +868,7 @@ async function loadWatchlist() {
       const color  = pnlPct >= 0 ? 'var(--up)' : 'var(--down)';
       const pnlStr = (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(1) + '%';
       const stopPct = w.stop_price && price ? (w.stop_price - price) / price * 100 : null;
-      costCell = `<div style="font-size:12px">${e.avg.toLocaleString()}원 <span style="color:var(--text2)">· ${e.qty.toLocaleString()}주</span></div>
+      costCell = `<div style="font-size:12px"><span style="font-size:10px;font-weight:700;color:var(--accent)">평단 </span>${e.avg.toLocaleString()}원 <span style="color:var(--text2)">· ${e.qty.toLocaleString()}주</span></div>
                   <div style="font-size:12px;font-weight:700;color:${color}">${pnlStr} · ${fmtNet((price-e.avg)*e.qty)}</div>
                   ${e.realized ? `<div style="font-size:11px;color:${e.realized>=0?'var(--up)':'var(--down)'}">실현 ${e.realized>=0?'+':''}${fmtNet(e.realized)}</div>` : ''}
                   ${w.stop_price ? `<div style="font-size:11px;color:${isStopHit?'var(--down)':'var(--text2)'};font-weight:${isStopHit?'700':'400'}">${isStopHit?'⚠️ ':''}손절 ${w.stop_price.toLocaleString()}원${stopPct!=null?` (${stopPct.toFixed(1)}%)`:''}</div>` : ''}`;
@@ -928,9 +928,9 @@ async function loadWatchlist() {
       roe: `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${roe!=null?(roe>=0?'var(--up)':'var(--down)'):'inherit'}">${roe!=null ? roe.toFixed(1)+'%' : '—'}</div></td>`,
       opm: `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${opm!=null&&opm>=0?'var(--up)':'inherit'}">${opm!=null&&opm>=0 ? opm.toFixed(1)+'%' : '—'}</div></td>`,
       cap: `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600">${capEok ? fmtEok(capEok) : '—'}</div></td>`,
-      watch: `<td class="wl-editable" style="${tdStyle}" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'watch_price',${w.watch_price||'null'},'number')">${watchCell}</td>`,
-      target: `<td class="wl-editable" style="${tdStyle}" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'target_price',${w.target_price||'null'},'number')">${tgtCell}</td>`,
-      cost: `<td class="${e.hasTx?'':'wl-editable'}" style="${tdStyle}" title="${e.hasTx?'거래기록으로 자동 계산 — 더블클릭 시 이력':'더블클릭으로 편집'}"
+      watch: `<td class="wl-editable" style="${tdStyle};border-left:2px solid #4a9eff" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'watch_price',${w.watch_price||'null'},'number')">${watchCell}</td>`,
+      target: `<td class="wl-editable" style="${tdStyle};border-left:2px solid #a78bfa" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'target_price',${w.target_price||'null'},'number')">${tgtCell}</td>`,
+      cost: `<td class="${e.hasTx?'':'wl-editable'}" style="${tdStyle};border-left:2px solid var(--accent)" title="${e.hasTx?'거래기록으로 자동 계산 — 더블클릭 시 이력':'더블클릭으로 편집'}"
         ondblclick="${e.hasTx?`openTradeHistory('${w.stock_code}','${nameEsc}')`:`wlInlineEditCost(this,${w.id},${w.avg_price||'null'},${w.quantity||'null'})`}">${costCell}</td>`,
       weight: `<td style="${tdStyle}">${wPct!=null ? `<div style="font-size:13px;font-weight:700">${wPct.toFixed(1)}%</div><div style="font-size:11px;color:var(--text2)">총자산 대비</div>` : `<span style="color:var(--text3);font-size:12px">—</span>`}</td>`,
       thesis: `<td class="wl-editable" style="${tdStyle};max-width:210px" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'thesis_1',${JSON.stringify(w.thesis_1||'')},'text')">${thesisCell}</td>`,
