@@ -1739,9 +1739,13 @@ async function renderWatchlistForm(id) {
 }
 
 async function saveWatchlist(id) {
-  const g = field => document.getElementById('wl-' + field)?.value?.trim() || null;
-  const n = field => { const v = g(field); return v ? parseFloat(v) : null; };
-  const i = field => { const v = g(field); return v ? parseInt(v) : null; };
+  // 폼에 렌더되지 않은 필드는 payload에서 제외 → 수정 저장 시 기존 값 보존
+  // (예: 인라인으로 넣은 next_check_date, 다른 화면에서 채운 risk_2·valuation_note 등이
+  //  모달 저장 한 번으로 null이 되어 사라지던 문제 방지)
+  const MISSING = Symbol('missing');
+  const g = field => { const el = document.getElementById('wl-' + field); return el ? (el.value?.trim() || null) : MISSING; };
+  const n = field => { const v = g(field); return v === MISSING ? MISSING : (v ? parseFloat(v) : null); };
+  const i = field => { const v = g(field); return v === MISSING ? MISSING : (v ? parseInt(v) : null); };
 
   const payload = {
     stock_code:      g('stock_code'),
@@ -1763,10 +1767,12 @@ async function saveWatchlist(id) {
     valuation_note:  g('valuation_note'),
     competitor:      g('competitor'),
     peer_per:        n('peer_per'),
-    next_check_date: g('next_check_date') || null,
+    next_check_date: g('next_check_date'),
     next_check_memo: g('next_check_memo'),
     updated_at:      new Date().toISOString(),
   };
+  // 폼에 없던 필드(MISSING) 제거 — 기존 DB 값을 null로 덮어쓰지 않도록
+  Object.keys(payload).forEach(k => { if (payload[k] === MISSING) delete payload[k]; });
 
   if (!payload.stock_code || !payload.corp_name) {
     alert('종목코드와 종목명은 필수입니다.');
