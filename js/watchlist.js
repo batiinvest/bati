@@ -368,7 +368,36 @@ async function loadWatchlist() {
           totalPnlPct!=null ? `${totalPnlPct>=0?'+':''}${totalPnlPct.toFixed(1)}%` : '',
           pnlColor) : ''}
         ${buyZoneCount ? kpiCard('매수구간 진입', `${buyZoneCount}개`, '관심가 이하 도달', 'var(--up)') : ''}
-      </div>`;
+      </div>
+      ${holding.length >= 2 ? (() => {
+        // 보유 종목 비중 바
+        const positions = holding.map(w => ({
+          name: w.corp_name,
+          val:  priceMap[w.stock_code].price * w.quantity,
+          cost: w.avg_price * w.quantity,
+        })).sort((a, b) => b.val - a.val);
+        const barColors = ['#4a9eff','#ffc107','var(--tg)','#e879f9','#f97316','#22d3ee','#a3e635','#f43f5e'];
+        const rows = positions.map((p, i) => {
+          const pct   = totalVal > 0 ? p.val / totalVal * 100 : 0;
+          const pnl   = p.val - p.cost;
+          const pnlPct = p.cost > 0 ? pnl / p.cost * 100 : 0;
+          const color = barColors[i % barColors.length];
+          const pnlColor = pnl >= 0 ? 'var(--up)' : 'var(--down)';
+          return `
+            <div style="display:grid;grid-template-columns:100px 1fr 60px 70px;align-items:center;gap:8px;padding:4px 0">
+              <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
+              <div style="background:var(--bg3);border-radius:4px;height:8px;overflow:hidden">
+                <div style="height:100%;width:${pct.toFixed(1)}%;background:${color};border-radius:4px;transition:width .3s"></div>
+              </div>
+              <div style="font-size:12px;font-weight:700;text-align:right">${pct.toFixed(1)}%</div>
+              <div style="font-size:11px;font-weight:600;color:${pnlColor};text-align:right">${pnl>=0?'+':''}${pnlPct.toFixed(1)}%</div>
+            </div>`;
+        }).join('');
+        return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:.75rem">
+          <div style="font-size:11px;color:var(--text1);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">포지션 비중</div>
+          ${rows}
+        </div>`;
+      })() : ''}`;
   }
 
   const groupColors    = { '관심': '#4a9eff', '후보': '#ffc107', '보유중': 'var(--tg)' };
