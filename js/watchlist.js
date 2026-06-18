@@ -705,15 +705,15 @@ function pWatchlist() {
   return `
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
     <div style="display:flex;gap:6px;align-items:center">
-      <button class="chip active" data-group="all"    onclick="setWlGroup(this,'all')">전체</button>
-      <button class="chip"        data-group="보유중"  onclick="setWlGroup(this,'보유중')">보유중</button>
-      <button class="chip"        data-group="관심"    onclick="setWlGroup(this,'관심')">관심</button>
-      <button class="chip"        data-group="후보"    onclick="setWlGroup(this,'후보')">후보</button>
-      <button class="chip"        data-group="청산"    onclick="setWlGroup(this,'청산')">청산</button>
+      <button class="chip active" data-group="all"      onclick="setWlGroup(this,'all')">전체</button>
+      <button class="chip"        data-group="보유중"    onclick="setWlGroup(this,'보유중')">보유중</button>
+      <button class="chip"        data-group="pipeline"  onclick="setWlGroup(this,'pipeline')">파이프라인</button>
+      <button class="chip"        data-group="청산"      onclick="setWlGroup(this,'청산')">청산</button>
       <span id="wl-count" style="font-size:12px;color:var(--text2);margin-left:4px"></span>
     </div>
     <button class="btn btn-primary" onclick="openWatchlistModal(null)">+ 종목 추가</button>
   </div>
+  <div id="wl-today" style="margin-bottom:.75rem"></div>
   <div id="wl-summary" style="margin-bottom:.75rem"></div>
   <div id="wl-list"></div>`;
 }
@@ -723,6 +723,13 @@ function setWlGroup(el, group) {
   el.classList.add('active');
   window._wlGroup = group;
   window._wlActionFilter = null; // 탭 전환 시 액션 필터 초기화
+  window._wlPipeFilter   = null; // 파이프라인 하위 필터(관심/후보) 초기화
+  loadWatchlist();
+}
+
+// 파이프라인 탭 하위 필터 (관심 / 후보) — 같은 칩 재클릭 시 해제
+function wlSetPipeFilter(cat) {
+  window._wlPipeFilter = (window._wlPipeFilter === cat) ? null : cat;
   loadWatchlist();
 }
 
@@ -806,13 +813,23 @@ async function loadWatchlist() {
     const e = effPos(w);
     return (e.closed && w.group_name === '보유중') ? '청산' : w.group_name;
   };
-  // 보유중 탭은 청산 제외, 청산 탭은 청산만, 전체 탭은 모두 표시(누적 실현손익 보존)
-  const data = group === 'all'
-    ? (allRows || [])
-    : (allRows || []).filter(w => wlCategory(w) === group);
+  // 집계·'오늘 할 일'은 항상 전체 포트폴리오 기준 → 탭 전환에도 헤드라인 손익 불변
+  const portfolioRows = allRows || [];
 
-  // ── 포트폴리오 집계 (요약 카드 + 비중 컬럼 공용) ──────────────────────────
-  const holding = (data || []).filter(w => { const e = effPos(w); return e.avg && e.qty && priceMap[w.stock_code]?.price; });
+  // ── 탭 필터: 전체 / 보유중 / 파이프라인(관심·후보, 하위필터) / 청산 ──
+  const pipeFilter = window._wlPipeFilter || null; // '관심' | '후보' | null
+  const tabFilter = (w) => {
+    const cat = wlCategory(w);
+    if (group === 'all')      return true;
+    if (group === '보유중')   return cat === '보유중';
+    if (group === '청산')     return cat === '청산';
+    if (group === 'pipeline') return (cat === '관심' || cat === '후보') && (!pipeFilter || cat === pipeFilter);
+    return cat === group; // 하위호환 (관심/후보 직접 지정 시)
+  };
+  const data = portfolioRows.filter(tabFilter);
+
+  // ── 포트폴리오 집계 (요약 카드 + 비중 컬럼 공용) — 전체 기준 ──────────────
+  const holding = portfolioRows.filter(w => { const e = effPos(w); return e.avg && e.qty && priceMap[w.stock_code]?.price; });
   const valMap = {};
   let totalCost = 0, totalVal = 0, totalTgtVal = 0;
   for (const w of holding) {
@@ -825,34 +842,130 @@ async function loadWatchlist() {
   }
   const totalPnl      = totalVal - totalCost;
   const totalPnlPct   = totalCost > 0 ? totalPnl / totalCost * 100 : null;
-  const totalRealized = (data || []).reduce((s, w) => s + effPos(w).realized, 0);
+  const totalRealized = portfolioRows.reduce((s, w) => s + effPos(w).realized, 0);
   const cash          = await getPortfolioCash();
   const targetWeights = await getTargetWeights();
   const journalMap    = await fetchJournals(codes);
   const totalAssets   = totalVal + cash;
   const cashRatio     = totalAssets > 0 ? cash / totalAssets * 100 : 0;
 
-  // ── 액션 필요 항목 (손절 도달 / 매수구간 / 점검 임박 D-3) — '오늘의 액션' 바 + 필터 공용 ──
-  const stopHitCodes = new Set(), buyZoneCodes = new Set(), checkDueCodes = new Set(), needJournalCodes = new Set();
+  // ── '오늘 할 일' 집합 — 전체 포트폴리오 기준 (손절·매수구간·점검·리밸런싱·복기) ──
+  const stopHitCodes = new Set(), buyZoneCodes = new Set(), checkDueCodes = new Set(), needJournalCodes = new Set(), rebalCodes = new Set();
+  const REBAL_WARN = 5; // 목표비중 갭 ±5%p 이상이면 리밸런싱 액션
   const _now = new Date();
-  for (const w of (data || [])) {
+  for (const w of portfolioRows) {
     const price = priceMap[w.stock_code]?.price;
     const e = effPos(w);
     if (e.avg && e.qty && price && w.stop_price && price <= w.stop_price) stopHitCodes.add(w.stock_code);
     if (price && w.watch_price && price <= w.watch_price) buyZoneCodes.add(w.stock_code);
-    if (w.next_check_date && Math.ceil((new Date(w.next_check_date) - _now) / 86400000) <= 3) checkDueCodes.add(w.stock_code);
+    if (w.next_check_date && !e.closed && Math.ceil((new Date(w.next_check_date) - _now) / 86400000) <= 3) checkDueCodes.add(w.stock_code);
     if (_journalAvailable && e.closed && !journalMap[w.stock_code]) needJournalCodes.add(w.stock_code);
+    const tw = targetWeights[w.stock_code];
+    if (tw != null && valMap[w.stock_code] != null && totalAssets > 0 &&
+        Math.abs(valMap[w.stock_code] / totalAssets * 100 - tw) >= REBAL_WARN) rebalCodes.add(w.stock_code);
   }
   // 활성 필터가 가리키는 집합이 비면 자동 해제 (예: 거래 기록 후 손절 해소)
   if (window._wlActionFilter) {
     const _s = window._wlActionFilter === 'stop'    ? stopHitCodes
              : window._wlActionFilter === 'buy'     ? buyZoneCodes
              : window._wlActionFilter === 'check'   ? checkDueCodes
+             : window._wlActionFilter === 'rebal'   ? rebalCodes
              : window._wlActionFilter === 'journal' ? needJournalCodes : null;
     if (!_s || _s.size === 0) window._wlActionFilter = null;
   }
 
-  document.getElementById('wl-count').textContent = `${(data||[]).length}개`;
+  document.getElementById('wl-count').textContent = `${data.length}개${pipeFilter?` · ${pipeFilter}`:''}`;
+
+  // ── '오늘 할 일' — 카운트 칩이 아니라 실행 버튼 달린 행 (전체 포트폴리오 기준) ──
+  const todayEl = document.getElementById('wl-today');
+  if (todayEl) {
+    const esc    = s => (s || '').replace(/'/g, "\\'");
+    const byCode = {}; portfolioRows.forEach(w => { byCode[w.stock_code] = w; });
+    const aBtn   = (label, color, handler) =>
+      `<button class="btn btn-sm" style="color:${color};font-weight:700;white-space:nowrap" onclick="event.stopPropagation();${handler}">${label}</button>`;
+    const itemRow = (accent, icon, code, ctxHtml, actionsHtml) => {
+      const w = byCode[code]; if (!w) return '';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-left:3px solid ${accent};border-radius:6px">
+        <span style="font-size:15px;line-height:1">${icon}</span>
+        <div style="min-width:0;flex:1">
+          <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.corp_name}
+            <span style="font-size:11px;color:var(--text3);font-weight:400">${(w.stock_code||'').split('.')[0]}</span></div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.4">${ctxHtml}</div>
+        </div>
+        <div style="display:flex;gap:4px;align-items:center">${actionsHtml}</div>
+      </div>`;
+    };
+    const groups = [];
+
+    if (stopHitCodes.size) {
+      const rows = [...stopHitCodes].map(code => {
+        const w = byCode[code], p = priceMap[code]?.price, e = effPos(w);
+        const lossPct = (e.avg && p) ? (p - e.avg) / e.avg * 100 : null;
+        const ctx = `현재가 ${p?p.toLocaleString():'—'}원 · 손절 ${w.stop_price?.toLocaleString()}원 이탈${lossPct!=null?` · <span style="color:${chgColor(lossPct)};font-weight:600">${lossPct.toFixed(1)}%</span>`:''}`;
+        return itemRow('var(--red)','🛑',code,ctx,
+          aBtn('매도','var(--down)',`openTradeModal(${w.id},'${code}','${esc(w.corp_name)}','sell',${p||'null'})`)
+        + aBtn('이력','var(--text2)',`openTradeHistory('${code}','${esc(w.corp_name)}')`));
+      }).join('');
+      groups.push({ label:'손절 도달', count:stopHitCodes.size, color:'var(--red)', rows });
+    }
+    if (buyZoneCodes.size) {
+      const rows = [...buyZoneCodes].map(code => {
+        const w = byCode[code], p = priceMap[code]?.price;
+        const rr = (w.target_price && w.stop_price && p && p > w.stop_price) ? (w.target_price - p)/(p - w.stop_price) : null;
+        const ctx = `현재가 ${p?p.toLocaleString():'—'}원 ≤ 관심가 ${w.watch_price?.toLocaleString()}원${rr!=null?` · 손익비 ${rr.toFixed(1)}:1`:''}`;
+        return itemRow('var(--up)','✅',code,ctx,
+          aBtn('매수','var(--up)',`openTradeModal(${w.id},'${code}','${esc(w.corp_name)}','buy',${p||'null'})`));
+      }).join('');
+      groups.push({ label:'매수 구간', count:buyZoneCodes.size, color:'var(--up)', rows });
+    }
+    if (rebalCodes.size) {
+      const rows = [...rebalCodes].map(code => {
+        const w = byCode[code], curPct = valMap[code]/totalAssets*100, tw = targetWeights[code];
+        const gap = curPct - tw, tradeAmt = (tw - curPct)/100*totalAssets, p = priceMap[code]?.price;
+        const ctx = `현재 ${curPct.toFixed(1)}% · 목표 ${tw.toFixed(1)}% (<span style="color:var(--accent);font-weight:600">${gap>=0?'+':''}${gap.toFixed(1)}%p</span>) → ${tradeAmt>0?'매수':'매도'} ${fmtWon(Math.abs(tradeAmt))}`;
+        return itemRow('var(--accent)','⚖️',code,ctx, tradeAmt>0
+          ? aBtn('매수','var(--up)',`openTradeModal(${w.id},'${code}','${esc(w.corp_name)}','buy',${p||'null'})`)
+          : aBtn('매도','var(--down)',`openTradeModal(${w.id},'${code}','${esc(w.corp_name)}','sell',${p||'null'})`));
+      }).join('');
+      groups.push({ label:'리밸런싱', count:rebalCodes.size, color:'var(--accent)', rows });
+    }
+    if (checkDueCodes.size) {
+      const rows = [...checkDueCodes].map(code => {
+        const w = byCode[code];
+        const d = Math.ceil((new Date(w.next_check_date) - _now)/86400000);
+        const dLabel = d<0?`${Math.abs(d)}일 초과`:d===0?'오늘':`D-${d}`;
+        const ctx = `${w.next_check_date} · ${dLabel}${w.next_check_memo?` · ${w.next_check_memo}`:''}`;
+        return itemRow('var(--accent)','📅',code,ctx,
+          aBtn('수정','var(--text1)',`openWatchlistModal(${w.id})`));
+      }).join('');
+      groups.push({ label:'점검 임박', count:checkDueCodes.size, color:'var(--accent)', rows });
+    }
+    if (_journalAvailable && needJournalCodes.size) {
+      const rows = [...needJournalCodes].map(code => {
+        const w = byCode[code], e = effPos(w);
+        const ctx = `청산 완료 · 실현 <span style="color:${chgColor(e.realized)};font-weight:600">${fmtWon(e.realized,true)}</span> · 복기 미작성`;
+        return itemRow('var(--tg)','📝',code,ctx,
+          aBtn('복기','var(--accent)',`openJournalModal('${code}','${esc(w.corp_name)}')`));
+      }).join('');
+      groups.push({ label:'복기 필요', count:needJournalCodes.size, color:'var(--tg)', rows });
+    }
+
+    if (!groups.length) {
+      todayEl.innerHTML = '';
+    } else {
+      const totalN = groups.reduce((s,g) => s + g.count, 0);
+      const sections = groups.map(g => `
+        <div style="margin-top:8px">
+          <div style="font-size:11px;font-weight:700;color:${g.color};margin-bottom:5px">${g.label} <span style="color:var(--text3);font-weight:600">${g.count}</span></div>
+          <div style="display:flex;flex-direction:column;gap:6px">${g.rows}</div>
+        </div>`).join('');
+      todayEl.innerHTML = `
+        <div style="background:var(--signal-hot);border:1px solid var(--accent);border-radius:10px;padding:12px 14px">
+          <div style="font-size:12px;font-weight:800;letter-spacing:.04em;color:var(--text1)">🔔 오늘 할 일 <span style="color:var(--accent)">${totalN}</span></div>
+          ${sections}
+        </div>`;
+    }
+  }
 
   // ── 포트폴리오 요약 카드 ─────────────────────────────────────────────────
   const summaryEl = document.getElementById('wl-summary');
@@ -936,25 +1049,7 @@ async function loadWatchlist() {
       ...concChips,
     ].filter(Boolean).join('');
 
-    // ── '오늘의 액션' 바 — 손절 도달·매수구간·점검 임박 (클릭 시 해당 종목만 필터) ──
-    const _af = window._wlActionFilter || null;
-    const actionChip = (type, emoji, label, count, color) => {
-      if (!count) return '';
-      const on = _af === type;
-      return `<button onclick="wlSetActionFilter('${type}')" title="클릭하면 해당 종목만 보기 (다시 누르면 해제)"
-        style="display:inline-flex;align-items:center;gap:5px;padding:4px 11px;font-size:12px;border-radius:100px;cursor:pointer;font-family:inherit;transition:all .15s;
-        border:1px solid ${on?color:'var(--border2)'};background:${on?color:'var(--bg3)'};color:${on?'#0f1117':'var(--text1)'};font-weight:${on?'700':'500'}">
-        ${emoji} ${label} <b style="color:${on?'#0f1117':color};font-weight:800">${count}</b></button>`;
-    };
-    const _actionBar = (stopHitCodes.size || buyZoneCodes.size || checkDueCodes.size || needJournalCodes.size) ? `
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:.6rem">
-        <span style="font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.06em">오늘의 액션</span>
-        ${actionChip('stop','🛑','손절 도달',stopHitCodes.size,'var(--red)')}
-        ${actionChip('buy','✅','매수 구간',buyZoneCodes.size,'var(--up)')}
-        ${actionChip('check','📅','점검 임박',checkDueCodes.size,'var(--accent)')}
-        ${_journalAvailable ? actionChip('journal','📝','복기 안 함',needJournalCodes.size,'var(--tg)') : ''}
-        ${_af?`<button onclick="wlSetActionFilter('${_af}')" style="background:none;border:none;color:var(--text2);font-size:11px;cursor:pointer;text-decoration:underline;padding:2px 4px">필터 해제</button>`:''}
-      </div>` : '';
+    // (옛 '오늘의 액션' 카운트 칩 바 → 상단 #wl-today 실행 행으로 대체됨)
 
     // ── 청산 탭: 매매 복기 통계 대시보드 (무관한 일반 요약 대신) ──
     if (group === '청산' && _journalAvailable) {
@@ -1001,10 +1096,9 @@ async function loadWatchlist() {
                  ${reasonRows.map(([r,c])=>`<span style="font-size:11px;background:var(--bg3);border-radius:100px;padding:3px 9px;color:var(--text1)">${r} <b style="color:var(--tg)">${c}</b></span>`).join('')}
                </div>`:''}
            </div>`;
-      summaryEl.innerHTML = `${_actionBar}${dash}`;
+      summaryEl.innerHTML = dash;
     } else {
     summaryEl.innerHTML = `
-      ${_actionBar}
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:.6rem">
         ${totalAssets > 0 ? bigCard('총자산',
           fmtWon(totalAssets),
@@ -1067,11 +1161,29 @@ async function loadWatchlist() {
   const groupColors    = { '관심': '#4a9eff', '후보': '#ffc107', '보유중': 'var(--tg)', '청산': '#6b7694' };
   const groupTextColors = { '관심': '#0a1f3d', '후보': '#2d1f00', '보유중': '#002b1e', '청산': '#0f1117' };
 
+  // ── 파이프라인 탭 하위 필터 (관심 / 후보) ──
+  let pipeBar = '';
+  if (group === 'pipeline') {
+    const nWatch = portfolioRows.filter(w => wlCategory(w) === '관심').length;
+    const nCand  = portfolioRows.filter(w => wlCategory(w) === '후보').length;
+    const subChip = (cat, n, color) => {
+      const on = pipeFilter === cat;
+      return `<button onclick="wlSetPipeFilter('${cat}')" style="padding:3px 12px;font-size:12px;border-radius:100px;cursor:pointer;font-family:inherit;
+        border:1px solid ${on?color:'var(--border2)'};background:${on?color:'transparent'};color:${on?'#0f1117':'var(--text1)'};font-weight:${on?'700':'500'}">${cat} <b style="color:${on?'#0f1117':'var(--text2)'}">${n}</b></button>`;
+    };
+    pipeBar = `<div style="display:flex;gap:6px;align-items:center;margin-bottom:.6rem">
+      ${subChip('관심', nWatch, '#4a9eff')}${subChip('후보', nCand, '#ffc107')}
+      ${pipeFilter?`<button onclick="wlSetPipeFilter('${pipeFilter}')" style="background:none;border:none;color:var(--text2);font-size:11px;cursor:pointer;text-decoration:underline">전체 보기</button>`:''}
+    </div>`;
+  }
+
   if (!data?.length) {
     const emptyMsg = group === '청산'
       ? '청산 완료된 종목이 없어요.'
-      : '등록된 관심종목이 없어요.<br>+ 종목 추가 버튼을 눌러 추가해주세요.';
-    listEl.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--text2)">${emptyMsg}</div>`;
+      : group === '보유중'
+      ? '보유 중인 종목이 없어요.<br>매수 거래를 기록하면 자동으로 보유중에 표시됩니다.'
+      : '등록된 종목이 없어요.<br>+ 종목 추가 버튼을 눌러 추가해주세요.';
+    listEl.innerHTML = `${pipeBar}<div style="text-align:center;padding:3rem;color:var(--text2)">${emptyMsg}</div>`;
     return;
   }
 
@@ -1107,10 +1219,10 @@ async function loadWatchlist() {
       })
     : data;
 
-  // ── 탭별 컬럼 셋 (보유중=포지션 / 관심·후보=밸류·진입 / 전체=혼합) ──────────
+  // ── 탭별 컬럼 셋 (보유중=포지션 / 파이프라인=밸류·진입 / 전체=혼합) ──────────
   const view = group === '보유중' ? 'holding'
              : group === '청산' ? 'closed'
-             : (group === '관심' || group === '후보') ? 'watch'
+             : (group === 'pipeline' || group === '관심' || group === '후보') ? 'watch'
              : 'all';
   const COLVIEWS = {
     holding: ['name','price','ret','cost','weight','target','check','actions'],
@@ -1336,7 +1448,7 @@ async function loadWatchlist() {
     return `<tr style="${rowBg}" onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background='${baseBg}'">${cols.map(k => colTag(tdMap[k], k)).join('')}</tr>`;
   }).join('');
 
-  listEl.innerHTML = `
+  listEl.innerHTML = `${pipeBar}
     <div class="card" style="overflow-x:auto;padding:0">
       <table class="wl-table" style="width:100%;border-collapse:collapse">
         <thead>${header}</thead>
@@ -1557,7 +1669,8 @@ async function renderWatchlistForm(id) {
         style="width:100%;box-sizing:border-box;height:60px;resize:vertical">${w[field]||''}</textarea>
     </div>`;
 
-  const defaultGroup = w.group_name || ((window._wlGroup !== 'all' && window._wlGroup !== '청산') ? window._wlGroup : '관심');
+  // 탭값(all/pipeline/청산)은 실제 그룹명이 아니므로 보유중 탭에서만 그룹 프리필, 그 외 '관심'
+  const defaultGroup = w.group_name || (window._wlGroup === '보유중' ? '보유중' : '관심');
   const isHolding = (defaultGroup === '보유중');
 
   body.innerHTML = `
