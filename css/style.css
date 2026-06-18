@@ -273,6 +273,15 @@ textarea.form-input { resize:vertical; min-height:100px; }
   .stock-col-keyword { display:none; }
 }
 
+/* ── 워치리스트 인라인 편집 가능 셀: hover 시 연필 힌트 ── */
+.wl-editable { cursor:pointer; position:relative; }
+.wl-editable:hover { box-shadow:inset 0 0 0 1px var(--border2); }
+.wl-editable::after {
+  content:'\270E'; position:absolute; top:3px; right:4px;
+  font-size:10px; color:var(--text3); opacity:0; transition:opacity .15s; pointer-events:none;
+}
+.wl-editable:hover::after { opacity:.7; }
+
 /* ── 모바일 반응형: 스크리너·워치리스트·주도주 (P3-3) ─────────────── */
 @media(max-width:900px){
   /* 스크리너 결과 테이블 — ROA·부채비율 숨김 */
@@ -281,19 +290,7 @@ textarea.form-input { resize:vertical; min-height:100px; }
   .screener-result-table th:nth-child(14),
   .screener-result-table td:nth-child(14) { display:none; }
 
-  /* 워치리스트 테이블 ≤900px — 매출·영업이익·ROE·OPM·매수가손익·다음점검 숨김 */
-  .wl-table th:nth-child(5),
-  .wl-table td:nth-child(5),
-  .wl-table th:nth-child(6),
-  .wl-table td:nth-child(6),
-  .wl-table th:nth-child(7),
-  .wl-table td:nth-child(7),
-  .wl-table th:nth-child(8),
-  .wl-table td:nth-child(8),
-  .wl-table th:nth-child(12),
-  .wl-table td:nth-child(12),
-  .wl-table th:nth-child(14),
-  .wl-table td:nth-child(14) { display:none; }
+  /* 워치리스트 테이블은 탭별로 컬럼을 자동 선별(JS) — 고정 nth-child 숨김 제거 */
 
   /* 주도주 카드 그리드 2열 → 1열 */
   .leading-grid { grid-template-columns:1fr !important; }
@@ -313,16 +310,6 @@ textarea.form-input { resize:vertical; min-height:100px; }
   .screener-result-table td:nth-child(9),
   .screener-result-table th:nth-child(10),
   .screener-result-table td:nth-child(10) { display:none; }
-
-  /* 워치리스트 테이블 ≤480px — 산업·매출·관심가·투자포인트 추가 숨김 */
-  .wl-table th:nth-child(2),
-  .wl-table td:nth-child(2),
-  .wl-table th:nth-child(5),
-  .wl-table td:nth-child(5),
-  .wl-table th:nth-child(10),
-  .wl-table td:nth-child(10),
-  .wl-table th:nth-child(13),
-  .wl-table td:nth-child(13) { display:none; }
 
   /* 포트폴리오 요약 1열 */
   #wl-summary > div > div { min-width:100%; flex:1 1 100%; }

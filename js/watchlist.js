@@ -578,33 +578,30 @@ async function loadWatchlist() {
     return { avg: w.avg_price, qty: w.quantity, realized: 0, hasTx: false, closed: false };
   };
 
+  // ── 포트폴리오 집계 (요약 카드 + 비중 컬럼 공용) ──────────────────────────
+  const holding = (data || []).filter(w => { const e = effPos(w); return e.avg && e.qty && priceMap[w.stock_code]?.price; });
+  const valMap = {};
+  let totalCost = 0, totalVal = 0, totalTgtVal = 0;
+  for (const w of holding) {
+    const e = effPos(w);
+    const v = priceMap[w.stock_code].price * e.qty;
+    valMap[w.stock_code] = v;
+    totalCost += e.avg * e.qty;
+    totalVal  += v;
+    if (w.target_price) totalTgtVal += w.target_price * e.qty;
+  }
+  const totalPnl      = totalVal - totalCost;
+  const totalPnlPct   = totalCost > 0 ? totalPnl / totalCost * 100 : null;
+  const totalRealized = (data || []).reduce((s, w) => s + effPos(w).realized, 0);
+  const cash          = await getPortfolioCash();
+  const totalAssets   = totalVal + cash;
+  const cashRatio     = totalAssets > 0 ? cash / totalAssets * 100 : 0;
+
   document.getElementById('wl-count').textContent = `${(data||[]).length}개`;
 
   // ── 포트폴리오 요약 카드 ─────────────────────────────────────────────────
   const summaryEl = document.getElementById('wl-summary');
   if (summaryEl) {
-    const holding = (data || []).filter(w => { const e = effPos(w); return e.avg && e.qty && priceMap[w.stock_code]?.price; });
-    let totalCost = 0, totalVal = 0, totalTgtVal = 0, tgtCount = 0;
-    for (const w of holding) {
-      const mkt = priceMap[w.stock_code];
-      const e   = effPos(w);
-      const cost = e.avg   * e.qty;
-      const val  = mkt.price * e.qty;
-      totalCost += cost;
-      totalVal  += val;
-      if (w.target_price) { totalTgtVal += w.target_price * e.qty; tgtCount++; }
-    }
-    const totalPnl    = totalVal - totalCost;
-    const totalPnlPct = totalCost > 0 ? totalPnl / totalCost * 100 : null;
-    const tgtUpside   = totalTgtVal > 0 && totalVal > 0 ? (totalTgtVal - totalVal) / totalVal * 100 : null;
-    // 실현손익(매도 확정분) 합산 — 청산 종목 포함 전체
-    const totalRealized = (data || []).reduce((s, w) => s + effPos(w).realized, 0);
-
-    // 현금 · 총자산 · 기동률
-    const cash        = await getPortfolioCash();
-    const totalAssets = totalVal + cash;
-    const cashRatio   = totalAssets > 0 ? cash / totalAssets * 100 : 0;
-
     // 매수 구간 종목 수
     const buyZoneCount = (data || []).filter(w => {
       const mkt = priceMap[w.stock_code];
@@ -631,17 +628,18 @@ async function loadWatchlist() {
       ? codesWithPer.reduce((s,w) => s + priceMap[w.stock_code].per, 0) / codesWithPer.length
       : null;
 
-    const pnlColor = totalPnl >= 0 ? 'var(--up)' : 'var(--down)';
-    const kpiCard  = (label, value, sub='', valueColor='var(--text)') =>
-      `<div style="flex:1;min-width:130px;padding:12px 14px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
+    const bigCard  = (label, value, sub='', valueColor='var(--text)') =>
+      `<div style="padding:12px 14px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
         <div style="font-size:var(--fs-label);color:var(--text1);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${label}</div>
         <div style="font-size:var(--fs-big);font-weight:700;color:${valueColor};font-variant-numeric:tabular-nums;line-height:1">${value}</div>
         ${sub ? `<div style="font-size:11px;color:var(--text2);margin-top:4px">${sub}</div>` : ''}
       </div>`;
+    const statChip = (label, value, color='var(--text1)') =>
+      `<span style="white-space:nowrap"><span style="color:var(--text2)">${label}</span> <b style="color:${color};font-weight:700">${value}</b></span>`;
 
     // 현금 KPI — 인라인 편집 가능
     const cashCard = `
-      <div style="flex:1;min-width:140px;padding:12px 14px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
+      <div style="padding:12px 14px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
         <div style="font-size:var(--fs-label);color:var(--text1);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">현금 · 기동률</div>
         <div style="display:flex;align-items:baseline;gap:3px">
           <input id="wl-cash-input" type="text" inputmode="numeric" value="${cash.toLocaleString()}"
@@ -655,39 +653,27 @@ async function loadWatchlist() {
         <div style="font-size:11px;color:var(--text2);margin-top:4px">기동률 ${cashRatio.toFixed(1)}%</div>
       </div>`;
 
+    const secondaryStats = [
+      statChip('종목', `${(data||[]).length}개${holding.length?` · 보유 ${holding.length}`:''}`),
+      avgUpside!=null ? statChip('평균 업사이드', `${avgUpside>=0?'+':''}${avgUpside.toFixed(1)}%`, avgUpside>0?'var(--up)':'var(--text1)') : '',
+      avgRR!=null     ? statChip('손익비', `${avgRR.toFixed(1)} : 1`, avgRR>=2?'var(--up)':avgRR>=1?'var(--accent)':'var(--text1)') : '',
+      avgPer!=null    ? statChip('평균 PER', `${avgPer.toFixed(1)}x`) : '',
+      buyZoneCount    ? statChip('매수구간', `${buyZoneCount}개`, 'var(--up)') : '',
+    ].filter(Boolean).join('');
+
     summaryEl.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:.75rem">
-        ${totalAssets > 0 ? kpiCard('총자산',
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:.6rem">
+        ${totalAssets > 0 ? bigCard('총자산',
           fmtNet(totalAssets),
           `보유 ${fmtNet(totalVal)} + 현금 ${fmtNet(cash)}`) : ''}
-        ${cashCard}
-        ${kpiCard('평균 업사이드',
-          avgUpside!=null ? `${avgUpside>=0?'+':''}${avgUpside.toFixed(1)}%` : '—',
-          `목표가 보유 ${withTarget.length}개`,
-          avgUpside!=null&&avgUpside>0 ? 'var(--up)' : 'var(--text)')}
-        ${kpiCard('평균 PER',
-          avgPer!=null ? avgPer.toFixed(1)+'x' : '—',
-          `${codesWithPer.length}개 기준`)}
-        ${kpiCard('총 종목 수',
-          `${(data||[]).length}개`,
-          holding.length ? `보유중 ${holding.length}개` : '관심/후보')}
-        ${kpiCard('손익비 평균',
-          avgRR!=null ? `${avgRR.toFixed(1)} : 1` : '—',
-          `손절가 설정 ${withStopAndTarget.length}개`,
-          avgRR!=null&&avgRR>=2 ? 'var(--up)' : avgRR!=null&&avgRR>=1 ? 'var(--accent)' : 'var(--text)')}
-        ${holding.length ? kpiCard('평가손익',
-          `${totalPnl>=0?'+':''}${fmtNet(totalPnl)}`,
-          totalPnlPct!=null ? `${totalPnlPct>=0?'+':''}${totalPnlPct.toFixed(1)}%` : '',
-          pnlColor) : ''}
-        ${totalRealized ? kpiCard('실현손익',
-          `${totalRealized>=0?'+':''}${fmtNet(totalRealized)}`,
-          '매도 확정분',
-          totalRealized>=0 ? 'var(--up)' : 'var(--down)') : ''}
-        ${totalRealized && holding.length ? kpiCard('총손익 (실현+평가)',
+        ${holding.length ? bigCard('총손익',
           `${(totalRealized+totalPnl)>=0?'+':''}${fmtNet(totalRealized+totalPnl)}`,
-          '확정+미실현',
+          `${totalPnlPct!=null?`평가 ${totalPnlPct>=0?'+':''}${totalPnlPct.toFixed(1)}%`:''}${totalRealized?` · 실현 ${totalRealized>=0?'+':''}${fmtNet(totalRealized)}`:''}`,
           (totalRealized+totalPnl)>=0 ? 'var(--up)' : 'var(--down)') : ''}
-        ${buyZoneCount ? kpiCard('매수구간 진입', `${buyZoneCount}개`, '관심가 이하 도달', 'var(--up)') : ''}
+        ${cashCard}
+      </div>
+      <div style="display:flex;gap:8px 18px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-bottom:.75rem;padding:0 2px">
+        ${secondaryStats}
       </div>
       ${((holding.length >= 1 && cash > 0) || holding.length >= 2) && totalAssets > 0 ? (() => {
         // 자산 배분 바 — 현금 포함 총자산 기준
@@ -774,6 +760,17 @@ async function loadWatchlist() {
       })
     : data;
 
+  // ── 탭별 컬럼 셋 (보유중=포지션 / 관심·후보=밸류·진입 / 전체=혼합) ──────────
+  const view = group === '보유중' ? 'holding'
+             : (group === '관심' || group === '후보') ? 'watch'
+             : 'all';
+  const COLVIEWS = {
+    holding: ['name','price','ret','cost','weight','target','check','actions'],
+    watch:   ['name','industry','price','ret','cap','rev','op','roe','opm','watch','target','thesis','check','actions'],
+    all:     ['name','industry','price','ret','cap','watch','target','cost','weight','thesis','check','actions'],
+  };
+  const cols = COLVIEWS[view];
+
   // ── 테이블 헤더 ───────────────────────────────────────────────────────────
   const thBase = 'font-size:11px;color:var(--text2);font-weight:500;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none';
   const thActive = 'color:var(--text1);font-weight:700';
@@ -783,24 +780,25 @@ async function loadWatchlist() {
     return `<th style="${thBase};${active}" onclick="wlSortBy('${k}')">${label}${arrow(k)}</th>`;
   };
   const thStyle = thBase; // 버튼 없는 빈 컬럼용
-  const header = `
-    <tr>
-      ${th('name',     '종목')}
-      ${th('industry', '산업')}
-      ${th('price',    '현재가')}
-      ${th('ret',    '등락률')}
-      ${th('rev',    '매출')}
-      ${th('op',     '영업이익')}
-      ${th('roe',    'ROE')}
-      ${th('opm',    'OPM')}
-      ${th('cap',    '시총')}
-      ${th('watch',  '관심가')}
-      ${th('target', '목표가 · 업사이드')}
-      ${th('pnl',    '매수가 · 손익')}
-      <th style="${thStyle};cursor:default">투자포인트</th>
-      ${th('check',  '다음 점검')}
-      <th style="${thStyle};cursor:default"></th>
-    </tr>`;
+  const thMap = {
+    name:     th('name',    '종목'),
+    industry: th('industry','산업'),
+    price:    th('price',   '현재가'),
+    ret:      th('ret',     '등락률'),
+    rev:      th('rev',     '매출'),
+    op:       th('op',      '영업이익'),
+    roe:      th('roe',     'ROE'),
+    opm:      th('opm',     'OPM'),
+    cap:      th('cap',     '시총'),
+    watch:    th('watch',   '관심가'),
+    target:   th('target',  '목표가 · 업사이드'),
+    cost:     th('pnl',     '평단 · 손익'),
+    weight:   `<th style="${thStyle};cursor:default">비중</th>`,
+    thesis:   `<th style="${thStyle};cursor:default">투자포인트</th>`,
+    check:    th('check',   '다음 점검'),
+    actions:  `<th style="${thStyle};cursor:default"></th>`,
+  };
+  const header = `<tr>${cols.map(k => thMap[k]).join('')}</tr>`;
 
   // ── 각 행 ─────────────────────────────────────────────────────────────────
   const tdStyle = 'padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle';
@@ -901,59 +899,55 @@ async function loadWatchlist() {
     const rowBg = baseBg ? `background:${baseBg}` : '';
     const nameEsc = (w.corp_name || '').replace(/'/g, "\\'");
 
-    return `
-    <tr style="${rowBg}" onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background='${baseBg}'">
-      <td style="${tdStyle}">
+    // 비중 (총자산 대비)
+    const wPct = (valMap[w.stock_code] && totalAssets) ? valMap[w.stock_code] / totalAssets * 100 : null;
+
+    const tdMap = {
+      name: `<td style="${tdStyle}">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
           <span style="font-size:15px;font-weight:700">${w.corp_name}</span>
           <span style="font-size:11px;padding:1px 6px;border-radius:100px;background:${groupColors[w.group_name]||'#888'};color:${groupTextColors[w.group_name]||'#111'};font-weight:700">${w.group_name}</span>
         </div>
         ${w.catalyst ? `<div style="font-size:11px;color:var(--tg);margin-top:2px">⚡ ${w.catalyst}</div>` : ''}
-      </td>
-      <td style="${tdStyle}">
-        <div style="font-size:12px;color:var(--text1)">${industryMap[w.stock_code] || w.industry || '—'}</div>
-      </td>
-      <td style="${tdStyle}">
+      </td>`,
+      industry: `<td style="${tdStyle}"><div style="font-size:12px;color:var(--text1)">${industryMap[w.stock_code] || w.industry || '—'}</div></td>`,
+      price: `<td style="${tdStyle}">
         <div style="font-size:13px;font-weight:700">${price ? price.toLocaleString()+'원' : '—'}</div>
         <div style="font-size:11px;font-weight:600;color:${chgColor(chg)}">${chg!=null?(chg>=0?'+':'')+chg.toFixed(2)+'%':''}</div>
-      </td>
-      <td style="${tdStyle}">
+      </td>`,
+      ret: `<td style="${tdStyle}">
         ${[['1주',wkRet],['1개월',moRet],['3개월',qtRet]].map(([lbl,v]) =>
-          v != null
-            ? `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;line-height:1.6">
-                 <span style="color:var(--text2)">${lbl}</span>
-                 <span style="font-weight:600;color:${chgColor(v)}">${v>=0?'+':''}${v.toFixed(1)}%</span>
-               </div>`
-            : `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;line-height:1.6">
-                 <span style="color:var(--text2)">${lbl}</span><span style="color:var(--text3)">—</span>
-               </div>`
+          `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;line-height:1.6">
+             <span style="color:var(--text2)">${lbl}</span>
+             ${v!=null ? `<span style="font-weight:600;color:${chgColor(v)}">${v>=0?'+':''}${v.toFixed(1)}%</span>` : `<span style="color:var(--text3)">—</span>`}
+           </div>`
         ).join('')}
-      </td>
-      <td style="${tdStyle}"><div style="font-size:12px;font-weight:600">${rev!=null ? fmtEok(rev/1e8) : '—'}</div></td>
-      <td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${op!=null?(op>=0?'var(--up)':'var(--down)'):'inherit'}">${op!=null ? fmtEok(op/1e8) : '—'}</div></td>
-      <td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${roe!=null?(roe>=0?'var(--up)':'var(--down)'):'inherit'}">${roe!=null ? roe.toFixed(1)+'%' : '—'}</div></td>
-      <td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${opm!=null&&opm>=0?'var(--up)':'inherit'}">${opm!=null&&opm>=0 ? opm.toFixed(1)+'%' : '—'}</div></td>
-      <td style="${tdStyle}">
-        <div style="font-size:12px;font-weight:600">${capEok ? fmtEok(capEok) : '—'}</div>
-      </td>
-      <td style="${tdStyle};cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'watch_price',${w.watch_price||'null'},'number')">${watchCell}</td>
-      <td style="${tdStyle};cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'target_price',${w.target_price||'null'},'number')">${tgtCell}</td>
-      <td style="${tdStyle};${e.hasTx?'':'cursor:pointer'}" title="${e.hasTx?'거래기록으로 자동 계산 — 이력 버튼으로 관리':'더블클릭으로 편집'}"
-        ondblclick="${e.hasTx?`openTradeHistory('${w.stock_code}','${nameEsc}')`:`wlInlineEditCost(this,${w.id},${w.avg_price||'null'},${w.quantity||'null'})`}">${costCell}</td>
-      <td style="${tdStyle};max-width:210px;cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'thesis_1',${JSON.stringify(w.thesis_1||'')},'text')">${thesisCell}</td>
-      <td style="${tdStyle};cursor:pointer" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'next_check_date',${JSON.stringify(w.next_check_date||'')},'date')">${checkCell}</td>
-      <td style="${tdStyle};white-space:nowrap">
-        <div style="display:flex;gap:4px;flex-wrap:wrap;max-width:170px">
+      </td>`,
+      rev: `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600">${rev!=null ? fmtEok(rev/1e8) : '—'}</div></td>`,
+      op:  `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${op!=null?(op>=0?'var(--up)':'var(--down)'):'inherit'}">${op!=null ? fmtEok(op/1e8) : '—'}</div></td>`,
+      roe: `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${roe!=null?(roe>=0?'var(--up)':'var(--down)'):'inherit'}">${roe!=null ? roe.toFixed(1)+'%' : '—'}</div></td>`,
+      opm: `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${opm!=null&&opm>=0?'var(--up)':'inherit'}">${opm!=null&&opm>=0 ? opm.toFixed(1)+'%' : '—'}</div></td>`,
+      cap: `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600">${capEok ? fmtEok(capEok) : '—'}</div></td>`,
+      watch: `<td class="wl-editable" style="${tdStyle}" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'watch_price',${w.watch_price||'null'},'number')">${watchCell}</td>`,
+      target: `<td class="wl-editable" style="${tdStyle}" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'target_price',${w.target_price||'null'},'number')">${tgtCell}</td>`,
+      cost: `<td class="${e.hasTx?'':'wl-editable'}" style="${tdStyle}" title="${e.hasTx?'거래기록으로 자동 계산 — 더블클릭 시 이력':'더블클릭으로 편집'}"
+        ondblclick="${e.hasTx?`openTradeHistory('${w.stock_code}','${nameEsc}')`:`wlInlineEditCost(this,${w.id},${w.avg_price||'null'},${w.quantity||'null'})`}">${costCell}</td>`,
+      weight: `<td style="${tdStyle}">${wPct!=null ? `<div style="font-size:13px;font-weight:700">${wPct.toFixed(1)}%</div><div style="font-size:11px;color:var(--text2)">총자산 대비</div>` : `<span style="color:var(--text3);font-size:12px">—</span>`}</td>`,
+      thesis: `<td class="wl-editable" style="${tdStyle};max-width:210px" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'thesis_1',${JSON.stringify(w.thesis_1||'')},'text')">${thesisCell}</td>`,
+      check: `<td class="wl-editable" style="${tdStyle}" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'next_check_date',${JSON.stringify(w.next_check_date||'')},'date')">${checkCell}</td>`,
+      actions: `<td style="${tdStyle};white-space:nowrap">
+        <div style="display:flex;gap:4px;align-items:center;position:relative">
           <button class="btn btn-sm" style="color:var(--up);font-weight:700" title="매수 기록"
             onclick="openTradeModal(${w.id},'${w.stock_code}','${nameEsc}','buy',${price||'null'})">매수</button>
           <button class="btn btn-sm" style="color:var(--down);font-weight:700" title="매도 기록"
             onclick="openTradeModal(${w.id},'${w.stock_code}','${nameEsc}','sell',${price||'null'})">매도</button>
-          ${e.hasTx ? `<button class="btn btn-sm" title="거래 이력" onclick="openTradeHistory('${w.stock_code}','${nameEsc}')">이력</button>` : ''}
-          <button class="btn btn-sm" onclick="openWatchlistModal(${w.id})">수정</button>
-          <button class="btn btn-sm" style="color:var(--red)" onclick="deleteWatchlist(${w.id},'${nameEsc}')">삭제</button>
+          <button class="btn btn-sm" title="더보기"
+            onclick="wlToggleRowMenu(this,${w.id},'${w.stock_code}','${nameEsc}',${e.hasTx})">⋯</button>
         </div>
-      </td>
-    </tr>`;
+      </td>`,
+    };
+
+    return `<tr style="${rowBg}" onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background='${baseBg}'">${cols.map(k => tdMap[k]).join('')}</tr>`;
   }).join('');
 
   listEl.innerHTML = `
@@ -1055,6 +1049,27 @@ function wlSortBy(key) {
     window._wlSort = { key, asc: true };
   }
   loadWatchlist();
+}
+
+// 행 더보기 메뉴 (이력 / 수정 / 삭제)
+function wlToggleRowMenu(btn, id, code, name, hasTx) {
+  const open = btn.parentElement.querySelector('.wl-rowmenu');
+  document.querySelectorAll('.wl-rowmenu').forEach(m => m.remove());
+  if (open) return; // 토글 닫기
+  const menu = document.createElement('div');
+  menu.className = 'wl-rowmenu';
+  menu.style.cssText = 'position:absolute;right:0;top:calc(100% + 4px);z-index:60;background:var(--bg1,var(--bg));border:1px solid var(--border2);border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,.4);min-width:120px;overflow:hidden';
+  const item = (label, handler, color) =>
+    `<div onclick="${handler}" style="padding:9px 14px;font-size:12px;cursor:pointer;color:${color||'var(--text1)'};white-space:nowrap"
+       onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">${label}</div>`;
+  menu.innerHTML =
+    (hasTx ? item('거래 이력', `openTradeHistory('${code}','${name}')`) : '') +
+    item('수정', `openWatchlistModal(${id})`) +
+    item('삭제', `deleteWatchlist(${id},'${name}')`, 'var(--red)');
+  btn.parentElement.appendChild(menu);
+  setTimeout(() => document.addEventListener('click', function close(ev) {
+    if (!menu.contains(ev.target) && ev.target !== btn) { menu.remove(); document.removeEventListener('click', close); }
+  }), 0);
 }
 
 async function deleteWatchlist(id, name) {
