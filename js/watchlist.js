@@ -481,6 +481,28 @@ async function savePortfolioCash(raw) {
   loadWatchlist();
 }
 
+// ── 목표 비중 (app_config key: portfolio_target_weights, JSON {stock_code: pct}) ──
+// 스키마 변경 없이 현금과 동일한 app_config 패턴으로 저장 → 리밸런싱 갭 계산
+async function getTargetWeights() {
+  try {
+    const { data } = await sb.from('app_config').select('value').eq('key', 'portfolio_target_weights').limit(1);
+    const obj = JSON.parse(data?.[0]?.value || '{}');
+    return (obj && typeof obj === 'object') ? obj : {};
+  } catch (e) { return {}; }
+}
+
+async function saveTargetWeight(stockCode, weight) {
+  const map = await getTargetWeights();
+  if (weight == null || isNaN(weight) || weight <= 0) delete map[stockCode];
+  else map[stockCode] = Math.min(100, Math.round(weight * 10) / 10); // 0.1% 단위, 최대 100%
+  const { error } = await sb.from('app_config').upsert(
+    { key: 'portfolio_target_weights', value: JSON.stringify(map), updated_at: new Date().toISOString() },
+    { onConflict: 'key' }
+  );
+  if (error) { alert('목표 비중 저장 실패: ' + error.message); return; }
+  loadWatchlist();
+}
+
 
 // =============================================
 //  관심종목 (Watchlist) 페이지
@@ -612,6 +634,7 @@ async function loadWatchlist() {
   const totalPnlPct   = totalCost > 0 ? totalPnl / totalCost * 100 : null;
   const totalRealized = (data || []).reduce((s, w) => s + effPos(w).realized, 0);
   const cash          = await getPortfolioCash();
+  const targetWeights = await getTargetWeights();
   const totalAssets   = totalVal + cash;
   const cashRatio     = totalAssets > 0 ? cash / totalAssets * 100 : 0;
 
@@ -992,6 +1015,27 @@ async function loadWatchlist() {
     const wPct = (valMap[w.stock_code] && totalAssets) ? valMap[w.stock_code] / totalAssets * 100 : null;
     const cat = wlCategory(w); // 표시용 그룹 (전량 매도 시 '청산' 파생)
 
+    // ── 비중 셀: 현재 비중 + (목표 설정 시) 목표·갭·필요 매매금액 ──
+    const tw = targetWeights[w.stock_code];
+    let weightCell;
+    if (wPct == null) {
+      weightCell = tw != null
+        ? `<div style="font-size:11px;color:var(--text2)">목표 ${tw.toFixed(1)}%</div><div style="font-size:11px;color:var(--text3)">미보유</div>`
+        : `<span style="color:var(--text3);font-size:12px">—</span>`;
+    } else if (tw != null) {
+      const gap      = wPct - tw;                         // +면 초과, -면 미달
+      const tradeAmt = (tw - wPct) / 100 * totalAssets;   // +면 매수, -면 매도 필요
+      const balanced = Math.abs(gap) < 1;                 // 1%p 이내면 균형
+      const action   = balanced ? '✓ 균형'
+        : tradeAmt > 0 ? `매수 ${fmtWon(tradeAmt)}` : `매도 ${fmtWon(-tradeAmt)}`;
+      weightCell = `<div style="font-size:13px;font-weight:700">${wPct.toFixed(1)}%</div>
+        <div style="font-size:11px;color:var(--text2)">목표 ${tw.toFixed(1)}%</div>
+        <div style="font-size:11px;font-weight:600;color:${balanced?'var(--up)':'var(--accent)'}">${gap>=0?'+':''}${gap.toFixed(1)}%p · ${action}</div>`;
+    } else {
+      weightCell = `<div style="font-size:13px;font-weight:700">${wPct.toFixed(1)}%</div>
+        <div style="font-size:11px;color:var(--text2)">총자산 대비</div>`;
+    }
+
     const tdMap = {
       name: `<td style="${tdStyle}">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
@@ -1022,7 +1066,7 @@ async function loadWatchlist() {
       target: `<td class="wl-editable" style="${tdStyle};border-left:2px solid #a78bfa" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'target_price',${w.target_price||'null'},'number')">${tgtCell}</td>`,
       cost: `<td class="${e.hasTx?'':'wl-editable'}" style="${tdStyle};border-left:2px solid var(--accent)" title="${e.hasTx?'거래기록으로 자동 계산 — 더블클릭 시 이력':'더블클릭으로 편집'}"
         ondblclick="${e.hasTx?`openTradeHistory('${w.stock_code}','${nameEsc}')`:`wlInlineEditCost(this,${w.id},${w.avg_price||'null'},${w.quantity||'null'})`}">${costCell}</td>`,
-      weight: `<td style="${tdStyle}">${wPct!=null ? `<div style="font-size:13px;font-weight:700">${wPct.toFixed(1)}%</div><div style="font-size:11px;color:var(--text2)">총자산 대비</div>` : `<span style="color:var(--text3);font-size:12px">—</span>`}</td>`,
+      weight: `<td class="wl-editable" style="${tdStyle}" title="더블클릭으로 목표 비중 설정" ondblclick="wlEditTargetWeight(this,'${w.stock_code}',${tw ?? 'null'})">${weightCell}</td>`,
       thesis: `<td class="wl-editable" style="${tdStyle};max-width:210px" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'thesis_1',${JSON.stringify(w.thesis_1||'')},'text')">${thesisCell}</td>`,
       check: `<td class="wl-editable" style="${tdStyle}" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'next_check_date',${JSON.stringify(w.next_check_date||'')},'date')">${checkCell}</td>`,
       actions: `<td style="${tdStyle};white-space:nowrap">
@@ -1087,6 +1131,31 @@ async function wlInlineEdit(td, id, field, curVal, type = 'number') {
   } else {
     el.addEventListener('blur', save);
   }
+}
+
+// 목표 비중(%) 인라인 편집 — app_config에 저장 (빈 값/0이면 목표 해제)
+async function wlEditTargetWeight(td, stockCode, curWeight) {
+  if (td.querySelector('input')) return;
+  const prev = td.innerHTML;
+  td.innerHTML = `<div style="display:flex;align-items:center;gap:3px">
+    <input id="_ieTw" type="number" step="0.5" min="0" max="100" value="${curWeight ?? ''}" placeholder="목표"
+      style="width:54px;box-sizing:border-box;background:var(--bg2);color:var(--text1);border:1px solid var(--tg);border-radius:4px;padding:3px 5px;font-size:12px">
+    <span style="font-size:11px;color:var(--text2)">%</span>
+  </div>`;
+  const el = document.getElementById('_ieTw');
+  el.focus(); el.select();
+  let done = false;
+  const save = () => {
+    if (done) return; done = true;
+    const v = el.value.trim();
+    if (v === String(curWeight ?? '')) { loadWatchlist(); return; } // 변경 없음
+    saveTargetWeight(stockCode, v === '' ? null : parseFloat(v));
+  };
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); save(); }
+    if (e.key === 'Escape') { done = true; td.innerHTML = prev; }
+  });
+  el.addEventListener('blur', save);
 }
 
 async function wlInlineEditCost(td, id, curAvg, curQty) {
