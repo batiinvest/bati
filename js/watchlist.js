@@ -413,6 +413,7 @@ async function loadWatchlist() {
     const mkt = priceMap[w.stock_code] || {};
     switch (sortKey) {
       case 'name':     return w.corp_name || '';
+      case 'industry': return w.industry || '';
       case 'price':    return mkt.price || 0;
       case 'rev':      return revMap[w.stock_code] || 0;
       case 'op':       return opMap[w.stock_code] || 0;
@@ -446,8 +447,9 @@ async function loadWatchlist() {
   const thStyle = thBase; // 버튼 없는 빈 컬럼용
   const header = `
     <tr>
-      ${th('name',   '종목')}
-      ${th('price',  '현재가')}
+      ${th('name',     '종목')}
+      ${th('industry', '산업')}
+      ${th('price',    '현재가')}
       ${th('rev',    '매출')}
       ${th('op',     '영업이익')}
       ${th('roe',    'ROE')}
@@ -554,8 +556,10 @@ async function loadWatchlist() {
           <span style="font-size:15px;font-weight:700">${w.corp_name}</span>
           <span style="font-size:11px;padding:1px 6px;border-radius:100px;background:${groupColors[w.group_name]||'#888'};color:${groupTextColors[w.group_name]||'#111'};font-weight:700">${w.group_name}</span>
         </div>
-        ${w.industry ? `<div style="font-size:11px;color:var(--text2);margin-top:1px">${w.industry}</div>` : ''}
-        ${w.catalyst ? `<div style="font-size:11px;color:var(--tg);margin-top:1px">⚡ ${w.catalyst}</div>` : ''}
+        ${w.catalyst ? `<div style="font-size:11px;color:var(--tg);margin-top:2px">⚡ ${w.catalyst}</div>` : ''}
+      </td>
+      <td style="${tdStyle}">
+        <div style="font-size:12px;color:var(--text1)">${w.industry || '—'}</div>
       </td>
       <td style="${tdStyle}">
         <div style="font-size:13px;font-weight:700">${price ? price.toLocaleString()+'원' : '—'}</div>
