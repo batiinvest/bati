@@ -151,6 +151,20 @@ function fmtNet(val) {
   return sign + abs + '백만';
 }
 
+// 원(KRW) 단위 금액 → 한국식 조/억/만원 표시 (개인 포트폴리오 전용)
+// fmtNet/fmtEok은 억·조 스케일이라 수백만~수천만원을 "0억"으로 뭉갬 → 만원 단위까지 표시.
+// signed=true면 양수에 '+' 부호 (손익 표기용).
+// 예: 100_000_000 → "1.0억" / 50_000_000 → "5,000만" / -3_200_000 → "-320만"
+function fmtWon(won, signed = false) {
+  if (won == null || isNaN(won)) return '—';
+  const abs  = Math.abs(won);
+  const sign = won < 0 ? '-' : (signed && won > 0 ? '+' : '');
+  if (abs >= 1e12) return sign + (abs / 1e12).toFixed(2) + '조';
+  if (abs >= 1e8)  { const e = abs / 1e8; return sign + (e >= 100 ? Math.round(e).toLocaleString() : e.toFixed(1)) + '억'; }
+  if (abs >= 1e4)  return sign + Math.round(abs / 1e4).toLocaleString() + '만';
+  return sign + Math.round(abs).toLocaleString() + '원';
+}
+
 // ── 날짜 포맷 헬퍼 — 전 파일에서 참조 ──────────────────────────────────────
 
 /** 오늘 날짜 → 'YYYY-MM-DD' 문자열 */

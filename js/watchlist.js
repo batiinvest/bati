@@ -664,11 +664,11 @@ async function loadWatchlist() {
     summaryEl.innerHTML = `
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:.6rem">
         ${totalAssets > 0 ? bigCard('총자산',
-          fmtNet(totalAssets),
-          `보유 ${fmtNet(totalVal)} + 현금 ${fmtNet(cash)}`) : ''}
+          fmtWon(totalAssets),
+          `보유 ${fmtWon(totalVal)} + 현금 ${fmtWon(cash)}`) : ''}
         ${holding.length ? bigCard('총손익',
-          `${(totalRealized+totalPnl)>=0?'+':''}${fmtNet(totalRealized+totalPnl)}`,
-          `${totalPnlPct!=null?`평가 ${totalPnlPct>=0?'+':''}${totalPnlPct.toFixed(1)}%`:''}${totalRealized?` · 실현 ${totalRealized>=0?'+':''}${fmtNet(totalRealized)}`:''}`,
+          fmtWon(totalRealized+totalPnl, true),
+          `${totalPnlPct!=null?`평가 ${totalPnlPct>=0?'+':''}${totalPnlPct.toFixed(1)}%`:''}${totalRealized?` · 실현 ${fmtWon(totalRealized, true)}`:''}`,
           (totalRealized+totalPnl)>=0 ? 'var(--up)' : 'var(--down)') : ''}
         ${cashCard}
       </div>
@@ -869,12 +869,12 @@ async function loadWatchlist() {
       const pnlStr = (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(1) + '%';
       const stopPct = w.stop_price && price ? (w.stop_price - price) / price * 100 : null;
       costCell = `<div style="font-size:12px"><span style="font-size:10px;font-weight:700;color:var(--accent)">평단 </span>${e.avg.toLocaleString()}원 <span style="color:var(--text2)">· ${e.qty.toLocaleString()}주</span></div>
-                  <div style="font-size:12px;font-weight:700;color:${color}">${pnlStr} · ${fmtNet((price-e.avg)*e.qty)}</div>
-                  ${e.realized ? `<div style="font-size:11px;color:${e.realized>=0?'var(--up)':'var(--down)'}">실현 ${e.realized>=0?'+':''}${fmtNet(e.realized)}</div>` : ''}
+                  <div style="font-size:12px;font-weight:700;color:${color}">${pnlStr} · ${fmtWon((price-e.avg)*e.qty, true)}</div>
+                  ${e.realized ? `<div style="font-size:11px;color:${e.realized>=0?'var(--up)':'var(--down)'}">실현 ${fmtWon(e.realized, true)}</div>` : ''}
                   ${w.stop_price ? `<div style="font-size:11px;color:${isStopHit?'var(--down)':'var(--text2)'};font-weight:${isStopHit?'700':'400'}">${isStopHit?'⚠️ ':''}손절 ${w.stop_price.toLocaleString()}원${stopPct!=null?` (${stopPct.toFixed(1)}%)`:''}</div>` : ''}`;
     } else if (e.closed) {
       costCell = `<div style="font-size:12px;color:var(--text2);font-weight:600">청산 완료</div>
-                  <div style="font-size:12px;font-weight:700;color:${e.realized>=0?'var(--up)':'var(--down)'}">실현 ${e.realized>=0?'+':''}${fmtNet(e.realized)}</div>`;
+                  <div style="font-size:12px;font-weight:700;color:${e.realized>=0?'var(--up)':'var(--down)'}">실현 ${fmtWon(e.realized, true)}</div>`;
     } else {
       costCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
     }
