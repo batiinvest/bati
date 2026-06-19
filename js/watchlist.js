@@ -163,7 +163,7 @@ async function selectWatchlistStock(code, name, industry, market) {
     const m = mkt[0];
     const _set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     const _html = (id, val) => { const el = document.getElementById(id); if (el) el.innerHTML = val; };
-    _set('wl-auto-price', m.price ? m.price.toLocaleString()+'원' : '—');
+    _set('wl-auto-price', fmtPrice(m.price));
     _html('wl-auto-chg', m.price_change_rate != null
       ? `<span style="color:${chgColor(m.price_change_rate)}">${m.price_change_rate>0?'+':''}${m.price_change_rate.toFixed(2)}%</span>` : '—');
     _set('wl-auto-cap', m.market_cap ? fmtEok(m.market_cap / 1e8) : '—');
@@ -1523,7 +1523,7 @@ async function loadWatchlist() {
       </td>`,
       industry: `<td style="${tdStyle}"><div style="font-size:12px;color:var(--text1)">${industryMap[w.stock_code] || w.industry || '—'}</div></td>`,
       price: `<td style="${tdStyle}">
-        <div style="font-size:13px;font-weight:700">${price ? price.toLocaleString()+'원' : '—'}</div>
+        <div style="font-size:13px;font-weight:700">${fmtPrice(price)}</div>
         <div style="font-size:11px;font-weight:600;color:${chgColor(chg)}">${chg!=null?(chg>=0?'+':'')+chg.toFixed(2)+'%':''}</div>
       </td>`,
       ret: `<td style="${tdStyle}">
@@ -1785,7 +1785,7 @@ function wlRenderDrawer(code) {
       <button class="modal-close" onclick="wlCloseDrawer()">×</button>
     </div>
     <div style="display:flex;align-items:baseline;gap:8px;margin-top:8px">
-      <span style="font-size:22px;font-weight:800;font-variant-numeric:tabular-nums">${price ? price.toLocaleString()+'원' : '—'}</span>
+      <span style="font-size:22px;font-weight:800;font-variant-numeric:tabular-nums">${fmtPrice(price)}</span>
       <span style="font-size:13px;font-weight:700;color:${chgColor(chg)}">${chg!=null ? (chg>=0?'+':'')+chg.toFixed(2)+'%' : ''}</span>
     </div>
   </div>`;
@@ -2139,7 +2139,7 @@ async function renderWatchlistForm(id) {
     const perEl   = document.getElementById('wl-auto-per');
     const hint    = document.getElementById('wl-shares-hint');
     const rrCur   = document.getElementById('wl-rr-cur');
-    if (priceEl) priceEl.textContent = m.price ? m.price.toLocaleString()+'원' : '—';
+    if (priceEl) priceEl.textContent = fmtPrice(m.price);
     if (chgEl)   chgEl.innerHTML = m.price_change_rate != null
       ? `<span style="color:${chgColor(m.price_change_rate)}">${m.price_change_rate>0?'+':''}${m.price_change_rate.toFixed(2)}%</span>` : '—';
     if (capEl)   capEl.textContent = m.market_cap ? fmtEok(m.market_cap / 1e8) : '—';
