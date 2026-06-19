@@ -37,77 +37,9 @@ async function loadMacroData() {
   window._macroData = m;   // market-insight.js / market-temperature.js 재활용
   window._macroRows = data || []; // 5일치 — 온도계 5일 추세 계산용
 
-  // 위험 신호 감지 → 동적 스트립 삽입
-  const _riskItems = [
-    { key: 'vix',            val: m.vix,            label: 'VIX',      fmt: v => Number(v).toFixed(2) },
-    { key: 'us10y',          val: m.us10y,           label: '미10년금리', fmt: v => Number(v).toFixed(3) + '%' },
-    { key: 'usd_krw',        val: m.usd_krw,         label: 'USD/KRW',  fmt: v => Number(v).toLocaleString() + '원' },
-    { key: 'sp500_chg',      val: m.sp500_chg,       label: 'S&P500',   fmt: v => (v>0?'+':'') + Number(v).toFixed(2) + '%' },
-    { key: 'nasdaq_chg',     val: m.nasdaq_chg,      label: '나스닥',    fmt: v => (v>0?'+':'') + Number(v).toFixed(2) + '%' },
-    { key: 'sp500_fut_chg',  val: m.sp500_fut_chg,   label: 'S&P선물',  fmt: v => (v>0?'+':'') + Number(v).toFixed(2) + '%' },
-    { key: 'nasdaq_fut_chg', val: m.nasdaq_fut_chg,  label: '나스닥선물', fmt: v => (v>0?'+':'') + Number(v).toFixed(2) + '%' },
-    { key: 'wti',            val: m.wti,             label: 'WTI',      fmt: v => '$' + Number(v).toFixed(1) },
-  ];
-  const _activeRisks = _riskItems
-    .map(r => ({ ...r, risk: _getRisk(r.key, r.val) }))
-    .filter(r => r.risk);
-
-  const _oldStrip = document.getElementById('_macro-risk-strip');
-  if (_oldStrip) _oldStrip.remove();
-
-  const globalEl = document.getElementById('inv-global');
-  if (_activeRisks.length && globalEl?.parentElement) {
-    const _RI = {
-      caution:  { color: '#f59e0b', icon: '⚠️', label: '주의' },
-      danger:   { color: '#ef4444', icon: '🚨', label: '위험' },
-      critical: { color: '#dc2626', icon: '🔴', label: '긴급' },
-    };
-    const strip = document.createElement('div');
-    strip.id = '_macro-risk-strip';
-    strip.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 12px;margin-bottom:8px;border-radius:8px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.25)';
-    strip.innerHTML =
-      '<span style="font-size:11px;color:var(--text2);font-weight:600;white-space:nowrap">🔔 위험 신호</span>' +
-      _activeRisks.map(r => {
-        const ri = _RI[r.risk];
-        return `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:12px;` +
-          `background:${ri.color}22;border:1px solid ${ri.color}55;font-size:11px;color:${ri.color};font-weight:600;white-space:nowrap">` +
-          `${ri.icon} ${r.label} ${r.fmt(r.val)}</span>`;
-      }).join('');
-    globalEl.parentElement.insertBefore(strip, globalEl);
-  }
-
-  if (globalEl) globalEl.innerHTML = [
-    mkIndexCard('S&P 500',     m.sp500,       m.sp500_chg,       '',  'USA 현물', _getRisk('sp500_chg',      m.sp500_chg)),
-    mkIndexCard('나스닥',       m.nasdaq,      m.nasdaq_chg,      '',  'USA 현물', _getRisk('nasdaq_chg',     m.nasdaq_chg)),
-    mkIndexCard('다우존스',     m.dow,         m.dow_chg,         '',  'USA 현물'),
-    mkIndexCard('S&P 선물',    m.sp500_fut,   m.sp500_fut_chg,   '',  '선물',     _getRisk('sp500_fut_chg',  m.sp500_fut_chg)),
-    mkIndexCard('나스닥 선물',  m.nasdaq_fut,  m.nasdaq_fut_chg,  '',  '선물',     _getRisk('nasdaq_fut_chg', m.nasdaq_fut_chg)),
-    mkIndexCard('다우 선물',    m.dow_fut,     m.dow_fut_chg,     '',  '선물'),
-    mkIndexCard('VIX',         m.vix,         m.vix_chg,         '',  '공포지수', _getRisk('vix',            m.vix)),
-    mkIndexCard('미 10년 금리', m.us10y,       m.us10y_chg,       '%', '국채',    _getRisk('us10y',          m.us10y)),
-  ].join('');
-
-  const domEl = document.getElementById('inv-domestic');
-  if (domEl) domEl.innerHTML = [
-    mkIndexCard('코스피', m.kospi,  m.kospi_chg,  '', 'KOSPI'),
-    mkIndexCard('코스닥', m.kosdaq, m.kosdaq_chg, '', 'KOSDAQ'),
-  ].join('');
-
-  const fxEl = document.getElementById('inv-fx');
-  if (fxEl) fxEl.innerHTML = [
-    mkIndexCard('USD/KRW', m.usd_krw, m.usd_krw_chg, '원', '달러', _getRisk('usd_krw', m.usd_krw)),
-    mkIndexCard('JPY/KRW', m.jpy_krw, m.jpy_krw_chg, '원', '100엔'),
-    mkIndexCard('EUR/KRW', m.eur_krw, m.eur_krw_chg, '원', '유로'),
-    mkIndexCard('CNY/KRW', m.cny_krw, m.cny_krw_chg, '원', '위안'),
-  ].join('');
-
-  const cmdEl = document.getElementById('inv-commodity');
-  if (cmdEl) cmdEl.innerHTML = [
-    mkIndexCard('WTI 유가',  m.wti,    m.wti_chg,    '$', '배럴', _getRisk('wti', m.wti)),
-    mkIndexCard('금',        m.gold,   m.gold_chg,   '$', '온스'),
-    mkIndexCard('천연가스',   m.gas,    m.gas_chg,    '$', 'MMBtu'),
-    mkIndexCard('구리',      m.copper, m.copper_chg, '$', '파운드'),
-  ].join('');
+  // (정리됨) 매크로 카드 그리드(inv-global/domestic/fx/commodity)·위험 스트립(_macro-risk-strip)은
+  // 현재 레이아웃에 해당 DOM이 없어 렌더되지 않던 죽은 코드 → 제거.
+  // 매크로 지수는 아래 증시동향 배너(inv-banner-content)·탑바 스트립·Zone A 브리핑 바가 담당.
 
   // 전체 종목 동향 카드 헤더 배너에 글로벌 지수 인라인 표시
   const bannerEl = document.getElementById('inv-banner-content');

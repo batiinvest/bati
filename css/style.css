@@ -228,10 +228,8 @@ textarea.form-input { resize:vertical; min-height:100px; }
   /* ── 전체현황: 산업별/Top5 2열 → 1열 ── */
   .overview-grid { grid-template-columns:1fr !important; }
 
-  /* ── 투자현황 ── */
-  .inv-summary-grid { grid-template-columns:1fr !important; }
-  .inv-main-grid   { grid-template-columns:1fr !important; }
-  .inv-chg-grid    { grid-template-columns:1fr !important; }
+  /* ── 시황 상단 2-col(온도계 | 증시동향) → 1-col ── */
+  .inv-top-grid { grid-template-columns:1fr !important; }
 
   /* ── 스크리너: 필터 사이드바 → 상단 접이식 ── */
   .screener-layout  { grid-template-columns:1fr !important; }

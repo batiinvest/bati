@@ -103,7 +103,7 @@ function pInvestment() {
   </div>
 
   <!-- 상단 2열: 온도계 | 증시동향 -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:stretch;margin-bottom:1rem">
+  <div class="inv-top-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:stretch;margin-bottom:1rem">
 
     <!-- 시장 온도계 -->
     <div class="card" style="margin-bottom:0;display:flex;flex-direction:column">
@@ -126,7 +126,6 @@ function pInvestment() {
         </div>
       </div>
       <div id="inv-total-summary" style="padding:.75rem 1rem;border-bottom:1px solid var(--border)"></div>
-      <div id="inv-industry-grid"></div>
     </div>
 
   </div>
@@ -505,36 +504,8 @@ function pInvestment() {
 
 
 
-// ── 지수 카드 ──
-// risk: null | 'caution' | 'danger' | 'critical'
-function mkIndexCard(label, value, chg, unit, sub, risk) {
-  const cc  = chg != null ? chgColor(chg) : 'var(--text2)';
-  const cs  = chg != null ? chgStr(chg) : '—';
-  const val = value != null ? Number(value).toLocaleString() + (unit||'') : '—';
-
-  const _RS = {
-    caution:  { border:'1px solid #f59e0b', bg:'rgba(245,158,11,0.09)', icon:'⚠️', shadow:'' },
-    danger:   { border:'1px solid #ef4444', bg:'rgba(239,68,68,0.09)',  icon:'🚨', shadow:'' },
-    critical: { border:'2px solid #dc2626', bg:'rgba(220,38,38,0.13)', icon:'🔴', shadow:'box-shadow:0 0 10px rgba(220,38,38,0.25);' },
-  };
-  const rs = risk ? _RS[risk] : null;
-  const cardStyle = rs
-    ? `padding:10px 12px;border:${rs.border};background:${rs.bg};${rs.shadow}`
-    : 'padding:10px 12px';
-
-  return `
-  <div class="card" style="${cardStyle}">
-    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text1);margin-bottom:3px;font-weight:500">
-      ${rs ? `<span style="font-size:11px">${rs.icon}</span>` : ''}
-      <span>${label}</span>
-    </div>
-    <div style="font-size:15px;font-weight:700;color:${rs?'var(--text1)':'var(--text1)'};line-height:1.2">${val}</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
-      <div style="font-size:12px;color:${cc};font-weight:600">${cs}</div>
-      ${sub ? `<div style="font-size:10px;color:var(--text1)">${sub}</div>` : ''}
-    </div>
-  </div>`;
-}
+// (정리됨) mkIndexCard — 매크로 카드 그리드 전용 헬퍼였으나 그리드 제거로 호출처 소멸.
+//   매크로 지수는 증시동향 배너(chart-macro.js mkB/mkBPair)·탑바 스트립·브리핑 바가 담당.
 
 // ── 탭 전환 (2단 레이아웃으로 전환 후 no-op, 호환성 유지) ──
 function setInvTab(tab) {

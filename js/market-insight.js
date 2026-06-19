@@ -458,13 +458,10 @@ function _renderInsightCard(data) {
 
   const f = data.flow || {};
 
-  // ─── 한 줄 총평 (최상단, 강조) ───
-  const oneLiner = `
-  <div class="insight-oneliner" style="margin-bottom:10px">
-    <div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.5">
-      ${data.one_line_summary || '—'}
-    </div>
-  </div>`;
+  // ─── 한 줄 총평 ───
+  // Zone A 브리핑 바(renderBriefingBar)가 동일 문장을 최상단에 표시하므로 카드에서는 생략(중복 제거).
+  // data.one_line_summary는 window._insightCurrentData를 통해 브리핑 바가 계속 사용한다.
+  const oneLiner = '';
 
   // ─── 영향 업종 배지 (시장 전체 등급은 온도계 카드 역할 — 여기선 업종 단위만) ───
   const indBadges =
