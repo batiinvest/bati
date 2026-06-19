@@ -201,6 +201,7 @@ function pInvestment() {
             <button class="chip active" id="idea-tab-ls"       onclick="switchIdeaTab('ls')"       style="font-size:11px;padding:3px 10px">${_ICO.rocket}주도주</button>
             <button class="chip"        id="idea-tab-hgpr"     onclick="switchIdeaTab('hgpr')"     style="font-size:11px;padding:3px 10px">${_ICO.flag}신고가</button>
             <button class="chip"        id="idea-tab-earnings" onclick="switchIdeaTab('earnings')" style="font-size:11px;padding:3px 10px">${_ICO.bar}실적급등</button>
+            <button class="chip"        id="idea-tab-surge"    onclick="switchIdeaTab('surge')"    style="font-size:11px;padding:3px 10px">${_ICO.arrowUp}급등</button>
           </div>
         </div>
 
@@ -256,6 +257,12 @@ function pInvestment() {
               onchange="loadEarningsSurge()"><option value="">로딩 중...</option></select>
           </div>
           <div id="inv-earnings-list" style="padding:.5rem 0">${_skelCards(4)}</div>
+        </div>
+
+        <!-- 급등 패널 (당일 상승률 상위, 거래대금 필터) -->
+        <div id="idea-panel-surge" style="display:none;border-top:1px solid var(--border)">
+          <div style="padding:5px 10px;border-bottom:1px solid var(--border);font-size:10px;color:var(--text2)">거래대금 5억↑ · 상승률 상위 (최근 거래일 종가 기준)</div>
+          <div id="idea-surge-body" style="padding:.25rem 0">${_skelList(8, true)}</div>
         </div>
       </div>
 
@@ -684,6 +691,7 @@ async function loadInvestment() {
   // Phase 1 — 온도계 + 거래대금 상위 (window._allMarketRows / _macroData 재활용)
   renderMarketTemperature();
   renderVolumeLeaders();
+  renderIdeaSurge(); // '오늘의 아이디어' 급등 탭
   renderBriefingBar(); // 종목데이터 준비 완료 → 온도계 점수·breadth 채움
 
   // Phase 2 — 주도주 탐색기 + 백테스트 + 섹터 수급 트렌드 + 산업 강도 매트릭스
@@ -954,12 +962,48 @@ function toggleZoneC() {
 // ── '오늘의 아이디어' 탭 전환 (주도주 / 신고가 / 실적급등) ───────────────────────
 // 각 패널은 기존 위젯 내용을 그대로 품고 있어(id 유지) 로더는 변경 불필요 — 표시 토글만.
 function switchIdeaTab(tab) {
-  ['ls', 'hgpr', 'earnings'].forEach(t => {
+  ['ls', 'hgpr', 'earnings', 'surge'].forEach(t => {
     const panel = document.getElementById('idea-panel-' + t);
     if (panel) panel.style.display = (t === tab) ? 'block' : 'none';
     const btn = document.getElementById('idea-tab-' + t);
     if (btn) btn.classList.toggle('active', t === tab);
   });
+}
+
+// ── '급등' 탭 — 당일 상승률 상위 (거래대금 5억↑, 껍데기 급등 제외) ────────────────
+// 이미 로드된 window._allMarketRows 재사용 (별도 쿼리 없음). 행 클릭 → 상세.
+function renderIdeaSurge() {
+  const el = document.getElementById('idea-surge-body');
+  if (!el) return;
+  const MIN_TV = 5e8; // 거래대금 5억원
+  const rows = (window._allMarketRows || [])
+    .filter(r => r.price_change_rate != null && r.corp_name)
+    .filter(r => (r.trading_value || ((r.volume ?? 0) * (r.price ?? 0))) >= MIN_TV)
+    .sort((a, b) => b.price_change_rate - a.price_change_rate)
+    .slice(0, 15);
+
+  if (!rows.length) {
+    el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text2);font-size:12px">데이터 없음</div>';
+    return;
+  }
+
+  el.innerHTML = rows.map((r, i) => {
+    const mkTag = r.market === 'KOSDAQ'
+      ? '<span style="font-size:9px;color:var(--text2);margin-left:2px;font-weight:600">Q</span>' : '';
+    const tv    = r.trading_value || ((r.volume ?? 0) * (r.price ?? 0));
+    const tvStr = tv >= 1e12 ? (tv / 1e12).toFixed(1) + '조'
+                : tv >= 1e8  ? Math.round(tv / 1e8).toLocaleString() + '억' : '';
+    const safeName = (r.corp_name || r.stock_code || '').replace(/'/g, "\\'");
+    return `
+    <div onclick="openMarketDetail('${r.stock_code}','${safeName}')"
+      style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);cursor:pointer"
+      onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
+      <span style="width:16px;font-size:11px;color:var(--text2);font-weight:600;flex-shrink:0">${i + 1}</span>
+      <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.corp_name}${mkTag}</span>
+      <span style="font-size:10px;color:var(--text2);white-space:nowrap">${tvStr}</span>
+      <span style="font-size:12px;font-weight:700;color:${chgColor(r.price_change_rate)};flex-shrink:0;min-width:48px;text-align:right">${chgStr(r.price_change_rate)}</span>
+    </div>`;
+  }).join('');
 }
 
 
