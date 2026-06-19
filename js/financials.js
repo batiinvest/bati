@@ -528,11 +528,10 @@ async function openStockDetail(code, name, initTab = 'overview') {
           </div>
           <div style="display:flex;align-items:center;gap:12px">
             <div id="sd-price-badge" style="text-align:right"></div>
-            ${_canEditSD ? `<button id="sd-watch-btn" onclick="window.sdAddToWatch('${code}','${_sdSafeName}')"
+            ${_canEditSD ? `<button id="sd-watch-btn" onclick="window.sdToggleWatch('${code}','${_sdSafeName}')"
               style="background:var(--bg3);border:1px solid var(--border);cursor:pointer;color:var(--text1);
                 font-size:12px;font-weight:600;padding:6px 12px;line-height:1;border-radius:6px;transition:.15s;white-space:nowrap"
-              onmouseover="this.style.borderColor='var(--tg)'" onmouseout="this.style.borderColor='var(--border)'"
-              title="관심종목에 추가">⭐ 관심</button>` : ''}
+              title="관심종목 추가/해제">⭐ 관심</button>` : ''}
             <button onclick="document.getElementById('m-stock-detail').remove()"
               style="background:var(--bg3);border:1px solid var(--border);cursor:pointer;
                 color:var(--text2);font-size:18px;padding:2px 8px;line-height:1;
@@ -586,6 +585,9 @@ async function openStockDetail(code, name, initTab = 'overview') {
     }
   } catch(e) {}
 
+  // 관심종목 등록 여부 반영 (버튼 토글 상태)
+  if (_canEditSD) _sdCheckWatch(code);
+
   // 최신 시세로 헤더 가격 업데이트
   try {
     const { data: lp } = await sb.from('market_data')
@@ -634,42 +636,92 @@ async function openStockDetail(code, name, initTab = 'overview') {
 async function openFinTrend(code, name)     { openStockDetail(code, name, 'financial'); }
 async function openMarketDetail(code, name) { openStockDetail(code, name, 'market'); }
 
-// ── 상세 모달 → 관심종목(워치리스트) 원클릭 추가 ──────────────────────────────
-window.sdAddToWatch = async function(code, name) {
+// ── 상세 모달 → 관심종목(워치리스트) 토글 ────────────────────────────────────
+// 버튼 상태 반영: 'in'(등록됨, ✓) / 'out'(미등록, ⭐)
+function _sdSetWatchBtn(state) {
+  const btn = document.getElementById('sd-watch-btn');
+  if (!btn) return;
+  btn.disabled = false;
+  if (state === 'in') {
+    btn.textContent      = '✓ 관심';
+    btn.style.color      = 'var(--tg)';
+    btn.style.borderColor = 'var(--tg)';
+    btn.onmouseover = function(){ this.style.borderColor = 'var(--red)'; };
+    btn.onmouseout  = function(){ this.style.borderColor = 'var(--tg)';  };
+    btn.title = '관심 해제';
+  } else {
+    btn.textContent      = '⭐ 관심';
+    btn.style.color      = 'var(--text1)';
+    btn.style.borderColor = 'var(--border)';
+    btn.onmouseover = function(){ this.style.borderColor = 'var(--tg)';    };
+    btn.onmouseout  = function(){ this.style.borderColor = 'var(--border)'; };
+    btn.title = '관심종목에 추가';
+  }
+}
+
+// 현재 등록 여부 조회 → 버튼 상태 반영 (모달 오픈 시)
+async function _sdCheckWatch(code) {
+  const bare = String(code).replace(/\.(KS|KQ)$/, '');
+  try {
+    const { data } = await sb.from('watchlist')
+      .select('id')
+      .or(`stock_code.eq.${bare},stock_code.eq.${bare}.KS,stock_code.eq.${bare}.KQ`)
+      .limit(1);
+    _sdSetWatchBtn(data && data.length ? 'in' : 'out');
+  } catch(e) { /* 조회 실패 시 기본(⭐) 유지 */ }
+}
+
+// 토글: 미등록→추가('관심'), 등록→해제(단, 보유/노트 보호)
+window.sdToggleWatch = async function(code, name) {
   if (typeof canEdit === 'function' && !canEdit()) {
     if (typeof toast === 'function') toast('권한이 없습니다.', 'error');
     return;
   }
-  const btn  = document.getElementById('sd-watch-btn');
   const bare = String(code).replace(/\.(KS|KQ)$/, '');
   try {
-    // 중복 체크 (.KS/.KQ 접미사 변형 포함)
-    const { data: existing } = await sb.from('watchlist')
-      .select('id')
+    const { data } = await sb.from('watchlist')
+      .select('id,group_name,quantity,thesis_1,catalyst,target_price,watch_price,risk_1')
       .or(`stock_code.eq.${bare},stock_code.eq.${bare}.KS,stock_code.eq.${bare}.KQ`)
       .limit(1);
-    if (existing && existing.length) {
-      if (typeof toast === 'function') toast('이미 관심종목에 있습니다.', 'info');
-      if (btn) { btn.textContent = '✓ 관심종목'; btn.disabled = true; btn.style.opacity = '.7'; }
-      return;
+    const row = data && data[0];
+
+    if (!row) {
+      // ── 추가 ──
+      const ind = document.getElementById('sd-industry-badge')?.textContent?.trim() || null;
+      const { error } = await sb.from('watchlist').insert({
+        stock_code: bare,
+        corp_name:  name,
+        industry:   ind || null,
+        group_name: '관심',
+        updated_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+      _sdSetWatchBtn('in');
+      if (typeof toast === 'function') toast('⭐ 관심종목에 추가했습니다.', 'success');
+    } else {
+      // ── 해제 ── 보유 포지션은 거래기록 꼬임 방지 위해 차단
+      const isPosition = row.group_name === '보유중' || (row.quantity && row.quantity > 0);
+      if (isPosition) {
+        if (typeof toast === 'function') toast('보유 종목입니다 — 투자노트에서 관리하세요. (여기서 해제 불가)', 'info');
+        _sdSetWatchBtn('in');
+        return;
+      }
+      // 메모가 있는 관심/후보는 실수 삭제 방지 위해 확인
+      const hasNotes = row.thesis_1 || row.catalyst || row.target_price || row.watch_price || row.risk_1;
+      if (hasNotes && !confirm(`'${name}'에 작성한 투자노트(근거·목표가 등)가 함께 삭제됩니다. 관심에서 제거할까요?`)) {
+        _sdSetWatchBtn('in');
+        return;
+      }
+      const { error } = await sb.from('watchlist').delete().eq('id', row.id);
+      if (error) throw error;
+      _sdSetWatchBtn('out');
+      if (typeof toast === 'function') toast('관심종목에서 제거했습니다.', 'success');
     }
-    // 산업 정보는 모달 헤더 배지에서 재활용
-    const ind = document.getElementById('sd-industry-badge')?.textContent?.trim() || null;
-    const { error } = await sb.from('watchlist').insert({
-      stock_code: bare,
-      corp_name:  name,
-      industry:   ind || null,
-      group_name: '관심',
-      updated_at: new Date().toISOString(),
-    });
-    if (error) throw error;
-    if (btn) { btn.textContent = '✓ 관심추가됨'; btn.disabled = true; btn.style.color = 'var(--green)'; btn.style.borderColor = 'var(--green)'; }
-    if (typeof toast === 'function') toast('⭐ 관심종목에 추가했습니다.', 'success');
     // 워치리스트 화면이 떠 있으면 갱신
     if (typeof loadWatchlist === 'function' && document.getElementById('wl-body')) loadWatchlist();
   } catch(e) {
-    console.error('[sdAddToWatch]', e);
-    if (typeof toast === 'function') toast('추가 실패: ' + e.message, 'error');
+    console.error('[sdToggleWatch]', e);
+    if (typeof toast === 'function') toast('처리 실패: ' + e.message, 'error');
   }
 };
 
