@@ -178,12 +178,12 @@ function _hlCard(r, isHigh) {
     </div>
     <div style="display:flex;justify-content:space-between;align-items:baseline">
       <div>
-        <span style="font-size:15px;font-weight:700">${r.price ? r.price.toLocaleString() + '원' : '—'}</span>
+        <span style="font-size:15px;font-weight:700">${fmtPrice(r.price)}</span>
         <span style="font-size:11px;margin-left:5px;color:${chgColor(r.price_change_rate)}">${chgStr(r.price_change_rate)}</span>
       </div>
       <div style="font-size:11px;color:var(--text2);text-align:right">
         ${refLabel}<br>
-        <span style="font-weight:600;color:${accentColor}">${refPrice ? refPrice.toLocaleString() + '원' : '—'}</span>
+        <span style="font-weight:600;color:${accentColor}">${fmtPrice(refPrice)}</span>
       </div>
     </div>
     <div style="font-size:11px;color:var(--text2);margin-top:5px">${fmtCap(r.market_cap)}</div>

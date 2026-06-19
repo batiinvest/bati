@@ -404,7 +404,7 @@ async function loadMarketOverview(maxDate) {
             '<span style="font-size:11px;color:var(--text2)">' + (i+1) + '</span>' +
             '<span style="font-size:13px">' + st.corp_name + '</span>' +
             '<span style="font-size:12px;color:var(--text1);text-align:right;padding-right:8px">' +
-              (st.price != null ? st.price.toLocaleString() + '원' : '—') +
+              fmtPrice(st.price) +
             '</span>' +
             '<span style="font-size:13px;font-weight:700;color:' + chgColor(st.price_change_rate) + ';text-align:right">' +
               chgStr(st.price_change_rate) +
@@ -673,7 +673,7 @@ function renderHgprTab(tab) {
       : '';
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:5px 12px;font-weight:500;font-size:13px;white-space:nowrap">${r.corp_name||r.stock_code}</td>
-      <td style="padding:5px 12px;text-align:right;font-weight:500;white-space:nowrap">${r.price?r.price.toLocaleString()+'원':'—'}</td>
+      <td style="padding:5px 12px;text-align:right;font-weight:500;white-space:nowrap">${fmtPrice(r.price)}</td>
       <td style="padding:5px 12px;text-align:right;color:${chgClr};font-weight:600">${chgTxt}</td>
       <td style="padding:5px 12px;text-align:right;color:var(--text2);font-size:12px">${cap}</td>
       ${indCell}

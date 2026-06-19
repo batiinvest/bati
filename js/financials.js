@@ -327,13 +327,13 @@ async function loadMarketData(el) {
         <td style="font-size:11px;color:var(--text2);font-family:monospace">${r.stock_code}</td>
         <td style="font-size:11px;color:var(--text2)">${r.market||'—'}</td>
         <td>${fmtCap(r.market_cap)}</td>
-        <td style="font-weight:500">${r.price ? r.price.toLocaleString()+'원' : '—'}</td>
+        <td style="font-weight:500">${fmtPrice(r.price)}</td>
         <td style="color:${chgC}">${chgV != null ? (chgV>0?'+':'')+chgV.toLocaleString()+'원' : '—'}</td>
         <td style="color:${chgC};font-weight:500">${chgStr(chg)}</td>
         <td style="font-size:11px;color:var(--text2)">${p(r.volume_change_rate)}</td>
-        <td style="color:var(--red)">${r.high_price ? r.high_price.toLocaleString()+'원' : '—'}</td>
-        <td style="color:var(--blue)">${r.low_price  ? r.low_price.toLocaleString()+'원'  : '—'}</td>
-        <td style="font-size:11px">${r.vwap ? r.vwap.toLocaleString()+'원' : '—'}</td>
+        <td style="color:var(--red)">${fmtPrice(r.high_price)}</td>
+        <td style="color:var(--blue)">${fmtPrice(r.low_price)}</td>
+        <td style="font-size:11px">${fmtPrice(r.vwap)}</td>
         <td>${n(r.volume)}</td>
         <td>${r.trading_value ? fmtCap(r.trading_value) : '—'}</td>
         <td style="font-size:11px">${n(r.listing_shares)}</td>
@@ -746,7 +746,7 @@ const _sec = (title, content, accent='var(--tg)') =>
 const _pct = v => v != null ? v.toFixed(1)+'%' : '—';
 const _num = v => v != null ? v.toLocaleString() : '—';
 const _cap = v => v != null ? fmtCap(v) : '—';
-const _won = v => v != null ? v.toLocaleString()+'원' : '—';
+const _won = fmtPrice;  // config.js 전역 헬퍼 — 동일 동작
 const _fmtB = v => v==null ? null : Math.round(v/100000000);
 
 function _w52bar(r) {
@@ -988,7 +988,7 @@ async function _sdMarket(body, code, name) {
           const hc = h.price_change_rate;
           return `<tr>
             <td style="font-size:11px;color:var(--text2)">${h.base_date}</td>
-            <td style="text-align:right;font-weight:600">${h.price?h.price.toLocaleString()+'원':'—'}</td>
+            <td style="text-align:right;font-weight:600">${fmtPrice(h.price)}</td>
             <td style="text-align:right;color:${chgColor(hc)};font-weight:600">${chgStr(hc)}</td>
             <td style="text-align:right;color:var(--text1)">${h.market_cap?_cap(h.market_cap):'—'}</td>
             <td style="text-align:right;color:var(--text1)">${h.volume?h.volume.toLocaleString():'—'}</td>
@@ -1118,7 +1118,7 @@ async function _sdSupply(body, code, name) {
           const hc = h.price_change_rate;
           return `<tr>
             <td style="font-size:11px;color:var(--text2)">${h.base_date}</td>
-            <td style="text-align:right;font-weight:600">${h.price?h.price.toLocaleString()+'원':'—'}</td>
+            <td style="text-align:right;font-weight:600">${fmtPrice(h.price)}</td>
             <td style="text-align:right;color:${chgColor(hc)};font-weight:600">${chgStr(hc)}</td>
             <td style="text-align:right;color:${(h.foreign_net_buy||0)<0?'var(--blue)':'var(--red)'}">
               ${h.foreign_net_buy!=null?h.foreign_net_buy.toLocaleString():'—'}
@@ -1172,7 +1172,7 @@ async function _sdOpinion(body, code, name) {
       <!-- 컨센서스 요약 -->
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
         ${[
-          ['평균 목표주가', avgTarget?avgTarget.toLocaleString()+'원':'—', upside!=null?`현재가 대비 ${upside>=0?'+':''}${upside}%`:''],
+          ['평균 목표주가', fmtPrice(avgTarget), upside!=null?`현재가 대비 ${upside>=0?'+':''}${upside}%`:''],
           ['목표가 범위', maxTarget?`${minTarget?.toLocaleString()}~${maxTarget?.toLocaleString()}원`:'—', ''],
           ['매수 의견', `${buyCnt}개`, `전체 ${recent.length}개 중`],
           ['중립/기타', `${holdCnt}개`, ''],
@@ -1203,7 +1203,7 @@ async function _sdOpinion(body, code, name) {
               <span style="color:${opColor};font-weight:700">${changed}${o.opinion||'—'}</span>
             </td>
             <td style="color:var(--text2);font-size:12px">${o.prev_opinion||'—'}</td>
-            <td style="text-align:right;font-weight:600">${o.target_price?o.target_price.toLocaleString()+'원':'—'}</td>
+            <td style="text-align:right;font-weight:600">${fmtPrice(o.target_price)}</td>
             <td style="text-align:right;color:${gapColor}">${o.gap_rate!=null?o.gap_rate.toFixed(1)+'%':'—'}</td>
           </tr>`;
         }).join('')}</tbody>

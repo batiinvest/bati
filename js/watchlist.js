@@ -223,6 +223,8 @@ document.addEventListener('click', e => {
 // 거래 내역 → 현재 포지션(수량/평단/실현손익) 계산 (이동평균법)
 function computePosition(txs) {
   let qty = 0, avgCost = 0, realized = 0, buyQty = 0, sellQty = 0;
+  // 신용(신용융자) 잔고: 신용매수 금액 누계 − 신용매도(상환) 금액 누계
+  let creditBuyAmt = 0, creditSellAmt = 0, creditBuyQty = 0, creditSellQty = 0;
   const sorted = [...txs].sort((a, b) => {
     const d = (a.trade_date || '').localeCompare(b.trade_date || '');
     return d !== 0 ? d : (a.id || 0) - (b.id || 0);
@@ -231,18 +233,25 @@ function computePosition(txs) {
     const px  = Number(t.price)    || 0;
     const q   = Number(t.quantity) || 0;
     const fee = Number(t.fee)      || 0;
+    const isCredit = t.trade_method === 'credit';
     if (t.trade_type === 'buy') {
       const totalCost = avgCost * qty + px * q + fee;
       qty += q; buyQty += q;
       avgCost = qty > 0 ? totalCost / qty : 0;
+      if (isCredit) { creditBuyAmt += px * q; creditBuyQty += q; }
     } else { // sell — 이동평균 유지, 실현손익만 누적
       const sq = Math.min(q, qty);
       realized += (px - avgCost) * sq - fee;
       qty -= sq; sellQty += sq;
       if (qty <= 0) qty = 0;
+      if (isCredit) { creditSellAmt += px * q; creditSellQty += q; } // 신용 상환
     }
   }
-  return { qty, avgCost: Math.round(avgCost), realized: Math.round(realized), buyQty, sellQty, count: txs.length };
+  return {
+    qty, avgCost: Math.round(avgCost), realized: Math.round(realized), buyQty, sellQty, count: txs.length,
+    creditLoan: Math.max(0, Math.round(creditBuyAmt - creditSellAmt)), // 신용융자 잔고(원)
+    creditQty:  Math.max(0, creditBuyQty - creditSellQty),             // 신용으로 보유 중인 수량
+  };
 }
 
 let _wlTxAvailable = true; // portfolio_transactions 테이블 존재 여부 (없으면 수동 평단 모드)
@@ -465,6 +474,7 @@ function openTradeModal(watchlistId, stockCode, corpName, type, curPrice) {
   const isBuy = type === 'buy';
   const today = new Date().toISOString().slice(0, 10);
   const nm = (corpName || '').replace(/'/g, "\\'");
+  window._tradeType = type; // _tradePreview에서 신용 안내 분기용
   const overlay = document.createElement('div');
   overlay.id = 'm-trade';
   overlay.className = 'modal-overlay open';
@@ -499,6 +509,14 @@ function openTradeModal(watchlistId, stockCode, corpName, type, curPrice) {
           </div>
         </div>
         <div>
+          <div style="font-size:12px;color:var(--text1);margin-bottom:4px">거래 구분</div>
+          <div style="display:flex;gap:6px">
+            <button type="button" id="tm-cash"   onclick="_setTradeMethod('cash')"   style="flex:1;padding:7px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid var(--tg);background:var(--tg);color:#fff">현금</button>
+            <button type="button" id="tm-credit" onclick="_setTradeMethod('credit')" style="flex:1;padding:7px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;border:1px solid var(--border2);background:var(--bg3);color:var(--text1)">신용 ${isBuy?'(융자 매수)':'(상환 매도)'}</button>
+          </div>
+          <input type="hidden" id="trade-method" value="cash">
+        </div>
+        <div>
           <div style="font-size:12px;color:var(--text1);margin-bottom:4px">메모 (선택)</div>
           <input type="text" class="form-input" id="trade-memo" placeholder="예: 분할 1차, 실적 발표 후"
             style="width:100%;box-sizing:border-box">
@@ -517,16 +535,31 @@ function openTradeModal(watchlistId, stockCode, corpName, type, curPrice) {
   _tradePreview();
 }
 
+// 거래 구분(현금/신용) 토글
+function _setTradeMethod(m) {
+  const inp = document.getElementById('trade-method'); if (inp) inp.value = m;
+  const cash = document.getElementById('tm-cash'), credit = document.getElementById('tm-credit');
+  const on  = el => { el.style.background = 'var(--tg)'; el.style.borderColor = 'var(--tg)'; el.style.color = '#fff'; el.style.fontWeight = '700'; };
+  const off = el => { el.style.background = 'var(--bg3)'; el.style.borderColor = 'var(--border2)'; el.style.color = 'var(--text1)'; el.style.fontWeight = '500'; };
+  if (cash && credit) { (m === 'cash' ? on : off)(cash); (m === 'credit' ? on : off)(credit); }
+  _tradePreview();
+}
+
 function _tradePreview() {
-  const price = parseFloat(document.getElementById('trade-price')?.value) || 0;
-  const qty   = parseFloat(document.getElementById('trade-qty')?.value)   || 0;
-  const fee   = parseFloat(document.getElementById('trade-fee')?.value)   || 0;
+  const price  = parseFloat(document.getElementById('trade-price')?.value) || 0;
+  const qty    = parseFloat(document.getElementById('trade-qty')?.value)   || 0;
+  const fee    = parseFloat(document.getElementById('trade-fee')?.value)   || 0;
+  const method = document.getElementById('trade-method')?.value || 'cash';
+  const isBuy  = window._tradeType !== 'sell';
   const el = document.getElementById('trade-preview');
   if (!el) return;
   if (!price || !qty) { el.textContent = '체결가와 수량을 입력하면 거래대금이 계산됩니다.'; return; }
   const amt = price * qty + fee;
+  const creditNote = method === 'credit'
+    ? `<div style="margin-top:4px;color:var(--accent)">🔻 신용 ${isBuy ? `융자금 ${Math.round(price*qty).toLocaleString()}원 발생` : `상환 ${Math.round(price*qty).toLocaleString()}원`} (이자는 비용란에)</div>`
+    : '';
   el.innerHTML = `거래대금 <b style="color:var(--text1)">${Math.round(amt).toLocaleString()}원</b>
-    <span style="color:var(--text3)">(${qty.toLocaleString()}주 × ${price.toLocaleString()}원${fee?` + 비용 ${fee.toLocaleString()}원`:''})</span>`;
+    <span style="color:var(--text3)">(${qty.toLocaleString()}주 × ${price.toLocaleString()}원${fee?` + 비용 ${fee.toLocaleString()}원`:''})</span>${creditNote}`;
 }
 
 async function saveTrade(watchlistId, stockCode, corpName, type) {
@@ -535,13 +568,22 @@ async function saveTrade(watchlistId, stockCode, corpName, type) {
   const fee   = parseFloat(document.getElementById('trade-fee')?.value) || 0;
   const date  = document.getElementById('trade-date')?.value;
   const memo  = document.getElementById('trade-memo')?.value?.trim() || null;
+  const method = document.getElementById('trade-method')?.value === 'credit' ? 'credit' : 'cash';
   if (!price || !qty || qty <= 0) { alert('체결가와 수량을 정확히 입력해주세요.'); return; }
   if (!date) { alert('거래일을 입력해주세요.'); return; }
 
-  const { error } = await sb.from('portfolio_transactions').insert({
+  const payload = {
     watchlist_id: watchlistId, stock_code: stockCode, corp_name: corpName,
-    trade_type: type, trade_date: date, price, quantity: qty, fee, memo,
-  });
+    trade_type: type, trade_date: date, price, quantity: qty, fee, memo, trade_method: method,
+  };
+  let { error } = await sb.from('portfolio_transactions').insert(payload);
+  // trade_method 컬럼이 아직 없으면(구 스키마) 제외하고 재시도 — 거래는 보존
+  if (error && /trade_method/i.test(error.message || '')) {
+    delete payload.trade_method;
+    ({ error } = await sb.from('portfolio_transactions').insert(payload));
+    if (!error && method === 'credit')
+      alert('거래는 저장됐지만 신용 구분은 기록되지 않았습니다.\nSupabase SQL Editor에서 sql/portfolio_transactions.sql 을 다시 실행하면 신용 거래가 추적됩니다.');
+  }
   if (error) {
     alert('거래 기록 저장 실패 — portfolio_transactions 테이블이 필요합니다.\n\n' + error.message);
     return;
@@ -606,7 +648,7 @@ async function openTradeHistory(stockCode, corpName) {
     const amt = Number(t.price) * Number(t.quantity) + (Number(t.fee) || 0);
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 8px;font-size:12px">${t.trade_date}</td>
-      <td style="padding:7px 8px;font-size:12px;font-weight:700;color:${isBuy?'var(--up)':'var(--down)'}">${isBuy?'매수':'매도'}</td>
+      <td style="padding:7px 8px;font-size:12px;font-weight:700;color:${isBuy?'var(--up)':'var(--down)'}">${isBuy?'매수':'매도'}${t.trade_method==='credit'?` <span style="font-size:9px;padding:1px 4px;border-radius:3px;background:var(--accent);color:#1b1300;font-weight:700">신용</span>`:''}</td>
       <td style="padding:7px 8px;font-size:12px;text-align:right">${Number(t.price).toLocaleString()}원</td>
       <td style="padding:7px 8px;font-size:12px;text-align:right">${Number(t.quantity).toLocaleString()}주</td>
       <td style="padding:7px 8px;font-size:12px;text-align:right">${Math.round(amt).toLocaleString()}원</td>
@@ -627,6 +669,7 @@ async function openTradeHistory(stockCode, corpName) {
       ${card('현재 보유', pos.qty.toLocaleString()+'주')}
       ${card('평균 매수가', pos.qty>0 ? pos.avgCost.toLocaleString()+'원' : '청산')}
       ${card('실현손익', `${pos.realized>=0?'+':''}${pos.realized.toLocaleString()}원`, chgColor(pos.realized))}
+      ${pos.creditLoan>0 ? card('🔻 신용융자', pos.creditLoan.toLocaleString()+'원', 'var(--accent)') : ''}
     </div>
     <table style="width:100%;border-collapse:collapse">
       <thead><tr style="border-bottom:1px solid var(--border2)">
@@ -803,8 +846,10 @@ async function loadWatchlist() {
       realized: p.realized,
       hasTx: true,
       closed: p.qty === 0 && p.count > 0,
+      creditLoan: p.creditLoan || 0,
+      creditQty:  p.creditQty  || 0,
     };
-    return { avg: w.avg_price, qty: w.quantity, realized: 0, hasTx: false, closed: false };
+    return { avg: w.avg_price, qty: w.quantity, realized: 0, hasTx: false, closed: false, creditLoan: 0, creditQty: 0 };
   };
 
   // ── 탭별 표시 집합 파생: 전량 매도(closed) + 저장 그룹 '보유중' → '청산'으로 분류 ──
@@ -848,6 +893,10 @@ async function loadWatchlist() {
   const journalMap    = await fetchJournals(codes);
   const totalAssets   = totalVal + cash;
   const cashRatio     = totalAssets > 0 ? cash / totalAssets * 100 : 0;
+  // 신용융자: 잔고 합계, 순자산(=총자산−융자), 레버리지(=융자/순자산)
+  const totalCreditLoan = portfolioRows.reduce((s, w) => s + (effPos(w).creditLoan || 0), 0);
+  const netAssets       = totalAssets - totalCreditLoan;
+  const leveragePct     = netAssets > 0 ? totalCreditLoan / netAssets * 100 : 0;
 
   // ── '오늘 할 일' 집합 — 전체 포트폴리오 기준 (손절·목표도달·익절구간·매수구간·점검·리밸런싱·복기) ──
   const stopHitCodes = new Set(), targetHitCodes = new Set(), trimZoneCodes = new Set(), buyZoneCodes = new Set(), checkDueCodes = new Set(), needJournalCodes = new Set(), rebalCodes = new Set();
@@ -1089,6 +1138,9 @@ async function loadWatchlist() {
       avgUpside!=null ? statChip('평균 업사이드', `${avgUpside>=0?'+':''}${avgUpside.toFixed(1)}%`, chgColor(avgUpside)) : '',
       avgRR!=null     ? statChip('손익비', `${avgRR.toFixed(1)} : 1`, avgRR>=2?'var(--up)':avgRR>=1?'var(--accent)':'var(--text1)') : '',
       avgPer!=null    ? statChip('평균 PER', `${avgPer.toFixed(1)}x`) : '',
+      totalCreditLoan > 0 ? statChip('🔻 신용융자', fmtWon(totalCreditLoan), 'var(--accent)') : '',
+      totalCreditLoan > 0 ? statChip('순자산', fmtWon(netAssets)) : '',
+      totalCreditLoan > 0 ? statChip('레버리지', `${leveragePct.toFixed(0)}%`, leveragePct>=50?'var(--down)':'var(--text1)') : '',
       ...concChips,
     ].filter(Boolean).join('');
 
@@ -1401,6 +1453,7 @@ async function loadWatchlist() {
       costCell = `<div style="font-size:12px"><span style="font-size:10px;font-weight:700;color:var(--accent)">평단 </span>${e.avg.toLocaleString()}원 <span style="color:var(--text2)">· ${e.qty.toLocaleString()}주</span></div>
                   <div style="font-size:12px;font-weight:700;color:${color}">${pnlStr} · ${fmtWon((price-e.avg)*e.qty, true)}</div>
                   ${e.realized ? `<div style="font-size:11px;color:${chgColor(e.realized)}">실현 ${fmtWon(e.realized, true)}</div>` : ''}
+                  ${e.creditLoan > 0 ? `<div style="font-size:11px;color:var(--accent)">🔻 신용 융자 ${fmtWon(e.creditLoan)}${e.creditQty?` (${e.creditQty.toLocaleString()}주)`:''}</div>` : ''}
                   ${w.stop_price ? `<div style="font-size:11px;color:${isStopHit?'var(--down)':'var(--text2)'};font-weight:${isStopHit?'700':'400'}">${isStopHit?'⚠️ ':''}손절 ${w.stop_price.toLocaleString()}원${stopPct!=null?` (${stopPct.toFixed(1)}%)`:''}</div>` : ''}`;
     } else if (e.closed) {
       const jr = _journalAvailable ? journalMap[w.stock_code] : null;
@@ -1776,6 +1829,7 @@ function wlRenderDrawer(code) {
         ${e.realized ? `<div><span style="color:var(--text2)">실현손익</span><br><b style="color:${chgColor(e.realized)}">${fmtWon(e.realized,true)}</b></div>` : ''}
         ${wPct!=null ? `<div><span style="color:var(--text2)">비중</span><br><b>${wPct.toFixed(1)}%${tw!=null?` <span style="color:var(--text2)">/ 목표 ${tw}%</span>`:''}</b></div>` : ''}
         ${w.stop_price ? `<div><span style="color:var(--text2)">손절가</span><br><b style="color:${isStopHit?'var(--down)':'var(--text)'}">${isStopHit?'⚠️ ':''}${w.stop_price.toLocaleString()}원</b></div>` : ''}
+        ${e.creditLoan > 0 ? `<div><span style="color:var(--text2)">🔻 신용 융자</span><br><b style="color:var(--accent)">${fmtWon(e.creditLoan)}${e.creditQty?` · ${e.creditQty.toLocaleString()}주`:''}</b></div>` : ''}
       </div>${acts}
     </div>`;
   } else if (e.closed) {

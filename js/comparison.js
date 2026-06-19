@@ -533,11 +533,11 @@ async function runComparison() {
                         font-weight:600;white-space:nowrap">${ma.newHigh}</span>` : ''}
                     </div>
                   </td>
-                  <td style="padding:8px 12px;text-align:right;font-weight:500">${price ? price.toLocaleString()+'원' : '—'}</td>
+                  <td style="padding:8px 12px;text-align:right;font-weight:500">${fmtPrice(price)}</td>
                   <td style="padding:8px 12px;text-align:right;color:${chgColor(chg)};font-weight:500">${chg != null ? chgStr(chg) : '—'}</td>
-                  <td style="padding:8px 12px;text-align:right;color:${ma5pos}">${ma?.ma5 ? ma.ma5.toLocaleString()+'원' : '—'}</td>
-                  <td style="padding:8px 12px;text-align:right;color:${ma20pos}">${ma?.ma20 ? ma.ma20.toLocaleString()+'원' : '—'}</td>
-                  <td style="padding:8px 12px;text-align:right;color:${ma60pos}">${ma?.ma60 ? ma.ma60.toLocaleString()+'원' : '—'}</td>
+                  <td style="padding:8px 12px;text-align:right;color:${ma5pos}">${fmtPrice(ma?.ma5)}</td>
+                  <td style="padding:8px 12px;text-align:right;color:${ma20pos}">${fmtPrice(ma?.ma20)}</td>
+                  <td style="padding:8px 12px;text-align:right;color:${ma60pos}">${fmtPrice(ma?.ma60)}</td>
                   <td style="padding:8px 12px;text-align:right">${mkt?.market_cap ? fmtCap(mkt.market_cap) : '—'}</td>
                   <td style="padding:8px 12px;text-align:right">${mkt?.per ? mkt.per.toFixed(1) : '—'}</td>
                   <td style="padding:8px 12px;text-align:right">${mkt?.pbr ? mkt.pbr.toFixed(2) : '—'}</td>

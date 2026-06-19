@@ -31,3 +31,8 @@ create policy "ptx_all" on portfolio_transactions
 
 -- 손절가 컬럼 (watchlist) — 리스크 관리용. 이미 있으면 무시됨.
 alter table watchlist add column if not exists stop_price numeric;
+
+-- 거래구분: 현금 / 신용(신용융자). 기존 거래는 모두 현금으로 간주. 이미 있으면 무시됨.
+alter table portfolio_transactions
+  add column if not exists trade_method text not null default 'cash'
+  check (trade_method in ('cash','credit'));

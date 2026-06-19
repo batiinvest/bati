@@ -334,7 +334,7 @@ async function runScreener() {
           <div class="stock-code">${r.stock_code} · ${r.market||''}</div>
         </td>
         <td><span class="badge badge-cat">${r.industry || '—'}</span></td>
-        <td class="num">${r.price ? r.price.toLocaleString()+'원' : '—'}</td>
+        <td class="num">${fmtPrice(r.price)}</td>
         <td class="num" style="color:${chgColor(r.price_change_rate)}">${chgStr(r.price_change_rate)}</td>
         <td class="num">${fmtCap(r.market_cap)}</td>
         <td class="num ${r.per!=null&&r.per<15?'num-up':''}">${num(r.per)}</td>
