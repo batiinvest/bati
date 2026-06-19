@@ -614,6 +614,10 @@ async function loadNewHighStocks() {
     all:       enriched.filter(r => !r.isMonitored),  // 모니터링 종목 제외
   };
 
+  // 기준일 표시 (today가 아니라 실제 조회된 거래일)
+  const hgprDateEl = document.getElementById('hgpr-date');
+  if (hgprDateEl) hgprDateEl.textContent = targetDate ? `${targetDate} 기준` : '';
+
   _hgprExpanded = false;
   renderHgprTab(_hgprTab);
 }

@@ -272,7 +272,9 @@ function renderStockFlow() {
     const color  = isPositive ? 'var(--tg)' : 'var(--red)';
     const barPct = Math.min(Math.abs(e.val) / maxAbs * 100, 100);
     return `
-    <div style="display:flex;align-items:center;gap:8px;padding:5px 12px;border-bottom:1px solid var(--border)">
+    <div onclick="openMarketDetail('${e.code}','${(e.corp_name||e.code).replace(/'/g,"\\'")}')"
+      style="display:flex;align-items:center;gap:8px;padding:5px 12px;border-bottom:1px solid var(--border);cursor:pointer"
+      onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
       <div style="min-width:90px">
         <div style="font-size:12px;font-weight:600">${e.corp_name}</div>
         <div style="font-size:10px;color:var(--text2)">${e.industry}</div>

@@ -501,6 +501,8 @@ async function loadFinancialData(el) {
 //  📊 종목 상세 통합 모달 — 펀드매니저 뷰
 // ══════════════════════════════════════════
 async function openStockDetail(code, name, initTab = 'overview') {
+  const _canEditSD = typeof canEdit === 'function' ? canEdit() : true;
+  const _sdSafeName = (name || '').replace(/'/g, "\\'");
   document.getElementById('m-stock-detail')?.remove();
   const modal = document.createElement('div');
   modal.id = 'm-stock-detail';
@@ -524,8 +526,13 @@ async function openStockDetail(code, name, initTab = 'overview') {
             </div>
             <div id="sd-sub-info" style="font-size:11px;color:var(--text2)"></div>
           </div>
-          <div style="display:flex;align-items:center;gap:16px">
+          <div style="display:flex;align-items:center;gap:12px">
             <div id="sd-price-badge" style="text-align:right"></div>
+            ${_canEditSD ? `<button id="sd-watch-btn" onclick="window.sdAddToWatch('${code}','${_sdSafeName}')"
+              style="background:var(--bg3);border:1px solid var(--border);cursor:pointer;color:var(--text1);
+                font-size:12px;font-weight:600;padding:6px 12px;line-height:1;border-radius:6px;transition:.15s;white-space:nowrap"
+              onmouseover="this.style.borderColor='var(--tg)'" onmouseout="this.style.borderColor='var(--border)'"
+              title="관심종목에 추가">⭐ 관심</button>` : ''}
             <button onclick="document.getElementById('m-stock-detail').remove()"
               style="background:var(--bg3);border:1px solid var(--border);cursor:pointer;
                 color:var(--text2);font-size:18px;padding:2px 8px;line-height:1;
@@ -626,6 +633,45 @@ async function openStockDetail(code, name, initTab = 'overview') {
 
 async function openFinTrend(code, name)     { openStockDetail(code, name, 'financial'); }
 async function openMarketDetail(code, name) { openStockDetail(code, name, 'market'); }
+
+// ── 상세 모달 → 관심종목(워치리스트) 원클릭 추가 ──────────────────────────────
+window.sdAddToWatch = async function(code, name) {
+  if (typeof canEdit === 'function' && !canEdit()) {
+    if (typeof toast === 'function') toast('권한이 없습니다.', 'error');
+    return;
+  }
+  const btn  = document.getElementById('sd-watch-btn');
+  const bare = String(code).replace(/\.(KS|KQ)$/, '');
+  try {
+    // 중복 체크 (.KS/.KQ 접미사 변형 포함)
+    const { data: existing } = await sb.from('watchlist')
+      .select('id')
+      .or(`stock_code.eq.${bare},stock_code.eq.${bare}.KS,stock_code.eq.${bare}.KQ`)
+      .limit(1);
+    if (existing && existing.length) {
+      if (typeof toast === 'function') toast('이미 관심종목에 있습니다.', 'info');
+      if (btn) { btn.textContent = '✓ 관심종목'; btn.disabled = true; btn.style.opacity = '.7'; }
+      return;
+    }
+    // 산업 정보는 모달 헤더 배지에서 재활용
+    const ind = document.getElementById('sd-industry-badge')?.textContent?.trim() || null;
+    const { error } = await sb.from('watchlist').insert({
+      stock_code: bare,
+      corp_name:  name,
+      industry:   ind || null,
+      group_name: '관심',
+      updated_at: new Date().toISOString(),
+    });
+    if (error) throw error;
+    if (btn) { btn.textContent = '✓ 관심추가됨'; btn.disabled = true; btn.style.color = 'var(--green)'; btn.style.borderColor = 'var(--green)'; }
+    if (typeof toast === 'function') toast('⭐ 관심종목에 추가했습니다.', 'success');
+    // 워치리스트 화면이 떠 있으면 갱신
+    if (typeof loadWatchlist === 'function' && document.getElementById('wl-body')) loadWatchlist();
+  } catch(e) {
+    console.error('[sdAddToWatch]', e);
+    if (typeof toast === 'function') toast('추가 실패: ' + e.message, 'error');
+  }
+};
 
 // ─────────────────────────────────────────
 // 헬퍼

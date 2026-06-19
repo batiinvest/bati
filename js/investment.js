@@ -194,7 +194,7 @@ function pInvestment() {
       <div class="card" style="margin-bottom:0">
         <div class="card-header">
           <span class="card-title">${_ICO.flow}기관/외국인 수급</span>
-          <span style="font-size:11px;color:var(--text2)" id="flow-date-label">장중 4회 집계</span>
+          <span style="font-size:11px;color:var(--text2)" id="flow-date-label">집계 중…</span>
         </div>
         <div class="flow-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--border)">
           <div>
@@ -333,8 +333,9 @@ function pInvestment() {
     <!-- ⑨ 52주 신고가 종목 -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span class="card-title">${_ICO.flag}오늘 52주 신고가 갱신</span>
-        <span style="font-size:10px;color:var(--text2);font-weight:400">KIS 기준 당일 신고가 지정 종목</span>
+        <span class="card-title">${_ICO.flag}52주 신고가 갱신</span>
+        <span style="font-size:10px;color:var(--text2);font-weight:400">KIS 기준 신고가 지정 종목</span>
+        <span id="hgpr-date" style="font-size:10px;color:var(--text2)"></span>
         <div style="display:flex;gap:4px;margin-left:auto">
           <button class="chip active" data-hgpr-tab="monitored" onclick="switchHgprTab('monitored')" style="font-size:11px;padding:2px 8px">⭐ 모니터링</button>
           <button class="chip"        data-hgpr-tab="all"       onclick="switchHgprTab('all')"       style="font-size:11px;padding:2px 8px">전체 종목</button>
@@ -349,7 +350,7 @@ function pInvestment() {
     <div class="card" style="margin-bottom:12px">
       <div class="card-header">
         <span class="card-title">${_ICO.coin}거래대금 상위</span>
-        <span style="font-size:11px;color:var(--text2)">당일 거래대금 기준</span>
+        <span style="font-size:11px;color:var(--text2)">최근 거래일 종가 기준</span>
       </div>
       <div id="inv-volume-body" style="display:grid;grid-template-columns:repeat(2,1fr);gap:0;border-top:1px solid var(--border)">
         ${_skelList(3)}
@@ -634,19 +635,37 @@ async function loadInvestment() {
   await loadMacroData();
   loadTrendChart();
 
-  // 마지막 업데이트 시각 표시
+  // 마지막 업데이트 시각 표시 — 지수(macro_data, 매일)와 종목데이터(market_data, 주간) 이원 표기
+  // '오늘'을 표방하지만 종목 단위 데이터는 갱신 주기가 달라, 기준일을 분리해 정직하게 노출한다.
   try {
     const { data: lastUpdate } = await sb.from('macro_data')
       .select('base_date,updated_at').order('base_date', { ascending: false }).limit(1).single();
+    const mktDate = await getLatestMarketDate();
     const el = document.getElementById('inv-date');
-    if (el && lastUpdate) {
-      if (lastUpdate.updated_at) {
-        const kst = new Date(new Date(lastUpdate.updated_at).getTime() + 9 * 60 * 60 * 1000);
-        const t = `${String(kst.getUTCHours()).padStart(2,'0')}:${String(kst.getUTCMinutes()).padStart(2,'0')}`;
-        el.textContent = `업데이트: ${lastUpdate.base_date} ${t}`;
-      } else {
-        el.textContent = `기준: ${lastUpdate.base_date}`;
+    if (el) {
+      // ① 지수/매크로 기준
+      let idxStr = '';
+      if (lastUpdate) {
+        if (lastUpdate.updated_at) {
+          const kst = new Date(new Date(lastUpdate.updated_at).getTime() + 9 * 60 * 60 * 1000);
+          const t = `${String(kst.getUTCHours()).padStart(2,'0')}:${String(kst.getUTCMinutes()).padStart(2,'0')}`;
+          idxStr = `지수 ${lastUpdate.base_date} ${t}`;
+        } else {
+          idxStr = `지수 ${lastUpdate.base_date}`;
+        }
       }
+      // ② 종목 데이터(breadth·수급·급등락·거래대금·신고가 공통 기준) — 신선도 경고
+      let mktStr = '';
+      if (mktDate) {
+        const todayKst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const diffDays = Math.round((new Date(todayKst) - new Date(mktDate)) / 86400000);
+        const stale = diffDays >= 5; // 정상 주간 사이클(주말 포함)을 넘어선 경우만 경고
+        mktStr = `<span title="breadth·수급·급등락·거래대금·신고가 공통 기준일" style="${stale ? 'color:var(--yellow);font-weight:600' : 'color:var(--text2)'}">`
+          + `종목 ${mktDate}${stale ? ` ⚠ ${diffDays}일 전` : ''}</span>`;
+      }
+      const parts = [idxStr ? `<span style="color:var(--text2)">${idxStr}</span>` : '', mktStr].filter(Boolean);
+      if (parts.length) el.innerHTML = parts.join('<span style="color:var(--border);margin:0 6px">·</span>');
+      else _updateInvTimestamp();
     } else {
       _updateInvTimestamp();
     }
@@ -732,7 +751,9 @@ async function loadInvestment() {
   const dropKosdaq  = _byMkt('KOSDAQ', true);
 
   const rankRow = (r, i) => `
-    <div style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-bottom:1px solid var(--border)">
+    <div onclick="openMarketDetail('${r.stock_code}','${(r.corp_name||r.stock_code||'').replace(/'/g,"\\'")}')"
+      style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-bottom:1px solid var(--border);cursor:pointer"
+      onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
       <span style="width:14px;font-size:10px;color:var(--text2);font-weight:600;flex-shrink:0">${i+1}</span>
       <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.corp_name}</span>
       <span style="font-size:12px;font-weight:700;color:${chgColor(r.price_change_rate)};flex-shrink:0">${chgStr(r.price_change_rate)}</span>
@@ -791,8 +812,10 @@ function renderVolumeLeaders() {
         : (r.tv / 1e8).toFixed(0) + '억';
       const barPct = Math.round(r.tv / maxTV * 100);
       return `
-      <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;
-        border-bottom:1px solid var(--border)">
+      <div onclick="openMarketDetail('${r.stock_code}','${(r.corp_name||r.stock_code||'').replace(/'/g,"\\'")}')"
+        style="display:flex;align-items:center;gap:8px;padding:6px 12px;
+        border-bottom:1px solid var(--border);cursor:pointer"
+        onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
         <span style="min-width:16px;font-size:11px;color:var(--text2);font-weight:600">${i + 1}</span>
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px">${r.corp_name}</div>

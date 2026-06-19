@@ -124,7 +124,9 @@ function renderLeadingStocks() {
       : '';
 
     return `
-    <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border)">
+    <div onclick="openMarketDetail('${r.stock_code}','${(r.corp_name||r.stock_code).replace(/'/g,"\\'")}')"
+      style="display:flex;align-items:flex-start;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border);cursor:pointer"
+      onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
       <!-- 순위 -->
       <div style="min-width:20px;padding-top:3px;flex-shrink:0">
         <span style="font-size:${i < 3 ? '13' : '11'}px;font-weight:700;color:${i < 3 ? scoreColor : 'var(--text3)'}">${r.rank}</span>
