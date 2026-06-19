@@ -18,29 +18,31 @@ function _mkCard(id, label, st, color, indexVal, indexChg) {
     ? indexVal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})
     : '';
   el.innerHTML =
-    // 헤더: 라벨 — 지수값 — 등락률 한 줄
-    '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">' +
-      '<span style="font-size:12px;font-weight:700;color:' + color + '">' + label + '</span>' +
-      (indexVal != null
-        ? '<span style="font-size:15px;font-weight:800;margin-left:4px">' + valStr + '</span>' +
-          '<span style="font-size:12px;font-weight:700;color:' + chgColor(indexChg) + '">' + chgStr(indexChg) + '</span>'
-        : '') +
-      '<span style="margin-left:auto;font-size:10px;color:var(--text2)">' + st.total.toLocaleString() + '개</span>' +
+    // 1행: 라벨 — 강도(우)  (좁은 셀에서 라벨이 글자단위로 줄바꿈되지 않도록 nowrap)
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px">' +
+      '<span style="font-size:12px;font-weight:700;color:' + color + ';white-space:nowrap">' + label + '</span>' +
+      '<span style="font-size:12px;font-weight:800;color:' + strengthClr + ';white-space:nowrap">' +
+        risePct.toFixed(0) + '% <span style="font-size:10px;font-weight:600">' + strengthLabel + '</span>' +
+      '</span>' +
     '</div>' +
-    // 상승/하락 비율 바 (8px, 3색: 상승/보합/하락)
-    '<div style="height:8px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.08);margin-bottom:6px;display:flex">' +
+    // 2행: 지수값 + 등락률
+    '<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:7px">' +
+      (indexVal != null
+        ? '<span style="font-size:17px;font-weight:800;font-variant-numeric:tabular-nums">' + valStr + '</span>' +
+          '<span style="font-size:12px;font-weight:700;color:' + chgColor(indexChg) + ';white-space:nowrap">' + chgStr(indexChg) + '</span>'
+        : '<span style="font-size:15px;font-weight:800">' + st.total.toLocaleString() + '<span style="font-size:11px;font-weight:600;color:var(--text2)">개</span></span>') +
+    '</div>' +
+    // 3행: 상승/하락 비율 바 (3색: 상승/보합/하락)
+    '<div style="height:7px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.08);margin-bottom:6px;display:flex">' +
       '<div style="width:' + risePct.toFixed(1) + '%;background:var(--red);transition:width .5s ease"></div>' +
       '<div style="width:' + flatPct.toFixed(1) + '%;background:rgba(255,255,255,0.06)"></div>' +
       '<div style="flex:1;background:var(--blue)"></div>' +
     '</div>' +
-    // 수치 + 상승 비율 % 강도 레이블
-    '<div style="display:flex;gap:8px;font-size:11px;align-items:center">' +
+    // 4행: 등락 종목수
+    '<div style="display:flex;gap:12px;font-size:11px">' +
       '<span style="color:var(--red);font-weight:700">▲ ' + st.rise.toLocaleString() + '</span>' +
       '<span style="color:var(--blue);font-weight:700">▼ ' + st.fall.toLocaleString() + '</span>' +
       '<span style="color:var(--text2)">━ ' + st.flat.toLocaleString() + '</span>' +
-      '<span style="margin-left:auto;font-size:12px;font-weight:800;color:' + strengthClr + '">' +
-        risePct.toFixed(0) + '% <span style="font-size:10px;font-weight:600">' + strengthLabel + '</span>' +
-      '</span>' +
     '</div>';
 }
 
@@ -107,24 +109,25 @@ async function loadMarketOverview(maxDate) {
       const _sClr = _rPct >= 60 ? 'var(--red)' : _rPct <= 40 ? 'var(--blue)' : 'var(--text3)';
       const _sLbl = _rPct >= 65 ? '강세' : _rPct >= 55 ? '우세' : _rPct >= 45 ? '중립' : _rPct >= 35 ? '열세' : '약세';
       totalCard.innerHTML =
-        '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">' +
-          '<span style="font-size:12px;font-weight:700;color:var(--text2)">전체</span>' +
-          '<span style="font-size:15px;font-weight:800;margin-left:4px">' + enriched.length.toLocaleString() + '개</span>' +
-          '<span style="font-size:12px;font-weight:700;color:' + chgColor(avg) + '">평균 ' + chgStr(avg) + '</span>' +
-          '<span style="margin-left:auto;font-size:10px;color:var(--text2)">' + enriched.length.toLocaleString() + '개</span>' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px">' +
+          '<span style="font-size:12px;font-weight:700;color:var(--text2);white-space:nowrap">전체</span>' +
+          '<span style="font-size:12px;font-weight:800;color:' + _sClr + ';white-space:nowrap">' +
+            _rPct.toFixed(0) + '% <span style="font-size:10px;font-weight:600">' + _sLbl + '</span>' +
+          '</span>' +
         '</div>' +
-        '<div style="height:8px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.08);margin-bottom:6px;display:flex">' +
+        '<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:7px">' +
+          '<span style="font-size:15px;font-weight:800">' + enriched.length.toLocaleString() + '<span style="font-size:11px;font-weight:600;color:var(--text2)">개</span></span>' +
+          '<span style="font-size:12px;font-weight:700;color:' + chgColor(avg) + ';white-space:nowrap">평균 ' + chgStr(avg) + '</span>' +
+        '</div>' +
+        '<div style="height:7px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.08);margin-bottom:6px;display:flex">' +
           '<div style="width:' + _rPct.toFixed(1) + '%;background:var(--red);transition:width .5s ease"></div>' +
           '<div style="width:' + _fPct.toFixed(1) + '%;background:rgba(255,255,255,0.06)"></div>' +
           '<div style="flex:1;background:var(--blue)"></div>' +
         '</div>' +
-        '<div style="display:flex;gap:8px;font-size:11px;align-items:center">' +
+        '<div style="display:flex;gap:12px;font-size:11px">' +
           '<span style="color:var(--red);font-weight:700">▲ ' + rise.toLocaleString() + '</span>' +
           '<span style="color:var(--blue);font-weight:700">▼ ' + fall.toLocaleString() + '</span>' +
           '<span style="color:var(--text2)">━ ' + flat.toLocaleString() + '</span>' +
-          '<span style="margin-left:auto;font-size:12px;font-weight:800;color:' + _sClr + '">' +
-            _rPct.toFixed(0) + '% <span style="font-size:10px;font-weight:600">' + _sLbl + '</span>' +
-          '</span>' +
         '</div>';
     }
   }

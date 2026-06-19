@@ -85,7 +85,7 @@ function renderLeadingStocks() {
   let rows = all;
   if (_lsTab === 'kospi')  rows = all.filter(r => r.market === 'KOSPI');
   if (_lsTab === 'kosdaq') rows = all.filter(r => r.market === 'KOSDAQ');
-  rows = rows.slice(0, 10);
+  rows = rows.slice(0, 8);
 
   if (!rows.length) {
     el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text2);font-size:12px">해당 시장 데이터 없음</div>';

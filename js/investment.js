@@ -103,7 +103,7 @@ function pInvestment() {
   </div>
 
   <!-- 상단 2열: 온도계 | 증시동향 -->
-  <div class="inv-top-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:stretch;margin-bottom:1rem">
+  <div class="inv-top-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:start;margin-bottom:1rem">
 
     <!-- 시장 온도계 -->
     <div class="card" style="margin-bottom:0;display:flex;flex-direction:column">
@@ -187,6 +187,24 @@ function pInvestment() {
         </div>
       </div>
 
+      <!-- 산업 강도 매트릭스 (미니) — 좌측 컨텍스트 열 -->
+      <div id="im-card" class="card" style="margin-bottom:0">
+        <div class="card-header" style="flex-wrap:wrap;gap:6px">
+          <span class="card-title">${_ICO.grid}산업 강도 매트릭스</span>
+          <span style="font-size:10px;color:var(--text2)" id="im-date"></span>
+          <div style="display:flex;gap:4px;margin-left:auto">
+            ${[{p:1,l:'1일'},{p:5,l:'5일'},{p:20,l:'20일'}].map(({p,l})=>`
+              <button class="chip ${p===5?'active':''}" data-im-period="${p}"
+                onclick="switchImPeriod(${p})" style="font-size:11px;padding:2px 8px">${l}</button>
+            `).join('')}
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text2);padding:4px 12px 2px">
+          US·KR 섹터 성과 비교 — 미국이 먼저 움직이면 한국이 따라온다
+        </div>
+        <div id="im-body">${_skelList(11, true)}</div>
+      </div>
+
     </div>
 
     <!-- 우 패널 -->
@@ -218,8 +236,8 @@ function pInvestment() {
               title="새로고침">${_ICO.refresh}</button>
           </div>
           <div id="ls-body">${_skelList(8)}</div>
-          <div style="padding:5px 10px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;gap:3px">
-            <span style="font-size:11px;font-weight:600;color:var(--text2)">과거 주도주 수익률</span>
+          <div style="padding:5px 10px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;gap:3px;align-items:center">
+            <span onclick="toggleLsBacktest()" style="font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;user-select:none">과거 주도주 수익률 <span id="ls-bt-chev" style="font-size:9px">▾</span></span>
             <span id="ls-bt-date" style="font-size:10px;color:var(--text2);margin-left:auto;align-self:center"></span>
             <div style="display:flex;gap:3px">
               <button class="chip active" data-bt-period="1w" onclick="switchBtPeriod('1w')" style="font-size:10px;padding:2px 6px">1주</button>
@@ -227,7 +245,7 @@ function pInvestment() {
               <button class="chip"        data-bt-period="3m" onclick="switchBtPeriod('3m')" style="font-size:10px;padding:2px 6px">3달</button>
             </div>
           </div>
-          <div id="ls-bt-body" style="padding:6px 8px">${_skelList(5)}</div>
+          <div id="ls-bt-body" style="padding:6px 8px;display:none">${_skelList(5)}</div>
         </div>
 
         <!-- 신고가 패널 -->
@@ -282,23 +300,7 @@ function pInvestment() {
 
       <!-- (실적 급등 → '오늘의 아이디어' 탭으로 이동) -->
 
-      <!-- 산업 강도 매트릭스 (미니) -->
-      <div id="im-card" class="card" style="margin-bottom:0">
-        <div class="card-header" style="flex-wrap:wrap;gap:6px">
-          <span class="card-title">${_ICO.grid}산업 강도 매트릭스</span>
-          <span style="font-size:10px;color:var(--text2)" id="im-date"></span>
-          <div style="display:flex;gap:4px;margin-left:auto">
-            ${[{p:1,l:'1일'},{p:5,l:'5일'},{p:20,l:'20일'}].map(({p,l})=>`
-              <button class="chip ${p===5?'active':''}" data-im-period="${p}"
-                onclick="switchImPeriod(${p})" style="font-size:11px;padding:2px 8px">${l}</button>
-            `).join('')}
-          </div>
-        </div>
-        <div style="font-size:11px;color:var(--text2);padding:4px 12px 2px">
-          US·KR 섹터 성과 비교 — 미국이 먼저 움직이면 한국이 따라온다
-        </div>
-        <div id="im-body">${_skelList(11, true)}</div>
-      </div>
+      <!-- (산업 강도 매트릭스 → 좌측 컨텍스트 열로 이동) -->
 
     </div>
   </div>
@@ -956,6 +958,17 @@ function toggleZoneC() {
     try { if (typeof loadIndTrendChart === 'function') loadIndTrendChart(); } catch(e) { console.warn('[ZoneC] indTrend', e); }
     try { if (typeof loadUskrChart     === 'function') loadUskrChart();     } catch(e) { console.warn('[ZoneC] uskr', e); }
   }
+}
+
+
+// ── 주도주 백테스트(과거 주도주 수익률) 접기/펼치기 ──────────────────────────────
+function toggleLsBacktest() {
+  const b = document.getElementById('ls-bt-body');
+  const c = document.getElementById('ls-bt-chev');
+  if (!b) return;
+  const open = b.style.display === 'none';
+  b.style.display = open ? 'block' : 'none';
+  if (c) c.textContent = open ? '▴' : '▾';
 }
 
 
