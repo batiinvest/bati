@@ -326,6 +326,19 @@ textarea.form-input { resize:vertical; min-height:100px; }
   .wl-table [data-col="check"] { display:none; }
 }
 
+/* ── 투자노트 상세 드로어 (행 클릭 → 우측 슬라이드) ── */
+.wl-drawer-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:70; opacity:0; transition:opacity .2s; }
+.wl-drawer-backdrop.open { opacity:1; }
+.wl-drawer {
+  position:fixed; top:0; right:0; height:100vh; width:440px; max-width:92vw;
+  background:var(--bg); border-left:1px solid var(--border2); box-shadow:-8px 0 28px rgba(0,0,0,.45);
+  z-index:71; transform:translateX(100%); transition:transform .22s ease; display:flex; flex-direction:column;
+}
+.wl-drawer.open { transform:translateX(0); }
+.wl-drawer-head { padding:14px 16px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.wl-drawer-body { padding:14px 16px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:16px; }
+@media(max-width:600px){ .wl-drawer { width:100vw; } }
+
 @media(max-width:480px){
   /* 스크리너 테이블 — PEG·EV/EBITDA 추가 숨김 */
   .screener-result-table th:nth-child(9),
