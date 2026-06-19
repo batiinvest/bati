@@ -361,7 +361,8 @@ async function loadLeadingBacktest() {
       const cr = currMap[s.stock_code];
       const ret = (ep && cr?.price) ? (cr.price / ep - 1) * 100 : null;
       return { ...s, entry_price: ep, curr_price: cr?.price, ret, entry_date: entryDate };
-    }).filter(r => r.ret !== null);
+    }).filter(r => r.ret !== null)
+      .sort((a, b) => b.ret - a.ret);  // 수익률 높은 순
 
     const avgRet  = results.length ? results.reduce((a, r) => a + r.ret, 0) / results.length : null;
     const winRate = results.length ? results.filter(r => r.ret > 0).length / results.length * 100 : null;
