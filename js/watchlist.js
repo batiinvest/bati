@@ -849,15 +849,17 @@ async function loadWatchlist() {
   const totalAssets   = totalVal + cash;
   const cashRatio     = totalAssets > 0 ? cash / totalAssets * 100 : 0;
 
-  // ── '오늘 할 일' 집합 — 전체 포트폴리오 기준 (손절·목표도달·매수구간·점검·리밸런싱·복기) ──
-  const stopHitCodes = new Set(), targetHitCodes = new Set(), buyZoneCodes = new Set(), checkDueCodes = new Set(), needJournalCodes = new Set(), rebalCodes = new Set();
-  const REBAL_WARN = 5; // 목표비중 갭 ±5%p 이상이면 리밸런싱 액션
+  // ── '오늘 할 일' 집합 — 전체 포트폴리오 기준 (손절·목표도달·익절구간·매수구간·점검·리밸런싱·복기) ──
+  const stopHitCodes = new Set(), targetHitCodes = new Set(), trimZoneCodes = new Set(), buyZoneCodes = new Set(), checkDueCodes = new Set(), needJournalCodes = new Set(), rebalCodes = new Set();
+  const REBAL_WARN = 5;        // 목표비중 갭 ±5%p 이상이면 리밸런싱 액션
+  const TRIM_ZONE_PCT = 0.9;   // 목표가의 90% 도달부터 '익절 구간' (분할 익절 준비)
   const _now = new Date();
   for (const w of portfolioRows) {
     const price = priceMap[w.stock_code]?.price;
     const e = effPos(w);
     if (e.avg && e.qty && price && w.stop_price   && price <= w.stop_price)   stopHitCodes.add(w.stock_code);
-    if (e.avg && e.qty && price && w.target_price && price >= w.target_price) targetHitCodes.add(w.stock_code); // 보유 + 목표 도달 → 익절 검토
+    if (e.avg && e.qty && price && w.target_price && price >= w.target_price) targetHitCodes.add(w.stock_code); // 목표 도달 → 익절 검토
+    else if (e.avg && e.qty && price && w.target_price && price >= w.target_price * TRIM_ZONE_PCT) trimZoneCodes.add(w.stock_code); // 목표 90%↑ → 분할 익절
     if (price && w.watch_price && price <= w.watch_price) buyZoneCodes.add(w.stock_code);
     if (w.next_check_date && !e.closed && Math.ceil((new Date(w.next_check_date) - _now) / 86400000) <= 3) checkDueCodes.add(w.stock_code);
     if (_journalAvailable && e.closed && !journalMap[w.stock_code]) needJournalCodes.add(w.stock_code);
@@ -869,6 +871,7 @@ async function loadWatchlist() {
   if (window._wlActionFilter) {
     const _s = window._wlActionFilter === 'stop'    ? stopHitCodes
              : window._wlActionFilter === 'target'  ? targetHitCodes
+             : window._wlActionFilter === 'trim'    ? trimZoneCodes
              : window._wlActionFilter === 'buy'     ? buyZoneCodes
              : window._wlActionFilter === 'check'   ? checkDueCodes
              : window._wlActionFilter === 'rebal'   ? rebalCodes
@@ -921,6 +924,19 @@ async function loadWatchlist() {
         + aBtn('이력','var(--text2)',`openTradeHistory('${code}','${esc(w.corp_name)}')`));
       }).join('');
       groups.push({ label:'목표 도달 (익절 검토)', count:targetHitCodes.size, color:'var(--up)', rows });
+    }
+    if (trimZoneCodes.size) {
+      const rows = [...trimZoneCodes].map(code => {
+        const w = byCode[code], p = priceMap[code]?.price, e = effPos(w);
+        const reach   = (w.target_price && p) ? p / w.target_price * 100 : null;
+        const up      = (w.target_price && p) ? (w.target_price - p) / p * 100 : null;
+        const gainPct = (e.avg && p) ? (p - e.avg) / e.avg * 100 : null;
+        const ctx = `현재가 ${p?p.toLocaleString():'—'}원 · 목표까지 +${up!=null?up.toFixed(1):'—'}%${reach!=null?` (도달률 ${reach.toFixed(0)}%)`:''}${gainPct!=null?` · 평가 <span style="color:${chgColor(gainPct)};font-weight:600">${gainPct>=0?'+':''}${gainPct.toFixed(1)}%</span>`:''} · 분할 익절`;
+        return itemRow('var(--accent)','✂️',code,ctx,
+          aBtn('매도','var(--down)',`openTradeModal(${w.id},'${code}','${esc(w.corp_name)}','sell',${p||'null'})`)
+        + aBtn('이력','var(--text2)',`openTradeHistory('${code}','${esc(w.corp_name)}')`));
+      }).join('');
+      groups.push({ label:'익절 구간 (분할 익절)', count:trimZoneCodes.size, color:'var(--accent)', rows });
     }
     if (buyZoneCodes.size) {
       const rows = [...buyZoneCodes].map(code => {
@@ -1293,6 +1309,7 @@ async function loadWatchlist() {
   // ── '오늘의 액션' 필터 적용 ──
   const _afCodes = window._wlActionFilter === 'stop'    ? stopHitCodes
                  : window._wlActionFilter === 'target'  ? targetHitCodes
+                 : window._wlActionFilter === 'trim'    ? trimZoneCodes
                  : window._wlActionFilter === 'buy'     ? buyZoneCodes
                  : window._wlActionFilter === 'check'   ? checkDueCodes
                  : window._wlActionFilter === 'rebal'   ? rebalCodes
@@ -1321,6 +1338,7 @@ async function loadWatchlist() {
     const isHolding   = !!(e.avg && e.qty && price);
     const isStopHit   = isHolding && w.stop_price   && price <= w.stop_price;
     const isTargetHit = isHolding && w.target_price && price >= w.target_price;
+    const isTrimZone  = isHolding && w.target_price && !isTargetHit && price >= w.target_price * TRIM_ZONE_PCT;
 
     // 발행주식수 추정 (시총/현재가)
     const shares = (cap && price) ? cap / price : null;
@@ -1360,6 +1378,9 @@ async function loadWatchlist() {
       if (isTargetHit) {
         const overPct = (price - w.target_price) / w.target_price * 100;
         upsideLine = `<div style="font-size:12px;font-weight:700;color:var(--up)">🎯 목표 도달${overPct>0?` +${overPct.toFixed(1)}%`:''}</div>`;
+      } else if (isTrimZone) {
+        upsideLine = `<div style="font-size:12px;font-weight:700;color:var(--accent)">✂️ 익절 구간 ${(price/w.target_price*100).toFixed(0)}%</div>
+                      <div style="font-size:11px;font-weight:600;color:${chgColor(upsidePct)}">남은 +${upsidePct.toFixed(1)}%</div>`;
       } else {
         upsideLine = `<div style="font-size:12px;font-weight:700;color:${chgColor(upsidePct)}">${upsidePct!=null?(upsidePct>0?'+':'')+upsidePct.toFixed(1)+'%':'—'}</div>`;
       }
@@ -1781,8 +1802,10 @@ function wlRenderDrawer(code) {
   const watchGap  = (w.watch_price && price) ? (w.watch_price - price) / price * 100 : null;
   const rr = (w.target_price && w.stop_price && price && price > w.stop_price) ? (w.target_price - price) / (price - w.stop_price) : null;
   const isTgtHit = e.avg && e.qty && price && w.target_price && price >= w.target_price;
+  const isTrim   = e.avg && e.qty && price && w.target_price && !isTgtHit && price >= w.target_price * 0.9;
   const derived = [
-    isTgtHit        ? `<b style="color:var(--up)">🎯 목표 도달 — 익절 검토</b>`
+    isTgtHit ? `<b style="color:var(--up)">🎯 목표 도달 — 익절 검토</b>`
+    : isTrim ? `<b style="color:var(--accent)">✂️ 익절 구간 ${(price/w.target_price*100).toFixed(0)}%</b> · 남은 +${upsidePct.toFixed(1)}%`
     : upsidePct!=null ? `업사이드 <b style="color:${chgColor(upsidePct)}">${upsidePct>=0?'+':''}${upsidePct.toFixed(1)}%</b>` : '',
     watchGap!=null  ? `관심가까지 <b style="color:var(--blue)">${watchGap>=0?'+':''}${watchGap.toFixed(1)}%</b>` : '',
     rr!=null        ? `손익비 <b style="color:${rr>=2?'var(--up)':rr>=1?'var(--accent)':'var(--text1)'}">${rr.toFixed(1)}:1</b>` : '',
