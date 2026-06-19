@@ -320,23 +320,7 @@ function pInvestment() {
       <div id="sf-body" style="padding:.25rem 0">${_skelList(12, true)}</div>
     </div>
 
-    <!-- ③-b 종목별 수급 순위 (외국인/기관 10거래일 누적) -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header" style="flex-wrap:wrap;gap:6px">
-        <span class="card-title">🏦 종목별 수급 순위 <span style="font-size:10px;font-weight:400;color:var(--text2)">(10거래일 누적)</span></span>
-        <span style="font-size:10px;color:var(--text2)" id="stockflow-date"></span>
-        <div style="display:flex;gap:4px;margin-left:auto">
-          <button class="chip active" data-sflow-type="foreign" onclick="switchStockFlowType('foreign')" style="font-size:11px;padding:2px 8px">외국인</button>
-          <button class="chip"        data-sflow-type="inst"    onclick="switchStockFlowType('inst')"    style="font-size:11px;padding:2px 8px">기관</button>
-          <button class="chip"        data-sflow-type="combined" onclick="switchStockFlowType('combined')" style="font-size:11px;padding:2px 8px">합산</button>
-        </div>
-      </div>
-      <div id="stockflow-body" style="padding:.25rem 0">
-        ${_skelList(6, true)}
-      </div>
-    </div>
-
-
+    <!-- (종목별 수급 순위 → Zone C 심화 분석으로 이동) -->
 
     <!-- ⑦ 산업 동향 -->
     <div class="card" style="margin-bottom:12px">
@@ -354,6 +338,31 @@ function pInvestment() {
       <div id="inv-industry-chart"></div>
     </div>
 
+    <!-- Zone C — 심화 분석 (기본 접힘) -->
+    <div onclick="toggleZoneC()" style="cursor:pointer;display:flex;align-items:center;gap:8px;
+      padding:10px 14px;margin-bottom:12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px">
+      <span style="font-size:13px;font-weight:600;color:var(--text1)">${_ICO.grid}심화 분석</span>
+      <span style="font-size:11px;color:var(--text2);font-weight:400">종목별 수급 · 거래대금 · 급등/급락 · 비교 차트</span>
+      <span id="zonec-toggle" style="font-size:12px;color:var(--text2);margin-left:auto">펼치기 ▾</span>
+    </div>
+
+    <div id="inv-zonec" style="display:none">
+
+    <!-- ③-b 종목별 수급 순위 (외국인/기관 10거래일 누적) -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+        <span class="card-title">🏦 종목별 수급 순위 <span style="font-size:10px;font-weight:400;color:var(--text2)">(10거래일 누적)</span></span>
+        <span style="font-size:10px;color:var(--text2)" id="stockflow-date"></span>
+        <div style="display:flex;gap:4px;margin-left:auto">
+          <button class="chip active" data-sflow-type="foreign" onclick="switchStockFlowType('foreign')" style="font-size:11px;padding:2px 8px">외국인</button>
+          <button class="chip"        data-sflow-type="inst"    onclick="switchStockFlowType('inst')"    style="font-size:11px;padding:2px 8px">기관</button>
+          <button class="chip"        data-sflow-type="combined" onclick="switchStockFlowType('combined')" style="font-size:11px;padding:2px 8px">합산</button>
+        </div>
+      </div>
+      <div id="stockflow-body" style="padding:.25rem 0">
+        ${_skelList(6, true)}
+      </div>
+    </div>
 
     <!-- (52주 신고가 → '오늘의 아이디어' 탭으로 이동) -->
 
@@ -501,6 +510,8 @@ function pInvestment() {
         <div id="inv-drop-kosdaq" style="padding:.25rem 0"></div>
       </div>
     </div>
+
+    </div><!-- /inv-zonec (심화 분석) -->
 
   </div>
 
@@ -919,6 +930,24 @@ function renderBriefingBar() {
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:flex-end">${riskHtml}</div>
     </div>`;
+}
+
+
+// ── Zone C(심화 분석) 접기/펼치기 ──────────────────────────────────────────────
+// 비교 차트(inv-trend/ind-trend/uskr)는 display:none 상태에서 0px로 그려지므로,
+// 펼칠 때 해당 로더를 재호출해 올바른 크기로 다시 그린다 (toggleTrendChart와 동일 패턴).
+function toggleZoneC() {
+  const body = document.getElementById('inv-zonec');
+  const tog  = document.getElementById('zonec-toggle');
+  if (!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  if (tog) tog.textContent = open ? '접기 ▴' : '펼치기 ▾';
+  if (open) {
+    try { if (typeof loadTrendChart    === 'function') loadTrendChart();    } catch(e) { console.warn('[ZoneC] trend', e); }
+    try { if (typeof loadIndTrendChart === 'function') loadIndTrendChart(); } catch(e) { console.warn('[ZoneC] indTrend', e); }
+    try { if (typeof loadUskrChart     === 'function') loadUskrChart();     } catch(e) { console.warn('[ZoneC] uskr', e); }
+  }
 }
 
 
