@@ -190,10 +190,15 @@ async function loadIndTrendChart() {
     }
   });
 
-  // canvas 이벤트 재바인딩 (차트 재생성 시 _hoverBound 초기화)
-  const freshCanvas = document.getElementById('ind-trend-chart');
-  if (freshCanvas) freshCanvas._hoverBound = false;
-  _bindIndTrendHover();
+  // canvas 이벤트 재바인딩 — 공통 호버/클릭-고정 바인더 (config.js)
+  bindLineChartHover(document.getElementById('ind-trend-chart'), {
+    getChart: () => _indTrendChart2,
+    applyHighlight: _applyIndHighlight,
+    state: {
+      get pinned()  { return window._indPinned; },  set pinned(v)  { window._indPinned = v; },
+      get hovered() { return window._indHovered; }, set hovered(v) { window._indHovered = v; },
+    },
+  });
 }
 
 // ── 산업별 흐름 하이라이트 헬퍼 (전역) ──
@@ -220,48 +225,6 @@ function _applyIndHighlight(label) {
     lbl.style.opacity     = !label || ind === label ? '1' : '0.35';
     lbl.style.borderWidth = label && ind === label  ? '2px' : '';
   });
-}
-function _applyIndHover(label) {
-  if (window._indPinned) return;
-  if (label === window._indHovered) return;
-  window._indHovered = label;
-  _applyIndHighlight(label);
-}
-
-// ── canvas 마우스 이벤트로 호버 하이라이트 ──
-// (loadIndTrendChart 호출 후 외부에서 canvas 이벤트 재바인딩)
-function _bindIndTrendHover() {
-  const canvas = document.getElementById('ind-trend-chart');
-  if (!canvas || canvas._hoverBound) return;
-  canvas._hoverBound = true;
-
-  canvas.addEventListener('mousemove', (e) => {
-    const chart = _indTrendChart2;
-    if (!chart) return;
-    const pts = chart.getElementsAtEventForMode(e, 'nearest', { intersect: false }, true);
-    const label = pts.length ? chart.data.datasets[pts[0].datasetIndex]?.label : null;
-    _applyIndHover(label);
-  });
-
-  canvas.addEventListener('mouseleave', () => {
-    if (!window._indPinned) {
-      window._indHovered = null;
-      _applyIndHighlight(null);
-    }
-  });
-
-  // 클릭으로 고정/해제
-  if (canvas._indClickHandler) canvas.removeEventListener('click', canvas._indClickHandler);
-  canvas._indClickHandler = (e) => {
-    const chart = _indTrendChart2;
-    if (!chart) return;
-    const pts = chart.getElementsAtEventForMode(e, 'nearest', { intersect: false }, true);
-    const clicked = pts.length ? chart.data.datasets[pts[0].datasetIndex]?.label : null;
-    window._indPinned = (clicked && clicked !== window._indPinned) ? clicked : null;
-    window._indHovered = window._indPinned;
-    _applyIndHighlight(window._indPinned);
-  };
-  canvas.addEventListener('click', canvas._indClickHandler);
 }
 
 // 호버/클릭 하이라이트 상태

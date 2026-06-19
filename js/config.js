@@ -331,6 +331,51 @@ async function withLoad(elId, fn) {
   catch(e) { el.innerHTML = errorHTML(e.message); }
 }
 
+/**
+ * Chart.js 라인차트 공통 호버/클릭-고정 인터랙션 바인딩.
+ * 마우스 이동 → 최근접 라인 하이라이트, 클릭 → 고정/해제, 이탈 → 복원.
+ * 차트별 시각 표현(색상·굵기)은 applyHighlight(label)에 위임 → 표현 불변.
+ *   getChart():      현재 살아있는 Chart 인스턴스 반환
+ *   applyHighlight:  하이라이트 적용 함수 (label|null)
+ *   state:           { pinned, hovered } getter/setter 객체 (차트별 전역 상태 래핑)
+ * 차트 재생성마다 호출해도 안전 — 이전 핸들러를 제거 후 재바인딩.
+ */
+function bindLineChartHover(canvas, { getChart, applyHighlight, state }) {
+  if (!canvas) return;
+  [['mousemove','_lphMove'], ['mouseleave','_lphLeave'], ['click','_lphClick']]
+    .forEach(([ev, k]) => { if (canvas[k]) canvas.removeEventListener(ev, canvas[k]); });
+
+  const labelAt = (e) => {
+    const chart = getChart();
+    if (!chart) return null;
+    const pts = chart.getElementsAtEventForMode(e, 'nearest', { intersect: false }, true);
+    return pts.length ? chart.data.datasets[pts[0].datasetIndex]?.label : null;
+  };
+
+  canvas._lphMove = (e) => {
+    if (state.pinned) return;            // 고정 중엔 호버 무시
+    const label = labelAt(e);
+    if (label === state.hovered) return;
+    state.hovered = label;
+    applyHighlight(label);
+  };
+  canvas._lphLeave = () => {
+    if (state.pinned) return;
+    state.hovered = null;
+    applyHighlight(null);
+  };
+  canvas._lphClick = (e) => {
+    const clicked = labelAt(e);
+    state.pinned  = (clicked && clicked !== state.pinned) ? clicked : null;
+    state.hovered = state.pinned;
+    applyHighlight(state.pinned);
+  };
+
+  canvas.addEventListener('mousemove',  canvas._lphMove);
+  canvas.addEventListener('mouseleave', canvas._lphLeave);
+  canvas.addEventListener('click',      canvas._lphClick);
+}
+
 /** Supabase auth 에러 메시지 한국어 변환 */
 function parseAuthError(e) {
   const msg = e.message || JSON.stringify(e);
