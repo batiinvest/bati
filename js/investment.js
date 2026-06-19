@@ -163,36 +163,7 @@ function pInvestment() {
         </div>
       </div>
 
-      <!-- 주도주 Top5 -->
-      <div class="card" style="margin-bottom:0">
-        <div class="card-header" style="flex-wrap:wrap;gap:6px">
-          <span class="card-title">${_ICO.rocket}주도주 탐색기</span>
-          <button id="ls-refresh-btn" onclick="refreshLeadingStocks()"
-            style="font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid var(--border);
-                   background:transparent;color:var(--text2);cursor:pointer;margin-left:auto"
-            title="새로고침">${_ICO.refresh}</button>
-        </div>
-        <div style="border-top:1px solid var(--border)">
-          <div style="padding:5px 10px;border-bottom:1px solid var(--border);display:flex;gap:3px">
-            <button class="chip active" data-ls-tab="all"    onclick="switchLsTab('all')"    style="font-size:10px;padding:3px 8px">전체</button>
-            <button class="chip"        data-ls-tab="kospi"  onclick="switchLsTab('kospi')"  style="font-size:10px;padding:3px 8px">코스피</button>
-            <button class="chip"        data-ls-tab="kosdaq" onclick="switchLsTab('kosdaq')" style="font-size:10px;padding:3px 8px">코스닥</button>
-            <span style="font-size:10px;color:var(--text2);margin-left:auto;align-self:center" id="ls-date"></span>
-          </div>
-          <div id="ls-body">${_skelList(8)}</div>
-          <!-- 과거 주도주 수익률 (접힘) -->
-          <div style="padding:5px 10px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;gap:3px">
-            <span style="font-size:11px;font-weight:600;color:var(--text2)">과거 주도주 수익률</span>
-            <span id="ls-bt-date" style="font-size:10px;color:var(--text2);margin-left:auto;align-self:center"></span>
-            <div style="display:flex;gap:3px">
-              <button class="chip active" data-bt-period="1w" onclick="switchBtPeriod('1w')" style="font-size:10px;padding:2px 6px">1주</button>
-              <button class="chip"        data-bt-period="1m" onclick="switchBtPeriod('1m')" style="font-size:10px;padding:2px 6px">1달</button>
-              <button class="chip"        data-bt-period="3m" onclick="switchBtPeriod('3m')" style="font-size:10px;padding:2px 6px">3달</button>
-            </div>
-          </div>
-          <div id="ls-bt-body" style="padding:6px 8px">${_skelList(5)}</div>
-        </div>
-      </div>
+      <!-- (주도주 → '오늘의 아이디어' 탭으로 이동) -->
 
       <!-- 수급 요약 -->
       <div class="card" style="margin-bottom:0">
@@ -221,6 +192,73 @@ function pInvestment() {
     <!-- 우 패널 -->
     <div id="inv-right" style="display:flex;flex-direction:column;gap:1rem">
 
+      <!-- 💡 오늘의 아이디어 (주도주·신고가·실적급등 통합 탭) -->
+      <div class="card" style="margin-bottom:0">
+        <div class="card-header" style="flex-wrap:wrap;gap:6px">
+          <span class="card-title">${_ICO.bulb}오늘의 아이디어</span>
+          <span style="font-size:10px;color:var(--text2);font-weight:400">발굴 → 클릭 → 상세·⭐관심</span>
+          <div style="display:flex;gap:4px;margin-left:auto;flex-wrap:wrap">
+            <button class="chip active" id="idea-tab-ls"       onclick="switchIdeaTab('ls')"       style="font-size:11px;padding:3px 10px">${_ICO.rocket}주도주</button>
+            <button class="chip"        id="idea-tab-hgpr"     onclick="switchIdeaTab('hgpr')"     style="font-size:11px;padding:3px 10px">${_ICO.flag}신고가</button>
+            <button class="chip"        id="idea-tab-earnings" onclick="switchIdeaTab('earnings')" style="font-size:11px;padding:3px 10px">${_ICO.bar}실적급등</button>
+          </div>
+        </div>
+
+        <!-- 주도주 패널 -->
+        <div id="idea-panel-ls" style="border-top:1px solid var(--border)">
+          <div style="padding:5px 10px;border-bottom:1px solid var(--border);display:flex;gap:3px;align-items:center">
+            <button class="chip active" data-ls-tab="all"    onclick="switchLsTab('all')"    style="font-size:10px;padding:3px 8px">전체</button>
+            <button class="chip"        data-ls-tab="kospi"  onclick="switchLsTab('kospi')"  style="font-size:10px;padding:3px 8px">코스피</button>
+            <button class="chip"        data-ls-tab="kosdaq" onclick="switchLsTab('kosdaq')" style="font-size:10px;padding:3px 8px">코스닥</button>
+            <span style="font-size:10px;color:var(--text2);margin-left:auto;align-self:center" id="ls-date"></span>
+            <button id="ls-refresh-btn" onclick="refreshLeadingStocks()"
+              style="font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid var(--border);
+                     background:transparent;color:var(--text2);cursor:pointer;margin-left:6px"
+              title="새로고침">${_ICO.refresh}</button>
+          </div>
+          <div id="ls-body">${_skelList(8)}</div>
+          <div style="padding:5px 10px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;gap:3px">
+            <span style="font-size:11px;font-weight:600;color:var(--text2)">과거 주도주 수익률</span>
+            <span id="ls-bt-date" style="font-size:10px;color:var(--text2);margin-left:auto;align-self:center"></span>
+            <div style="display:flex;gap:3px">
+              <button class="chip active" data-bt-period="1w" onclick="switchBtPeriod('1w')" style="font-size:10px;padding:2px 6px">1주</button>
+              <button class="chip"        data-bt-period="1m" onclick="switchBtPeriod('1m')" style="font-size:10px;padding:2px 6px">1달</button>
+              <button class="chip"        data-bt-period="3m" onclick="switchBtPeriod('3m')" style="font-size:10px;padding:2px 6px">3달</button>
+            </div>
+          </div>
+          <div id="ls-bt-body" style="padding:6px 8px">${_skelList(5)}</div>
+        </div>
+
+        <!-- 신고가 패널 -->
+        <div id="idea-panel-hgpr" style="display:none;border-top:1px solid var(--border)">
+          <div style="padding:5px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:10px;color:var(--text2)">KIS 기준 신고가 지정 종목</span>
+            <span id="hgpr-date" style="font-size:10px;color:var(--text2)"></span>
+            <div style="display:flex;gap:4px;margin-left:auto">
+              <button class="chip active" data-hgpr-tab="monitored" onclick="switchHgprTab('monitored')" style="font-size:11px;padding:2px 8px">⭐ 모니터링</button>
+              <button class="chip"        data-hgpr-tab="all"       onclick="switchHgprTab('all')"       style="font-size:11px;padding:2px 8px">전체 종목</button>
+            </div>
+          </div>
+          <div id="hgpr-body" style="padding:.5rem 0">${_skelList(6)}</div>
+        </div>
+
+        <!-- 실적급등 패널 -->
+        <div id="idea-panel-earnings" style="display:none;border-top:1px solid var(--border)">
+          <div style="padding:5px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <div style="display:flex;gap:4px">
+              <button class="chip active" data-surge-grade="all"  onclick="setSurgeGrade(this,'all')"  style="font-size:11px">전체</button>
+              <button class="chip"        data-surge-grade="S"    onclick="setSurgeGrade(this,'S')"    style="font-size:11px">S급</button>
+              <button class="chip"        data-surge-grade="A"    onclick="setSurgeGrade(this,'A')"    style="font-size:11px">A급</button>
+              <button class="chip"        data-surge-grade="B"    onclick="setSurgeGrade(this,'B')"    style="font-size:11px">B급</button>
+              <button class="chip"        data-surge-grade="관찰"  onclick="setSurgeGrade(this,'관찰')"  style="font-size:11px">관찰</button>
+            </div>
+            <select class="form-select" id="inv-earnings-quarter" style="width:130px;padding:3px 8px;font-size:12px;margin-left:auto"
+              onchange="loadEarningsSurge()"><option value="">로딩 중...</option></select>
+          </div>
+          <div id="inv-earnings-list" style="padding:.5rem 0">${_skelCards(4)}</div>
+        </div>
+      </div>
+
       <!-- 공시 피드 -->
       <div class="card" style="margin-bottom:0">
         <div class="card-header">
@@ -235,24 +273,7 @@ function pInvestment() {
         </div>
       </div>
 
-      <!-- 실적 급등 Top5 -->
-      <div class="card" style="margin-bottom:0">
-        <div class="card-header" style="flex-wrap:wrap;gap:8px;align-items:center">
-          <span class="card-title">${_ICO.rocket}실적 급등 종목</span>
-          <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap">
-            <div style="display:flex;gap:4px">
-              <button class="chip active" data-surge-grade="all"  onclick="setSurgeGrade(this,'all')"  style="font-size:11px">전체</button>
-              <button class="chip"        data-surge-grade="S"    onclick="setSurgeGrade(this,'S')"    style="font-size:11px">S급</button>
-              <button class="chip"        data-surge-grade="A"    onclick="setSurgeGrade(this,'A')"    style="font-size:11px">A급</button>
-              <button class="chip"        data-surge-grade="B"    onclick="setSurgeGrade(this,'B')"    style="font-size:11px">B급</button>
-              <button class="chip"        data-surge-grade="관찰"  onclick="setSurgeGrade(this,'관찰')"  style="font-size:11px">관찰</button>
-            </div>
-            <select class="form-select" id="inv-earnings-quarter" style="width:130px;padding:3px 8px;font-size:12px"
-              onchange="loadEarningsSurge()"><option value="">로딩 중...</option></select>
-          </div>
-        </div>
-        <div id="inv-earnings-list" style="padding:.5rem 0">${_skelCards(4)}</div>
-      </div>
+      <!-- (실적 급등 → '오늘의 아이디어' 탭으로 이동) -->
 
       <!-- 산업 강도 매트릭스 (미니) -->
       <div id="im-card" class="card" style="margin-bottom:0">
@@ -334,21 +355,7 @@ function pInvestment() {
     </div>
 
 
-    <!-- ⑨ 52주 신고가 종목 -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span class="card-title">${_ICO.flag}52주 신고가 갱신</span>
-        <span style="font-size:10px;color:var(--text2);font-weight:400">KIS 기준 신고가 지정 종목</span>
-        <span id="hgpr-date" style="font-size:10px;color:var(--text2)"></span>
-        <div style="display:flex;gap:4px;margin-left:auto">
-          <button class="chip active" data-hgpr-tab="monitored" onclick="switchHgprTab('monitored')" style="font-size:11px;padding:2px 8px">⭐ 모니터링</button>
-          <button class="chip"        data-hgpr-tab="all"       onclick="switchHgprTab('all')"       style="font-size:11px;padding:2px 8px">전체 종목</button>
-        </div>
-      </div>
-      <div id="hgpr-body" style="padding:.5rem 0">
-        ${_skelList(6)}
-      </div>
-    </div>
+    <!-- (52주 신고가 → '오늘의 아이디어' 탭으로 이동) -->
 
     <!-- ⑩ 거래대금 상위 -->
     <div class="card" style="margin-bottom:12px">
@@ -912,6 +919,18 @@ function renderBriefingBar() {
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:flex-end">${riskHtml}</div>
     </div>`;
+}
+
+
+// ── '오늘의 아이디어' 탭 전환 (주도주 / 신고가 / 실적급등) ───────────────────────
+// 각 패널은 기존 위젯 내용을 그대로 품고 있어(id 유지) 로더는 변경 불필요 — 표시 토글만.
+function switchIdeaTab(tab) {
+  ['ls', 'hgpr', 'earnings'].forEach(t => {
+    const panel = document.getElementById('idea-panel-' + t);
+    if (panel) panel.style.display = (t === tab) ? 'block' : 'none';
+    const btn = document.getElementById('idea-tab-' + t);
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
 }
 
 
