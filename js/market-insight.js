@@ -520,6 +520,9 @@ function _renderInsightCard(data) {
   ${adminBtns}`;
 
   el.innerHTML = oneLiner + moodRow + pointsHTML + footer;
+
+  // Zone A 브리핑 바의 '한 줄 총평'도 함께 갱신
+  if (typeof renderBriefingBar === 'function') renderBriefingBar();
 }
 
 

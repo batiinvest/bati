@@ -97,6 +97,11 @@ function pInvestment() {
   </div>
 
 
+  <!-- Zone A — 브리핑 바 (30초 시장 방향: 온도계·한줄총평·지수/breadth·위험신호) -->
+  <div id="inv-briefing" class="card" style="margin-bottom:1rem;padding:0;overflow:hidden">
+    <div style="padding:.75rem 1rem;color:var(--text2);font-size:12px"><span class="loading"></span> 브리핑 준비 중…</div>
+  </div>
+
   <!-- 상단 2열: 온도계 | 증시동향 -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:stretch;margin-bottom:1rem">
 
@@ -673,6 +678,9 @@ async function loadInvestment() {
     _updateInvTimestamp();
   }
 
+  // 브리핑 바 1차 — 지수·위험신호 즉시 표시 (점수는 종목데이터 로드 후 채움)
+  renderBriefingBar();
+
   // 공시/실적 항상 로드 (2단 레이아웃 우 패널)
   _allDiscLoaded = false;
   loadTodayDisclosures();
@@ -687,6 +695,7 @@ async function loadInvestment() {
   // Phase 1 — 온도계 + 거래대금 상위 (window._allMarketRows / _macroData 재활용)
   renderMarketTemperature();
   renderVolumeLeaders();
+  renderBriefingBar(); // 종목데이터 준비 완료 → 온도계 점수·breadth 채움
 
   // Phase 2 — 주도주 탐색기 + 백테스트 + 섹터 수급 트렌드 + 산업 강도 매트릭스
   _initSfImLayout(); // 2열 그리드 / 모바일 탭 초기화
@@ -837,6 +846,101 @@ function renderVolumeLeaders() {
       ${rows}
     </div>`;
   }).join('');
+}
+
+
+// ── Zone A 브리핑 바 (30초 시장 방향) ──────────────────────────────────────────
+// 별도 쿼리 없이 이미 로드된 전역(_macroData, _allMarketRows, _insightCurrentData)만 재사용.
+// 데이터 준비 시점이 제각각이므로 방어적으로 — 준비된 조각만 채우고 나머지는 placeholder.
+function renderBriefingBar() {
+  const el = document.getElementById('inv-briefing');
+  if (!el) return;
+
+  const m    = window._macroData || {};
+  const rows = (window._allMarketRows || []).filter(r => r.price_change_rate != null);
+  const hasMkt = rows.length > 0;
+
+  // ① 온도계 점수 (종목데이터 준비 후에만 — 외국인 수급 20pt 왜곡 방지)
+  let scoreHtml;
+  if (hasMkt && typeof _calcTemperature === 'function') {
+    const t = _calcTemperature();
+    scoreHtml =
+      `<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;padding-right:14px;border-right:1px solid var(--border)">
+        <div style="text-align:center;min-width:42px">
+          <div style="font-size:28px;font-weight:800;line-height:1;color:${t.gradeColor};font-variant-numeric:tabular-nums">${t.score}</div>
+          <div style="font-size:9px;color:var(--text2);margin-top:1px">/100</div>
+        </div>
+        <div style="min-width:0">
+          <div style="font-size:13px;font-weight:700;color:${t.gradeColor};white-space:nowrap">${t.gradeEmoji} ${t.gradeTxt}</div>
+          <div style="font-size:10px;color:var(--text2)">시장 온도계</div>
+        </div>
+      </div>`;
+  } else {
+    scoreHtml =
+      `<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;padding-right:14px;border-right:1px solid var(--border)">
+        <span class="skeleton" style="width:42px;height:30px;border-radius:5px"></span>
+        <span style="font-size:11px;color:var(--text2)">온도 측정 중…</span>
+      </div>`;
+  }
+
+  // ② 한 줄 총평 (market-insight.js가 채운 전역 재사용)
+  const oneLiner = (window._insightCurrentData && window._insightCurrentData.one_line_summary)
+    ? window._insightCurrentData.one_line_summary
+    : '<span style="color:var(--text2)"><span class="loading"></span> 시장 한 줄 요약 분석 중…</span>';
+
+  // ③ 지수 + breadth 칩
+  const chip = (label, val, chg) => {
+    if (val == null) return '';
+    const chgPart = chg != null ? `<span style="color:${chgColor(chg)};font-weight:600">${chgStr(chg)}</span>` : '';
+    return `<span style="display:inline-flex;align-items:baseline;gap:4px;font-size:11px;background:var(--bg3);border-radius:5px;padding:3px 8px;white-space:nowrap">`
+      + `<span style="color:var(--text2)">${label}</span>`
+      + `<span style="font-weight:700">${Number(val).toLocaleString(undefined,{maximumFractionDigits:2})}</span>`
+      + chgPart + `</span>`;
+  };
+  let breadthChip = '';
+  if (hasMkt) {
+    const up    = rows.filter(r => r.price_change_rate > 0).length;
+    const upPct = Math.round(up / rows.length * 100);
+    const bClr  = upPct >= 55 ? 'var(--red)' : upPct <= 45 ? 'var(--blue)' : 'var(--text3)';
+    breadthChip = `<span style="display:inline-flex;align-items:baseline;gap:4px;font-size:11px;background:var(--bg3);border-radius:5px;padding:3px 8px;white-space:nowrap">`
+      + `<span style="color:var(--text2)">상승비율</span>`
+      + `<span style="font-weight:700;color:${bClr}">${upPct}%</span>`
+      + `<span style="color:var(--text2)">(${rows.length.toLocaleString()})</span></span>`;
+  }
+  const chipsHtml = [chip('코스피', m.kospi, m.kospi_chg), chip('코스닥', m.kosdaq, m.kosdaq_chg), breadthChip].filter(Boolean).join('');
+
+  // ④ 매크로 위험 신호 배지 (_getRisk + MACRO_RISK_SIGNALS 재사용)
+  let riskHtml = '';
+  if (typeof _getRisk === 'function') {
+    const _RI = { caution:{c:'#f59e0b',i:'⚠️'}, danger:{c:'#ef4444',i:'🚨'}, critical:{c:'#dc2626',i:'🔴'} };
+    const defs = [
+      { key:'vix',       val:m.vix,       label:'VIX',  fmt:v=>Number(v).toFixed(0) },
+      { key:'us10y',     val:m.us10y,     label:'미10Y', fmt:v=>Number(v).toFixed(2)+'%' },
+      { key:'usd_krw',   val:m.usd_krw,   label:'환율', fmt:v=>Number(v).toLocaleString() },
+      { key:'sp500_chg', val:m.sp500_chg, label:'S&P',  fmt:v=>(v>0?'+':'')+Number(v).toFixed(1)+'%' },
+    ];
+    const active = defs.map(d => ({ ...d, risk:_getRisk(d.key, d.val) })).filter(d => d.risk);
+    if (active.length) {
+      riskHtml = active.map(d => {
+        const ri = _RI[d.risk] || _RI.caution;
+        return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;padding:3px 8px;border-radius:5px;`
+          + `background:${ri.c}1f;border:1px solid ${ri.c}66;color:${ri.c};font-weight:600;white-space:nowrap">`
+          + `${ri.i} ${d.label} ${d.fmt(d.val)}</span>`;
+      }).join('');
+    } else if (hasMkt) {
+      riskHtml = `<span style="font-size:11px;color:var(--green);white-space:nowrap">✓ 매크로 위험신호 없음</span>`;
+    }
+  }
+
+  el.innerHTML =
+    `<div style="display:flex;align-items:center;gap:14px;padding:12px 16px;flex-wrap:wrap">
+      ${scoreHtml}
+      <div style="flex:1;min-width:220px">
+        <div style="font-size:13.5px;font-weight:700;color:var(--text);line-height:1.5;margin-bottom:6px">${oneLiner}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${chipsHtml}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:flex-end">${riskHtml}</div>
+    </div>`;
 }
 
 
