@@ -67,6 +67,29 @@ async function fetchAllPages(queryOrFn, pageSize = 1000) {
   return all;
 }
 
+// ══════════════════════════════════════════
+//  종목 검색 공통 fetcher — 회사명/코드 ilike 드롭다운용
+//  comparison·report·company의 .or(name.ilike,code.ilike) 중복을 통합.
+//  각 페이지는 scope/limit/orderBy/cols만 지정하고 렌더링은 자체 유지한다.
+//    scope:   'all'(전체 상장사) | 'monitored'(is_monitored) | 'active'
+//    orderBy: 컬럼명 | 'is_monitored'(내림차순) | null(정렬 생략)
+//  반환: Supabase 응답 형태 { data, error } — 기존 호출부 그대로 호환.
+//  주의: code는 접미사(.KS/.KQ) 제거 없이 원본 반환 — 접미사 처리는 호출부 책임.
+// ══════════════════════════════════════════
+async function searchCompanies(q, opts = {}) {
+  const { scope = 'all', limit = 12, orderBy = 'name', cols = 'code,name,industry' } = opts;
+  q = (q || '').trim();
+  if (!q) return { data: [], error: null };
+  let query = sb.from('companies')
+    .select(cols)
+    .or(`name.ilike.%${q}%,code.ilike.%${q}%`);
+  if (scope === 'monitored')   query = query.eq('is_monitored', true);
+  else if (scope === 'active') query = query.eq('active', true);
+  if (orderBy === 'is_monitored') query = query.order('is_monitored', { ascending: false });
+  else if (orderBy)               query = query.order(orderBy);
+  return await query.limit(limit);
+}
+
 // ── App state ──
 const A = {
   user: null,     // Supabase auth user

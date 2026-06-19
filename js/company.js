@@ -421,10 +421,10 @@ async function monSearch(q) {
   if (!el) return;
   if (!q) { el.innerHTML=''; _monSelStock=null; document.getElementById('mon-add-panel').style.display='none'; return; }
 
-  const { data } = await sb.from('companies')
-    .select('code,name,industry,sub_industry,is_monitored,market')
-    .or(`name.ilike.%${q}%,code.ilike.%${q}%`)
-    .order('is_monitored', { ascending:false }).limit(12);
+  const { data } = await searchCompanies(q, {
+    cols: 'code,name,industry,sub_industry,is_monitored,market',
+    orderBy: 'is_monitored', limit: 12,
+  });
 
   if (!data?.length) { el.innerHTML='<div style="font-size:12px;color:var(--text2);padding:6px">검색 결과 없음</div>'; return; }
 

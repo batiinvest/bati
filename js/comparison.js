@@ -243,13 +243,7 @@ async function onCmpSearch(q) {
 
   _cmpSearchTimer = setTimeout(async () => {
     try {
-      const { data: rows, error } = await sb
-        .from('companies')
-        .select('code,name,industry')
-        .or(`name.ilike.%${q}%,code.ilike.%${q}%`)
-        .eq('is_monitored', true)
-        .order('name')
-        .limit(20);
+      const { data: rows, error } = await searchCompanies(q, { scope: 'monitored', limit: 20 });
 
       if (error) { dd.style.display = 'none'; return; }
       if (!rows?.length) { dd.innerHTML = '<div style="padding:8px 12px;font-size:12px;color:var(--text2)">검색 결과 없음</div>'; dd.style.display = 'block'; return; }

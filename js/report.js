@@ -120,11 +120,7 @@ async function rpSearchInput(q) {
   if (!q || q.length < 1) { dd.style.display = 'none'; return; }
 
   _rpSearchTimer = setTimeout(async () => {
-    const { data } = await sb.from('companies')
-      .select('code,name,industry')
-      .or(`name.ilike.%${q}%,code.ilike.%${q}%`)
-      .order('name')
-      .limit(10);
+    const { data } = await searchCompanies(q, { limit: 10 });
 
     if (!data?.length) { dd.style.display = 'none'; return; }
 
@@ -156,12 +152,8 @@ async function rpLoadReport() {
   const inp = document.getElementById('rp-search');
   if (!_rpStock && inp?.value?.trim()) {
     const q = inp.value.trim();
-    const { data } = await sb.from('companies')
-      .select('code,name')
-      .or(`name.ilike.%${q}%,code.ilike.%${q}%`)
-      .limit(1)
-      .maybeSingle();
-    if (data) _rpStock = { code: data.code, name: data.name };
+    const { data } = await searchCompanies(q, { cols: 'code,name', limit: 1, orderBy: null });
+    if (data?.[0]) _rpStock = { code: data[0].code, name: data[0].name };
   }
   if (!_rpStock) { toast('종목을 선택해주세요.', 'warn'); return; }
 
