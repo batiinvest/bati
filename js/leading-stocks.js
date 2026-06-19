@@ -283,28 +283,34 @@ async function loadLeadingBacktest() {
     if (!latestRow) { el.innerHTML = _lsBtEmpty('시장 데이터 없음'); return; }
     const latestDate = latestRow.base_date;
 
-    // 2. 기간에 따른 진입일 계산 (거래일 기준 nearest)
-    const periodMap = { '1w': 5, '1m': 20, '3m': 60 };
-    const offsetDays = periodMap[_lsBtPeriod] || 5;
-
-    // 진입일: leading_stocks에서 latestDate 기준 offsetDays 이전 가장 가까운 날짜
-    const { data: entryDateRows } = await sb.from('leading_stocks')
+    // 2. 진입일 계산 — 캘린더 기간(1주/1달/3달) 목표일에 가장 가까운 '선정일'
+    //    leading_stocks는 날짜당 50행이라 base_date만 뽑으면 중복 → rank=1로 날짜당 1행(고유 선정일).
+    const { data: dateRows } = await sb.from('leading_stocks')
       .select('base_date')
+      .eq('rank', 1)
       .lt('base_date', latestDate)
       .order('base_date', { ascending: false })
-      .limit(offsetDays + 5);  // 여유 조회
+      .limit(200);
 
-    if (!entryDateRows || entryDateRows.length < offsetDays) {
-      el.innerHTML = _lsBtEmpty(`${_lsBtLabel()} 전 데이터 없음 — 더 많은 기간이 누적되면 표시됩니다`);
+    if (!dateRows || !dateRows.length) {
+      el.innerHTML = _lsBtEmpty('과거 주도주 데이터가 아직 없습니다 — 누적되면 표시됩니다');
       return;
     }
+    const selDates = dateRows.map(r => r.base_date);  // 최신순 고유 선정일
 
-    // offsetDays번째 거래일 날짜 선택
-    const entryDate = entryDateRows[Math.min(offsetDays - 1, entryDateRows.length - 1)].base_date;
+    // 목표 캘린더일(latestDate − N일) 이하의 가장 최근 선정일; 보유기간이 더 짧으면 가장 오래된 선정일로 폴백
+    const calDays = { '1w': 7, '1m': 30, '3m': 90 }[_lsBtPeriod] || 7;
+    const target = new Date(latestDate + 'T00:00:00Z');
+    target.setUTCDate(target.getUTCDate() - calDays);
+    const targetStr = target.toISOString().slice(0, 10);
+    const entryDate = selDates.find(d => d <= targetStr) || selDates[selDates.length - 1];
+    const capped    = !selDates.some(d => d <= targetStr);  // 목표 기간만큼 과거 데이터 부족
 
-    // 헤더에 선정일 표시
+    // 헤더에 선정일 표시 (기간 미달 시 보유 최장 기준임을 안내)
     const btDateEl = document.getElementById('ls-bt-date');
-    if (btDateEl) btDateEl.textContent = `선정일 ${entryDate}`;
+    if (btDateEl) btDateEl.textContent = capped
+      ? `선정일 ${entryDate} · ${_lsBtLabel()} 미달(보유 최장)`
+      : `선정일 ${entryDate}`;
 
     // 3. 진입일 Top 10 주도주 조회
     const { data: entryStocks } = await sb.from('leading_stocks')
