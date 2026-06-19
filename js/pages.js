@@ -12,7 +12,6 @@ const PAGE_META = {
   rooms:      { title: '채팅방 관리',   fn: 'pRooms',       onLoad: null },
   notice:     { title: '공지 발송',     fn: 'pNotice',      onLoad: 'loadNotices' },
   logs:       { title: '동기화 로그',   fn: 'pLogs',        onLoad: 'loadLogs' },
-  bot:        { title: '봇 관리',       fn: 'pBotConfig',   onLoad: 'loadBotConfig' },
   botconfig:  { title: '봇 관리',       fn: 'pBotConfig',   onLoad: 'loadBotConfig' },
   investment: { title: '오늘의 시황',   fn: 'pInvestment',  onLoad: 'loadInvestment' },
   company:    { title: '모니터링 종목',  fn: 'pCompany',     onLoad: 'loadCompanyPage' },

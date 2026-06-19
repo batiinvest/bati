@@ -292,8 +292,8 @@ function autoGenIntro(forceNew = false) {
     else grouped[cat].open.push(r);
   });
 
-  // 산업 순서 (고정 순서 우선, 나머지는 종목 수 내림차순)
-  const IND_ORDER = ['바이오','뷰티','로봇','2차전지','신재생','소비재','테크','반도체','엔터','조선','우주'];
+  // 산업 순서 (고정 순서 우선, 나머지는 종목 수 내림차순) — config.js INDUSTRIES 참조
+  const IND_ORDER = INDUSTRIES;
   const allCats = [...new Set([
     ...IND_ORDER.filter(c => grouped[c]),
     ...Object.keys(grouped).filter(c => !IND_ORDER.includes(c)),

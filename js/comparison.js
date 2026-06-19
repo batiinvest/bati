@@ -243,7 +243,6 @@ async function onCmpSearch(q) {
 
   _cmpSearchTimer = setTimeout(async () => {
     try {
-      console.log('[종목검색] 검색어:', q);
       const { data: rows, error } = await sb
         .from('companies')
         .select('code,name,industry')
@@ -252,9 +251,7 @@ async function onCmpSearch(q) {
         .order('name')
         .limit(20);
 
-      console.log('[종목검색] 결과:', rows?.length, '개, 에러:', error);
-
-      if (error) { console.error('[종목검색] 에러:', error); dd.style.display = 'none'; return; }
+      if (error) { dd.style.display = 'none'; return; }
       if (!rows?.length) { dd.innerHTML = '<div style="padding:8px 12px;font-size:12px;color:var(--text2)">검색 결과 없음</div>'; dd.style.display = 'block'; return; }
 
       dd.innerHTML = rows.map(r => {
@@ -275,7 +272,7 @@ async function onCmpSearch(q) {
       }).join('');
       dd.style.display = 'block';
     } catch(e) {
-      console.error('[종목검색] 예외:', e);
+      dd.style.display = 'none';
     }
   }, 300);
 }

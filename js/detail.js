@@ -25,7 +25,7 @@ function dtab(tab, el) {
       </div>`:''}`;
   } else if (tab === 'edit') {
     if (!canEdit()) { body.innerHTML='<div style="padding:1rem;color:var(--text2);font-size:13px;text-align:center">수정 권한이 없습니다.</div>'; return; }
-    const cats=['바이오','뷰티','로봇','2차전지','신재생','소비재','테크','반도체','엔터','조선','우주'];
+    const cats = INDUSTRIES;  // config.js 단일 정의 참조
     body.innerHTML=`
       <div class="form-row"><div class="form-group"><label class="form-label">이름</label><input class="form-input" id="e-name" value="${r.name}"></div><div class="form-group"><label class="form-label">종목코드</label><input class="form-input" id="e-code" value="${r.code||''}"></div></div>
       <div class="form-row"><div class="form-group"><label class="form-label">산업</label><select class="form-select" id="e-cat">${cats.map(c=>`<option ${c===r.cat?'selected':''}>${c}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">세부 분야</label><input class="form-input" id="e-sub" value="${r.sub_cat||''}"></div></div>

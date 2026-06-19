@@ -11,8 +11,7 @@ async function doLogin() {
   }
 
   await withBtn('login-btn', '로그인 중...', async () => {
-    const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
-    console.log('[login] data:', data, 'error:', error);
+    const { error } = await sb.auth.signInWithPassword({ email, password: pw });
     if (error) throw error;
   }).catch(e => {
     console.error('[login error]', e);
@@ -38,7 +37,6 @@ async function doSignup() {
     const { data, error } = await sb.auth.signUp({
       email, password: pw, options: { data: { name } }
     });
-    console.log('[signup] data:', data, 'error:', error);
     if (error) throw error;
 
     if (data?.user?.id) {
@@ -69,8 +67,7 @@ function showSignup() { document.getElementById('login-form').classList.add('hid
 // ── Auth boot: 세션 확인 후 대시보드 또는 로그인 화면 ──
 async function bootAuth() {
   try {
-    const { data: { session }, error } = await sb.auth.getSession();
-    console.log('[boot]', session?.user?.email, error?.message);
+    const { data: { session } } = await sb.auth.getSession();
     if (session?.user) {
       A.user = session.user;
       await Promise.all([loadProfile(), loadConfig(), loadRooms()]);
@@ -86,7 +83,6 @@ async function bootAuth() {
 
 // ── 로그인/로그아웃 이벤트 감지 ──
 sb.auth.onAuthStateChange((event, session) => {
-  console.log('[auth event]', event, session?.user?.email);
   if (event === 'SIGNED_IN' && !A.user) {
     bootAuth();
   } else if (event === 'SIGNED_OUT') {
