@@ -449,8 +449,10 @@ td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
 }
 
 /* ── 탑바 시장 스트립 ── */
+/* align-items:flex-start — 2단 항목(코스피·코스닥·S&P·나스닥)과 1단 항목(VIX·달러)의
+   지수값 첫 줄이 같은 기준선에 오도록 상단 정렬. 스트립 블록 자체는 .topbar가 세로 중앙 배치. */
 .market-strip {
-  display:flex; align-items:center; gap:0;
+  display:flex; align-items:flex-start; gap:0;
   flex:1; justify-content:center;
   overflow:hidden; min-width:0;
 }
@@ -458,6 +460,7 @@ td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
   display:flex; align-items:baseline; gap:4px;
   padding:3px 10px; white-space:nowrap;
 }
+.market-strip-asof { font-size:10px; color:var(--text3); align-self:center; white-space:nowrap; padding:0 4px; }
 .market-strip-name {
   font-size:12px; color:var(--text1); font-weight:600;
 }

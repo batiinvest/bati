@@ -45,6 +45,20 @@ async function loadMacroData() {
   _renderTopbarStrip();
 }  // end loadMacroData
 
+// ── 탑바 스트립 갱신 기준 시각 라벨 (macro_data base_date + updated_at, KST) ──
+// 탑바는 전역이라 다른 페이지로 이동해도 남는다(_renderTopbarStrip은 시황 진입 시에만 호출).
+// 데이터가 고착(stale)돼 보이지 않도록 '기준 시각'을 명시.
+function _macroAsOfLabel(m) {
+  if (!m || !m.base_date) return '';
+  let t = '';
+  if (m.updated_at) {
+    const kst = new Date(new Date(m.updated_at).getTime() + 9 * 60 * 60 * 1000);
+    t = ` ${String(kst.getUTCHours()).padStart(2,'0')}:${String(kst.getUTCMinutes()).padStart(2,'0')}`;
+  }
+  const md = String(m.base_date).slice(5).replace('-', '/'); // YYYY-MM-DD → MM/DD
+  return `기준 ${md}${t}`;
+}
+
 // ── 탑바 시장 스트립 렌더 ──
 // 지수값 바로 밑 둘째 줄(서브 행): 코스피·코스닥=상승종목수(breadth) 미니 바, S&P500·나스닥=선물 등락률.
 // breadth 데이터는 loadMarketOverview(market-overview.js)가 window._marketBreadth에 채운 뒤 재호출.
@@ -54,11 +68,14 @@ function _renderTopbarStrip() {
   const bd = window._marketBreadth || {};
 
   // 지수값 밑 둘째 줄 — 코스피·코스닥: 상승종목수(breadth) 미니 바
+  // '등락' 라벨(선물 라벨과 시각적 대칭) + 툴팁으로 막대 의미를 명시(직관성).
   const breadthRow = (b) => {
     if (!b || !b.total) return '';
     const risePct = b.rise / b.total * 100;
     const flatPct = b.flat / b.total * 100;
-    return `<div class="market-strip-sub">` +
+    const tip = `상승 ${b.rise.toLocaleString()} · 보합 ${b.flat.toLocaleString()} · 하락 ${b.fall.toLocaleString()} 종목`;
+    return `<div class="market-strip-sub" title="${tip}">` +
+      `<span style="color:var(--text3)">등락</span>` +
       `<span class="msb-bar">` +
         `<span style="width:${risePct.toFixed(1)}%;background:var(--red)"></span>` +
         `<span style="width:${flatPct.toFixed(1)}%;background:rgba(255,255,255,.07)"></span>` +
@@ -71,7 +88,7 @@ function _renderTopbarStrip() {
   // 지수값 밑 둘째 줄 — S&P500·나스닥: 선물 등락률
   const futRow = (chg) => {
     if (chg == null || isNaN(Number(chg))) return '';
-    return `<div class="market-strip-sub">` +
+    return `<div class="market-strip-sub" title="지수 선물 등락률">` +
       `<span style="color:var(--text3)">선물</span>` +
       `<span style="color:${chgColor(chg)};font-weight:700">${chgStr(chg)}</span>` +
     `</div>`;
@@ -96,7 +113,7 @@ function _renderTopbarStrip() {
     `<span class="market-strip-val">${Number(item.val).toLocaleString(undefined,{maximumFractionDigits:2})}</span>` +
     `<span class="market-strip-chg" style="color:${chgColor(item.chg)}">${chgStr(item.chg)}</span>`;
 
-  strip.innerHTML = items.slice(0,6).map((item, i) => {
+  const body = items.slice(0,6).map((item, i) => {
     const sep = i > 0 ? '<span class="market-strip-sep" style="color:var(--border2)">│</span>' : '';
     if (item.sub) {
       return sep +
@@ -107,6 +124,15 @@ function _renderTopbarStrip() {
     }
     return sep + `<div class="market-strip-item">${valRow(item)}</div>`;
   }).join('');
+
+  // 갱신 기준 시각 (stale 방지) — 스트립 끝에 옅게
+  const asof = _macroAsOfLabel(m);
+  const tail = asof
+    ? '<span class="market-strip-sep" style="color:var(--border2)">│</span>' +
+      `<span class="market-strip-asof" title="시장 데이터 갱신 기준">${asof}</span>`
+    : '';
+
+  strip.innerHTML = body + tail;
 }
 
 // ── US ETF 배너: us_market 테이블에서 최신 산업별 평균 등락률 조회 ──
