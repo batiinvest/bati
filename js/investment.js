@@ -97,7 +97,7 @@ function pInvestment() {
   </div>
 
 
-  <!-- Zone A — 브리핑 바 (30초 시장 방향: 온도계·한줄총평·지수/breadth·위험신호) -->
+  <!-- Zone A — 브리핑 바 (30초 시장 방향: 한줄총평·지수/breadth·위험신호. 온도계 점수는 아래 카드와 중복이라 제거) -->
   <div id="inv-briefing" class="card" style="margin-bottom:1rem;padding:0;overflow:hidden">
     <div style="padding:.75rem 1rem;color:var(--text2);font-size:12px"><span class="loading"></span> 브리핑 준비 중…</div>
   </div>
@@ -117,15 +117,13 @@ function pInvestment() {
       </div>
     </div>
 
-    <!-- 증시 동향 -->
+    <!-- 증시 동향 — 시장별 등락(코스피/코스닥/전체). 매크로 지수는 탑바·온도계가 담당(중복 제거) -->
     <div class="card" style="margin-bottom:0">
-      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+      <div class="card-header">
         <span class="card-title">${_ICO.bar}증시 동향</span>
-        <div id="inv-banner-content" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-left:auto">
-          <span style="color:var(--text2);font-size:12px"><span class="loading"></span></span>
-        </div>
+        <span style="font-size:10px;color:var(--text2);margin-left:8px;font-weight:400">코스피·코스닥·전체 등락</span>
       </div>
-      <div id="inv-total-summary" style="padding:.75rem 1rem;border-bottom:1px solid var(--border)"></div>
+      <div id="inv-total-summary" style="padding:.75rem 1rem"></div>
     </div>
 
   </div>
@@ -532,7 +530,7 @@ function pInvestment() {
 
 
 // (정리됨) mkIndexCard — 매크로 카드 그리드 전용 헬퍼였으나 그리드 제거로 호출처 소멸.
-//   매크로 지수는 증시동향 배너(chart-macro.js mkB/mkBPair)·탑바 스트립·브리핑 바가 담당.
+//   매크로 지수는 전역 탑바 스트립·시장 온도계 6세부요소·Zone A 브리핑 위험배지가 담당.
 
 // ── 탭 전환 (2단 레이아웃으로 전환 후 no-op, 호환성 유지) ──
 function setInvTab(tab) {
@@ -697,7 +695,7 @@ async function loadInvestment() {
   renderMarketTemperature();
   renderVolumeLeaders();
   renderIdeaSurge(); // '오늘의 아이디어' 급등 탭
-  renderBriefingBar(); // 종목데이터 준비 완료 → 온도계 점수·breadth 채움
+  renderBriefingBar(); // 종목데이터 준비 완료 → breadth 채움
 
   // Phase 2 — 주도주 탐색기 + 백테스트 + 섹터 수급 트렌드 + 산업 강도 매트릭스
   _initSfImLayout(); // 2열 그리드 / 모바일 탭 초기화
@@ -863,35 +861,15 @@ function renderBriefingBar() {
   const rows = (window._allMarketRows || []).filter(r => r.price_change_rate != null);
   const hasMkt = rows.length > 0;
 
-  // ① 온도계 점수 (종목데이터 준비 후에만 — 외국인 수급 20pt 왜곡 방지)
-  let scoreHtml;
-  if (hasMkt && typeof _calcTemperature === 'function') {
-    const t = _calcTemperature();
-    scoreHtml =
-      `<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;padding-right:14px;border-right:1px solid var(--border)">
-        <div style="text-align:center;min-width:42px">
-          <div style="font-size:28px;font-weight:800;line-height:1;color:${t.gradeColor};font-variant-numeric:tabular-nums">${t.score}</div>
-          <div style="font-size:9px;color:var(--text2);margin-top:1px">/100</div>
-        </div>
-        <div style="min-width:0">
-          <div style="font-size:13px;font-weight:700;color:${t.gradeColor};white-space:nowrap">${t.gradeEmoji} ${t.gradeTxt}</div>
-          <div style="font-size:10px;color:var(--text2)">시장 온도계</div>
-        </div>
-      </div>`;
-  } else {
-    scoreHtml =
-      `<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;padding-right:14px;border-right:1px solid var(--border)">
-        <span class="skeleton" style="width:42px;height:30px;border-radius:5px"></span>
-        <span style="font-size:11px;color:var(--text2)">온도 측정 중…</span>
-      </div>`;
-  }
+  // (정리됨) 온도계 점수 블록 제거 — 바로 아래 '시장 온도계' 카드와 중복.
+  // 브리핑 바는 한 줄 총평 + 지수/breadth 칩 + 매크로 위험배지만 담당.
 
-  // ② 한 줄 총평 (market-insight.js가 채운 전역 재사용)
+  // ① 한 줄 총평 (market-insight.js가 채운 전역 재사용)
   const oneLiner = (window._insightCurrentData && window._insightCurrentData.one_line_summary)
     ? window._insightCurrentData.one_line_summary
     : '<span style="color:var(--text2)"><span class="loading"></span> 시장 한 줄 요약 분석 중…</span>';
 
-  // ③ 지수 + breadth 칩
+  // ② 지수 + breadth 칩
   const chip = (label, val, chg) => {
     if (val == null) return '';
     const chgPart = chg != null ? `<span style="color:${chgColor(chg)};font-weight:600">${chgStr(chg)}</span>` : '';
@@ -912,7 +890,7 @@ function renderBriefingBar() {
   }
   const chipsHtml = [chip('코스피', m.kospi, m.kospi_chg), chip('코스닥', m.kosdaq, m.kosdaq_chg), breadthChip].filter(Boolean).join('');
 
-  // ④ 매크로 위험 신호 배지 (_getRisk + MACRO_RISK_SIGNALS 재사용)
+  // ③ 매크로 위험 신호 배지 (_getRisk + MACRO_RISK_SIGNALS 재사용)
   let riskHtml = '';
   if (typeof _getRisk === 'function') {
     const _RI = { caution:{c:'#f59e0b',i:'⚠️'}, danger:{c:'#ef4444',i:'🚨'}, critical:{c:'#dc2626',i:'🔴'} };
@@ -937,7 +915,6 @@ function renderBriefingBar() {
 
   el.innerHTML =
     `<div style="display:flex;align-items:center;gap:14px;padding:12px 16px;flex-wrap:wrap">
-      ${scoreHtml}
       <div style="flex:1;min-width:220px">
         <div style="font-size:13.5px;font-weight:700;color:var(--text);line-height:1.5;margin-bottom:6px">${oneLiner}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${chipsHtml}</div>
