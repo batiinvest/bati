@@ -46,19 +46,44 @@ async function loadMacroData() {
 }  // end loadMacroData
 
 // ── 탑바 시장 스트립 렌더 ──
-// 코스피·코스닥은 지수값 바로 밑에 상승종목수(breadth) 미니 바를 함께 노출.
+// 지수값 바로 밑 둘째 줄(서브 행): 코스피·코스닥=상승종목수(breadth) 미니 바, S&P500·나스닥=선물 등락률.
 // breadth 데이터는 loadMarketOverview(market-overview.js)가 window._marketBreadth에 채운 뒤 재호출.
 function _renderTopbarStrip() {
   const strip = document.getElementById('topbar-market-strip');
   const m  = window._macroData || {};
   const bd = window._marketBreadth || {};
+
+  // 지수값 밑 둘째 줄 — 코스피·코스닥: 상승종목수(breadth) 미니 바
+  const breadthRow = (b) => {
+    if (!b || !b.total) return '';
+    const risePct = b.rise / b.total * 100;
+    const flatPct = b.flat / b.total * 100;
+    return `<div class="market-strip-sub">` +
+      `<span class="msb-bar">` +
+        `<span style="width:${risePct.toFixed(1)}%;background:var(--red)"></span>` +
+        `<span style="width:${flatPct.toFixed(1)}%;background:rgba(255,255,255,.07)"></span>` +
+        `<span style="flex:1;background:var(--blue)"></span>` +
+      `</span>` +
+      `<span style="color:var(--red);font-weight:700">▲${b.rise.toLocaleString()}</span>` +
+      `<span style="color:var(--blue);font-weight:700">▼${b.fall.toLocaleString()}</span>` +
+    `</div>`;
+  };
+  // 지수값 밑 둘째 줄 — S&P500·나스닥: 선물 등락률
+  const futRow = (chg) => {
+    if (chg == null || isNaN(Number(chg))) return '';
+    return `<div class="market-strip-sub">` +
+      `<span style="color:var(--text3)">선물</span>` +
+      `<span style="color:${chgColor(chg)};font-weight:700">${chgStr(chg)}</span>` +
+    `</div>`;
+  };
+
   const items = [
-    { name: '코스피',  val: m.kospi,   chg: m.kospi_chg,   color:'var(--green)',  breadth: bd.kospi },
-    { name: '코스닥',  val: m.kosdaq,  chg: m.kosdaq_chg,  color:'var(--yellow)', breadth: bd.kosdaq },
-    { name: 'S&P500', val: m.sp500,   chg: m.sp500_chg,   color:'var(--tg)' },
-    { name: '나스닥',  val: m.nasdaq,  chg: m.nasdaq_chg,  color:'#ff6b35' },
-    { name: 'VIX',    val: m.vix,     chg: m.vix_chg,     color:'var(--neutral)' },
-    { name: '달러',    val: m.usd_krw, chg: m.usd_krw_chg, color:'var(--accent)' },
+    { name: '코스피',  val: m.kospi,   chg: m.kospi_chg,   sub: breadthRow(bd.kospi) },
+    { name: '코스닥',  val: m.kosdaq,  chg: m.kosdaq_chg,  sub: breadthRow(bd.kosdaq) },
+    { name: 'S&P500', val: m.sp500,   chg: m.sp500_chg,   sub: futRow(m.sp500_fut_chg) },
+    { name: '나스닥',  val: m.nasdaq,  chg: m.nasdaq_chg,  sub: futRow(m.nasdaq_fut_chg) },
+    { name: 'VIX',    val: m.vix,     chg: m.vix_chg },
+    { name: '달러',    val: m.usd_krw, chg: m.usd_krw_chg },
   ].filter(i => i.val != null);
 
   if (!strip) return;
@@ -71,30 +96,13 @@ function _renderTopbarStrip() {
     `<span class="market-strip-val">${Number(item.val).toLocaleString(undefined,{maximumFractionDigits:2})}</span>` +
     `<span class="market-strip-chg" style="color:${chgColor(item.chg)}">${chgStr(item.chg)}</span>`;
 
-  // 코스피·코스닥: 지수값 밑 상승종목수(breadth) 미니 바
-  const breadthRow = (b) => {
-    if (!b || !b.total) return '';
-    const risePct = b.rise / b.total * 100;
-    const flatPct = b.flat / b.total * 100;
-    return `<div class="market-strip-breadth">` +
-      `<span class="msb-bar">` +
-        `<span style="width:${risePct.toFixed(1)}%;background:var(--red)"></span>` +
-        `<span style="width:${flatPct.toFixed(1)}%;background:rgba(255,255,255,.07)"></span>` +
-        `<span style="flex:1;background:var(--blue)"></span>` +
-      `</span>` +
-      `<span style="color:var(--red);font-weight:700">▲${b.rise.toLocaleString()}</span>` +
-      `<span style="color:var(--blue);font-weight:700">▼${b.fall.toLocaleString()}</span>` +
-    `</div>`;
-  };
-
   strip.innerHTML = items.slice(0,6).map((item, i) => {
     const sep = i > 0 ? '<span class="market-strip-sep" style="color:var(--border2)">│</span>' : '';
-    const bRow = breadthRow(item.breadth);
-    if (bRow) {
+    if (item.sub) {
       return sep +
-        `<div class="market-strip-item market-strip-item--breadth">` +
+        `<div class="market-strip-item market-strip-item--stacked">` +
           `<div class="msb-valrow">${valRow(item)}</div>` +
-          bRow +
+          item.sub +
         `</div>`;
     }
     return sep + `<div class="market-strip-item">${valRow(item)}</div>`;
