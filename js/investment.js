@@ -634,6 +634,9 @@ async function refreshInvestment() {
 
 // ── 메인 로드 ──
 async function loadInvestment() {
+  // 보유/관심 종목 교차표시용 코드 로드 (각 진입 시 최신화) — 목록 렌더 전 준비
+  loadWatchlistCodes(true);
+
   // 시황 탭 로드 (market-overview.js) — 배너 채운 후 나머지 실행
   await loadMacroData();
   loadTrendChart();
@@ -764,6 +767,7 @@ async function loadInvestment() {
       onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
       <span style="width:14px;font-size:10px;color:var(--text2);font-weight:600;flex-shrink:0">${i+1}</span>
       <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.corp_name}</span>
+      ${wlBadge(r.stock_code)}
       <span style="font-size:12px;font-weight:700;color:${chgColor(r.price_change_rate)};flex-shrink:0">${chgStr(r.price_change_rate)}</span>
     </div>`;
 
@@ -826,7 +830,7 @@ function renderVolumeLeaders() {
         onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
         <span style="min-width:16px;font-size:11px;color:var(--text2);font-weight:600">${i + 1}</span>
         <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px">${r.corp_name}</div>
+          <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px"><span style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.corp_name}</span>${wlBadge(r.stock_code)}</div>
           <div style="height:3px;border-radius:2px;background:var(--border);overflow:hidden">
             <div style="height:100%;width:${barPct}%;background:${p.color};border-radius:2px"></div>
           </div>

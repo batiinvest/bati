@@ -135,6 +135,7 @@ function renderLeadingStocks() {
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:4px;margin-bottom:5px;flex-wrap:wrap">
           <span style="font-size:13px;font-weight:600">${r.corp_name || r.stock_code}${mktTag}</span>
+          ${typeof wlBadge==='function'?wlBadge(r.stock_code):''}
           ${chg5dStr}${indTag}${volRatio}${frgnTag}
         </div>
         <div style="display:flex;flex-direction:column;gap:2px">

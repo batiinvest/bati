@@ -782,6 +782,33 @@ function wlSetActionFilter(type) {
   loadWatchlist();
 }
 
+// 벤치마크(코스피/코스닥) 기간 수익률 — macro_data 시계열에서 계산 (세션 캐시)
+async function fetchBenchmarkReturns() {
+  if (window._benchCache) return window._benchCache;
+  try {
+    const { data } = await sb.from('macro_data')
+      .select('base_date,kospi,kosdaq')
+      .order('base_date', { ascending: false })
+      .limit(130);
+    if (!data || !data.length) return null;
+    const latest = data[0];
+    // base_date <= (latest - days) 중 가장 최근 행 (data는 내림차순)
+    const pickPast = (days) => {
+      const t = new Date(latest.base_date); t.setDate(t.getDate() - days);
+      for (const r of data) { if (new Date(r.base_date) <= t) return r; }
+      return data[data.length - 1];
+    };
+    const ret = (cur, past) => (cur != null && past != null && past != 0) ? (cur - past) / past * 100 : null;
+    const mk = (idx) => {
+      const w = pickPast(7), m = pickPast(30), q = pickPast(90);
+      return { w: ret(latest[idx], w[idx]), m: ret(latest[idx], m[idx]), q: ret(latest[idx], q[idx]) };
+    };
+    const result = { kospi: mk('kospi'), kosdaq: mk('kosdaq'), baseDate: latest.base_date };
+    window._benchCache = result;
+    return result;
+  } catch (e) { return null; }
+}
+
 async function loadWatchlist() {
   const group = window._wlGroup || 'all';
   const listEl = document.getElementById('wl-list');
@@ -797,7 +824,7 @@ async function loadWatchlist() {
   let priceMap = {};
   if (codes.length) {
     const { data: mkt } = await sb.from('market_data')
-      .select('stock_code,price,price_change_rate,per,pbr,market_cap,week_return,month_return,quarter_return')
+      .select('stock_code,price,price_change_rate,per,pbr,market_cap,market,week_return,month_return,quarter_return')
       .in('stock_code', codes)
       .order('base_date', { ascending: false });
     (mkt || []).forEach(r => { if (!priceMap[r.stock_code]) priceMap[r.stock_code] = r; });
@@ -891,6 +918,7 @@ async function loadWatchlist() {
   const cash          = await getPortfolioCash();
   const targetWeights = await getTargetWeights();
   const journalMap    = await fetchJournals(codes);
+  const bench         = await fetchBenchmarkReturns();
   const totalAssets   = totalVal + cash;
   const cashRatio     = totalAssets > 0 ? cash / totalAssets * 100 : 0;
   // 신용융자: 잔고 합계, 순자산(=총자산−융자), 레버리지(=융자/순자산)
@@ -1193,6 +1221,48 @@ async function loadWatchlist() {
            </div>`;
       summaryEl.innerHTML = dash;
     } else {
+    // ── 포트폴리오 vs 벤치마크 (가치가중 · 시장 기간수익률 기준 종목선택 알파) ──
+    const benchCard = (() => {
+      if (!bench || !holding.length) return '';
+      const periods = [
+        { lbl:'1주', pk:'week_return',    bk:'w' },
+        { lbl:'1달', pk:'month_return',   bk:'m' },
+        { lbl:'3달', pk:'quarter_return', bk:'q' },
+      ];
+      const calc = (pk, bk) => {
+        let wsum = 0, prSum = 0, beSum = 0;
+        for (const w of holding) {
+          const pm = priceMap[w.stock_code]; if (!pm) continue;
+          const r = pm[pk]; if (r == null) continue;
+          const wt = valMap[w.stock_code] || 0; if (wt <= 0) continue;
+          const idx = (pm.market === 'KOSDAQ') ? bench.kosdaq : bench.kospi;
+          const be = idx ? idx[bk] : null;
+          wsum += wt; prSum += r * wt; if (be != null) beSum += be * wt;
+        }
+        return wsum ? { port: prSum / wsum, bench: beSum / wsum } : null;
+      };
+      const cols = periods.map(p => ({ ...p, v: calc(p.pk, p.bk) }));
+      if (cols.every(c => !c.v)) return '';
+      const pct  = x => x == null ? '—' : `${x >= 0 ? '+' : ''}${x.toFixed(1)}%`;
+      const ppt  = x => x == null ? '—' : `${x >= 0 ? '+' : ''}${x.toFixed(1)}p`;
+      const cell = (txt, color) => `<td style="text-align:right;padding:3px 10px;font-variant-numeric:tabular-nums;color:${color || 'var(--text1)'};font-weight:600">${txt}</td>`;
+      const head = label => `<td style="padding:3px 10px;color:var(--text2);white-space:nowrap">${label}</td>`;
+      return `
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:.75rem">
+          <div style="font-size:11px;color:var(--text1);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">
+            포트폴리오 vs 벤치마크
+            <span style="color:var(--text2);font-weight:400;text-transform:none">· 보유 ${holding.length}종목 · 가치가중 · 시장 기간수익률(코스피/코스닥) 대비</span>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr><td style="padding:3px 10px"></td>${cols.map(c => `<td style="text-align:right;padding:3px 10px;color:var(--text2);font-weight:600">${c.lbl}</td>`).join('')}</tr></thead>
+            <tbody>
+              <tr>${head('내 보유')}${cols.map(c => cell(pct(c.v ? c.v.port : null), c.v ? chgColor(c.v.port) : null)).join('')}</tr>
+              <tr>${head('벤치마크')}${cols.map(c => cell(pct(c.v ? c.v.bench : null), 'var(--text2)')).join('')}</tr>
+              <tr style="border-top:1px solid var(--border)">${head('알파')}${cols.map(c => { const a = c.v ? c.v.port - c.v.bench : null; return cell(ppt(a), a != null ? chgColor(a) : null); }).join('')}</tr>
+            </tbody>
+          </table>
+        </div>`;
+    })();
     summaryEl.innerHTML = `
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:.6rem">
         ${totalAssets > 0 ? bigCard('총자산',
@@ -1207,6 +1277,7 @@ async function loadWatchlist() {
       <div style="display:flex;gap:8px 18px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-bottom:.75rem;padding:0 2px">
         ${secondaryStats}
       </div>
+      ${benchCard}
       ${((holding.length >= 1 && cash > 0) || holding.length >= 2) && totalAssets > 0 ? (() => {
         // 자산 배분 바 — 현금 포함 총자산 기준
         const denom = totalAssets;

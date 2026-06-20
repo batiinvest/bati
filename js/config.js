@@ -118,6 +118,41 @@ const canAccess = (page) => isEditor() || VIEWER_PAGES.includes(page);
 const F = { mode: 'market', scope: 'monitored', industry: '전체', q: '', sortBy: 'market_cap', sortDir: 'desc' };
 
 // ══════════════════════════════════════════
+//  보유/관심 종목 교차표시 (시황 ↔ 투자노트)
+//  시황 대시보드 목록에서 종목이 투자노트에 있으면 배지로 표시
+// ══════════════════════════════════════════
+let _wlHeldCodes  = new Set();   // group_name = '보유중'
+let _wlWatchCodes = new Set();   // 관심·후보 등 나머지
+
+// 코드 정규화: .KS/.KQ 접미사 제거 후 비교
+function _normCode(code) { return String(code || '').replace(/\.(KS|KQ)$/i, ''); }
+
+// 투자노트 종목코드 로드 → 보유/관심 Set 구성 (force=true면 캐시 무시 재조회)
+async function loadWatchlistCodes(force = false) {
+  if (window._wlCodesLoaded && !force) return;
+  try {
+    const { data } = await sb.from('watchlist').select('stock_code,group_name');
+    const held = new Set(), watch = new Set();
+    (data || []).forEach(r => {
+      const c = _normCode(r.stock_code);
+      if (r.group_name === '보유중') held.add(c); else watch.add(c);
+    });
+    _wlHeldCodes = held; _wlWatchCodes = watch;
+    window._wlCodesLoaded = true;
+  } catch (e) { /* 비로그인·권한 등 — 배지 미표시로 graceful degrade */ }
+}
+
+// 종목 코드에 대한 보유/관심 배지 HTML (해당 없으면 빈 문자열)
+function wlBadge(code) {
+  const c = _normCode(code);
+  if (_wlHeldCodes.has(c))
+    return `<span title="보유 중" style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:100px;background:rgba(42,171,238,.18);color:var(--tg);white-space:nowrap;flex-shrink:0">보유</span>`;
+  if (_wlWatchCodes.has(c))
+    return `<span title="투자노트 관심" style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:100px;background:rgba(74,158,255,.16);color:#4a9eff;white-space:nowrap;flex-shrink:0">관심</span>`;
+  return '';
+}
+
+// ══════════════════════════════════════════
 //  공통 포맷 헬퍼 — 전 파일에서 참조
 // ══════════════════════════════════════════
 
