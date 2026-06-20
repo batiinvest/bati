@@ -444,7 +444,8 @@ function _renderInsightCard(data) {
   // ─── Zone B 라벨 ───
   // 통합 카드에서 '환경/행동지침'은 온도계(Zone A)가 단독 소유 → 여기선 한 줄 총평을 렌더하지 않는다.
   // (지수 리캡은 탑바·근거지표, 레짐 verdict는 온도계 행동지침으로 일원화 — 중복·불일치 제거)
-  const zoneLabel = `<div style="font-size:9px;letter-spacing:.06em;color:var(--text3);margin-bottom:8px">이 환경에서 · 업종·종목 전략</div>`;
+  const zoneLabel = `<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:9px;display:flex;align-items:center;gap:6px">
+    <span style="width:2px;height:11px;background:var(--tg);border-radius:2px;flex-shrink:0"></span>이 환경에서의 전략</div>`;
 
   // ─── 영향 업종 배지 (시장 전체 등급은 온도계 카드 역할 — 여기선 업종 단위만) ───
   const indBadges =
@@ -460,16 +461,17 @@ function _renderInsightCard(data) {
   </div>` : '';
 
   // ─── 핵심 포인트 (기회 1 · 리스크 1 만) ───
+  // ▲/▼ 화살표 대신 '기회/리스크' 배지 — 앱 전반의 ▲=빨강(가격상승) 색 언어와 충돌 방지.
   const typeStyle = {
-    up:   { color: '#34d399', icon: '▲' },
-    down: { color: '#f59e0b', icon: '▼' },
-    flat: { color: 'var(--text2)', icon: '—' },
+    up:   { label: '기회',  color: '#34d399',     bg: 'rgba(52,211,153,.14)' },
+    down: { label: '리스크', color: '#f0a93a',     bg: 'rgba(245,158,11,.14)' },
+    flat: { label: '관망',  color: 'var(--text2)', bg: 'rgba(255,255,255,.06)' },
   };
   const pointsHTML = (data.core_points || []).map(p => {
     const ts = typeStyle[p.type] || typeStyle.flat;
     return `
     <div style="display:flex;gap:7px;align-items:flex-start;margin-bottom:7px">
-      <span style="color:${ts.color};font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px">${ts.icon}</span>
+      <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${ts.bg};color:${ts.color};font-weight:600;flex-shrink:0;margin-top:1px">${ts.label}</span>
       <span style="font-size:12.5px;color:var(--text1);line-height:1.5">${p.text}</span>
     </div>`;
   }).join('');

@@ -110,17 +110,19 @@ function pInvestment() {
       </div>
     </div>
 
-    <!-- A. 환경(Regime) + 통합 행동지침 -->
-    <div class="card-body" style="padding:.75rem 1rem" id="market-temp-body">
-      <span class="skeleton" style="width:100%;height:60px;border-radius:6px;display:block"></span>
+    <!-- A 환경 | B 전략 — 2열 (밀도 회복: '이 환경이니 → 이렇게' 좌우 병치) -->
+    <div class="mj-grid">
+      <!-- A. 환경(Regime) + 통합 행동지침 -->
+      <div class="card-body mj-col-a" style="padding:.75rem 1rem" id="market-temp-body">
+        <span class="skeleton" style="width:100%;height:60px;border-radius:6px;display:block"></span>
+      </div>
+      <!-- B. 전략(Selection) — 영향 업종 + 기회/리스크 -->
+      <div class="mj-col-b" style="padding:.75rem 1rem" id="market-insight-card">
+        <div style="color:var(--text2);font-size:12px"><span class="loading"></span> 전략 분석 중...</div>
+      </div>
     </div>
 
-    <!-- B. 전략(Selection) — 영향 업종 + 기회/리스크 -->
-    <div style="padding:.6rem 1rem .75rem;border-top:1px solid var(--border)" id="market-insight-card">
-      <div style="color:var(--text2);font-size:12px"><span class="loading"></span> 전략 분석 중...</div>
-    </div>
-
-    <!-- C. 근거(Evidence) — 6지표, 기본 접힘 -->
+    <!-- C. 근거(Evidence) — 6지표, 기본 접힘 (풀폭) -->
     <div id="mj-evidence" style="border-top:1px solid var(--border)"></div>
 
     <!-- 출처/관리 푸터 (카드 최하단) -->

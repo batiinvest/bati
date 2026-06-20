@@ -484,6 +484,14 @@ td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
 }
 .msb-bar > span { display:block; height:100%; }
 
+/* ── '오늘의 시장 판단' 통합 카드: A 환경 | B 전략 2열 (근거는 하단 풀폭) ── */
+.mj-grid { display:grid; grid-template-columns:1.15fr 1fr; align-items:stretch; }
+.mj-col-b { border-left:1px solid var(--border); }
+@media(max-width:760px) {
+  .mj-grid { grid-template-columns:1fr; }
+  .mj-col-b { border-left:none; border-top:1px solid var(--border); }
+}
+
 /* ── 투자포인트 카드 5섹션 ── */
 .insight-sec { margin-bottom:16px; padding-bottom:13px; border-bottom:1px solid rgba(255,255,255,.05); }
 .insight-sec:last-of-type { border-bottom:none; margin-bottom:0; }
