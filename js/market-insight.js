@@ -486,15 +486,19 @@ function _renderInsightCard(data) {
   const srcEl = document.getElementById('mj-source');
   if (srcEl) srcEl.innerHTML = `${source} <span style="color:var(--border)">·</span>`;
 
+  // 재생성은 재분석(헤더, force 실시간)과 통합해 제거 — DB 캐시가 비면 둘이 동일 결과라 중복.
+  // 관리자 DB저장만 유지(현재 분석이 live일 때만 = 저장할 새 분석이 있을 때만).
   const admEl = document.getElementById('mj-admin-btns');
   if (admEl) {
-    admEl.innerHTML = _isAdm
-      ? (data.generated_by === 'live'
-          ? `<button id="insight-save-btn" class="chip" style="font-size:11px;padding:2px 8px" onclick="window._insightSaveDB()">DB 저장</button>`
-          : '') +
-        `<button class="chip" style="font-size:11px;padding:2px 8px" onclick="loadMarketInsight(true)">재생성</button>`
+    admEl.innerHTML = (_isAdm && data.generated_by === 'live')
+      ? `<button id="insight-save-btn" class="chip" style="font-size:11px;padding:2px 8px" onclick="window._insightSaveDB()">DB 저장</button>`
       : '';
   }
+
+  // 히스토리 버튼은 DB에 저장본이 있을 때만(generated_by==='db') 노출.
+  // 현재 market_investment_summary 0행 → 항상 live → 숨김. 백엔드/DB저장이 살아나면 자동 표시.
+  const histBtn = document.getElementById('btn-insight-hist');
+  if (histBtn) histBtn.style.display = (data.generated_by === 'db') ? '' : 'none';
 }
 
 
@@ -593,7 +597,7 @@ async function loadMarketInsight(force = false) {
   if (!el) return;
 
   el.innerHTML = `<div style="padding:.5rem;color:var(--text2);font-size:12px">
-    <span class="loading"></span> ${force ? '재생성 중...' : '분석 중...'}</div>`;
+    <span class="loading"></span> 분석 중...</div>`;
 
   try {
     // DB 우선 조회 (force=true 이면 건너뜀)

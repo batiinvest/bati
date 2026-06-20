@@ -104,10 +104,10 @@ function pInvestment() {
       <span id="mj-source" style="font-size:10px;color:var(--text2);margin-left:auto"></span>
       <span style="font-size:11px;color:var(--text2)" id="market-temp-date"></span>
       <div style="display:flex;gap:5px;align-items:center">
-        <button class="chip" id="btn-insight-hist" style="font-size:11px;padding:2px 8px"
+        <button class="chip" id="btn-insight-hist" style="font-size:11px;padding:2px 8px;display:none"
           onclick="toggleInsightHistory()">${_ICO.history}히스토리</button>
         <button class="chip" style="font-size:11px;padding:2px 8px"
-          onclick="loadMarketInsight()">${_ICO.refresh}재분석</button>
+          onclick="loadMarketInsight(true)">${_ICO.refresh}재분석</button>
         <span id="mj-admin-btns" style="display:flex;gap:5px;align-items:center"></span>
       </div>
     </div>
@@ -125,7 +125,7 @@ function pInvestment() {
     </div>
 
     <!-- C. 근거(Evidence) — 6지표, 기본 접힘 (풀폭) -->
-    <!-- (출처·DB저장·재생성은 상단 헤더 클러스터로 일원화 — 하단 푸터 제거) -->
+    <!-- (출처·DB저장은 상단 헤더로 일원화, 재생성은 재분석과 통합 제거 — 하단 푸터 폐지) -->
     <div id="mj-evidence" style="border-top:1px solid var(--border)"></div>
 
     <!-- 히스토리 (DB 저장 국면) -->
