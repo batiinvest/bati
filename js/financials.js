@@ -24,6 +24,10 @@ function _pickLatestFin(rows) {
 function pFinancials() {
   const industries = ['전체', ...INDUSTRIES];
   return `
+  <div style="display:flex;gap:6px;align-items:center;margin-bottom:.75rem;flex-wrap:wrap">
+    <button class="chip" onclick="go('screener')">🔎 필터 스크리닝</button>
+    <button class="chip active" onclick="go('financials')">📊 기업 분석</button>
+  </div>
   <div class="tabs" style="margin-bottom:.75rem">
     <button class="tab fin-tab ${F.mode==='market'?'active':''}" data-mode="market" onclick="F.mode='market';loadFinancials()">시장 현황</button>
     <button class="tab fin-tab ${F.mode==='financial'?'active':''}" data-mode="financial" onclick="F.mode='financial';loadFinancials()">재무제표</button>
@@ -528,7 +532,11 @@ async function openStockDetail(code, name, initTab = 'overview') {
           </div>
           <div style="display:flex;align-items:center;gap:12px">
             <div id="sd-price-badge" style="text-align:right"></div>
-            ${_canEditSD ? `<button id="sd-watch-btn" onclick="window.sdToggleWatch('${code}','${_sdSafeName}')"
+            ${_canEditSD ? `<button onclick="document.getElementById('m-stock-detail').remove();openReportFor('${code}','${_sdSafeName}')"
+              style="background:var(--bg3);border:1px solid var(--border);cursor:pointer;color:var(--tg);
+                font-size:12px;font-weight:600;padding:6px 12px;line-height:1;border-radius:6px;transition:.15s;white-space:nowrap"
+              title="종목 리포트 전체 보기">전체 리포트 →</button>
+            <button id="sd-watch-btn" onclick="window.sdToggleWatch('${code}','${_sdSafeName}')"
               style="background:var(--bg3);border:1px solid var(--border);cursor:pointer;color:var(--text1);
                 font-size:12px;font-weight:600;padding:6px 12px;line-height:1;border-radius:6px;transition:.15s;white-space:nowrap"
               title="관심종목 추가/해제">⭐ 관심</button>` : ''}

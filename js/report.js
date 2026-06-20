@@ -147,6 +147,13 @@ function rpSelectStock(code, name) {
   rpLoadReport();
 }
 
+// 외부(종목 상세 모달 등)에서 리포트로 진입 — 종목 프리셋 후 페이지 이동·로드
+function openReportFor(code, name) {
+  _rpStock = { code, name };
+  if (typeof go === 'function') go('report'); // 라우팅 상태·네비·타이틀 동기화 (draw()가 pReport 렌더)
+  rpLoadReport();                             // #content 재렌더 + 데이터 로드
+}
+
 // ── 리포트 로드 ───────────────────────────────────────────────────────────────
 async function rpLoadReport() {
   const inp = document.getElementById('rp-search');
