@@ -458,10 +458,11 @@ function _renderInsightCard(data) {
 
   const f = data.flow || {};
 
-  // ─── 한 줄 총평 ───
-  // Zone A 브리핑 바(renderBriefingBar)가 동일 문장을 최상단에 표시하므로 카드에서는 생략(중복 제거).
-  // data.one_line_summary는 window._insightCurrentData를 통해 브리핑 바가 계속 사용한다.
-  const oneLiner = '';
+  // ─── 한 줄 총평 (카드 헤드라인) ───
+  // 브리핑 바 제거 후 이 카드가 한 줄 총평을 전담한다(인사이트 일원화).
+  const oneLiner = data.one_line_summary
+    ? `<div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.55;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">${data.one_line_summary}</div>`
+    : '';
 
   // ─── 영향 업종 배지 (시장 전체 등급은 온도계 카드 역할 — 여기선 업종 단위만) ───
   const indBadges =
@@ -517,9 +518,6 @@ function _renderInsightCard(data) {
   ${adminBtns}`;
 
   el.innerHTML = oneLiner + moodRow + pointsHTML + footer;
-
-  // Zone A 브리핑 바의 '한 줄 총평'도 함께 갱신
-  if (typeof renderBriefingBar === 'function') renderBriefingBar();
 }
 
 

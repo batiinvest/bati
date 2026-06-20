@@ -97,10 +97,7 @@ function pInvestment() {
   </div>
 
 
-  <!-- Zone A — 브리핑 바 (30초 시장 방향: 한줄총평·지수/breadth·위험신호. 온도계 점수는 아래 카드와 중복이라 제거) -->
-  <div id="inv-briefing" class="card" style="margin-bottom:1rem;padding:0;overflow:hidden">
-    <div style="padding:.75rem 1rem;color:var(--text2);font-size:12px"><span class="loading"></span> 브리핑 준비 중…</div>
-  </div>
+  <!-- (브리핑 바 제거 — 한 줄 총평은 투자포인트 카드로 통합, 지수/breadth/위험은 탑바·증시동향·온도계가 담당) -->
 
   <!-- 상단 2열: 온도계 | 증시동향 -->
   <div class="inv-top-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:start;margin-bottom:1rem">
@@ -677,9 +674,6 @@ async function loadInvestment() {
     _updateInvTimestamp();
   }
 
-  // 브리핑 바 1차 — 지수·위험신호 즉시 표시 (점수는 종목데이터 로드 후 채움)
-  renderBriefingBar();
-
   // 공시/실적 항상 로드 (2단 레이아웃 우 패널)
   _allDiscLoaded = false;
   loadTodayDisclosures();
@@ -695,7 +689,6 @@ async function loadInvestment() {
   renderMarketTemperature();
   renderVolumeLeaders();
   renderIdeaSurge(); // '오늘의 아이디어' 급등 탭
-  renderBriefingBar(); // 종목데이터 준비 완료 → breadth 채움
 
   // Phase 2 — 주도주 탐색기 + 백테스트 + 섹터 수급 트렌드 + 산업 강도 매트릭스
   _initSfImLayout(); // 2열 그리드 / 모바일 탭 초기화
@@ -847,80 +840,6 @@ function renderVolumeLeaders() {
       ${rows}
     </div>`;
   }).join('');
-}
-
-
-// ── Zone A 브리핑 바 (30초 시장 방향) ──────────────────────────────────────────
-// 별도 쿼리 없이 이미 로드된 전역(_macroData, _allMarketRows, _insightCurrentData)만 재사용.
-// 데이터 준비 시점이 제각각이므로 방어적으로 — 준비된 조각만 채우고 나머지는 placeholder.
-function renderBriefingBar() {
-  const el = document.getElementById('inv-briefing');
-  if (!el) return;
-
-  const m    = window._macroData || {};
-  const rows = (window._allMarketRows || []).filter(r => r.price_change_rate != null);
-  const hasMkt = rows.length > 0;
-
-  // (정리됨) 온도계 점수 블록 제거 — 바로 아래 '시장 온도계' 카드와 중복.
-  // 브리핑 바는 한 줄 총평 + 지수/breadth 칩 + 매크로 위험배지만 담당.
-
-  // ① 한 줄 총평 (market-insight.js가 채운 전역 재사용)
-  const oneLiner = (window._insightCurrentData && window._insightCurrentData.one_line_summary)
-    ? window._insightCurrentData.one_line_summary
-    : '<span style="color:var(--text2)"><span class="loading"></span> 시장 한 줄 요약 분석 중…</span>';
-
-  // ② 지수 + breadth 칩
-  const chip = (label, val, chg) => {
-    if (val == null) return '';
-    const chgPart = chg != null ? `<span style="color:${chgColor(chg)};font-weight:600">${chgStr(chg)}</span>` : '';
-    return `<span style="display:inline-flex;align-items:baseline;gap:4px;font-size:11px;background:var(--bg3);border-radius:5px;padding:3px 8px;white-space:nowrap">`
-      + `<span style="color:var(--text2)">${label}</span>`
-      + `<span style="font-weight:700">${Number(val).toLocaleString(undefined,{maximumFractionDigits:2})}</span>`
-      + chgPart + `</span>`;
-  };
-  let breadthChip = '';
-  if (hasMkt) {
-    const up    = rows.filter(r => r.price_change_rate > 0).length;
-    const upPct = Math.round(up / rows.length * 100);
-    const bClr  = upPct >= 55 ? 'var(--red)' : upPct <= 45 ? 'var(--blue)' : 'var(--text3)';
-    breadthChip = `<span style="display:inline-flex;align-items:baseline;gap:4px;font-size:11px;background:var(--bg3);border-radius:5px;padding:3px 8px;white-space:nowrap">`
-      + `<span style="color:var(--text2)">상승비율</span>`
-      + `<span style="font-weight:700;color:${bClr}">${upPct}%</span>`
-      + `<span style="color:var(--text2)">(${rows.length.toLocaleString()})</span></span>`;
-  }
-  const chipsHtml = [chip('코스피', m.kospi, m.kospi_chg), chip('코스닥', m.kosdaq, m.kosdaq_chg), breadthChip].filter(Boolean).join('');
-
-  // ③ 매크로 위험 신호 배지 (_getRisk + MACRO_RISK_SIGNALS 재사용)
-  let riskHtml = '';
-  if (typeof _getRisk === 'function') {
-    const _RI = { caution:{c:'#f59e0b',i:'⚠️'}, danger:{c:'#ef4444',i:'🚨'}, critical:{c:'#dc2626',i:'🔴'} };
-    const defs = [
-      { key:'vix',       val:m.vix,       label:'VIX',  fmt:v=>Number(v).toFixed(0) },
-      { key:'us10y',     val:m.us10y,     label:'미10Y', fmt:v=>Number(v).toFixed(2)+'%' },
-      { key:'usd_krw',   val:m.usd_krw,   label:'환율', fmt:v=>Number(v).toLocaleString() },
-      { key:'sp500_chg', val:m.sp500_chg, label:'S&P',  fmt:v=>(v>0?'+':'')+Number(v).toFixed(1)+'%' },
-    ];
-    const active = defs.map(d => ({ ...d, risk:_getRisk(d.key, d.val) })).filter(d => d.risk);
-    if (active.length) {
-      riskHtml = active.map(d => {
-        const ri = _RI[d.risk] || _RI.caution;
-        return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;padding:3px 8px;border-radius:5px;`
-          + `background:${ri.c}1f;border:1px solid ${ri.c}66;color:${ri.c};font-weight:600;white-space:nowrap">`
-          + `${ri.i} ${d.label} ${d.fmt(d.val)}</span>`;
-      }).join('');
-    } else if (hasMkt) {
-      riskHtml = `<span style="font-size:11px;color:var(--green);white-space:nowrap">✓ 매크로 위험신호 없음</span>`;
-    }
-  }
-
-  el.innerHTML =
-    `<div style="display:flex;align-items:center;gap:14px;padding:12px 16px;flex-wrap:wrap">
-      <div style="flex:1;min-width:220px">
-        <div style="font-size:13.5px;font-weight:700;color:var(--text);line-height:1.5;margin-bottom:6px">${oneLiner}</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${chipsHtml}</div>
-      </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:flex-end">${riskHtml}</div>
-    </div>`;
 }
 
 
