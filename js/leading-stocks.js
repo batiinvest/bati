@@ -306,14 +306,14 @@ async function loadLeadingBacktest() {
     if (!latestRow) { el.innerHTML = _lsBtEmpty('시장 데이터 없음'); return; }
     const latestDate = latestRow.base_date;
 
-    // 2. 진입일 계산 — 캘린더 기간(1주/1달/3달) 목표일에 가장 가까운 '선정일'
+    // 2. 기간 윈도우 시작일 — 캘린더 기간(1주/1달/3달)만큼 과거; 부족하면 가장 오래된 선정일로 폴백
     //    leading_stocks는 날짜당 50행이라 base_date만 뽑으면 중복 → rank=1로 날짜당 1행(고유 선정일).
     const { data: dateRows } = await sb.from('leading_stocks')
       .select('base_date')
       .eq('rank', 1)
       .lt('base_date', latestDate)
       .order('base_date', { ascending: false })
-      .limit(200);
+      .limit(400);
 
     if (!dateRows || !dateRows.length) {
       el.innerHTML = _lsBtEmpty('과거 주도주 데이터가 아직 없습니다 — 누적되면 표시됩니다');
@@ -321,79 +321,97 @@ async function loadLeadingBacktest() {
     }
     const selDates = dateRows.map(r => r.base_date);  // 최신순 고유 선정일
 
-    // 목표 캘린더일(latestDate − N일) 이하의 가장 최근 선정일; 보유기간이 더 짧으면 가장 오래된 선정일로 폴백
     const calDays = { '1w': 7, '1m': 30, '3m': 90 }[_lsBtPeriod] || 7;
     const target = new Date(latestDate + 'T00:00:00Z');
     target.setUTCDate(target.getUTCDate() - calDays);
     const targetStr = target.toISOString().slice(0, 10);
-    const entryDate = selDates.find(d => d <= targetStr) || selDates[selDates.length - 1];
-    const capped    = !selDates.some(d => d <= targetStr);  // 목표 기간만큼 과거 데이터 부족
+    const windowStart = selDates.find(d => d <= targetStr) || selDates[selDates.length - 1];
+    const capped      = !selDates.some(d => d <= targetStr);  // 기간만큼 과거 데이터 부족
 
-    // 헤더에 선정일 표시 (기간 미달 시 보유 최장 기준임을 안내)
+    // 헤더에 기간 윈도우 표시
     const btDateEl = document.getElementById('ls-bt-date');
     if (btDateEl) btDateEl.textContent = capped
-      ? `선정일 ${entryDate} · ${_lsBtLabel()} 미달(보유 최장)`
-      : `선정일 ${entryDate}`;
+      ? `${windowStart}~${latestDate} · ${_lsBtLabel()} 미달`
+      : `${windowStart}~${latestDate}`;
 
-    // 3. 진입일 Top 10 주도주 조회
-    const { data: entryStocks } = await sb.from('leading_stocks')
-      .select('stock_code,corp_name,industry,total_score,rank')
-      .eq('base_date', entryDate)
-      .order('rank', { ascending: true })
-      .limit(10);
+    // 3. 윈도우 내 주도주(Top 10) 전부 → 종목별 '첫 선정일'
+    const { data: picks } = await sb.from('leading_stocks')
+      .select('stock_code,corp_name,industry,rank,base_date')
+      .gte('base_date', windowStart)
+      .lt('base_date', latestDate)
+      .lte('rank', 10)
+      .order('base_date', { ascending: true });  // 오름차순 → 최초 등장이 먼저
 
-    if (!entryStocks || !entryStocks.length) {
-      el.innerHTML = _lsBtEmpty(`${entryDate} 주도주 데이터 없음`);
+    if (!picks || !picks.length) {
+      el.innerHTML = _lsBtEmpty('기간 내 주도주 데이터 없음');
       return;
     }
 
-    const codes = entryStocks.map(s => s.stock_code);
+    const firstByCode = {};
+    for (const p of picks) if (!firstByCode[p.stock_code]) firstByCode[p.stock_code] = p;  // 첫 선정일
+    const stocks = Object.values(firstByCode);
+    const codes  = stocks.map(s => s.stock_code);
 
-    // 4. 진입일 가격 조회
-    const { data: entryPrices } = await sb.from('market_data')
-      .select('stock_code,price')
-      .eq('base_date', entryDate)
-      .in('stock_code', codes);
-
-    // 5. 현재 가격 + 시장 구분 조회
+    // 4. 현재 종가 + 시장 구분 (한 번에)
     const { data: currPrices } = await sb.from('market_data')
-      .select('stock_code,price,price_change_rate,market')
+      .select('stock_code,price,market')
       .eq('base_date', latestDate)
       .in('stock_code', codes);
+    const currMap = Object.fromEntries((currPrices || []).map(r => [r.stock_code, r]));
 
-    // 6. 결과 계산 (수익률 높은 순)
-    const entryMap = Object.fromEntries((entryPrices || []).map(r => [r.stock_code, r.price]));
-    const currMap  = Object.fromEntries((currPrices  || []).map(r => [r.stock_code, r]));
+    // 5. 진입가 — 종목별 첫 선정일이 제각각 → 선정일별로 묶어 조회
+    const byDate = {};
+    for (const s of stocks) (byDate[s.base_date] ||= []).push(s.stock_code);
+    const entryMap = {};
+    await Promise.all(Object.entries(byDate).map(async ([d, cds]) => {
+      const { data } = await sb.from('market_data')
+        .select('stock_code,price').eq('base_date', d).in('stock_code', cds);
+      for (const r of (data || [])) entryMap[r.stock_code] = r.price;
+    }));
 
-    const results = entryStocks.map(s => {
+    // 6. 종목별 수익률 (각자 첫 선정일 → 현재)
+    const all = stocks.map(s => {
       const ep = entryMap[s.stock_code];
       const cr = currMap[s.stock_code];
       const ret = (ep && cr?.price) ? (cr.price / ep - 1) * 100 : null;
-      return { ...s, market: cr?.market, entry_price: ep, curr_price: cr?.price, ret, entry_date: entryDate };
-    }).filter(r => r.ret !== null)
-      .sort((a, b) => b.ret - a.ret);
+      return { stock_code: s.stock_code, corp_name: s.corp_name, industry: s.industry,
+               rank: s.rank, entry_date: s.base_date, market: cr?.market,
+               entry_price: ep, curr_price: cr?.price, ret };
+    }).filter(r => r.ret !== null);
 
-    const avgRet  = results.length ? results.reduce((a, r) => a + r.ret, 0) / results.length : null;
-    const winRate = results.length ? results.filter(r => r.ret > 0).length / results.length * 100 : null;
+    if (!all.length) { el.innerHTML = _lsBtEmpty('가격 데이터 없음'); return; }
 
-    // 7. 벤치마크 — 종목 구성에 맞춘 시장(코스피/코스닥) 동일가중 평균
-    //    주도주는 코스닥 비중이 높아 코스피만 쓰면 부적합 → 각 종목을 자기 시장 평균과 비교 후 평균.
-    const markets = [...new Set(results.map(r => r.market).filter(Boolean))];
-    const mktRet = {};
-    await Promise.all(markets.map(async mkt => {
-      const [me, ml] = await Promise.all([
-        _fetchMarketPrices(mkt, entryDate),
-        _fetchMarketPrices(mkt, latestDate),
-      ]);
-      const rs = Object.keys(me).filter(c => ml[c]).map(c => (ml[c] / me[c] - 1) * 100);
-      mktRet[mkt] = rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : null;
+    const avgRet  = all.reduce((a, r) => a + r.ret, 0) / all.length;
+    const winRate = all.filter(r => r.ret > 0).length / all.length * 100;
+
+    // 7. 시장 대비 — 각 종목을 '자기 선정일~현재'의 시장(코스피/코스닥) 동일가중 평균과 비교.
+    //    선정일별 시장수익률은 1회만 계산(_fetchMarketPrices 캐시) → 종목 수와 무관, 날짜 수만큼만 조회.
+    const need = new Set();
+    all.forEach(r => { if (r.market) { need.add(r.market + '|' + r.entry_date); need.add(r.market + '|' + latestDate); } });
+    const pmap = {};
+    await Promise.all([...need].map(async k => {
+      const [m, d] = k.split('|'); pmap[k] = await _fetchMarketPrices(m, d);
     }));
+    const mktRetCache = {};
+    const mktRetOf = (market, d) => {
+      const key = market + '|' + d;
+      if (key in mktRetCache) return mktRetCache[key];
+      const me = pmap[key], ml = pmap[market + '|' + latestDate];
+      let v = null;
+      if (me && ml) {
+        const rs = Object.keys(me).filter(c => ml[c] && me[c]).map(c => (ml[c] / me[c] - 1) * 100);
+        v = rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : null;
+      }
+      return (mktRetCache[key] = v);
+    };
+    const exc = all.map(r => { const m = mktRetOf(r.market, r.entry_date); return m == null ? null : r.ret - m; })
+                   .filter(v => v != null);
+    const excess = exc.length ? exc.reduce((a, b) => a + b, 0) / exc.length : null;
 
-    const benchPer  = results.map(r => mktRet[r.market]).filter(v => v != null);
-    const bmkReturn = benchPer.length ? benchPer.reduce((a, b) => a + b, 0) / benchPer.length : null;
-    const excess    = (avgRet !== null && bmkReturn !== null) ? avgRet - bmkReturn : null;
+    // 8. 표시: 수익률 상위 20
+    const results = [...all].sort((a, b) => b.ret - a.ret).slice(0, 20);
 
-    _renderBacktest(el, { entryDate, latestDate, results, avgRet, winRate, bmkReturn, excess });
+    _renderBacktest(el, { windowStart, latestDate, results, total: all.length, avgRet, winRate, excess });
 
   } catch(e) {
     console.error('[Backtest]', e);
@@ -402,7 +420,7 @@ async function loadLeadingBacktest() {
 }
 
 // ── 백테스트 결과 렌더링 ──────────────────────────────────────────────────────
-function _renderBacktest(el, { entryDate, latestDate, results, avgRet, winRate, bmkReturn, excess }) {
+function _renderBacktest(el, { windowStart, latestDate, results, total, avgRet, winRate, excess }) {
   const fmtRet = (v, size = 13) => v == null ? '—'
     : `<span style="font-size:${size}px;font-weight:700;color:${v >= 0 ? 'var(--red)' : 'var(--blue)'}">
         ${v >= 0 ? '+' : ''}${v.toFixed(2)}%</span>`;
@@ -433,10 +451,10 @@ function _renderBacktest(el, { entryDate, latestDate, results, avgRet, winRate, 
     </div>
   </div>
 
-  <!-- 기준일 표시 -->
+  <!-- 기간 윈도우 + 종목 수 (종목별 선정일은 각 행에 표시) -->
   <div style="font-size:11px;color:var(--text2);margin-bottom:8px;padding:0 2px">
-    → 현재 <b style="color:var(--text1)">${latestDate}</b>
-    ${bmkReturn != null ? `| 시장 평균 ${fmtRet(bmkReturn, 11)}` : ''}
+    기간 <b style="color:var(--text1)">${windowStart} ~ ${latestDate}</b>
+    · 주도주 <b style="color:var(--text1)">${total}개</b>${total > results.length ? ` 중 상위 ${results.length}` : ''}
   </div>
 
   <!-- 종목별 결과 -->
