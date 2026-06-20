@@ -469,23 +469,18 @@ td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
 }
 @media(max-width:900px) { .market-strip { display:none !important; } }
 
-/* ── 시장 breadth strip (제목 아래 한 줄: 코스피·코스닥·전체 상승비율) ── */
-.breadth-strip {
-  display:flex; align-items:center;
-  background:var(--bg2); border:1px solid var(--border); border-radius:8px;
-  padding:7px 6px;
+/* ── 탑바 스트립: 코스피·코스닥 지수값 밑 상승종목수(breadth) 미니 바 ── */
+/* 컴파운드 셀렉터로 뒤쪽 .market-strip-item(align-items:center)보다 우선 적용 */
+.market-strip-item.market-strip-item--breadth {
+  flex-direction:column; align-items:flex-start; gap:1px;
 }
-.breadth-seg {
-  flex:1; min-width:0;
-  display:flex; align-items:center; gap:10px;
-  padding:2px 14px;
+.msb-valrow { display:flex; align-items:baseline; gap:4px; }
+.market-strip-breadth { display:flex; align-items:center; gap:5px; font-size:9px; line-height:1; }
+.msb-bar {
+  display:flex; width:54px; height:4px;
+  border-radius:2px; overflow:hidden; background:rgba(255,255,255,.1);
 }
-.breadth-seg + .breadth-seg { border-left:1px solid var(--border); }
-@media(max-width:760px) {
-  .breadth-strip { flex-direction:column; align-items:stretch; gap:8px; padding:10px 12px; }
-  .breadth-seg { padding:0; }
-  .breadth-seg + .breadth-seg { border-left:none; border-top:1px solid var(--border); padding-top:8px; }
-}
+.msb-bar > span { display:block; height:100%; }
 
 /* ── 투자포인트 카드 5섹션 ── */
 .insight-sec { margin-bottom:16px; padding-bottom:13px; border-bottom:1px solid rgba(255,255,255,.05); }

@@ -39,39 +39,66 @@ async function loadMacroData() {
 
   // (정리됨) 매크로 카드 그리드·위험 스트립·증시동향 헤더 배너(inv-banner-content) 모두 제거 —
   // 매크로 지수는 전역 탑바 스트립·시장 온도계 6세부요소·Zone A 브리핑 위험배지가 담당(중복 제거).
-  // 증시동향 카드는 제거 → 코스피·코스닥·전체 상승비율은 제목 아래 breadth strip(inv-breadth-strip)이 담당.
+  // 증시동향 카드는 제거 → 코스피·코스닥 상승종목수(breadth)는 탑바 스트립의 지수값 밑에 미니 바로 노출(_renderTopbarStrip).
 
   // 탑바 시장 스트립 갱신
   _renderTopbarStrip();
 }  // end loadMacroData
 
 // ── 탑바 시장 스트립 렌더 ──
+// 코스피·코스닥은 지수값 바로 밑에 상승종목수(breadth) 미니 바를 함께 노출.
+// breadth 데이터는 loadMarketOverview(market-overview.js)가 window._marketBreadth에 채운 뒤 재호출.
 function _renderTopbarStrip() {
   const strip = document.getElementById('topbar-market-strip');
-  const m = window._macroData || {};
+  const m  = window._macroData || {};
+  const bd = window._marketBreadth || {};
   const items = [
-    { name: '코스피',  val: m.kospi,   chg: m.kospi_chg,   color:'var(--green)' },
-    { name: '코스닥',  val: m.kosdaq,  chg: m.kosdaq_chg,  color:'var(--yellow)' },
+    { name: '코스피',  val: m.kospi,   chg: m.kospi_chg,   color:'var(--green)',  breadth: bd.kospi },
+    { name: '코스닥',  val: m.kosdaq,  chg: m.kosdaq_chg,  color:'var(--yellow)', breadth: bd.kosdaq },
     { name: 'S&P500', val: m.sp500,   chg: m.sp500_chg,   color:'var(--tg)' },
     { name: '나스닥',  val: m.nasdaq,  chg: m.nasdaq_chg,  color:'#ff6b35' },
     { name: 'VIX',    val: m.vix,     chg: m.vix_chg,     color:'var(--neutral)' },
     { name: '달러',    val: m.usd_krw, chg: m.usd_krw_chg, color:'var(--accent)' },
   ].filter(i => i.val != null);
 
-  // 탑바 스트립 (5개 이하)
-  if (strip) {
-    if (!items.length) { strip.style.display = 'none'; return; }
-    strip.style.display = 'flex';
-    strip.innerHTML = items.slice(0,6).map((item, i) =>
-      (i > 0 ? '<span class="market-strip-sep" style="color:var(--border2)">│</span>' : '') +
-      `<div class="market-strip-item">` +
-        `<span class="market-strip-name" style="font-size:10px;color:var(--text3)">${item.name}</span>` +
-        `<span class="market-strip-val">${Number(item.val).toLocaleString(undefined,{maximumFractionDigits:2})}</span>` +
-        `<span class="market-strip-chg" style="color:${chgColor(item.chg)}">${chgStr(item.chg)}</span>` +
-      `</div>`
-    ).join('');
-  }
+  if (!strip) return;
+  if (!items.length) { strip.style.display = 'none'; return; }
+  strip.style.display = 'flex';
 
+  // 지수값+등락률 한 줄
+  const valRow = (item) =>
+    `<span class="market-strip-name" style="font-size:10px;color:var(--text3)">${item.name}</span>` +
+    `<span class="market-strip-val">${Number(item.val).toLocaleString(undefined,{maximumFractionDigits:2})}</span>` +
+    `<span class="market-strip-chg" style="color:${chgColor(item.chg)}">${chgStr(item.chg)}</span>`;
+
+  // 코스피·코스닥: 지수값 밑 상승종목수(breadth) 미니 바
+  const breadthRow = (b) => {
+    if (!b || !b.total) return '';
+    const risePct = b.rise / b.total * 100;
+    const flatPct = b.flat / b.total * 100;
+    return `<div class="market-strip-breadth">` +
+      `<span class="msb-bar">` +
+        `<span style="width:${risePct.toFixed(1)}%;background:var(--red)"></span>` +
+        `<span style="width:${flatPct.toFixed(1)}%;background:rgba(255,255,255,.07)"></span>` +
+        `<span style="flex:1;background:var(--blue)"></span>` +
+      `</span>` +
+      `<span style="color:var(--red);font-weight:700">▲${b.rise.toLocaleString()}</span>` +
+      `<span style="color:var(--blue);font-weight:700">▼${b.fall.toLocaleString()}</span>` +
+    `</div>`;
+  };
+
+  strip.innerHTML = items.slice(0,6).map((item, i) => {
+    const sep = i > 0 ? '<span class="market-strip-sep" style="color:var(--border2)">│</span>' : '';
+    const bRow = breadthRow(item.breadth);
+    if (bRow) {
+      return sep +
+        `<div class="market-strip-item market-strip-item--breadth">` +
+          `<div class="msb-valrow">${valRow(item)}</div>` +
+          bRow +
+        `</div>`;
+    }
+    return sep + `<div class="market-strip-item">${valRow(item)}</div>`;
+  }).join('');
 }
 
 // ── US ETF 배너: us_market 테이블에서 최신 산업별 평균 등락률 조회 ──

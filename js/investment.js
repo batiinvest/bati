@@ -87,11 +87,6 @@ function _macroCard(label, value, chg, color) {
 function pInvestment() {
   window._invTab = window._invTab || 'market';
   return `
-  <!-- 시장 breadth strip — 탑바 바로 아래 풀폭. 코스피·코스닥·전체 상승종목 비율. 지수값/등락률은 탑바 스트립이 담당(중복 제거) -->
-  <div id="inv-breadth-strip" class="breadth-strip" style="margin-bottom:.75rem">
-    <div style="flex:1;text-align:center;color:var(--text2);font-size:12px;padding:4px">집계 중…</div>
-  </div>
-
   <!-- 페이지 헤더 -->
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:8px">
     <div style="font-size:13px;font-weight:600;color:var(--text)">오늘의 시황</div>
