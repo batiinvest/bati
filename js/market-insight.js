@@ -476,37 +476,25 @@ function _renderInsightCard(data) {
     </div>`;
   }).join('');
 
-  // ─── 푸터 ───
+  el.innerHTML = zoneLabel + moodRow + pointsHTML;
+
+  // ─── 출처·관리 → 상단 헤더 클러스터로 일원화 (하단 푸터 폐지: 날짜 중복·버튼 분산 해소) ───
+  // 날짜는 헤더의 #market-temp-date(온도계)가 담당 → data_basis 중복 표기 제거.
   const source = data.generated_by === 'db' ? '백엔드 분석' : '실시간 계산';
   const _isAdm = typeof isAdmin === 'function' && isAdmin();
 
-  const adminBtns = _isAdm ? `
-  <div style="display:flex;gap:5px;justify-content:flex-end;margin-top:8px">
-    ${data.generated_by === 'live' ? `
-    <button id="insight-save-btn" onclick="window._insightSaveDB()"
-      style="font-size:10px;padding:2px 9px;border-radius:4px;border:1px solid var(--border);
-             background:var(--bg3);color:var(--text1);cursor:pointer">
-      DB 저장
-    </button>` : ''}
-    <button onclick="loadMarketInsight(true)"
-      style="font-size:10px;padding:2px 9px;border-radius:4px;border:1px solid var(--border);
-             background:var(--bg3);color:var(--text1);cursor:pointer">
-      재생성
-    </button>
-  </div>` : '';
+  const srcEl = document.getElementById('mj-source');
+  if (srcEl) srcEl.innerHTML = `${source} <span style="color:var(--border)">·</span>`;
 
-  const footer = `
-  <div style="text-align:right;font-size:10px;color:var(--text2);margin-top:8px">
-    ${source} · ${data.data_basis || ''}
-  </div>
-  ${adminBtns}`;
-
-  el.innerHTML = zoneLabel + moodRow + pointsHTML;
-
-  // 푸터(출처·DB저장·재생성)는 통합 카드 최하단(근거 아래)으로 — 환경→전략→근거→출처 순서
-  const footEl = document.getElementById('mj-footer');
-  if (footEl) footEl.innerHTML = footer;
-  else el.innerHTML += footer;
+  const admEl = document.getElementById('mj-admin-btns');
+  if (admEl) {
+    admEl.innerHTML = _isAdm
+      ? (data.generated_by === 'live'
+          ? `<button id="insight-save-btn" class="chip" style="font-size:11px;padding:2px 8px" onclick="window._insightSaveDB()">DB 저장</button>`
+          : '') +
+        `<button class="chip" style="font-size:11px;padding:2px 8px" onclick="loadMarketInsight(true)">재생성</button>`
+      : '';
+  }
 }
 
 

@@ -101,12 +101,14 @@ function pInvestment() {
     <div class="card-header" style="flex-wrap:wrap;gap:6px">
       <span class="card-title">${_ICO.temp}오늘의 시장 판단</span>
       <span style="font-size:10px;color:var(--text2);font-weight:400">지금 들어가도 되나 → 무엇을 할까</span>
-      <span style="font-size:11px;color:var(--text2);margin-left:auto" id="market-temp-date"></span>
-      <div style="display:flex;gap:5px">
+      <span id="mj-source" style="font-size:10px;color:var(--text2);margin-left:auto"></span>
+      <span style="font-size:11px;color:var(--text2)" id="market-temp-date"></span>
+      <div style="display:flex;gap:5px;align-items:center">
         <button class="chip" id="btn-insight-hist" style="font-size:11px;padding:2px 8px"
           onclick="toggleInsightHistory()">${_ICO.history}히스토리</button>
         <button class="chip" style="font-size:11px;padding:2px 8px"
           onclick="loadMarketInsight()">${_ICO.refresh}재분석</button>
+        <span id="mj-admin-btns" style="display:flex;gap:5px;align-items:center"></span>
       </div>
     </div>
 
@@ -123,10 +125,8 @@ function pInvestment() {
     </div>
 
     <!-- C. 근거(Evidence) — 6지표, 기본 접힘 (풀폭) -->
+    <!-- (출처·DB저장·재생성은 상단 헤더 클러스터로 일원화 — 하단 푸터 제거) -->
     <div id="mj-evidence" style="border-top:1px solid var(--border)"></div>
-
-    <!-- 출처/관리 푸터 (카드 최하단) -->
-    <div id="mj-footer" style="padding:0 1rem .25rem"></div>
 
     <!-- 히스토리 (DB 저장 국면) -->
     <div id="insight-history" style="display:none;border-top:1px solid var(--border)">
