@@ -392,30 +392,13 @@ async function _buildLiveSections() {
   if (risk)        corePoints.push({ type: 'down', text: risk });
   if (!corePoints.length) corePoints.push({ type: 'flat', text: '뚜렷한 신호 없음 — 관망 유지' });
 
-  // ── ⑤ 한 줄 총평 (전문가 어조) ──
-  const moodStr    = moodMap[a.krMarketState] || '혼조';
-  const topIndStr  = a.krSorted[0] ? ` · ${a.krSorted[0]} 주도` : '';
-  const usContext  = a.sp500Chg != null ? `S&P ${_fmt(a.sp500Chg)}·NDX ${_fmt(a.nasdaqChg)} 마감` : '';
+  // ── ⑤ 한 줄 총평 (시장 분위기 스냅샷 — DB 저장·히스토리용) ──
+  // 통합 카드에서 레짐 verdict·행동지침은 온도계(Zone A)가 단독 소유한다.
+  // 정합성: 여기선 경쟁 verdict·지수 리캡을 만들지 않고, KR 시장 분위기만 한 줄로 남긴다.
+  const moodStr   = moodMap[a.krMarketState] || '혼조';
+  const topIndStr = a.krSorted[0] ? ` · ${a.krSorted[0]} 주도` : '';
 
-  let strategy;
-  if ((m.vix ?? 0) >= THR.VIX_HIGH)
-    strategy = `VIX ${Number(m.vix).toFixed(0)} 공포 구간 — 현금 비중 최우선, 추격 전면 금지`;
-  else if (a.marketRegime === 'risk-off')
-    strategy = '리스크오프 전환 — 방어 포지션 유지, 낙폭 과대 종목 관찰 대기';
-  else if (lagSigs.length) {
-    const lagInd = lagSigs[0].ind;
-    strategy = `후행 업종 ${lagInd} 선점 기회 — 수급 유입 확인 후 단계적 진입`;
-  } else if (syncUpSigs.length >= 2 && a.krRising.length >= 2) {
-    const top = syncUpSigs.slice(0,2).map(s=>s.ind).join('·');
-    strategy = `미·한 동반 강세(${top}) — 추세 추종, 저항선 돌파 시 단기 비중 확대`;
-  } else if (riskSigs.length) {
-    const riskInd = riskSigs.slice(0,2).map(s=>s.ind).join('·');
-    strategy = `${riskInd} 디커플링 주의 — 한국 선행 상승분 차익 실현 검토`;
-  } else {
-    strategy = '혼조 국면 — 섣부른 추격 금지, 강세 업종 눌림목 대기';
-  }
-
-  const oneLiner = [usContext, `코스피 ${_fmt(a.kospiChg)} ${moodStr}${topIndStr}`, strategy].filter(Boolean).join(' / ');
+  const oneLiner = `코스피 ${_fmt(a.kospiChg)} ${moodStr}${topIndStr}`;
 
   return {
     market_date:   m.base_date || new Date().toISOString().split('T')[0],
@@ -458,11 +441,10 @@ function _renderInsightCard(data) {
 
   const f = data.flow || {};
 
-  // ─── 한 줄 총평 (카드 헤드라인) ───
-  // 브리핑 바 제거 후 이 카드가 한 줄 총평을 전담한다(인사이트 일원화).
-  const oneLiner = data.one_line_summary
-    ? `<div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.55;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">${data.one_line_summary}</div>`
-    : '';
+  // ─── Zone B 라벨 ───
+  // 통합 카드에서 '환경/행동지침'은 온도계(Zone A)가 단독 소유 → 여기선 한 줄 총평을 렌더하지 않는다.
+  // (지수 리캡은 탑바·근거지표, 레짐 verdict는 온도계 행동지침으로 일원화 — 중복·불일치 제거)
+  const zoneLabel = `<div style="font-size:9px;letter-spacing:.06em;color:var(--text3);margin-bottom:8px">이 환경에서 · 업종·종목 전략</div>`;
 
   // ─── 영향 업종 배지 (시장 전체 등급은 온도계 카드 역할 — 여기선 업종 단위만) ───
   const indBadges =
@@ -517,7 +499,12 @@ function _renderInsightCard(data) {
   </div>
   ${adminBtns}`;
 
-  el.innerHTML = oneLiner + moodRow + pointsHTML + footer;
+  el.innerHTML = zoneLabel + moodRow + pointsHTML;
+
+  // 푸터(출처·DB저장·재생성)는 통합 카드 최하단(근거 아래)으로 — 환경→전략→근거→출처 순서
+  const footEl = document.getElementById('mj-footer');
+  if (footEl) footEl.innerHTML = footer;
+  else el.innerHTML += footer;
 }
 
 

@@ -228,8 +228,7 @@ textarea.form-input { resize:vertical; min-height:100px; }
   /* ── 전체현황: 산업별/Top5 2열 → 1열 ── */
   .overview-grid { grid-template-columns:1fr !important; }
 
-  /* ── 시황 상단 2-col(온도계 | 투자포인트 요약) → 1-col ── */
-  .inv-top-grid { grid-template-columns:1fr !important; }
+  /* (시황 상단 2-col은 '오늘의 시장 판단' 단일 카드로 통합 — .inv-top-grid 제거됨) */
 
   /* ── 스크리너: 필터 사이드바 → 상단 접이식 ── */
   .screener-layout  { grid-template-columns:1fr !important; }

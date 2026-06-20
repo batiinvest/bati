@@ -250,8 +250,9 @@ async function renderMarketTemperature() {
       <span style="font-size:10px;color:var(--text2);margin-left:4px">(전일 ${prev.score}점)</span>`;
   }
 
+  // ── A. 환경(Regime) + 통합 행동지침 → #market-temp-body ──
   el.innerHTML = `
-  <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:10px">
 
     <!-- 숫자 스코어 -->
     <div style="text-align:center;min-width:54px;flex-shrink:0">
@@ -290,16 +291,17 @@ async function renderMarketTemperature() {
     </div>
   </div>
 
-  <!-- 전략 메모 -->
-  <div style="font-size:11px;color:var(--text1);margin-bottom:10px;
-    padding:7px 10px;background:var(--bg3);border-radius:5px;
+  <!-- 통합 행동지침 (레짐 단일 소스 = 온도계 점수/국면) -->
+  <div style="font-size:11.5px;color:var(--text1);
+    padding:8px 11px;background:var(--bg3);border-radius:5px;
     border-left:2px solid ${t.gradeColor};line-height:1.6">
-    ${t.strategy}
-  </div>
+    <span style="color:${t.gradeColor};font-weight:700">행동지침 · </span>${t.strategy}
+  </div>`;
 
-  <!-- 세부 요소 -->
-  <div style="display:flex;flex-direction:column;gap:5px">
-    ${t.parts.map(p => {
+  // ── C. 근거(Evidence) 6지표 → #mj-evidence (기본 접힘) ──
+  const ev = document.getElementById('mj-evidence');
+  if (ev) {
+    const factors = t.parts.map(p => {
       const pct      = Math.round(p.pts / p.max * 100);
       // 바 색상: 빨강/초록 사용 금지 (시장 상승/하락 색상과 충돌)
       const barColor = pct >= 70 ? '#2AABEE' : pct >= 40 ? '#f59e0b' : '#64748b';
@@ -311,10 +313,30 @@ async function renderMarketTemperature() {
         </div>
         <span style="min-width:34px;text-align:right;font-size:11px;font-weight:600;color:var(--text1)">${p.pts}<span style="color:var(--text2);font-weight:400">/${p.max}</span></span>
       </div>`;
-    }).join('')}
-  </div>`;
+    }).join('');
+    ev.innerHTML = `
+      <div onclick="toggleMjEvidence()" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 1rem;font-size:11px;color:var(--text2)"
+        onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background=''">
+        <span style="font-weight:600">판단 근거</span>
+        <span style="font-size:10px">S&amp;P·환율·5일추세·수급·VIX·금리 6지표 (점수 산출 기준)</span>
+        <span id="mj-ev-toggle" style="margin-left:auto;font-size:10px">펼치기 ▾</span>
+      </div>
+      <div id="mj-ev-body" style="display:none;padding:2px 1rem 10px">
+        <div style="display:flex;flex-direction:column;gap:5px">${factors}</div>
+      </div>`;
+  }
 
   // 날짜 표시
   const dateEl = document.getElementById('market-temp-date');
   if (dateEl) dateEl.textContent = today ? `${today} 기준` : '';
+}
+
+// ── 근거(6지표) 접기/펼치기 ─────────────────────────────────────────────────
+function toggleMjEvidence() {
+  const body = document.getElementById('mj-ev-body');
+  const tog  = document.getElementById('mj-ev-toggle');
+  if (!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  if (tog) tog.textContent = open ? '접기 ▴' : '펼치기 ▾';
 }
