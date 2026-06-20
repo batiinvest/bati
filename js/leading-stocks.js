@@ -268,6 +268,28 @@ window.refreshLeadingStocks = async function() {
 
 let _lsBtPeriod = '1w';  // 선택된 기간
 
+// ── 시장(코스피/코스닥) 전 종목 종가 맵 ────────────────────────────────────────
+// PostgREST 기본 1000행 캡 회피용 페이지네이션 + (market|date) 캐시 (기간 전환 시 재조회 방지)
+const _mktPriceCache = {};
+async function _fetchMarketPrices(market, date) {
+  const key = market + '|' + date;
+  if (_mktPriceCache[key]) return _mktPriceCache[key];
+  const map = {};
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await sb.from('market_data')
+      .select('stock_code,price')
+      .eq('base_date', date)
+      .eq('market', market)
+      .range(from, from + PAGE - 1);
+    if (error || !data || !data.length) break;
+    for (const r of data) if (r.price) map[r.stock_code] = r.price;
+    if (data.length < PAGE) break;
+  }
+  _mktPriceCache[key] = map;
+  return map;
+}
+
 // ── 백테스트 렌더링 진입점 ────────────────────────────────────────────────────
 async function loadLeadingBacktest() {
   const el = document.getElementById('ls-bt-body');
@@ -332,27 +354,13 @@ async function loadLeadingBacktest() {
       .eq('base_date', entryDate)
       .in('stock_code', codes);
 
-    // 5. 현재 가격 조회
+    // 5. 현재 가격 + 시장 구분 조회
     const { data: currPrices } = await sb.from('market_data')
-      .select('stock_code,price,price_change_rate')
+      .select('stock_code,price,price_change_rate,market')
       .eq('base_date', latestDate)
       .in('stock_code', codes);
 
-    // 6. 코스피 벤치마크 수익률 (시장 전체 평균으로 근사)
-    const { data: mktEntry } = await sb.from('market_data')
-      .select('stock_code,price').eq('base_date', entryDate).eq('market', 'KOSPI');
-    const { data: mktLatest } = await sb.from('market_data')
-      .select('stock_code,price').eq('base_date', latestDate).eq('market', 'KOSPI');
-
-    const mktEntryMap  = Object.fromEntries((mktEntry  || []).map(r => [r.stock_code, r.price]));
-    const mktLatestMap = Object.fromEntries((mktLatest || []).map(r => [r.stock_code, r.price]));
-    const bmkReturns = Object.keys(mktEntryMap)
-      .filter(c => mktLatestMap[c] && mktEntryMap[c])
-      .map(c => (mktLatestMap[c] / mktEntryMap[c] - 1) * 100);
-    const bmkReturn = bmkReturns.length
-      ? bmkReturns.reduce((a, b) => a + b, 0) / bmkReturns.length : null;
-
-    // 7. 결과 계산
+    // 6. 결과 계산 (수익률 높은 순)
     const entryMap = Object.fromEntries((entryPrices || []).map(r => [r.stock_code, r.price]));
     const currMap  = Object.fromEntries((currPrices  || []).map(r => [r.stock_code, r]));
 
@@ -360,13 +368,29 @@ async function loadLeadingBacktest() {
       const ep = entryMap[s.stock_code];
       const cr = currMap[s.stock_code];
       const ret = (ep && cr?.price) ? (cr.price / ep - 1) * 100 : null;
-      return { ...s, entry_price: ep, curr_price: cr?.price, ret, entry_date: entryDate };
+      return { ...s, market: cr?.market, entry_price: ep, curr_price: cr?.price, ret, entry_date: entryDate };
     }).filter(r => r.ret !== null)
-      .sort((a, b) => b.ret - a.ret);  // 수익률 높은 순
+      .sort((a, b) => b.ret - a.ret);
 
     const avgRet  = results.length ? results.reduce((a, r) => a + r.ret, 0) / results.length : null;
     const winRate = results.length ? results.filter(r => r.ret > 0).length / results.length * 100 : null;
-    const excess  = (avgRet !== null && bmkReturn !== null) ? avgRet - bmkReturn : null;
+
+    // 7. 벤치마크 — 종목 구성에 맞춘 시장(코스피/코스닥) 동일가중 평균
+    //    주도주는 코스닥 비중이 높아 코스피만 쓰면 부적합 → 각 종목을 자기 시장 평균과 비교 후 평균.
+    const markets = [...new Set(results.map(r => r.market).filter(Boolean))];
+    const mktRet = {};
+    await Promise.all(markets.map(async mkt => {
+      const [me, ml] = await Promise.all([
+        _fetchMarketPrices(mkt, entryDate),
+        _fetchMarketPrices(mkt, latestDate),
+      ]);
+      const rs = Object.keys(me).filter(c => ml[c]).map(c => (ml[c] / me[c] - 1) * 100);
+      mktRet[mkt] = rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : null;
+    }));
+
+    const benchPer  = results.map(r => mktRet[r.market]).filter(v => v != null);
+    const bmkReturn = benchPer.length ? benchPer.reduce((a, b) => a + b, 0) / benchPer.length : null;
+    const excess    = (avgRet !== null && bmkReturn !== null) ? avgRet - bmkReturn : null;
 
     _renderBacktest(el, { entryDate, latestDate, results, avgRet, winRate, bmkReturn, excess });
 
@@ -403,7 +427,7 @@ function _renderBacktest(el, { entryDate, latestDate, results, avgRet, winRate, 
       <div style="font-size:18px;font-weight:700;color:${winColor}">${winStr}</div>
     </div>
     <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:10px;text-align:center">
-      <div style="font-size:10px;color:var(--text2);margin-bottom:4px">코스피 대비</div>
+      <div style="font-size:10px;color:var(--text2);margin-bottom:4px">시장 대비</div>
       <div style="font-size:18px;font-weight:700;color:${excessColor}">${excessStr}</div>
     </div>
   </div>
@@ -411,7 +435,7 @@ function _renderBacktest(el, { entryDate, latestDate, results, avgRet, winRate, 
   <!-- 기준일 표시 -->
   <div style="font-size:11px;color:var(--text2);margin-bottom:8px;padding:0 2px">
     → 현재 <b style="color:var(--text1)">${latestDate}</b>
-    ${bmkReturn != null ? `| 코스피 ${fmtRet(bmkReturn, 11)}` : ''}
+    ${bmkReturn != null ? `| 시장 평균 ${fmtRet(bmkReturn, 11)}` : ''}
   </div>
 
   <!-- 종목별 결과 -->
