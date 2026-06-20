@@ -4,45 +4,40 @@
 // ── 흐름 비교 차트 전역 변수 ──
 let _invTrendChart = null;
 
-// ── 시장별 종목 현황 카드 렌더러 ─────────────────────────────────────────────
-// loadMarketOverview() 내부 closure였던 것을 모듈 최상위로 추출
-function _mkCard(id, label, st, color, indexVal, indexChg) {
-  const el = document.getElementById(id);
-  if (!el || !st.total) return;
-  const risePct  = st.rise / st.total * 100;
-  const flatPct  = st.flat / st.total * 100;
-  // 시장 강도 레이블 + 색상
+// ── breadth strip 세그먼트 렌더러 (코스피·코스닥·전체) ────────────────────────
+// 지수값/등락률은 탑바 스트립이 담당 → 여기선 상승비율·강도·종목수(breadth)만 한 줄로.
+// avg가 주어지면(전체) 평균 등락률을 함께 노출.
+function _breadthSeg(label, color, st, avg) {
+  if (!st || !st.total) return '';
+  const risePct = st.rise / st.total * 100;
+  const flatPct = st.flat / st.total * 100;
   const strengthClr   = risePct >= 60 ? 'var(--red)' : risePct <= 40 ? 'var(--blue)' : 'var(--text3)';
   const strengthLabel = risePct >= 65 ? '강세' : risePct >= 55 ? '우세' : risePct >= 45 ? '중립' : risePct >= 35 ? '열세' : '약세';
-  const valStr = indexVal != null
-    ? indexVal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})
+  const avgHtml = avg != null
+    ? '<span style="font-size:11px;font-weight:700;color:' + chgColor(avg) + ';white-space:nowrap">평균 ' + chgStr(avg) + '</span>'
     : '';
-  el.innerHTML =
-    // 1행: 라벨 — 강도(우)  (좁은 셀에서 라벨이 글자단위로 줄바꿈되지 않도록 nowrap)
-    '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px">' +
-      '<span style="font-size:12px;font-weight:700;color:' + color + ';white-space:nowrap">' + label + '</span>' +
-      '<span style="font-size:12px;font-weight:800;color:' + strengthClr + ';white-space:nowrap">' +
-        risePct.toFixed(0) + '% <span style="font-size:10px;font-weight:600">' + strengthLabel + '</span>' +
-      '</span>' +
-    '</div>' +
-    // 2행: 지수값 + 등락률
-    '<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:7px">' +
-      (indexVal != null
-        ? '<span style="font-size:17px;font-weight:800;font-variant-numeric:tabular-nums">' + valStr + '</span>' +
-          '<span style="font-size:12px;font-weight:700;color:' + chgColor(indexChg) + ';white-space:nowrap">' + chgStr(indexChg) + '</span>'
-        : '<span style="font-size:15px;font-weight:800">' + st.total.toLocaleString() + '<span style="font-size:11px;font-weight:600;color:var(--text2)">개</span></span>') +
-    '</div>' +
-    // 3행: 상승/하락 비율 바 (3색: 상승/보합/하락)
-    '<div style="height:7px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.08);margin-bottom:6px;display:flex">' +
-      '<div style="width:' + risePct.toFixed(1) + '%;background:var(--red);transition:width .5s ease"></div>' +
-      '<div style="width:' + flatPct.toFixed(1) + '%;background:rgba(255,255,255,0.06)"></div>' +
-      '<div style="flex:1;background:var(--blue)"></div>' +
-    '</div>' +
-    // 4행: 등락 종목수
-    '<div style="display:flex;gap:12px;font-size:11px">' +
-      '<span style="color:var(--red);font-weight:700">▲ ' + st.rise.toLocaleString() + '</span>' +
-      '<span style="color:var(--blue);font-weight:700">▼ ' + st.fall.toLocaleString() + '</span>' +
-      '<span style="color:var(--text2)">━ ' + st.flat.toLocaleString() + '</span>' +
+  return '' +
+    '<div class="breadth-seg">' +
+      // 라벨 + 강도(%·강세/약세)
+      '<div style="display:flex;align-items:center;gap:6px;white-space:nowrap">' +
+        '<span style="font-size:12px;font-weight:700;color:' + color + '">' + label + '</span>' +
+        '<span style="font-size:12px;font-weight:800;color:' + strengthClr + '">' +
+          risePct.toFixed(0) + '% <span style="font-size:10px;font-weight:600">' + strengthLabel + '</span>' +
+        '</span>' +
+      '</div>' +
+      // 상승/보합/하락 3색 비율 바
+      '<div style="flex:1;min-width:56px;height:7px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.08);display:flex">' +
+        '<div style="width:' + risePct.toFixed(1) + '%;background:var(--red);transition:width .5s ease"></div>' +
+        '<div style="width:' + flatPct.toFixed(1) + '%;background:rgba(255,255,255,0.06)"></div>' +
+        '<div style="flex:1;background:var(--blue)"></div>' +
+      '</div>' +
+      // 등락 종목수 (+ 전체는 평균)
+      '<div style="display:flex;gap:9px;font-size:11px;white-space:nowrap">' +
+        '<span style="color:var(--red);font-weight:700">▲ ' + st.rise.toLocaleString() + '</span>' +
+        '<span style="color:var(--blue);font-weight:700">▼ ' + st.fall.toLocaleString() + '</span>' +
+        '<span style="color:var(--text2)">━ ' + st.flat.toLocaleString() + '</span>' +
+        avgHtml +
+      '</div>' +
     '</div>';
 }
 
@@ -90,54 +85,15 @@ async function loadMarketOverview(maxDate) {
   const kospi  = mkStat('KOSPI');
   const kosdaq = mkStat('KOSDAQ');
 
-  // ── 전체 요약 카드 ────────────────────────────────────────────
-  const totalEl = document.getElementById('inv-total-summary');
-  if (totalEl) {
-    const risePct = (rise / enriched.length * 100).toFixed(0);
-    totalEl.innerHTML =
-      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%">' +
-        '<div id="inv-mkt-kospi"  style="padding:10px 14px;background:var(--bg3);border-radius:8px"></div>' +
-        '<div id="inv-mkt-kosdaq" style="padding:10px 14px;background:var(--bg3);border-radius:8px"></div>' +
-        '<div id="inv-mkt-total"  style="padding:10px 14px;background:var(--bg3);border-radius:8px"></div>' +
-      '</div>';
-
-    // 전체 종목 카드 직접 렌더링
-    const totalCard = document.getElementById('inv-mkt-total');
-    if (totalCard) {
-      const _rPct = rise / enriched.length * 100;
-      const _fPct = flat / enriched.length * 100;
-      const _sClr = _rPct >= 60 ? 'var(--red)' : _rPct <= 40 ? 'var(--blue)' : 'var(--text3)';
-      const _sLbl = _rPct >= 65 ? '강세' : _rPct >= 55 ? '우세' : _rPct >= 45 ? '중립' : _rPct >= 35 ? '열세' : '약세';
-      totalCard.innerHTML =
-        '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px">' +
-          '<span style="font-size:12px;font-weight:700;color:var(--text2);white-space:nowrap">전체</span>' +
-          '<span style="font-size:12px;font-weight:800;color:' + _sClr + ';white-space:nowrap">' +
-            _rPct.toFixed(0) + '% <span style="font-size:10px;font-weight:600">' + _sLbl + '</span>' +
-          '</span>' +
-        '</div>' +
-        '<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:7px">' +
-          '<span style="font-size:15px;font-weight:800">' + enriched.length.toLocaleString() + '<span style="font-size:11px;font-weight:600;color:var(--text2)">개</span></span>' +
-          '<span style="font-size:12px;font-weight:700;color:' + chgColor(avg) + ';white-space:nowrap">평균 ' + chgStr(avg) + '</span>' +
-        '</div>' +
-        '<div style="height:7px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.08);margin-bottom:6px;display:flex">' +
-          '<div style="width:' + _rPct.toFixed(1) + '%;background:var(--red);transition:width .5s ease"></div>' +
-          '<div style="width:' + _fPct.toFixed(1) + '%;background:rgba(255,255,255,0.06)"></div>' +
-          '<div style="flex:1;background:var(--blue)"></div>' +
-        '</div>' +
-        '<div style="display:flex;gap:12px;font-size:11px">' +
-          '<span style="color:var(--red);font-weight:700">▲ ' + rise.toLocaleString() + '</span>' +
-          '<span style="color:var(--blue);font-weight:700">▼ ' + fall.toLocaleString() + '</span>' +
-          '<span style="color:var(--text2)">━ ' + flat.toLocaleString() + '</span>' +
-        '</div>';
-    }
+  // ── 시장 breadth strip (코스피·코스닥·전체) ───────────────────
+  // 제목 아래 얇은 한 줄. 지수값/등락률은 탑바 스트립이 담당(중복 제거).
+  const stripEl = document.getElementById('inv-breadth-strip');
+  if (stripEl) {
+    stripEl.innerHTML =
+      _breadthSeg('코스피', '#2AABEE', kospi) +
+      _breadthSeg('코스닥', '#2dce89', kosdaq) +
+      _breadthSeg('전체',   'var(--text2)', { total: enriched.length, rise, fall, flat }, avg);
   }
-
-  // loadMacroData()가 이미 window._macroData에 저장 — 재조회 불필요
-  const _md = window._macroData || {};
-  const _kospiVal = _md.kospi ?? null,    _kospiChg  = _md.kospi_chg  ?? null;
-  const _kosdaqVal = _md.kosdaq ?? null,  _kosdaqChg = _md.kosdaq_chg ?? null;
-  _mkCard('inv-mkt-kospi',  '코스피', kospi,  '#2AABEE', _kospiVal,  _kospiChg);
-  _mkCard('inv-mkt-kosdaq', '코스닥', kosdaq, '#2dce89', _kosdaqVal, _kosdaqChg);
 
   // ── 산업별 + 세부섹터별 집계 (모니터링 종목만) ─────────────────
   // industryMap 키 = 모니터링 종목 코드만 포함 (getIndustryMap is_monitored=true 필터)

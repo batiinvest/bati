@@ -39,7 +39,7 @@ async function loadMacroData() {
 
   // (정리됨) 매크로 카드 그리드·위험 스트립·증시동향 헤더 배너(inv-banner-content) 모두 제거 —
   // 매크로 지수는 전역 탑바 스트립·시장 온도계 6세부요소·Zone A 브리핑 위험배지가 담당(중복 제거).
-  // 증시동향 카드는 inv-total-summary(시장별 등락)만 표시.
+  // 증시동향 카드는 제거 → 코스피·코스닥·전체 상승비율은 제목 아래 breadth strip(inv-breadth-strip)이 담당.
 
   // 탑바 시장 스트립 갱신
   _renderTopbarStrip();
