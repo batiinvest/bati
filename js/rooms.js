@@ -215,7 +215,7 @@ function autoGenIntro(forceNew = false) {
   const b = (t) => isHTML ? `<b>${t}</b>` : `*${t}*`;
 
   // ── 헤더 ────────────────────────────────────────────────────────────────────
-  const buymeUrl = 'https://buymeacoffee.com/batiinvest';
+  const buymeUrl = LITTLY_DONATE_URL;
   const header = [
     '안녕하세요, 바티입니다.',
     '',
@@ -319,9 +319,9 @@ function autoGenIntro(forceNew = false) {
     lines.push('···········');
 
     if (paid.length) {
-      lines.push('[🔒 유료 입장 대상]');
+      lines.push('[🔒 유료 입장 — 후원 후 입장]');
       chunkLine(paid).forEach(row =>
-        lines.push(row.map(r => lnk(r.name, r.link)).join('   '))
+        lines.push(row.map(r => lnk(r.name, LITTLY_DONATE_URL)).join('   '))
       );
     }
     if (open.length) {
@@ -373,7 +373,8 @@ function autoGenNotice() {
   // 산업별 그룹화
   const grouped = {};
   rooms.forEach(r => {
-    if (!grouped[r.cat]) grouped[r.cat] = { full: [], open: [] };
+    if (!grouped[r.cat]) grouped[r.cat] = { paid: [], full: [], open: [] };
+    if (r.status === 'paid') { grouped[r.cat].paid.push(r); return; }
     const isFull = r.status === 'full' || (r.members||0) >= (r.max_members||1000);
     grouped[r.cat][isFull ? 'full' : 'open'].push(r);
   });
@@ -386,6 +387,9 @@ function autoGenNotice() {
       ? `[${r.name}](${r.link})`
       : `<a href="${r.link}">${r.name}</a>`;
   };
+  const paidLink = (r) => parseMode === 'Markdown'
+    ? `[${r.name}](${LITTLY_DONATE_URL})`
+    : `<a href="${LITTLY_DONATE_URL}">${r.name}</a>`;
   const bold = (t) => parseMode === 'Markdown' ? `*${t}*` : `<b>${t}</b>`;
 
   const lines = [];
@@ -416,13 +420,14 @@ function autoGenNotice() {
 
   // ── 산업별 채팅방 목록 ──
   const cats = Object.keys(grouped).sort((a,b) =>
-    (grouped[b].full.length + grouped[b].open.length) - (grouped[a].full.length + grouped[a].open.length)
+    (grouped[b].paid.length + grouped[b].full.length + grouped[b].open.length) -
+    (grouped[a].paid.length + grouped[a].full.length + grouped[a].open.length)
   );
 
   cats.forEach((cat, idx) => {
-    const { full, open } = grouped[cat];
+    const { paid, full, open } = grouped[cat];
     const emoji = INDUSTRY_EMOJI[cat] || '📌';
-    const total = full.length + open.length;
+    const total = paid.length + full.length + open.length;
     const industryRoom = A.rooms.find(r => r.room_type === 'industry' && r.cat === cat);
 
     if (idx > 0) lines.push('');
@@ -436,6 +441,9 @@ function autoGenNotice() {
     }
     lines.push('');
 
+    paid.sort((a,b) => a.name.localeCompare(b.name,'ko')).forEach(r => {
+      lines.push(`🔒 ${paidLink(r)}`);
+    });
     full.sort((a,b) => a.name.localeCompare(b.name,'ko')).forEach(r => {
       lines.push(`🔴 ${link(r)}`);
     });
@@ -451,7 +459,7 @@ function autoGenNotice() {
   lines.push('✅ ' + bold('입장 안내'));
   lines.push('· 승인 후 1~2일 내 순차 입장');
   lines.push('· 3일 이상 미접속 시 자동 퇴장');
-  lines.push('· 후원자 우선 입장: buymeacoffee.com/batiinvest');
+  lines.push('· 유료방 입장 후원: ' + LITTLY_DONATE_URL);
   lines.push('');
   lines.push('📬 신규 채팅방 개설 문의: @BatiInvestment');
 
