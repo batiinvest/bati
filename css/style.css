@@ -58,7 +58,7 @@ body { background:var(--bg); color:var(--text); font-family:'Pretendard','Apple 
 .nav-item { display:flex; align-items:center; gap:10px; padding:9px 1.25rem; cursor:pointer; font-size:13px; color:var(--text); border-left:2px solid transparent; transition:all .15s; user-select:none; opacity:.7; }
 .nav-item:hover { color:var(--text); background:rgba(255,255,255,.05); opacity:1; }
 .nav-item.active { color:var(--tg); background:rgba(42,171,238,.08); border-left-color:var(--tg); font-weight:500; }
-.nav-item.disabled { opacity:.3; cursor:not-allowed; pointer-events:none; }
+.nav-item.disabled { opacity:.3 !important; cursor:not-allowed; pointer-events:none; }
 .nav-item svg { width:15px; height:15px; flex-shrink:0; opacity:.8; }
 .nav-badge { margin-left:auto; background:var(--tg); color:#fff; font-size:10px; font-weight:700; padding:1px 6px; border-radius:100px; }
 .nav-role { margin-left:auto; font-size:10px; padding:1px 7px; border-radius:100px; font-weight:600; }

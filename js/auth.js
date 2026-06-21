@@ -135,15 +135,21 @@ function showDashboard() {
     document.getElementById('nav-team').classList.add('disabled');
     document.getElementById('nav-botconfig').classList.add('disabled');
   }
-  // viewer는 오늘의 시황 외 모든 메뉴 잠금
+  // viewer는 '오늘의 시황'만 노출 — 나머지 메뉴·섹션 전부 숨김
   if (isViewer()) {
     document.querySelectorAll('.nav-item[data-page]').forEach(el => {
-      const page = el.dataset.page;
-      if (!VIEWER_PAGES.includes(page)) {
-        el.classList.add('disabled');
-        el.title = '관리자 승인 후 이용 가능합니다';
-      }
+      if (!VIEWER_PAGES.includes(el.dataset.page)) el.classList.add('hidden');
     });
+    // 보이는 항목이 하나도 없는 섹션 헤더(DISCOVER/RESEARCH/PORTFOLIO/ADMIN) 숨김
+    document.querySelectorAll('.nav .nav-sec').forEach(sec => {
+      let hasVisible = false;
+      for (let n = sec.nextElementSibling; n && !n.classList.contains('nav-sec'); n = n.nextElementSibling) {
+        if (n.matches('.nav-item') && !n.classList.contains('hidden')) hasVisible = true;
+        if (n.querySelector && n.querySelector('.nav-item:not(.hidden)')) hasVisible = true;
+      }
+      if (!hasVisible) sec.classList.add('hidden');
+    });
+    document.getElementById('nav-admin-items')?.classList.add('hidden');
     // 상단 버튼 전체 숨김
     ['btn-notice','btn-add','sync-btn'].forEach(id => {
       const el = document.getElementById(id);
