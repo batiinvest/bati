@@ -572,6 +572,11 @@ async function refreshInvestment() {
             key: 'run_market_all_flag', value: String(Date.now()),
             description: '대시보드 전체 종목 시장 데이터 수집 트리거'
           }, { onConflict: 'key' }));
+          // 종목별 외국인·기관 순매수 확정(inquire-investor) 즉시 수집
+          upserts.push(sb.from('app_config').upsert({
+            key: 'run_flow_flag', value: String(Date.now()),
+            description: '기관/외국인 수급(랭킹+종목별 투자자) 수동 수집 트리거'
+          }, { onConflict: 'key' }));
         }
         await Promise.all(upserts);
         if (isWeekend) {
