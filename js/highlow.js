@@ -58,11 +58,12 @@ async function loadHighLow() {
     const allRows = [];
     for (let i = 0; i < monCodes.length; i += 500) {
       const { data } = await sb.from('market_data')
-        .select('stock_code,corp_name,market,price,price_change_rate,market_cap,w52_high,w52_low')
+        .select('stock_code,corp_name,market,price,price_change_rate,market_cap,w52_high,w52_low,volume')
         .eq('base_date', maxDate)
         .not('w52_high', 'is', null)
         .not('w52_low',  'is', null)
         .not('price',    'is', null)
+        .gt('volume', 0)            // 거래정지·무거래 종목 제외 (정지가 고정 시 52주 고가=저가가 되어 양쪽에 동시 노출되는 버그 방지)
         .in('stock_code', monCodes.slice(i, i + 500))
         .order('market_cap', { ascending: false });
       if (data) allRows.push(...data);
@@ -75,12 +76,17 @@ async function loadHighLow() {
       const industry = indMap[r.stock_code] || '';
       const rec = { ...r, industry };
 
-      if (w52_high > 0 && price >= w52_high * 0.95) {
+      const nearHigh = w52_high > 0 && price >= w52_high * 0.95;
+      const nearLow  = w52_low  > 0 && price <= w52_low  * 1.05;
+      // 52주 고가·저가가 거의 같아(정지가 고정 등) 양쪽을 동시 충족하면 비정상 → 양쪽 제외
+      if (nearHigh && nearLow) continue;
+
+      if (nearHigh) {
         rec._pctFromHigh = ((price - w52_high) / w52_high * 100);  // 0 or negative = 돌파
         rec._proximity   = price / w52_high;                         // 1.0 = 신고가
         high.push(rec);
       }
-      if (w52_low > 0 && price <= w52_low * 1.05) {
+      if (nearLow) {
         rec._pctFromLow = ((price - w52_low) / w52_low * 100);      // 0 or positive = 반등
         rec._proximity  = price / w52_low;                           // 1.0 = 신저가
         low.push(rec);
