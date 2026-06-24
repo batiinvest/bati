@@ -64,15 +64,7 @@ async function loadIndTrendChart() {
   // ── 산업별 최종 누적 수익률 계산 (범례 정렬 + 상/하위 필터용) ──
   const indFinalReturn = {}; // { '반도체': 3.42, ... }
   industries.forEach(ind => {
-    let cum = 100;
-    dateList.forEach(date => {
-      const chgs = indDates[ind]?.[date];
-      if (chgs?.length) {
-        const avg = chgs.reduce((s,v) => s+v, 0) / chgs.length;
-        cum = cum * (1 + avg / 100);
-      }
-    });
-    indFinalReturn[ind] = parseFloat((cum - 100).toFixed(2));
+    indFinalReturn[ind] = indCumReturn(indDates[ind], dateList);  // config.js 공용 헬퍼
   });
   window._krIndFinalReturn = indFinalReturn;  // market-insight.js에서 재활용
 
@@ -128,17 +120,7 @@ async function loadIndTrendChart() {
   // ── 날짜별 누적 지수 계산 (공통 시작점 100) ──
   const datasets = selectedInds.map((ind) => {
     const color = IND_COLORS[ind] || IND_DEFAULT_COLORS[industries.indexOf(ind) % IND_DEFAULT_COLORS.length];
-    let cumulative = 100;
-    let started = false;
-    const data = dateList.map(date => {
-      const chgs = indDates[ind]?.[date];
-      if (chgs?.length) {
-        started = true;
-        const avg = chgs.reduce((s,v) => s+v, 0) / chgs.length;
-        cumulative = cumulative * (1 + avg / 100);
-      }
-      return started ? parseFloat(cumulative.toFixed(2)) : null;
-    });
+    const data = indCumIndexSeries(indDates[ind], dateList);  // config.js 공용 헬퍼
 
     const _pin = window._indPinned;
     const active = !_pin || ind === _pin;

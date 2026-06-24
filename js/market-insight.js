@@ -87,12 +87,7 @@ async function buildInsightData() {
     const calcReturn = (days) => {
       const slice = dates.slice(-days);
       if (!slice.length) return null;
-      let cum = 100;
-      slice.forEach(date => {
-        const chgs = indDates[ind][date] || [];
-        if (chgs.length) cum *= (1 + chgs.reduce((s,v)=>s+v,0)/chgs.length/100);
-      });
-      return parseFloat((cum - 100).toFixed(2));
+      return indCumReturn(indDates[ind], slice);  // config.js 공용 헬퍼
     };
     krPeriod[ind] = { d1: calcReturn(1), d5: calcReturn(5), d20: calcReturn(20) };
   });

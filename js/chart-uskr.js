@@ -97,15 +97,8 @@ async function loadUskrChart() {
   // Step4: 날짜 목록 — KR 실제 거래일 기준 (loadIndTrendChart와 동일)
   const dateList = tradingDays;
 
-  // ── KR 누적 지수 ──
-  const makeKrData = () => {
-    let cum = 100, started = false;
-    return dateList.map(date => {
-      const chgs = krDates[date];
-      if (chgs?.length) { started = true; cum *= (1 + chgs.reduce((s,v)=>s+v,0)/chgs.length/100); }
-      return started ? parseFloat(cum.toFixed(2)) : null;
-    });
-  };
+  // ── KR 누적 지수 (config.js 공용 헬퍼) ──
+  const makeKrData = () => indCumIndexSeries(krDates, dateList);
 
   // ── US 누적 지수 빌더 ──
   const makeUsData = (tickerRows) => {
