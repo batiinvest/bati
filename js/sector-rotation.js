@@ -76,7 +76,7 @@ async function loadSectorRotation() {
     let sdsByInd = {};
     if (_srSdsDate) {
       const { data: rows } = await sb.from('sector_daily_summary')
-        .select('industry,avg_chg_5d,avg_chg_20d,foreign_net_5d,inst_net_5d,foreign_net_20d,inst_net_20d,us_chg_5d,us_chg_20d,signal_5d,signal_20d,stock_count')
+        .select('industry,avg_chg_1d,avg_chg_5d,avg_chg_20d,foreign_net_1d,inst_net_1d,foreign_net_5d,inst_net_5d,foreign_net_20d,inst_net_20d,us_chg_1d,us_chg_5d,us_chg_20d,signal_1d,signal_5d,signal_20d,stock_count')
         .eq('base_date', _srSdsDate);
       (rows || []).forEach(r => { sdsByInd[r.industry] = r; });
     }
@@ -115,6 +115,14 @@ function _buildSrRows(sdsByInd) {
       ind,
       color: (IND_COLORS || {})[ind] || '#8898aa',
       today: { ret, rs, tv, rise, fall, flat, total },
+      d1: {
+        ret:  sds?.avg_chg_1d ?? null,
+        flow: flowOf(sds?.foreign_net_1d, sds?.inst_net_1d),
+        fnet: sds?.foreign_net_1d ?? null,
+        inet: sds?.inst_net_1d ?? null,
+        us:   sds?.us_chg_1d ?? null,
+        sig:  sds?.signal_1d ?? null,
+      },
       d5: {
         ret:  sds?.avg_chg_5d ?? null,
         flow: flowOf(sds?.foreign_net_5d, sds?.inst_net_5d),
@@ -170,7 +178,7 @@ function renderSectorRotation() {
       : '수급 집계 대기';
   }
 
-  const pk = _srPeriod === 20 ? 'd20' : 'd5';
+  const pk = _srPeriod === 20 ? 'd20' : _srPeriod === 1 ? 'd1' : 'd5';
 
   el.innerHTML =
     _srSummary(_srRows, pk) +

@@ -285,6 +285,7 @@ function pInvestment() {
         <span style="font-size:10px;color:var(--text2);font-weight:400">자금이 어디로 — 등락·거래대금·수급·국면</span>
         <span id="sr-date" style="font-size:10px;color:var(--text2);margin-left:auto"></span>
         <div style="display:flex;gap:4px">
+          <button class="chip"        data-sr-period="1"  onclick="switchSrPeriod(1)"  style="font-size:11px;padding:2px 8px">1일</button>
           <button class="chip active" data-sr-period="5"  onclick="switchSrPeriod(5)"  style="font-size:11px;padding:2px 8px">5일</button>
           <button class="chip"        data-sr-period="20" onclick="switchSrPeriod(20)" style="font-size:11px;padding:2px 8px">20일</button>
         </div>
