@@ -172,23 +172,7 @@ function pInvestment() {
         </div>
       </div>
 
-      <!-- 산업 강도 매트릭스 (미니) — 좌측 컨텍스트 열 -->
-      <div id="im-card" class="card" style="margin-bottom:0">
-        <div class="card-header" style="flex-wrap:wrap;gap:6px">
-          <span class="card-title">${_ICO.grid}산업 강도 매트릭스</span>
-          <span style="font-size:10px;color:var(--text2)" id="im-date"></span>
-          <div style="display:flex;gap:4px;margin-left:auto">
-            ${[{p:1,l:'1일'},{p:5,l:'5일'},{p:20,l:'20일'}].map(({p,l})=>`
-              <button class="chip ${p===5?'active':''}" data-im-period="${p}"
-                onclick="switchImPeriod(${p})" style="font-size:11px;padding:2px 8px">${l}</button>
-            `).join('')}
-          </div>
-        </div>
-        <div style="font-size:11px;color:var(--text2);padding:4px 12px 2px">
-          US·KR 섹터 성과 비교 — 미국이 먼저 움직이면 한국이 따라온다
-        </div>
-        <div id="im-body">${_skelList(11, true)}</div>
-      </div>
+      <!-- (산업 강도 매트릭스 → '산업별 수급동향' 보드의 US·KR·선행 컬럼으로 통합) -->
 
     </div>
 
@@ -679,12 +663,11 @@ async function loadInvestment() {
   renderVolumeLeaders();
   renderIdeaSurge(); // '오늘의 아이디어' 급등 탭
 
-  // Phase 2 — 주도주 탐색기 + 백테스트 + 산업별 수급동향 + 산업 강도 매트릭스
+  // Phase 2 — 주도주 탐색기 + 백테스트 + 산업별 수급동향(산업 강도 매트릭스 통합)
   loadLeadingStocks();
   loadLeadingBacktest();
-  loadSectorRotation();  // 산업별 수급동향(로테이션 맵+보드) — window._indMapData(신선)+sector_daily_summary 조인
+  loadSectorRotation();  // 산업별 수급동향(로테이션 맵+보드, US·KR·선행 컬럼 통합) — _indMapData(신선)+sector_daily_summary
   loadStockFlow();
-  loadIndustryMatrix();
 
   // 모니터링 종목 목록 — getIndustryMap() 캐시 재활용 (companies 중복 조회 방지)
   const industryMap = await getIndustryMap();

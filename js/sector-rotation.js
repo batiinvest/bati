@@ -44,13 +44,13 @@ function _srPhaseOf(ret, flow) {
   return _SR_PHASE.neutral;
 }
 
-// US 선행 신호 아이콘 (industry-matrix와 동일 의미)
+// US 선행 신호 (백엔드 collect_sector_summary.detect_signal 탐지) — US·KR·선행 컬럼에 표시
 const _SR_SIG = {
-  us_lead_bull: { icon: '⚡', color: '#2dce89', tip: 'US 선행 상승 — KR 추격 기대' },
-  us_lead_bear: { icon: '⚠️', color: '#f5365c', tip: 'US 선행 하락 — KR 낙폭 확대 경고' },
-  kr_outrun:    { icon: '🚀', color: '#ffd600', tip: 'KR 독주 — 과열 주의' },
-  co_bull:      { icon: '🟢', color: '#2dce89', tip: 'US·KR 동반 강세' },
-  co_bear:      { icon: '🔴', color: '#f5365c', tip: 'US·KR 동반 약세' },
+  us_lead_bull: { icon: '⚡', color: '#2dce89', label: 'KR 추격 기대', tip: 'US 선행 상승 — KR 추격 기대' },
+  us_lead_bear: { icon: '⚠️', color: '#f5365c', label: 'KR 하락 경고', tip: 'US 선행 하락 — KR 낙폭 확대 경고' },
+  kr_outrun:    { icon: '🚀', color: '#ffd600', label: 'KR 독주',     tip: 'KR 독주 — 과열 주의' },
+  co_bull:      { icon: '🟢', color: '#2dce89', label: '동조 강세',   tip: 'US·KR 동반 강세' },
+  co_bear:      { icon: '🔴', color: '#f5365c', label: '동조 약세',   tip: 'US·KR 동반 약세' },
 };
 
 // 거래대금 포맷 (조/천억/억)
@@ -328,7 +328,7 @@ function _srTable(rows, pk) {
   const th = (c, label, extra = '') =>
     `<span onclick="_srSort('${c}')" style="cursor:pointer;user-select:none;font-size:10px;${extra};color:${_srSortCol === c ? 'var(--tg)' : 'var(--text2)'}">${label}${arrow(c)}</span>`;
 
-  const COLS = '64px 70px 78px 1fr 84px 52px';
+  const COLS = '58px 64px 64px 1fr 80px 118px 50px';
 
   const header =
     `<div style="display:grid;grid-template-columns:${COLS};gap:6px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--bg2)">
@@ -337,6 +337,7 @@ function _srTable(rows, pk) {
       ${th('breadth', '상승종목', 'text-align:center')}
       ${th('tv', '거래대금', 'text-align:left')}
       ${th('flow', `수급 ${pLbl}`, 'text-align:right')}
+      <span style="font-size:10px;color:var(--tg);text-align:left">US·KR ${pLbl}·선행</span>
       ${th('phase', '국면', 'text-align:center')}
     </div>`;
 
@@ -407,12 +408,22 @@ function _srTable(rows, pk) {
       flowCell = `<div style="text-align:right;color:var(--text3);font-size:11px">집계중</div>`;
     }
 
-    // 국면 배지 (+ US 선행 신호)
+    // US·KR n일 등락 + 선행 신호 (산업 강도 매트릭스 통합 컬럼)
     const sig = fp.sig ? _SR_SIG[fp.sig] : null;
-    const sigIcon = sig ? `<span title="${sig.tip}" style="font-size:10px">${sig.icon}</span>` : '';
+    const uskrCell = (fp.us != null || fp.ret != null)
+      ? `<div style="text-align:right;line-height:1.35">
+           <div style="font-size:11px;font-variant-numeric:tabular-nums">
+             <span style="color:var(--text2)">US</span> <span style="color:${fp.us != null ? chgColor(fp.us) : 'var(--text3)'};font-weight:600">${fp.us != null ? fmtPct(fp.us) : '—'}</span>
+             <span style="color:var(--text3);margin:0 1px">·</span>
+             <span style="color:var(--text2)">KR</span> <span style="color:${fp.ret != null ? chgColor(fp.ret) : 'var(--text3)'};font-weight:600">${fp.ret != null ? fmtPct(fp.ret) : '—'}</span>
+           </div>
+           ${sig ? `<div title="${sig.tip}" style="font-size:9px;color:${sig.color}">${sig.icon} ${sig.label}</div>` : ''}
+         </div>`
+      : `<div style="text-align:right;color:var(--text3);font-size:11px">—</div>`;
+
+    // 국면 배지
     const phaseCell = `<div style="text-align:center" title="${ph.tip}">
         <span style="font-size:10px;font-weight:700;color:${ph.color};background:${ph.bg};border-radius:4px;padding:1px 6px;white-space:nowrap">${ph.label}</span>
-        ${sigIcon}
       </div>`;
 
     return `<div id="sr-row-${r.ind}" style="display:grid;grid-template-columns:${COLS};gap:6px;align-items:center;padding:7px 12px;border-bottom:1px solid var(--border);transition:background .25s">
@@ -425,6 +436,7 @@ function _srTable(rows, pk) {
         ${breadthCell}
         ${tvCell}
         ${flowCell}
+        ${uskrCell}
         ${phaseCell}
       </div>`;
   }).join('');
