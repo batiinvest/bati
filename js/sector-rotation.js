@@ -280,20 +280,38 @@ function _srQuadrant(rows, pk) {
     `<text x="${x0}" y="${cy - 4}" font-size="9" fill="var(--text3)" text-anchor="start">← 유출</text>` +
     `<text x="${cx + 4}" y="${y0 + 9}" font-size="9" fill="var(--text3)" text-anchor="start">▲ 등락률</text>`;
 
-  // 버블 + 라벨
-  const bubbles = pts.map(p => {
-    const px = mapX(p[pk].flow), py = mapY(p[pk].ret);
-    const r  = rOf(p.today.tv);
-    const labelLeft = px > x0 + pw * 0.72;   // 우측 가까우면 라벨 왼쪽
-    const lx = labelLeft ? px - r - 3 : px + r + 3;
-    const anchor = labelLeft ? 'end' : 'start';
+  // 버블 + 라벨 (라벨 수직 충돌 회피 + 리더선 — 클러스터에서도 읽히게)
+  const cxC = mapX(0);
+  const items = pts.map(p => {
+    const px = mapX(p[pk].flow), py = mapY(p[pk].ret), r = rOf(p.today.tv);
+    return { p, px, py, r, left: px <= cxC };   // 중심 왼쪽→라벨 왼쪽 / 오른쪽→오른쪽
+  });
+  const GAP = 11.5, topY = y0 + 6, botY = y1 - 2;
+  ['L', 'R'].forEach(side => {
+    const g = items.filter(it => it.left === (side === 'L')).sort((a, b) => a.py - b.py);
+    let last = -Infinity;
+    g.forEach(it => { it.ly = Math.max(it.py + 3, last + GAP); last = it.ly; });
+    const over = last - botY;
+    if (over > 0) g.forEach(it => { it.ly -= over; });        // 하단 넘치면 그룹 전체 위로
+    let lo = topY;
+    g.forEach(it => { if (it.ly < lo) it.ly = lo; lo = it.ly + GAP; });   // 상단 클램프
+  });
+  const bubbles = items.map(it => {
+    const { p, px, py, r, left, ly } = it;
+    const edgeX = left ? px - r : px + r;
+    const lx = left ? edgeX - 3 : edgeX + 3;
+    const anchor = left ? 'end' : 'start';
+    const leader = Math.abs(ly - 3 - py) > 5
+      ? `<line x1="${edgeX.toFixed(1)}" y1="${py.toFixed(1)}" x2="${lx.toFixed(1)}" y2="${(ly - 3).toFixed(1)}" stroke="${p.color}" stroke-width="0.8" opacity=".45"/>`
+      : '';
     const tip = `${p.ind} · ${_srPeriod}일 등락 ${fmtPct(p[pk].ret)} · 수급 ${fmtNet(p[pk].flow)}`;
     return `<g style="cursor:pointer" onclick="_srFocus('${p.ind}')"><title>${tip}</title>
+      ${leader}
       <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${r.toFixed(1)}"
-        fill="${p.color}" fill-opacity=".82" stroke="${p.color}" stroke-width="1.2"/>
-      <text x="${lx.toFixed(1)}" y="${(py + 3).toFixed(1)}" font-size="10" font-weight="700"
+        fill="${p.color}" fill-opacity=".8" stroke="${p.color}" stroke-width="1.2"/>
+      <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="9.5" font-weight="700"
         text-anchor="${anchor}" fill="var(--text1)"
-        style="paint-order:stroke;stroke:var(--bg2);stroke-width:2.5px">${p.ind}</text>
+        style="paint-order:stroke;stroke:var(--bg2);stroke-width:3px">${p.ind}</text>
     </g>`;
   }).join('');
 
@@ -336,7 +354,7 @@ function _srTable(rows, pk) {
   const th = (c, label, extra = '') =>
     `<span onclick="_srSort('${c}')" style="cursor:pointer;user-select:none;font-size:10px;${extra};color:${_srSortCol === c ? 'var(--tg)' : 'var(--text2)'}">${label}${arrow(c)}</span>`;
 
-  const COLS = '58px 64px 64px 1fr 80px 118px 50px';
+  const COLS = '84px 62px 62px 1fr 78px 116px 48px';
 
   const header =
     `<div style="display:grid;grid-template-columns:${COLS};gap:6px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--bg2)">
@@ -435,10 +453,10 @@ function _srTable(rows, pk) {
       </div>`;
 
     return `<div id="sr-row-${r.ind}" style="display:grid;grid-template-columns:${COLS};gap:6px;align-items:center;padding:7px 12px;border-bottom:1px solid var(--border);transition:background .25s">
-        <div style="display:flex;align-items:center;gap:5px;min-width:0">
-          <span style="width:7px;height:7px;border-radius:50%;background:${r.color};flex-shrink:0"></span>
-          <span style="font-size:12px;font-weight:600;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.ind}</span>
-          <span style="font-size:9px;color:var(--text3);flex-shrink:0">${r.n}</span>
+        <div style="display:flex;align-items:center;gap:4px;min-width:0">
+          <span style="width:6px;height:6px;border-radius:50%;background:${r.color};flex-shrink:0"></span>
+          <span style="font-size:11.5px;font-weight:600;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.ind}</span>
+          <span style="font-size:8.5px;color:var(--text3);flex-shrink:0">${r.n}</span>
         </div>
         ${retCell}
         ${breadthCell}
