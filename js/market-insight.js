@@ -65,17 +65,26 @@ async function buildInsightData() {
       .limit(600);
 
     if (usRows?.length) {
-      const dates = [...new Set(usRows.map(r => r.base_date))].sort().reverse();
-      const latestDate = dates[0];
-      const latest = usRows.filter(r => r.base_date === latestDate);
+      const dates = [...new Set(usRows.map(r => r.base_date))].sort();   // 오름차순(오래된→최신)
+      const last5 = dates.slice(-5);
       const uskrMap = window.USKR_MAP || {};
       INDUSTRIES.forEach(ind => {
         const tickers = uskrMap[ind] || [];
-        const d1Vals  = latest
-          .filter(r => r.industry === ind && tickers.includes(r.ticker) && r.chg_pct != null)
-          .map(r => r.chg_pct);
-        if (!d1Vals.length) return;
-        usIndAvg[ind] = { d1: d1Vals.reduce((s,v)=>s+v,0) / d1Vals.length };
+        // 날짜별 산업 평균 등락 묶음 {date:[chg,...]}
+        const dayMap = {};
+        usRows.forEach(r => {
+          if (r.industry === ind && tickers.includes(r.ticker) && r.chg_pct != null && last5.includes(r.base_date))
+            (dayMap[r.base_date] = dayMap[r.base_date] || []).push(r.chg_pct);
+        });
+        const ds = Object.keys(dayMap).sort();
+        if (!ds.length) return;
+        const d1arr = dayMap[ds[ds.length - 1]];
+        const d1 = +(d1arr.reduce((s, v) => s + v, 0) / d1arr.length).toFixed(2);   // US 당일(선행 신호)
+        // US 5일 누적 — KR과 동일한 복리 누적(config.js indCumReturn) 사용
+        const d5 = (typeof indCumReturn === 'function')
+          ? indCumReturn(dayMap, ds)
+          : +ds.reduce((s, d) => s + dayMap[d].reduce((a, b) => a + b, 0) / dayMap[d].length, 0).toFixed(2);
+        usIndAvg[ind] = { d1, d5 };
       });
     }
   } catch(e) { console.warn('[Insight] US ETF 조회 오류:', e); }
@@ -158,19 +167,22 @@ function analyzeMarket({ m, krR, krPeriod, usIndAvg }) {
     if (diff <= -THR.RANK_CHG) krFalling.push({ ind, diff: Math.abs(diff) });
   });
 
+  // US→KR 선행/후행은 5일 추세로 분류(단일일 노이즈 제거). 표시는 5일 + US 당일(선행 신호).
+  const S5 = 1.5;   // 5일 누적 강세/약세 임계 (d1 ±0.5의 약 3배)
   const crossSignals = [];
   INDUSTRIES.forEach(ind => {
-    const usChg = usIndAvg[ind]?.d1 ?? null;
-    const krChg = krPeriod[ind]?.d1 ?? null;
+    const usD1  = usIndAvg[ind]?.d1 ?? null;
+    const usChg = usIndAvg[ind]?.d5 ?? null;   // usChg = US 5일 (분류·문구 기준)
+    const krChg = krPeriod[ind]?.d5 ?? null;   // krChg = KR 5일
     if (usChg == null || krChg == null) return;
-    if (usChg >= THR.STRONG && krChg <= -THR.STRONG)
-      crossSignals.push({ type: 'lag',           ind, usChg, krChg });
-    else if (usChg <= THR.WEAK && krChg >= THR.STRONG)
-      crossSignals.push({ type: 'decouple-risk', ind, usChg, krChg });
-    else if (usChg >= THR.STRONG && krChg >= THR.STRONG)
-      crossSignals.push({ type: 'sync-up',       ind, usChg, krChg });
-    else if (usChg <= THR.WEAK && krChg <= THR.WEAK)
-      crossSignals.push({ type: 'sync-down',     ind, usChg, krChg });
+    if (usChg >= S5 && krChg <= -S5)
+      crossSignals.push({ type: 'lag',           ind, usChg, krChg, usD1 });
+    else if (usChg <= -S5 && krChg >= S5)
+      crossSignals.push({ type: 'decouple-risk', ind, usChg, krChg, usD1 });
+    else if (usChg >= S5 && krChg >= S5)
+      crossSignals.push({ type: 'sync-up',       ind, usChg, krChg, usD1 });
+    else if (usChg <= -S5 && krChg <= -S5)
+      crossSignals.push({ type: 'sync-down',     ind, usChg, krChg, usD1 });
   });
 
   return {
@@ -335,8 +347,11 @@ async function _buildLiveSections() {
 
   // ── ① 핵심 흐름 데이터 ──
   const moodMap = { 'strong':'강세','mild-up':'소폭 상승','flat':'보합','mild-down':'소폭 하락','weak':'약세' };
-  const strongInds = a.krSorted.filter(ind => (a.krPeriod[ind]?.d1 ?? 0) > 0).slice(0, 4);
-  const weakInds   = [...a.krSorted].reverse().filter(ind => (a.krPeriod[ind]?.d1 ?? 0) < 0).slice(0, 4);
+  // 영향 업종도 5일 기준(전략과 일관) — 5일 누적 등락 상/하위
+  const krBy5d   = INDUSTRIES.filter(ind => a.krPeriod[ind]?.d5 != null)
+    .sort((x, y) => (a.krPeriod[y].d5 ?? 0) - (a.krPeriod[x].d5 ?? 0));
+  const strongInds = krBy5d.filter(ind => (a.krPeriod[ind]?.d5 ?? 0) > 0).slice(0, 4);
+  const weakInds   = [...krBy5d].reverse().filter(ind => (a.krPeriod[ind]?.d5 ?? 0) < 0).slice(0, 4);
 
   const syncUpSigs   = a.crossSignals.filter(s => s.type === 'sync-up');
   const lagSigs      = a.crossSignals.filter(s => s.type === 'lag');
@@ -349,7 +364,8 @@ async function _buildLiveSections() {
   if (lagSigs.length) {
     const best = lagSigs[0];
     const etf = USKR_LABELS[best.ind] || '';
-    opportunity = `${best.ind}${etf ? '('+etf+')' : ''} 후행 선점 — 미국 ${_fmt(best.usChg)} 선행·국내 ${_fmt(best.krChg)}, 수급 유입 시 진입`;
+    const d1Str = best.usD1 != null ? `(당일 ${_fmt(best.usD1)})` : '';
+    opportunity = `${best.ind}${etf ? '('+etf+')' : ''} 후행 선점 — 미국 5일 ${_fmt(best.usChg)}${d1Str} 선행·국내 5일 ${_fmt(best.krChg)} 후행, 수급 유입 시 진입`;
   } else if (syncUpSigs.length >= 2) {
     const inds = syncUpSigs.slice(0, 2).map(s => s.ind).join('·');
     opportunity = `${inds} 미·한 동반 강세 — 추세 추종 검토`;
@@ -368,7 +384,7 @@ async function _buildLiveSections() {
     risk = `VIX ${Number(m.vix).toFixed(0)} 공포 구간 — 신규 매수 중단, 헤지 확대`;
   } else if (riskSigs.length) {
     const s = riskSigs[0];
-    risk = `${s.ind} 디커플링 — 한국 ${_fmt(s.krChg)} 상승 중 미국 ${_fmt(s.usChg)} 부진, 차익 실현 우선`;
+    risk = `${s.ind} 디커플링 — 한국 5일 ${_fmt(s.krChg)} 상승 중 미국 5일 ${_fmt(s.usChg)} 부진, 차익 실현 우선`;
   } else if (syncDownSigs.length) {
     risk = `${syncDownSigs.map(s => s.ind).join('·')} 미·한 동반 약세 — 반등 매수 금지`;
   } else if (plungeStocks.length >= 2) {
