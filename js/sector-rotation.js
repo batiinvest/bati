@@ -183,10 +183,10 @@ function renderSectorRotation() {
   el.innerHTML =
     _srSummary(_srRows, pk) +
     `<div style="display:flex;flex-wrap:wrap;gap:0;align-items:stretch">
-       <div style="flex:1 1 400px;min-width:340px;padding:6px 10px 10px;box-sizing:border-box">
+       <div style="flex:2 1 340px;min-width:320px;padding:6px 10px 10px;box-sizing:border-box">
          ${_srQuadrant(_srRows, pk)}
        </div>
-       <div style="flex:1.2 1 440px;min-width:320px;border-left:1px solid var(--border);box-sizing:border-box">
+       <div style="flex:3 1 480px;min-width:340px;border-left:1px solid var(--border);box-sizing:border-box">
          ${_srTable(_srRows, pk)}
        </div>
      </div>`;
@@ -238,7 +238,7 @@ function _srQuadrant(rows, pk) {
       로테이션 맵 — 수급 추세 데이터 집계 대기<br>
       <span style="font-size:10px;color:var(--text3)">장 마감 후 자동 집계됩니다</span></div>`;
 
-  const W = 440, H = 340, ML = 30, MR = 14, MT = 18, MB = 26;
+  const W = 420, H = 320, ML = 64, MR = 64, MT = 18, MB = 22;
   const pw = W - ML - MR, ph = H - MT - MB;
   const x0 = ML, x1 = W - MR, y0 = MT, y1 = H - MB;
 
@@ -249,7 +249,7 @@ function _srQuadrant(rows, pk) {
   const cx = mapX(0), cy = mapY(0);
 
   const tvMax = Math.max(...pts.map(p => p.today.tv || 0), 1);
-  const rOf   = tv => 5 + Math.sqrt((tv || 0) / tvMax) * 13;   // 5..18
+  const rOf   = tv => 4 + Math.sqrt((tv || 0) / tvMax) * 10;   // 4..14
 
   // 사분면 배경 틴트
   const q = (x, y, w, h, c) =>
@@ -280,38 +280,34 @@ function _srQuadrant(rows, pk) {
     `<text x="${x0}" y="${cy - 4}" font-size="9" fill="var(--text3)" text-anchor="start">← 유출</text>` +
     `<text x="${cx + 4}" y="${y0 + 9}" font-size="9" fill="var(--text3)" text-anchor="start">▲ 등락률</text>`;
 
-  // 버블 + 라벨 (라벨 수직 충돌 회피 + 리더선 — 클러스터에서도 읽히게)
-  const cxC = mapX(0);
-  const items = pts.map(p => {
-    const px = mapX(p[pk].flow), py = mapY(p[pk].ret), r = rOf(p.today.tv);
-    return { p, px, py, r, left: px > cxC };   // 라벨은 중심 방향(안쪽)으로 — 가장자리 잘림 방지
-  });
-  const GAP = 13, topY = y0 + 6, botY = y1 - 2;
+  // 버블 + 좌우 가장자리 라벨 컬럼 (수직 충돌회피 + 리더선) — 클러스터에서도 또렷하게
+  const items = pts.map(p => ({
+    p, px: mapX(p[pk].flow), py: mapY(p[pk].ret), r: rOf(p.today.tv),
+    side: mapX(p[pk].flow) < cx ? 'L' : 'R',   // 버블이 중심 왼쪽이면 왼쪽 컬럼, 오른쪽이면 오른쪽 컬럼
+  }));
+  const GAP = 15, topY = y0 + 6, botY = y1 - 1;
   ['L', 'R'].forEach(side => {
-    const g = items.filter(it => it.left === (side === 'L')).sort((a, b) => a.py - b.py);
+    const g = items.filter(it => it.side === side).sort((a, b) => a.py - b.py);
     let last = -Infinity;
-    g.forEach(it => { it.ly = Math.max(it.py + 3, last + GAP); last = it.ly; });
+    g.forEach(it => { it.ly = Math.max(it.py, last + GAP); last = it.ly; });
     const over = last - botY;
     if (over > 0) g.forEach(it => { it.ly -= over; });        // 하단 넘치면 그룹 전체 위로
     let lo = topY;
     g.forEach(it => { if (it.ly < lo) it.ly = lo; lo = it.ly + GAP; });   // 상단 클램프
   });
   const bubbles = items.map(it => {
-    const { p, px, py, r, left, ly } = it;
-    const edgeX = left ? px - r : px + r;
-    const lx = left ? edgeX - 3 : edgeX + 3;
-    const anchor = left ? 'end' : 'start';
-    const leader = Math.abs(ly - 3 - py) > 5
-      ? `<line x1="${edgeX.toFixed(1)}" y1="${py.toFixed(1)}" x2="${lx.toFixed(1)}" y2="${(ly - 3).toFixed(1)}" stroke="${p.color}" stroke-width="0.8" opacity=".45"/>`
-      : '';
+    const { p, px, py, r, side, ly } = it;
+    const lblX = side === 'L' ? 2 : W - 2;
+    const anchor = side === 'L' ? 'start' : 'end';
+    const leadX = side === 'L' ? x0 : x1;        // 플롯 가장자리에서 버블로 리더선
     const tip = `${p.ind} · ${_srPeriod}일 등락 ${fmtPct(p[pk].ret)} · 수급 ${fmtNet(p[pk].flow)}`;
     return `<g style="cursor:pointer" onclick="_srFocus('${p.ind}')"><title>${tip}</title>
-      ${leader}
+      <path d="M ${leadX} ${(ly - 3).toFixed(1)} L ${px.toFixed(1)} ${py.toFixed(1)}" fill="none" stroke="${p.color}" stroke-width="0.8" opacity=".4"/>
       <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${r.toFixed(1)}"
-        fill="${p.color}" fill-opacity=".8" stroke="${p.color}" stroke-width="1.2"/>
-      <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="11" font-weight="700"
+        fill="${p.color}" fill-opacity=".85" stroke="${p.color}" stroke-width="1.2"/>
+      <text x="${lblX}" y="${ly.toFixed(1)}" font-size="11" font-weight="700"
         text-anchor="${anchor}" fill="var(--text1)"
-        style="paint-order:stroke;stroke:var(--bg2);stroke-width:3.5px">${p.ind}</text>
+        style="paint-order:stroke;stroke:var(--bg2);stroke-width:3px">${p.ind}</text>
     </g>`;
   }).join('');
 
@@ -354,7 +350,7 @@ function _srTable(rows, pk) {
   const th = (c, label, extra = '') =>
     `<span onclick="_srSort('${c}')" style="cursor:pointer;user-select:none;font-size:10px;${extra};color:${_srSortCol === c ? 'var(--tg)' : 'var(--text2)'}">${label}${arrow(c)}</span>`;
 
-  const COLS = '84px 58px 60px 1fr 74px 112px 46px';
+  const COLS = '90px 58px 62px 104px 80px 120px 48px';
 
   const header =
     `<div style="display:grid;grid-template-columns:${COLS};gap:6px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--bg2)">
