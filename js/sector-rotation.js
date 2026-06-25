@@ -297,12 +297,11 @@ function _srQuadrant(rows, pk) {
   });
   const bubbles = items.map(it => {
     const { p, px, py, r, side, ly } = it;
-    const lblX = side === 'L' ? 2 : W - 2;
-    const anchor = side === 'L' ? 'start' : 'end';
-    const leadX = side === 'L' ? x0 : x1;        // 플롯 가장자리에서 버블로 리더선
+    const lblX = side === 'L' ? x0 - 5 : x1 + 5;   // 라벨을 플롯 가장자리에 밀착
+    const anchor = side === 'L' ? 'end' : 'start';
     const tip = `${p.ind} · ${_srPeriod}일 등락 ${fmtPct(p[pk].ret)} · 수급 ${fmtNet(p[pk].flow)}`;
     return `<g style="cursor:pointer" onclick="_srFocus('${p.ind}')"><title>${tip}</title>
-      <path d="M ${leadX} ${(ly - 3).toFixed(1)} L ${px.toFixed(1)} ${py.toFixed(1)}" fill="none" stroke="${p.color}" stroke-width="0.8" opacity=".4"/>
+      <path d="M ${lblX} ${(ly - 3).toFixed(1)} L ${px.toFixed(1)} ${py.toFixed(1)}" fill="none" stroke="${p.color}" stroke-width="0.7" opacity=".28"/>
       <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${r.toFixed(1)}"
         fill="${p.color}" fill-opacity=".85" stroke="${p.color}" stroke-width="1.2"/>
       <text x="${lblX}" y="${ly.toFixed(1)}" font-size="11" font-weight="700"
