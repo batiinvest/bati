@@ -184,6 +184,32 @@ function _calcTemperature(prevScore = null, foreign5dEok = null) {
 }
 
 
+// ── 판단 근거 요약 — 국면을 만든 핵심 요인 2~3개 자동 추출 (parts 기여도 기반) ──
+//  점수 높음(≥60) → 주요 '동력'(기여 높은 지표) / 낮음(<40) → 주요 '발목'(기여 낮은 지표)
+function _tempReasonLine(parts, score, color) {
+  const arr = (parts || []).map(p => ({ label: p.label, ratio: p.max ? p.pts / p.max : 0.5 }));
+  if (!arr.length) return '';
+  let picks, word;
+  if (score >= 60) {
+    picks = arr.filter(p => p.ratio >= 0.6).sort((a, b) => b.ratio - a.ratio).slice(0, 3);
+    word = '주요 동력';
+  } else if (score < 40) {
+    picks = arr.filter(p => p.ratio <= 0.4).sort((a, b) => a.ratio - b.ratio).slice(0, 3);
+    word = '주요 발목';
+  } else {
+    const s = [...arr].sort((a, b) => a.ratio - b.ratio);
+    picks = [s[0], s[s.length - 1]].filter(Boolean);
+    word = '핵심 요인';
+  }
+  if (!picks.length) return '';
+  const chips = picks.map(p =>
+    `<span style="font-size:10px;color:${color};background:${color}1a;border-radius:3px;padding:1px 6px;white-space:nowrap">${p.label}</span>`
+  ).join(' ');
+  return `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:6px">
+    <span style="font-size:10px;color:var(--text2);font-weight:600">${word}</span>${chips}</div>`;
+}
+
+
 // ── 점수 저장 / 조회 (app_config) ───────────────────────────────────────────
 async function _saveTempScore(dateStr, score) {
   try {
@@ -314,10 +340,11 @@ async function renderMarketTemperature() {
     </div>
   </div>
 
-  <!-- 통합 행동지침 (레짐 단일 소스 = 온도계 점수/국면) -->
+  <!-- 통합 행동지침 + 판단 근거 요약 (레짐 단일 소스 = 온도계 점수/국면) -->
   <div style="font-size:11.5px;color:var(--text1);
     padding:8px 11px;background:var(--bg3);border-radius:5px;
     border-left:2px solid ${t.gradeColor};line-height:1.6">
+    ${_tempReasonLine(t.parts, t.score, t.gradeColor)}
     <span style="color:${t.gradeColor};font-weight:700">행동지침 · </span>${t.strategy}
   </div>`;
 
