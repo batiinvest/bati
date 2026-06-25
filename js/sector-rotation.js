@@ -346,22 +346,22 @@ function _srTable(rows, pk) {
 
   const arrow = c => _srSortCol === c ? (_srSortDir === -1 ? ' ▼' : ' ▲') : '';
   const th = (c, label, extra = '') =>
-    `<span onclick="_srSort('${c}')" style="cursor:pointer;user-select:none;font-size:10px;${extra};color:${_srSortCol === c ? 'var(--tg)' : 'var(--text2)'}">${label}${arrow(c)}</span>`;
+    `<span onclick="_srSort('${c}')" style="cursor:pointer;user-select:none;font-size:10.5px;${extra};color:${_srSortCol === c ? 'var(--tg)' : 'var(--text2)'}">${label}${arrow(c)}</span>`;
 
   const COLS = 'minmax(88px,1.15fr) minmax(54px,0.7fr) minmax(60px,0.8fr) minmax(96px,1.2fr) minmax(78px,0.95fr) minmax(112px,1.3fr) minmax(46px,0.62fr)';
 
   const header =
-    `<div style="display:grid;grid-template-columns:${COLS};gap:6px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--bg2)">
+    `<div style="display:grid;grid-template-columns:${COLS};gap:6px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg2)">
       ${th('ind', '산업', 'text-align:left')}
       ${th('ret', `오늘`, 'text-align:right')}
       ${th('breadth', '상승종목', 'text-align:center')}
       ${th('tv', '거래대금', 'text-align:left')}
       ${th('flow', `수급 ${pLbl}`, 'text-align:right')}
-      <span style="font-size:10px;color:var(--tg);text-align:left">US·KR ${pLbl}·선행</span>
+      <span style="font-size:10.5px;color:var(--tg);text-align:left">US·KR ${pLbl}·선행</span>
       ${th('phase', '국면', 'text-align:center')}
     </div>`;
 
-  const body = sorted.map(r => {
+  const body = sorted.map((r, i) => {
     const t  = r.today;
     const fp = r[pk];
     const ph = _srPhaseOf(fp.ret, fp.flow);
@@ -369,8 +369,8 @@ function _srTable(rows, pk) {
     // 오늘 등락 + 시장대비 RS
     const retCell = t.ret != null
       ? `<div style="text-align:right">
-           <div style="font-size:13px;font-weight:700;color:${chgColor(t.ret)}">${chgStr(t.ret)}</div>
-           <div style="font-size:9px;color:var(--text2)">α ${t.rs >= 0 ? '+' : ''}${t.rs != null ? t.rs.toFixed(1) : '—'}</div>
+           <div style="font-size:14px;font-weight:700;color:${chgColor(t.ret)}">${chgStr(t.ret)}</div>
+           <div style="font-size:9.5px;color:var(--text2)">α ${t.rs >= 0 ? '+' : ''}${t.rs != null ? t.rs.toFixed(1) : '—'}</div>
          </div>`
       : `<div style="text-align:right;color:var(--text3);font-size:12px">—</div>`;
 
@@ -398,7 +398,7 @@ function _srTable(rows, pk) {
     const tvBar = tvMax ? (t.tv / tvMax * 100) : 0;
     const tvCell = t.tv
       ? `<div>
-           <div style="display:flex;justify-content:space-between;font-size:10.5px;margin-bottom:2px">
+           <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:2px">
              <span style="color:var(--text1);font-weight:600">${_srTV(t.tv)}</span>
              <span style="color:var(--text2)">${tvPct.toFixed(0)}%</span>
            </div>
@@ -415,13 +415,13 @@ function _srTable(rows, pk) {
       const splitBadge = (() => {
         const fPos = (fp.fnet ?? 0) > 0, iPos = (fp.inet ?? 0) > 0;
         const fNeg = (fp.fnet ?? 0) < 0, iNeg = (fp.inet ?? 0) < 0;
-        if (fPos && iPos) return `<span style="font-size:8px;color:#2dce89">외↑기↑</span>`;
-        if (fNeg && iNeg) return `<span style="font-size:8px;color:#f5365c">외↓기↓</span>`;
-        if ((fp.fnet ?? 0) !== 0 || (fp.inet ?? 0) !== 0) return `<span style="font-size:8px;color:#f59e0b">엇갈림</span>`;
+        if (fPos && iPos) return `<span style="font-size:9.5px;color:#2dce89">외↑기↑</span>`;
+        if (fNeg && iNeg) return `<span style="font-size:9.5px;color:#f5365c">외↓기↓</span>`;
+        if ((fp.fnet ?? 0) !== 0 || (fp.inet ?? 0) !== 0) return `<span style="font-size:9.5px;color:#f59e0b">엇갈림</span>`;
         return '';
       })();
       flowCell = `<div style="text-align:right">
-          <div style="font-size:12px;font-weight:700;color:${fc}">${fmtNet(fp.flow)}</div>
+          <div style="font-size:13px;font-weight:700;color:${fc}">${fmtNet(fp.flow)}</div>
           <div style="line-height:1">${splitBadge}</div>
         </div>`;
     } else {
@@ -432,12 +432,12 @@ function _srTable(rows, pk) {
     const sig = fp.sig ? _SR_SIG[fp.sig] : null;
     const uskrCell = (fp.us != null || fp.ret != null)
       ? `<div style="text-align:right;line-height:1.35">
-           <div style="font-size:11px;font-variant-numeric:tabular-nums">
+           <div style="font-size:11.5px;font-variant-numeric:tabular-nums">
              <span style="color:var(--text2)">US</span> <span style="color:${fp.us != null ? chgColor(fp.us) : 'var(--text3)'};font-weight:600">${fp.us != null ? fmtPct(fp.us) : '—'}</span>
              <span style="color:var(--text3);margin:0 1px">·</span>
              <span style="color:var(--text2)">KR</span> <span style="color:${fp.ret != null ? chgColor(fp.ret) : 'var(--text3)'};font-weight:600">${fp.ret != null ? fmtPct(fp.ret) : '—'}</span>
            </div>
-           ${sig ? `<div title="${sig.tip}" style="font-size:9px;color:${sig.color}">${sig.icon} ${sig.label}</div>` : ''}
+           ${sig ? `<div title="${sig.tip}" style="font-size:9.5px;color:${sig.color}">${sig.icon} ${sig.label}</div>` : ''}
          </div>`
       : `<div style="text-align:right;color:var(--text3);font-size:11px">—</div>`;
 
@@ -446,11 +446,11 @@ function _srTable(rows, pk) {
         <span style="font-size:10px;font-weight:700;color:${ph.color};background:${ph.bg};border-radius:4px;padding:1px 6px;white-space:nowrap">${ph.label}</span>
       </div>`;
 
-    return `<div id="sr-row-${r.ind}" style="display:grid;grid-template-columns:${COLS};gap:6px;align-items:center;padding:7px 12px;border-bottom:1px solid var(--border);transition:background .25s">
+    return `<div id="sr-row-${r.ind}" style="display:grid;grid-template-columns:${COLS};gap:6px;align-items:center;padding:9px 12px;background:${i % 2 ? 'rgba(255,255,255,.03)' : 'transparent'};transition:background .25s">
         <div style="display:flex;align-items:center;gap:4px;min-width:0">
           <span style="width:6px;height:6px;border-radius:50%;background:${r.color};flex-shrink:0"></span>
-          <span style="font-size:11.5px;font-weight:600;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.ind}</span>
-          <span style="font-size:8.5px;color:var(--text3);flex-shrink:0">${r.n}</span>
+          <span style="font-size:12px;font-weight:600;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.ind}</span>
+          <span style="font-size:9px;color:var(--text3);flex-shrink:0">${r.n}</span>
         </div>
         ${retCell}
         ${breadthCell}
