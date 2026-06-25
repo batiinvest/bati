@@ -276,9 +276,9 @@ function _srQuadrant(rows, pk) {
 
   // 축 라벨
   const axes =
-    `<text x="${x1}" y="${cy - 4}" font-size="9" fill="var(--text3)" text-anchor="end">수급 유입 →</text>` +
-    `<text x="${x0}" y="${cy - 4}" font-size="9" fill="var(--text3)" text-anchor="start">← 유출</text>` +
-    `<text x="${cx + 4}" y="${y0 + 9}" font-size="9" fill="var(--text3)" text-anchor="start">▲ 등락률</text>`;
+    `<text x="${x1}" y="${cy - 4}" font-size="9" style="fill:var(--text3)" text-anchor="end">수급 유입 →</text>` +
+    `<text x="${x0}" y="${cy - 4}" font-size="9" style="fill:var(--text3)" text-anchor="start">← 유출</text>` +
+    `<text x="${cx + 4}" y="${y0 + 9}" font-size="9" style="fill:var(--text3)" text-anchor="start">▲ 등락률</text>`;
 
   // 버블 + 좌우 가장자리 라벨 컬럼 (수직 충돌회피 + 리더선) — 클러스터에서도 또렷하게
   const items = pts.map(p => ({
@@ -304,9 +304,8 @@ function _srQuadrant(rows, pk) {
       <path d="M ${lblX} ${(ly - 3).toFixed(1)} L ${px.toFixed(1)} ${py.toFixed(1)}" fill="none" stroke="${p.color}" stroke-width="0.7" opacity=".28"/>
       <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${r.toFixed(1)}"
         fill="${p.color}" fill-opacity=".85" stroke="${p.color}" stroke-width="1.2"/>
-      <text x="${lblX}" y="${ly.toFixed(1)}" font-size="11" font-weight="700"
-        text-anchor="${anchor}" fill="var(--text1)"
-        style="paint-order:stroke;stroke:var(--bg2);stroke-width:3px">${p.ind}</text>
+      <text x="${lblX}" y="${ly.toFixed(1)}" font-size="11" font-weight="700" text-anchor="${anchor}"
+        style="fill:var(--text1);paint-order:stroke;stroke:var(--bg2);stroke-width:3.5px">${p.ind}</text>
     </g>`;
   }).join('');
 
@@ -349,7 +348,7 @@ function _srTable(rows, pk) {
   const th = (c, label, extra = '') =>
     `<span onclick="_srSort('${c}')" style="cursor:pointer;user-select:none;font-size:10px;${extra};color:${_srSortCol === c ? 'var(--tg)' : 'var(--text2)'}">${label}${arrow(c)}</span>`;
 
-  const COLS = '90px 58px 62px 104px 80px 120px 48px';
+  const COLS = 'minmax(88px,1.15fr) minmax(54px,0.7fr) minmax(60px,0.8fr) minmax(96px,1.2fr) minmax(78px,0.95fr) minmax(112px,1.3fr) minmax(46px,0.62fr)';
 
   const header =
     `<div style="display:grid;grid-template-columns:${COLS};gap:6px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--bg2)">
