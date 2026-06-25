@@ -183,10 +183,10 @@ function renderSectorRotation() {
   el.innerHTML =
     _srSummary(_srRows, pk) +
     `<div style="display:flex;flex-wrap:wrap;gap:0;align-items:stretch">
-       <div style="flex:1 1 360px;min-width:300px;padding:6px 10px 10px;box-sizing:border-box">
+       <div style="flex:1 1 400px;min-width:340px;padding:6px 10px 10px;box-sizing:border-box">
          ${_srQuadrant(_srRows, pk)}
        </div>
-       <div style="flex:2 1 460px;min-width:300px;border-left:1px solid var(--border);box-sizing:border-box">
+       <div style="flex:1.2 1 440px;min-width:320px;border-left:1px solid var(--border);box-sizing:border-box">
          ${_srTable(_srRows, pk)}
        </div>
      </div>`;
@@ -284,9 +284,9 @@ function _srQuadrant(rows, pk) {
   const cxC = mapX(0);
   const items = pts.map(p => {
     const px = mapX(p[pk].flow), py = mapY(p[pk].ret), r = rOf(p.today.tv);
-    return { p, px, py, r, left: px <= cxC };   // 중심 왼쪽→라벨 왼쪽 / 오른쪽→오른쪽
+    return { p, px, py, r, left: px > cxC };   // 라벨은 중심 방향(안쪽)으로 — 가장자리 잘림 방지
   });
-  const GAP = 11.5, topY = y0 + 6, botY = y1 - 2;
+  const GAP = 13, topY = y0 + 6, botY = y1 - 2;
   ['L', 'R'].forEach(side => {
     const g = items.filter(it => it.left === (side === 'L')).sort((a, b) => a.py - b.py);
     let last = -Infinity;
@@ -309,16 +309,16 @@ function _srQuadrant(rows, pk) {
       ${leader}
       <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${r.toFixed(1)}"
         fill="${p.color}" fill-opacity=".8" stroke="${p.color}" stroke-width="1.2"/>
-      <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="9.5" font-weight="700"
+      <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="11" font-weight="700"
         text-anchor="${anchor}" fill="var(--text1)"
-        style="paint-order:stroke;stroke:var(--bg2);stroke-width:3px">${p.ind}</text>
+        style="paint-order:stroke;stroke:var(--bg2);stroke-width:3.5px">${p.ind}</text>
     </g>`;
   }).join('');
 
   return `<div style="font-size:11px;font-weight:600;color:var(--text1);padding:2px 2px 6px">
       로테이션 맵 <span style="font-weight:400;color:var(--text2);font-size:10px">버블=거래대금 · 클릭→표 강조</span>
     </div>
-    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:480px;display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:560px;display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg">
       ${bg}${cross}${corners}${axes}${bubbles}
     </svg>`;
 }
@@ -354,7 +354,7 @@ function _srTable(rows, pk) {
   const th = (c, label, extra = '') =>
     `<span onclick="_srSort('${c}')" style="cursor:pointer;user-select:none;font-size:10px;${extra};color:${_srSortCol === c ? 'var(--tg)' : 'var(--text2)'}">${label}${arrow(c)}</span>`;
 
-  const COLS = '84px 62px 62px 1fr 78px 116px 48px';
+  const COLS = '84px 58px 60px 1fr 74px 112px 46px';
 
   const header =
     `<div style="display:grid;grid-template-columns:${COLS};gap:6px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--bg2)">
