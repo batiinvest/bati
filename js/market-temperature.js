@@ -8,15 +8,15 @@
  *   window._macroData     (chart-macro.js)
  *   window._allMarketRows (market-overview.js)
  *
- * ── 배점 구조 (총 100점) ─────────────────────────────────
- *  ① S&P500 방향         15pt  코스피 최대 선행지표 (상관계수 ~0.7)
- *  ② USD/KRW 환율 방향   15pt  외국인 자금 유입 채널 (수출주 역효과 감안 하향)
- *  ③ 코스피/닥 5일 추세  20pt  단기 추세 (5거래일 누적 등락률)
- *  ④ 외국인 수급 방향    20pt  매수 주체 확인 (금액 기준 억원)
- *  ⑤ VIX 글로벌 공포지수 15pt  간접 글로벌 리스크
- *  ⑥ 미 10년 금리 방향   15pt  성장주 할인율 직결
+ * ── 배점 구조 (총 100점) — 단일일 노이즈 제거, 추세/레벨 기반 ──────
+ *  ① S&P500 5일 추세      15pt  5거래일 누적 (밤사이 단일일 노이즈 제거)
+ *  ② USD/KRW 5일추세+레벨 15pt  원화 강세/약세 추세 + 고환율(>1450) 레짐 캡
+ *  ③ 코스피/닥 5일 추세   20pt  5거래일 누적 등락률
+ *  ④ 외국인 수급 5일 누적 20pt  지속성(누적) — 당일 1회는 반전 잦아 제외
+ *  ⑤ VIX 레벨 + 5일 방향  15pt  내재변동성 레벨 + 급등/급락 가감
+ *  ⑥ 미 10년 금리 레벨    15pt  금리 레벨(할인율 부담) + 5일 추세
  * ─────────────────────────────────────────────────────────
- * ※ 시장 폭(상승 종목 비율)·산업 모멘텀 제거 — 둘 다 동일 정보의 중복
+ * ※ 최종 점수는 전일과 EMA 스무딩(0.7/0.3)으로 휘프소(국면 일별 반전) 억제
  *
  * ── 등급 구간 (20점 균등 간격) ──
  *  🔴 위험   0~19   현금 비중 극대화
@@ -27,43 +27,37 @@
  */
 
 // ── 온도 계산 ─────────────────────────────────────────────────────────────────
-function _calcTemperature() {
+function _calcTemperature(prevScore = null, foreign5dEok = null) {
   const m    = window._macroData     || {};
   const rows = window._allMarketRows || [];
+  // 5일치 매크로(오래된→최신) — 추세/레벨 계산용 (window._macroRows = 5일치)
+  const mr   = (window._macroRows || []).slice().sort((a, b) => (a.base_date > b.base_date ? 1 : -1));
+  const n    = mr.length;
+  const sumChg = key => mr.reduce((s, r) => s + (r[key] ?? 0), 0);   // 5일 누적 변화
 
   let score = 0;
   const parts = [];
 
-  // ① S&P500 방향 (max 15) — 코스피 최대 선행지표, 상관계수 ~0.7
-  const sp5Chg = m.sp500_chg ?? null;
-  const _sp5Scale = [[2.0,15],[1.0,12],[0.3,9],[-0.3,6],[-1.0,3]];
-  const sp5Pts = sp5Chg !== null
-    ? (_sp5Scale.find(([t]) => sp5Chg >= t)?.[1] ?? 0)
-    : 7; // 데이터 없을 때 중립
+  // ① S&P500 5일 추세 (max 15) — 단일일 노이즈 제거, 5거래일 누적 등락으로 레짐 판정
+  const sp5sum = sumChg('sp500_chg');
+  const _spScale = [[4.0,15],[1.5,12],[0.3,9],[-0.3,6],[-1.5,3],[-4.0,1]];
+  const sp5Pts = n >= 2 ? (_spScale.find(([t]) => sp5sum >= t)?.[1] ?? 0) : 7;
   score += sp5Pts;
-  const sp5Str = sp5Chg != null
-    ? `${sp5Chg >= 0 ? '+' : ''}${Number(sp5Chg).toFixed(2)}%`
-    : '—';
-  parts.push({ label: `S&P500 ${sp5Str}`, pts: sp5Pts, max: 15,
-    hint: sp5Chg != null ? (sp5Chg >= 0.3 ? '코스피 매수 유리' : sp5Chg <= -0.3 ? '코스피 매도 압력' : '보합') : '데이터 없음' });
+  const sp5Str = n >= 2 ? `${sp5sum >= 0 ? '+' : ''}${sp5sum.toFixed(1)}%` : '—';
+  parts.push({ label: `S&P500 5일 ${sp5Str}`, pts: sp5Pts, max: 15,
+    hint: n < 2 ? '데이터 없음' : sp5sum >= 0.5 ? '상승 추세' : sp5sum <= -0.5 ? '하락 추세' : '추세 중립' });
 
-  // ② USD/KRW 환율 방향 (max 15) — 수출주 역효과 감안해 25→15pt
-  // 원화 강세(달러↓) = 외국인 자금 유입 선호 / 원화 약세 = 이탈 압력
-  const krwChg = m.usd_krw_chg ?? null;
-  const krwLvl = m.usd_krw     ?? null;
-  let krwPts = 7; // 데이터 없을 때 중립
-  if (krwChg !== null) {
-    const chgPct = krwLvl ? (krwChg / krwLvl) * 100 : 0;
-    const _krwScale = [[-0.5,15],[-0.2,12],[-0.05,10],[0.05,7],[0.2,4],[0.5,2]];
-    krwPts = _krwScale.find(([t]) => chgPct < t)?.[1] ?? 0;
-  }
+  // ② USD/KRW 5일 추세 + 레벨 (max 15) — 하루 변동은 노이즈. 5일 추세(강세/약세) + 고환율 레짐 캡
+  const fxLvl = m.usd_krw ?? null;
+  const fxOld = n >= 2 ? (mr[0].usd_krw ?? null) : null;
+  const fx5pct = (fxLvl && fxOld) ? ((fxLvl - fxOld) / fxOld) * 100 : null;   // +면 5일 약세
+  const _fxScale = [[-1.0,15],[-0.4,12],[-0.1,10],[0.1,7],[0.4,4],[1.0,2]];
+  let krwPts = fx5pct != null ? (_fxScale.find(([t]) => fx5pct < t)?.[1] ?? 0) : 7;
+  if (fxLvl && fxLvl > 1450) krwPts = Math.min(krwPts, 9);   // 고환율(원화 약세) 스트레스 레짐 상한
   score += krwPts;
-  const krwStr = krwChg != null
-    ? `${krwChg >= 0 ? '+' : ''}${Number(krwChg).toFixed(0)}원`
-    : '—';
-  const krwHint = krwChg != null
-    ? (krwChg < 0 ? '원화 강세 ▲' : krwChg > 0 ? '원화 약세 ▼' : '보합')
-    : '데이터 없음';
+  const krwStr = fxLvl != null ? `${Math.round(fxLvl)}원` : '—';
+  const krwHint = fx5pct == null ? '데이터 없음'
+    : (fxLvl > 1450 ? '고환율 부담 · ' : '') + (fx5pct < -0.1 ? '원화 강세 ▲' : fx5pct > 0.1 ? '원화 약세 ▼' : '보합');
   parts.push({ label: `USD/KRW ${krwStr}`, pts: krwPts, max: 15, hint: krwHint });
 
   // ③ 코스피/닥 5일 추세 (max 20)
@@ -90,65 +84,76 @@ function _calcTemperature() {
     hint: krHint,
   });
 
-  // ④ 외국인 수급 방향 (max 20)
-  // 금액(억원) 기준 — 주(株) 단위는 저가주·고가주 가중치 왜곡 발생
-  const frgnAmt = rows.reduce((s, r) =>
-    s + ((r.foreign_net_buy ?? 0) * (r.price ?? 0)) / 1e8, 0);
-  // 임계값: 억원 기준 (500억, 200억, 50억, 보합, -200억, -500억)
-  const _frgnScale = [[500,20],[200,16],[50,12],[0,8],[-200,4],[-500,1]];
-  const frgnPts = _frgnScale.find(([t]) => frgnAmt > t)?.[1] ?? 0;
+  // ④ 외국인 수급 — 5일 누적(억원) (max 20)
+  // 당일 순매수는 다음날 반전이 흔해 노이즈 → 5거래일 누적(지속성)으로 판정.
+  // foreign5dEok(sector_daily_summary 합산) 없으면 당일 합산(_allMarketRows)으로 폴백.
+  let frgnAmt, frgnPts;
+  if (foreign5dEok != null) {
+    frgnAmt = foreign5dEok;
+    const _f5 = [[30000,20],[10000,16],[3000,12],[0,8],[-10000,4],[-30000,1]];
+    frgnPts = _f5.find(([t]) => frgnAmt > t)?.[1] ?? 0;
+  } else {
+    frgnAmt = rows.reduce((s, r) => s + ((r.foreign_net_buy ?? 0) * (r.price ?? 0)) / 1e8, 0);
+    const _f1 = [[500,20],[200,16],[50,12],[0,8],[-200,4],[-500,1]];
+    frgnPts = _f1.find(([t]) => frgnAmt > t)?.[1] ?? 0;
+  }
   score += frgnPts;
-  const frgnAbsStr = Math.abs(frgnAmt) >= 1000
-    ? (frgnAmt / 1000).toFixed(1) + '천억'
-    : Math.round(frgnAmt).toLocaleString() + '억';
+  const _fAbs = Math.abs(frgnAmt);
+  const frgnAbsStr = _fAbs >= 10000 ? (_fAbs / 10000).toFixed(1) + '조' : Math.round(_fAbs).toLocaleString() + '억';
   const fStr = (frgnAmt >= 0 ? '+' : '-') + frgnAbsStr;
-  const frgnHint = frgnAmt >= 500 ? '강한 매수세'
-    : frgnAmt >= 50  ? '매수 우위'
-    : frgnAmt >= -50 ? '보합'
-    : frgnAmt >= -200 ? '매도 우위'
-    : '강한 매도세';
+  const frgnHint = (foreign5dEok != null ? '5일 누적 · ' : '당일 · ') +
+    (frgnPts >= 16 ? '강한 매수' : frgnPts >= 12 ? '매수 우위' : frgnPts >= 8 ? '보합' : frgnPts >= 4 ? '매도 우위' : '강한 매도');
   parts.push({ label: `외국인 ${fStr}`, pts: frgnPts, max: 20, hint: frgnHint });
 
   // ⑤ VIX 글로벌 공포지수 (max 15)
   // 미 S&P500 기반 간접지표 — 글로벌 위험선호도 반영
   // 임계값: 2023~2026 실제 VIX 분포 반영 (평균 15~20, 역대 저점 10~12)
+  // 레벨은 내재변동성(상태변수)이라 단일 시점도 유효 → 레벨 점수 + 5일 급등/급락만 보조 가감.
   const vix = m.vix ?? null;
   const _vixScale = [[15,15],[18,12],[21,9],[24,6],[28,3],[35,1]];
-  const vixPts = vix !== null
-    ? (_vixScale.find(([t]) => vix < t)?.[1] ?? 0)
-    : 7; // 데이터 없을 때 중립
+  let vixPts = vix !== null ? (_vixScale.find(([t]) => vix < t)?.[1] ?? 0) : 7;
+  const vixOld = n >= 2 ? (mr[0].vix ?? null) : null;
+  let vixDir = '';
+  if (vix != null && vixOld != null) {
+    if (vix > vixOld + 2)      { vixPts = Math.max(0, vixPts - 2);  vixDir = ' · 5일 급등 ▲'; }
+    else if (vix < vixOld - 2) { vixPts = Math.min(15, vixPts + 2); vixDir = ' · 5일 급락 ▼'; }
+  }
   score += vixPts;
-  const vixHint = vix != null
+  const vixHint = (vix != null
     ? (vix < 18 ? '안정 국면' : vix < 24 ? '주의 구간' : '공포 구간')
-    : '데이터 없음';
-  parts.push({
-    label: vix != null ? `VIX ${Number(vix).toFixed(1)}` : 'VIX —',
-    pts: vixPts, max: 15, hint: vixHint,
-  });
+    : '데이터 없음') + vixDir;
+  parts.push({ label: vix != null ? `VIX ${Number(vix).toFixed(1)}` : 'VIX —', pts: vixPts, max: 15, hint: vixHint });
 
   // ⑥ 미 10년 국채금리 방향 (max 15)
   // 금리 하락 = 유동성 확대 + 성장주 할인율 완화 = 긍정
   // 반도체·IT 비중 높은 코스피 특성상 금리 민감도 높음
-  const us10yChg = m.us10y_chg ?? null;
-  const _ratesScale = [[-0.06,15],[-0.02,12],[0.02,7],[0.06,3]];
-  const ratesPts = us10yChg !== null
-    ? (_ratesScale.find(([t]) => us10yChg < t)?.[1] ?? 0)
-    : 7; // 데이터 없을 때 중립
+  // 하루 bp 변동은 노이즈 → 금리 '레벨'(할인율 부담) 기준 + 5일 추세 가감.
+  const y10 = m.us10y ?? null;
+  const _yLvl = [[3.5,15],[4.0,12],[4.3,9],[4.6,6],[5.0,3]];   // y < t (낮을수록 우호)
+  let ratesPts = y10 != null ? (_yLvl.find(([t]) => y10 < t)?.[1] ?? 1) : 7;
+  const yOld = n >= 2 ? (mr[0].us10y ?? null) : null;
+  let yDir = '';
+  if (y10 != null && yOld != null) {
+    const d = y10 - yOld;
+    if (d > 0.1)       { ratesPts = Math.max(0, ratesPts - 3);  yDir = ' · 5일 상승 ▲'; }
+    else if (d < -0.1) { ratesPts = Math.min(15, ratesPts + 3); yDir = ' · 5일 하락 ▼'; }
+  }
   score += ratesPts;
-  const ratesStr = us10yChg != null
-    ? `${us10yChg >= 0 ? '+' : ''}${Number(us10yChg).toFixed(3)}%`
-    : '—';
-  const ratesHint = us10yChg != null
-    ? (us10yChg < 0 ? '금리 하락 ▼' : us10yChg > 0.02 ? '금리 상승 ▲' : '보합')
-    : '데이터 없음';
+  const ratesStr = y10 != null ? `${Number(y10).toFixed(2)}%` : '—';
+  const ratesHint = (y10 != null
+    ? (y10 < 4.0 ? '완화적' : y10 < 4.6 ? '부담 구간' : '고금리 역풍')
+    : '데이터 없음') + yDir;
   parts.push({ label: `미10년금리 ${ratesStr}`, pts: ratesPts, max: 15, hint: ratesHint });
+
+  // ── 휘프소(whipsaw) 억제: 전일 점수와 EMA 스무딩 (단일일 노이즈로 국면이 매일 뒤집히는 것 방지) ──
+  if (prevScore != null && !isNaN(prevScore)) score = Math.round(0.7 * score + 0.3 * prevScore);
 
   // ── 등급 결정 (20점 균등 간격) ──────────────────────────────────────────────
   let gradeTxt, gradeColor, gradeEmoji, strategy;
 
-  const krwNeg  = krwChg != null && krwChg > 3;
-  const ratePop = us10yChg != null && us10yChg > 0.05;
-  const spDrop  = sp5Chg != null && sp5Chg < -1.5; // S&P 급락 플래그
+  const krwNeg  = fx5pct != null && fx5pct > 0.5;                          // 5일 원화 약세
+  const ratePop = (y10 != null && yOld != null) && (y10 - yOld) > 0.1;     // 5일 금리 급등
+  const spDrop  = m.sp500_chg != null && m.sp500_chg < -1.5;              // 밤사이 미국 급락(오늘 갭다운 우려)
 
   if (score >= 80) {
     gradeTxt = '과열 국면'; gradeColor = '#a78bfa'; gradeEmoji = '🟣';
@@ -209,21 +214,39 @@ async function _loadPrevTempScore(dateStr) {
   return null;
 }
 
+// ── 5일 누적 외국인 수급(억원) — sector_daily_summary.foreign_net_5d 산업 합산 ──
+async function _loadForeign5dFlow() {
+  try {
+    const { data: latest } = await sb.from('sector_daily_summary')
+      .select('base_date').order('base_date', { ascending: false }).limit(1).maybeSingle();
+    if (!latest?.base_date) return null;
+    const { data } = await sb.from('sector_daily_summary')
+      .select('foreign_net_5d').eq('base_date', latest.base_date);
+    if (!data || !data.length) return null;
+    const sumMil = data.reduce((s, r) => s + (r.foreign_net_5d || 0), 0);   // 백만원
+    return sumMil / 100;   // 억원
+  } catch (e) {
+    console.warn('[온도계] 5일 수급 조회 실패:', e);
+    return null;
+  }
+}
+
 
 // ── 렌더링 ────────────────────────────────────────────────────────────────────
 async function renderMarketTemperature() {
   const el = document.getElementById('market-temp-body');
   if (!el) return;
 
-  const t       = _calcTemperature();
   const m       = window._macroData || {};
   const today   = m.base_date || new Date().toISOString().slice(0, 10);
 
-  // 오늘 점수 저장 + 전일 점수 조회 (병렬)
-  const [, prev] = await Promise.all([
-    _saveTempScore(today, t.score),
+  // 전일 점수(스무딩용) + 5일 누적 외국인 수급 선행 로드
+  const [prev, foreign5d] = await Promise.all([
     _loadPrevTempScore(today),
+    _loadForeign5dFlow(),
   ]);
+  const t = _calcTemperature(prev ? prev.score : null, foreign5d);
+  await _saveTempScore(today, t.score);
 
   // 전일 대비 변화 뱃지
   let diffBadge = '';
