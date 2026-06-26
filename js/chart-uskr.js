@@ -129,19 +129,17 @@ async function loadUskrChart() {
   });
 
   if (_uskrMode === 'avg') {
-    // US ETF 평균 (단일 선)
-    const avgData = dateList.map(date => {
-      const vals = (usRows || [])
-        .filter(r => r.base_date === date && r.close != null)
-        .map(r => r.close);
-      return vals.length ? vals.reduce((s,v)=>s+v,0)/vals.length : null;
+    // US ETF 평균 — KR과 동일한 등가중 수익률 방식 (단일 선).
+    // 주의: 종가(close) 레벨을 평균내면 고가 ETF에 가중치가 쏠려(가격가중)
+    //   KR(일별 등락률 등가중)과 방법론이 어긋난다. 일별 chg_pct를 등가중
+    //   평균한 뒤 indCumIndexSeries로 복리(시작 100) → KR과 동일 기준.
+    const usChg = {};
+    (usRows || []).forEach(r => {
+      if (r.chg_pct == null) return;
+      if (!usChg[r.base_date]) usChg[r.base_date] = [];
+      usChg[r.base_date].push(r.chg_pct);
     });
-    // 정규화 (첫 유효값 = 100)
-    let base = null;
-    const normAvg = avgData.map(v => {
-      if (v != null) { if (base===null) base=v; return parseFloat((v/base*100).toFixed(2)); }
-      return null;
-    });
+    const normAvg = indCumIndexSeries(usChg, dateList);
     datasets.push({
       label: `🇺🇸 ${ind} 평균(${tickers.length}개)`,
       data: normAvg,
