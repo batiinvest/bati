@@ -72,27 +72,32 @@ async function loadUskrChart() {
   const tradingDays = [...new Set(dateRows.map(r => r.base_date))].sort().slice(-_uskrPeriod);
   const oldestDate  = tradingDays[0];
 
-  // Step2: KR — loadIndTrendChart와 동일하게 market_data 전체 조회 후 industryMap 필터
+  // Step2+3: KR · US 병렬 조회 — 둘 다 oldestDate에만 의존하므로 동시에 받는다.
+  //  KR은 선택 산업 종목코드(indCodes)로 범위를 좁힌다. market_data엔 전 상장사
+  //  (~2,600종목)가 있어 전체 조회 시 3달=수십만 행/수백 페이지가 되지만,
+  //  한 산업(수십 종목)만 받으면 수천 행으로 줄어 로딩이 크게 빨라진다.
+  //  (indCodes는 industryMap에서 해당 산업만 추린 것 → 기존 industryMap 필터와 동일 결과)
   const krDates = {};
-  const allRows = await fetchAllPages(
-    sb.from('market_data')
-      .select('stock_code,base_date,price_change_rate')
+  const [allRows, usResp] = await Promise.all([
+    fetchAllPages(
+      sb.from('market_data')
+        .select('stock_code,base_date,price_change_rate')
+        .in('stock_code', indCodes)
+        .gte('base_date', oldestDate)
+        .not('price_change_rate', 'is', null)
+    ),
+    sb.from('us_market')
+      .select('base_date,ticker,close,chg_pct')
+      .eq('industry', ind)
+      .in('ticker', tickers)
       .gte('base_date', oldestDate)
-      .not('price_change_rate', 'is', null)
-  );
+      .order('base_date', { ascending: true }),
+  ]);
   allRows.forEach(r => {
-    if (industryMap[r.stock_code] !== ind) return;
     if (!krDates[r.base_date]) krDates[r.base_date] = [];
     krDates[r.base_date].push(r.price_change_rate);
   });
-
-  // Step3: US — 동일한 oldestDate 기준 조회
-  const { data: usRows } = await sb.from('us_market')
-    .select('base_date,ticker,close,chg_pct')
-    .eq('industry', ind)
-    .in('ticker', tickers)
-    .gte('base_date', oldestDate)
-    .order('base_date', { ascending: true });
+  const usRows = usResp.data;
 
   // Step4: 날짜 목록 — KR 실제 거래일 기준 (loadIndTrendChart와 동일)
   const dateList = tradingDays;
