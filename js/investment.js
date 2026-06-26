@@ -1056,20 +1056,21 @@ function _renderMyStocks() {
       ? `<span style="font-size:12px;font-weight:700;color:${chgColor(it.chg)};flex-shrink:0;min-width:52px;text-align:right">${chgStr(it.chg)}</span>`
       : `<span style="font-size:11px;color:var(--text3);flex-shrink:0;min-width:52px;text-align:right">${priceReady ? '—' : '·'}</span>`;
 
-    // 공시 배지 (카테고리, 최대 2개 + 나머지 +N) — 클릭 시 DART
+    // 공시 — 카테고리 배지 + 공시 제목(첫 건), 추가 건은 +N. 클릭 시 DART
     let discHTML = '';
     if (it.discs.length) {
-      const shown = it.discs.slice(0, 2).map(d => {
-        const s    = _msCatStyle(d.category || '기타');
-        const link = d.rcept_no ? `https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${d.rcept_no}` : null;
-        return `<span ${link ? `onclick="event.stopPropagation();window.open('${link}','_blank')"` : ''}
-          title="${(d.report_nm || '').replace(/"/g, '&quot;')}"
-          style="font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;
-          background:${s.bg};color:${s.c};cursor:${link ? 'pointer' : 'default'}">${d.category || '공시'}</span>`;
-      }).join('');
-      const more = it.discs.length > 2
-        ? `<span style="font-size:10px;color:var(--text3)">+${it.discs.length - 2}</span>` : '';
-      discHTML = shown + more;
+      const d0   = it.discs[0];
+      const s    = _msCatStyle(d0.category || '기타');
+      const link = d0.rcept_no ? `https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${d0.rcept_no}` : null;
+      const click = link ? `onclick="event.stopPropagation();window.open('${link}','_blank')"` : '';
+      const more  = it.discs.length > 1
+        ? `<span style="font-size:10px;color:var(--text3);flex-shrink:0">+${it.discs.length - 1}</span>` : '';
+      discHTML = `
+        <span ${click} style="font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;flex-shrink:0;
+          background:${s.bg};color:${s.c};cursor:${link ? 'pointer' : 'default'}">${d0.category || '공시'}</span>
+        <span ${click} title="${(d0.report_nm || '').replace(/"/g, '&quot;')}"
+          style="font-size:11px;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;cursor:${link ? 'pointer' : 'default'}">${d0.report_nm || '공시'}</span>
+        ${more}`;
     }
 
     // 최근 보고서 배지 (최신 1건 날짜) — 행 클릭으로 상세 진입
@@ -1078,7 +1079,7 @@ function _renderMyStocks() {
       const latest = it.reports[0];
       const md = (latest.receive_date || '').slice(5).replace('-', '/');
       reportHTML = `<span title="${(latest.report_type || 'DART 분석 보고서')}"
-        style="font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;
+        style="font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;flex-shrink:0;
         background:rgba(42,171,238,.13);color:#2AABEE">📄 리포트${md ? ' ' + md : ''}${it.reports.length > 1 ? ` +${it.reports.length - 1}` : ''}</span>`;
     }
 
