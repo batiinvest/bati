@@ -276,9 +276,9 @@ function _srQuadrant(rows, pk) {
 
   // 축 라벨
   const axes =
-    `<text x="${x1}" y="${cy - 4}" font-size="9" style="fill:var(--text3)" text-anchor="end">수급 유입 →</text>` +
-    `<text x="${x0}" y="${cy - 4}" font-size="9" style="fill:var(--text3)" text-anchor="start">← 유출</text>` +
-    `<text x="${cx + 4}" y="${y0 + 9}" font-size="9" style="fill:var(--text3)" text-anchor="start">▲ 등락률</text>`;
+    `<text x="${x1}" y="${cy - 4}" font-size="9" fill="#8b91a7" text-anchor="end">수급 유입 →</text>` +
+    `<text x="${x0}" y="${cy - 4}" font-size="9" fill="#8b91a7" text-anchor="start">← 유출</text>` +
+    `<text x="${cx + 4}" y="${y0 + 9}" font-size="9" fill="#8b91a7" text-anchor="start">▲ 등락률</text>`;
 
   // 버블 + 좌우 가장자리 라벨 컬럼 (수직 충돌회피 + 리더선) — 클러스터에서도 또렷하게
   const items = pts.map(p => ({
@@ -305,7 +305,7 @@ function _srQuadrant(rows, pk) {
       <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${r.toFixed(1)}"
         fill="${p.color}" fill-opacity=".85" stroke="${p.color}" stroke-width="1.2"/>
       <text x="${lblX}" y="${ly.toFixed(1)}" font-size="11" font-weight="700" text-anchor="${anchor}"
-        style="fill:var(--text1);paint-order:stroke;stroke:var(--bg2);stroke-width:3.5px">${p.ind}</text>
+        fill="#eef0f6" style="paint-order:stroke;stroke:#12141c;stroke-width:3.5px">${p.ind}</text>
     </g>`;
   }).join('');
 
