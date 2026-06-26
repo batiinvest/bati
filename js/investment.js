@@ -670,8 +670,8 @@ async function loadInvestment() {
   // 전체 종목 + 산업별 동향 (내부에서 window._allMarketRows 세팅)
   await loadMarketOverview(maxDate);
 
-  // _allMarketRows 확보 후 내 종목 시세 섹션 갱신
-  if (_myStocksWlRows) _renderMyStocksPriceSection(_myStocksWlRows);
+  // _allMarketRows 확보 후 내 종목 현황 행(등락률) 갱신
+  if (_myStocksWlRows) _renderMyStocks();
 
   // Phase 1 — 온도계 + 거래대금 상위 (window._allMarketRows / _macroData 재활용)
   renderMarketTemperature();
@@ -923,22 +923,29 @@ function toggleInsightHistory() {
 
 
 // ── 내 종목 현황 카드 ────────────────────────────────────────────────────────
-// 보유/관심 종목의 시세·오늘 공시·최근 보고서를 한 카드에 세로로 쌓아 한눈에 보여준다.
-//   시세는 _allMarketRows(loadMarketOverview)에 의존 → 준비되면 별도로 갱신.
+// 종목당 한 줄: [종목명][보유/관심][등락률][오늘 공시][최근 보고서]
+//   → 한 종목의 등락이 오늘 공시·리포트와 상관있는지 한눈에 읽힌다.
+//   이벤트(공시 or 리포트) 있는 종목을 위로, 그 안에서 등락 큰 순으로 정렬.
+//   시세는 _allMarketRows(loadMarketOverview)에 의존 → 준비되면 _renderMyStocks() 재호출로 갱신.
 let _myStocksWlRows = null;
+let _myStocksData   = null;   // { wlRows, discsByCode, reportsByCode, nameToWl }
 
-// 섹션 미니 헤더
-function _msSecLabel(title, extra = '') {
-  return `<div style="display:flex;align-items:center;gap:6px;padding:8px 14px 6px;font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.02em">
-    <span style="width:2px;height:11px;background:var(--tg);border-radius:2px;flex-shrink:0"></span>${title}
-    ${extra ? `<span style="font-weight:400;color:var(--text3)">${extra}</span>` : ''}</div>`;
-}
-// 보유/관심 배지
-function _msTag(held) {
-  return `<span style="font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0;
-    background:${held?'rgba(245,58,92,.13)':'rgba(255,255,255,.06)'};
-    color:${held?'var(--red)':'var(--text2)'}">${held?'보유':'관심'}</span>`;
-}
+// 공시 카테고리 색
+const _MS_CAT_ST = {
+  '잠정실적':     { c:'#f59e0b', bg:'rgba(245,158,11,.13)'  },
+  '주요사항':     { c:'#ffd600', bg:'rgba(255,214,0,.13)'   },
+  '주요경영사항': { c:'#fb923c', bg:'rgba(251,146,60,.13)'  },
+  '증자/감자':    { c:'#a78bfa', bg:'rgba(167,139,250,.13)' },
+  '합병/분할':    { c:'#f87171', bg:'rgba(248,113,113,.13)' },
+  '사채/전환':    { c:'#60a5fa', bg:'rgba(96,165,250,.13)'  },
+  '자사주':       { c:'#34d399', bg:'rgba(52,211,153,.13)'  },
+  '배당':         { c:'#fbbf24', bg:'rgba(251,191,36,.13)'  },
+  '지분공시':     { c:'#a259ff', bg:'rgba(162,89,255,.13)'  },
+  '대량보유':     { c:'#e879f9', bg:'rgba(232,121,249,.13)' },
+  '공정공시':     { c:'#00d4aa', bg:'rgba(0,212,170,.13)'   },
+  '최대주주변동': { c:'#f97316', bg:'rgba(249,115,22,.13)'  },
+};
+const _msCatStyle = cat => _MS_CAT_ST[cat] || { c:'#8b90a7', bg:'rgba(139,144,167,.13)' };
 
 async function loadMyStocksCard() {
   const body = document.getElementById('ms-body');
@@ -958,11 +965,7 @@ async function loadMyStocksCard() {
   const corpNameSet = new Set(wlRows.map(r => norm(r.corp_name)));
   const stockCodes  = [...new Set(wlRows.map(r => r.stock_code))];
   const nameToWl    = {};
-  const codeToWl    = {};
-  wlRows.forEach(r => {
-    if (r.corp_name) nameToWl[norm(r.corp_name)] = r;
-    codeToWl[r.stock_code] = r;
-  });
+  wlRows.forEach(r => { if (r.corp_name) nameToWl[norm(r.corp_name)] = r; });
 
   const heldCnt  = wlRows.filter(r => r.group_name === '보유중').length;
   const watchCnt = wlRows.filter(r => r.group_name !== '보유중').length;
@@ -972,14 +975,7 @@ async function loadMyStocksCard() {
     `<span style="color:var(--border);margin:0 5px">·</span>` +
     `<span style="color:var(--text2)">관심 ${watchCnt}</span>`;
 
-  // 골격: 시세 → 공시 → 보고서 (각 섹션은 독립 컨테이너, 비동기로 채움)
-  body.innerHTML =
-    `<div id="ms-sec-price"></div>` +
-    `<div id="ms-sec-disc" style="border-top:1px solid var(--border)"></div>` +
-    `<div id="ms-sec-report" style="border-top:1px solid var(--border)"></div>`;
-
-  // 시세 섹션 — _allMarketRows 준비됐으면 즉시, 아니면 loadInvestment가 나중에 갱신
-  _renderMyStocksPriceSection(wlRows);
+  body.innerHTML = _skelList(4, true);
 
   const todayStr   = fmtDate();
   const daysAgo30  = (() => { const d = new Date(); d.setDate(d.getDate()-30); return d.toISOString().split('T')[0]; })();
@@ -993,128 +989,122 @@ async function loadMyStocksCard() {
       .in('stock_code', stockCodes)
       .gte('receive_date', daysAgo30)
       .order('receive_date', { ascending: false })
-      .limit(20),
+      .limit(30),
   ]);
 
-  // ── 오늘 공시 섹션 ──
-  const myDiscs = (discRes.data || []).filter(d => corpNameSet.has(norm(d.corp_name)));
+  // 종목코드 기준으로 공시·보고서 묶기 (공시는 corp_name → wl → stock_code)
+  const discsByCode   = {};
+  (discRes.data || []).forEach(d => {
+    const wl = nameToWl[norm(d.corp_name)];
+    if (!wl) return;
+    (discsByCode[wl.stock_code] = discsByCode[wl.stock_code] || []).push(d);
+  });
+  const reportsByCode = {};
+  (reportRes.data || []).forEach(r => {
+    (reportsByCode[r.stock_code] = reportsByCode[r.stock_code] || []).push(r);
+  });
 
-  const CAT_ST = {
-    '잠정실적':     { c:'#f59e0b', bg:'rgba(245,158,11,.13)'  },
-    '주요사항':     { c:'#ffd600', bg:'rgba(255,214,0,.13)'   },
-    '주요경영사항': { c:'#fb923c', bg:'rgba(251,146,60,.13)'  },
-    '증자/감자':    { c:'#a78bfa', bg:'rgba(167,139,250,.13)' },
-    '합병/분할':    { c:'#f87171', bg:'rgba(248,113,113,.13)' },
-    '사채/전환':    { c:'#60a5fa', bg:'rgba(96,165,250,.13)'  },
-    '자사주':       { c:'#34d399', bg:'rgba(52,211,153,.13)'  },
-    '배당':         { c:'#fbbf24', bg:'rgba(251,191,36,.13)'  },
-    '지분공시':     { c:'#a259ff', bg:'rgba(162,89,255,.13)'  },
-    '대량보유':     { c:'#e879f9', bg:'rgba(232,121,249,.13)' },
-    '공정공시':     { c:'#00d4aa', bg:'rgba(0,212,170,.13)'   },
-    '최대주주변동': { c:'#f97316', bg:'rgba(249,115,22,.13)'  },
-  };
-  const cs = cat => CAT_ST[cat] || { c:'#8b90a7', bg:'rgba(139,144,167,.13)' };
-
-  const discSec = document.getElementById('ms-sec-disc');
-  if (discSec) {
-    if (!myDiscs.length) {
-      discSec.innerHTML = _msSecLabel('오늘 공시', '0건') +
-        `<div style="padding:2px 14px 10px;font-size:11px;color:var(--text3)">오늘 내 종목 공시 없음 · ${todayStr} 기준</div>`;
-    } else {
-      discSec.innerHTML = _msSecLabel('오늘 공시', `${myDiscs.length}건`) +
-        myDiscs.map(d => {
-          const wl   = nameToWl[norm(d.corp_name)];
-          const held = wl?.group_name === '보유중';
-          const s    = cs(d.category || '기타');
-          const link = d.rcept_no ? `https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${d.rcept_no}` : null;
-          return `
-          <div style="display:flex;align-items:center;gap:7px;padding:6px 14px;border-top:1px solid var(--border);cursor:${link?'pointer':'default'}"
-            ${link ? `onclick="window.open('${link}','_blank')"` : ''}
-            onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background=''">
-            <span style="font-size:12px;font-weight:500;flex-shrink:0;min-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.corp_name}</span>
-            ${_msTag(held)}
-            <span style="font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;flex-shrink:0;
-              background:${s.bg};color:${s.c}">${d.category||'기타'}</span>
-            <span style="font-size:11px;color:var(--text1);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.report_nm||'—'}</span>
-            ${link?`<span style="font-size:10px;color:var(--tg);flex-shrink:0">DART↗</span>`:''}
-          </div>`;
-        }).join('');
-    }
-  }
-
-  // ── 최근 보고서 섹션 ──
-  const reportSec = document.getElementById('ms-sec-report');
-  if (reportSec) {
-    const reports = reportRes.data || [];
-    if (!reports.length) {
-      reportSec.innerHTML = _msSecLabel('최근 보고서', '30일') +
-        `<div style="padding:2px 14px 10px;font-size:11px;color:var(--text3)">최근 30일 내 DART 분석 보고서 없음</div>`;
-    } else {
-      reportSec.innerHTML = _msSecLabel('최근 보고서', '30일') +
-        reports.map(r => {
-          const wl   = codeToWl[r.stock_code];
-          const held = wl?.group_name === '보유중';
-          let sumText = '';
-          if (r.summary) {
-            try { const p = JSON.parse(r.summary); sumText = (typeof p === 'string') ? p : (p.summary || p.text || ''); }
-            catch { sumText = typeof r.summary === 'string' ? r.summary : ''; }
-          }
-          return `
-          <div style="padding:7px 14px;border-top:1px solid var(--border)">
-            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:${sumText?'3px':'0'}">
-              <span style="font-size:12px;font-weight:600">${r.stock_name||r.stock_code}</span>
-              ${_msTag(held)}
-              ${r.report_type?`<span style="font-size:10px;color:var(--text2);padding:1px 5px;border-radius:3px;background:rgba(255,255,255,.05)">${r.report_type}</span>`:''}
-              <span style="font-size:10px;color:var(--text3);margin-left:auto">${r.receive_date||''}</span>
-            </div>
-            ${sumText?`<div style="font-size:11.5px;color:var(--text1);line-height:1.6;
-              display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${sumText}</div>`:''}
-          </div>`;
-        }).join('');
-    }
-  }
+  _myStocksData = { wlRows, discsByCode, reportsByCode, nameToWl, todayStr };
+  _renderMyStocks();
 }
 
-// 시세 섹션 — 보유/관심 종목을 컴팩트 칩으로 한 줄에 나열 (등락 큰 순)
-function _renderMyStocksPriceSection(wlRows) {
-  const sec = document.getElementById('ms-sec-price');
-  if (!sec || !wlRows?.length) return;
+// 종목당 한 줄 렌더 (시세·공시·보고서 결합) — 시세가 늦게 와도 재호출로 갱신
+function _renderMyStocks() {
+  const body = document.getElementById('ms-body');
+  if (!body || !_myStocksData) return;
+
+  const { wlRows, discsByCode, reportsByCode, todayStr } = _myStocksData;
   const allRows = window._allMarketRows || [];
+  const mktByCode = {};
+  allRows.forEach(r => { mktByCode[r.stock_code] = r; });
 
-  if (!allRows.length) {
-    sec.innerHTML = _msSecLabel('시세') +
-      `<div style="padding:2px 14px 10px;font-size:11px;color:var(--text3)">시세 데이터 준비 중...</div>`;
-    return;
-  }
-  const codeToWl = {};
-  wlRows.forEach(r => { codeToWl[r.stock_code] = r; });
-  const myRows = allRows
-    .filter(r => codeToWl[r.stock_code] && r.corp_name)
-    .sort((a, b) => Math.abs(b.price_change_rate||0) - Math.abs(a.price_change_rate||0));
+  // 종목 단위로 통합 (watchlist 중복 코드 제거)
+  const seen = new Set();
+  const items = [];
+  wlRows.forEach(wl => {
+    if (seen.has(wl.stock_code)) return;
+    seen.add(wl.stock_code);
+    const mkt     = mktByCode[wl.stock_code];
+    const discs   = discsByCode[wl.stock_code]   || [];
+    const reports = reportsByCode[wl.stock_code] || [];
+    items.push({
+      code: wl.stock_code,
+      name: wl.corp_name || mkt?.corp_name || wl.stock_code,
+      held: wl.group_name === '보유중',
+      chg:  mkt?.price_change_rate,
+      discs, reports,
+      hasEvent: discs.length > 0 || reports.length > 0,
+    });
+  });
 
-  if (!myRows.length) {
-    sec.innerHTML = _msSecLabel('시세') +
-      `<div style="padding:2px 14px 10px;font-size:11px;color:var(--text3)">시세 데이터 없음</div>`;
-    return;
-  }
+  // 이벤트 있는 종목 우선 → 등락 큰 순 (등락 없으면 맨 뒤)
+  items.sort((a, b) => {
+    if (a.hasEvent !== b.hasEvent) return a.hasEvent ? -1 : 1;
+    const ca = a.chg == null ? -Infinity : Math.abs(a.chg);
+    const cb = b.chg == null ? -Infinity : Math.abs(b.chg);
+    return cb - ca;
+  });
 
-  const chips = myRows.map(r => {
-    const wl   = codeToWl[r.stock_code];
-    const held = wl?.group_name === '보유중';
-    const chg  = r.price_change_rate ?? 0;
-    const safe = (r.corp_name||'').replace(/'/g,"\\'");
+  const eventCnt = items.filter(i => i.hasEvent).length;
+  const priceReady = allRows.length > 0;
+
+  const rows = items.map(it => {
+    const safe = (it.name || '').replace(/'/g, "\\'");
+
+    // 등락률
+    const chgHTML = it.chg != null
+      ? `<span style="font-size:12px;font-weight:700;color:${chgColor(it.chg)};flex-shrink:0;min-width:52px;text-align:right">${chgStr(it.chg)}</span>`
+      : `<span style="font-size:11px;color:var(--text3);flex-shrink:0;min-width:52px;text-align:right">${priceReady ? '—' : '·'}</span>`;
+
+    // 공시 배지 (카테고리, 최대 2개 + 나머지 +N) — 클릭 시 DART
+    let discHTML = '';
+    if (it.discs.length) {
+      const shown = it.discs.slice(0, 2).map(d => {
+        const s    = _msCatStyle(d.category || '기타');
+        const link = d.rcept_no ? `https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${d.rcept_no}` : null;
+        return `<span ${link ? `onclick="event.stopPropagation();window.open('${link}','_blank')"` : ''}
+          title="${(d.report_nm || '').replace(/"/g, '&quot;')}"
+          style="font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;
+          background:${s.bg};color:${s.c};cursor:${link ? 'pointer' : 'default'}">${d.category || '공시'}</span>`;
+      }).join('');
+      const more = it.discs.length > 2
+        ? `<span style="font-size:10px;color:var(--text3)">+${it.discs.length - 2}</span>` : '';
+      discHTML = shown + more;
+    }
+
+    // 최근 보고서 배지 (최신 1건 날짜) — 행 클릭으로 상세 진입
+    let reportHTML = '';
+    if (it.reports.length) {
+      const latest = it.reports[0];
+      const md = (latest.receive_date || '').slice(5).replace('-', '/');
+      reportHTML = `<span title="${(latest.report_type || 'DART 분석 보고서')}"
+        style="font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;
+        background:rgba(42,171,238,.13);color:#2AABEE">📄 리포트${md ? ' ' + md : ''}${it.reports.length > 1 ? ` +${it.reports.length - 1}` : ''}</span>`;
+    }
+
     return `
-    <span onclick="openMarketDetail('${r.stock_code}','${safe}')"
-      style="display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:100px;cursor:pointer;
-      border:1px solid ${held?'rgba(245,58,92,.25)':'var(--border)'};background:var(--bg2)"
-      onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='var(--bg2)'">
-      <span style="font-size:11.5px;font-weight:500;color:var(--text1)">${r.corp_name}</span>
-      <span style="font-size:11.5px;font-weight:700;color:${chgColor(chg)}">${chgStr(chg)}</span>
-    </span>`;
+    <div onclick="openMarketDetail('${it.code}','${safe}')"
+      style="display:flex;align-items:center;gap:8px;padding:7px 14px 7px 12px;border-top:1px solid var(--border);cursor:pointer;
+      border-left:2px solid ${it.hasEvent ? 'var(--tg)' : 'transparent'}"
+      onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background=''">
+      <span style="font-size:12px;font-weight:500;color:var(--text1);flex-shrink:0;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.name}</span>
+      <span style="font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0;
+        background:${it.held?'rgba(245,58,92,.13)':'rgba(255,255,255,.06)'};
+        color:${it.held?'var(--red)':'var(--text2)'}">${it.held?'보유':'관심'}</span>
+      ${chgHTML}
+      <div style="display:flex;align-items:center;gap:5px;flex:1;min-width:0;overflow:hidden">
+        ${discHTML}${reportHTML}
+      </div>
+    </div>`;
   }).join('');
 
-  sec.innerHTML = _msSecLabel('시세', `${myRows.length}종목`) +
-    `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:2px 14px 11px">${chips}</div>`;
+  const header = `<div style="display:flex;align-items:center;gap:6px;padding:7px 14px 7px 12px;font-size:11px;color:var(--text2)">
+    <span style="width:2px;height:11px;background:var(--tg);border-radius:2px;flex-shrink:0"></span>
+    ${eventCnt ? `오늘 <b style="color:var(--text1)">${eventCnt}</b>종목에 공시·리포트` : '오늘 공시·리포트 있는 종목 없음'}
+    <span style="color:var(--text3);margin-left:auto">${todayStr} 기준 · 리포트 30일</span>
+  </div>`;
+
+  body.innerHTML = header + rows;
 }
 
 
