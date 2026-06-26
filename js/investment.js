@@ -141,20 +141,14 @@ function pInvestment() {
     </div>
   </div>
 
-  <!-- 내 종목 현황 — 보유/관심 종목의 오늘 공시·시세·최근 보고서 -->
+  <!-- 내 종목 현황 — 보유/관심 종목의 시세·오늘 공시·최근 보고서를 한눈에 -->
   <div class="card" id="my-stocks-card" style="margin-bottom:1rem">
     <div class="card-header" style="flex-wrap:wrap;gap:6px">
       <span class="card-title">${_ICO.doc}내 종목 현황</span>
-      <span id="ms-count-badge" style="font-size:10px;color:var(--text2)"></span>
-      <div style="display:flex;gap:4px;margin-left:auto">
-        <button class="chip active" id="ms-tab-disc"   onclick="switchMyStocksTab('disc')"   style="font-size:11px;padding:3px 10px">공시</button>
-        <button class="chip"        id="ms-tab-price"  onclick="switchMyStocksTab('price')"  style="font-size:11px;padding:3px 10px">시세</button>
-        <button class="chip"        id="ms-tab-report" onclick="switchMyStocksTab('report')" style="font-size:11px;padding:3px 10px">보고서</button>
-      </div>
+      <span style="font-size:10px;color:var(--text2);font-weight:400">시세 · 오늘 공시 · 최근 보고서</span>
+      <span id="ms-count-badge" style="font-size:10px;color:var(--text2);margin-left:auto"></span>
     </div>
-    <div id="ms-panel-disc"   style="border-top:1px solid var(--border)">${_skelList(3, true)}</div>
-    <div id="ms-panel-price"  style="display:none;border-top:1px solid var(--border)"></div>
-    <div id="ms-panel-report" style="display:none;border-top:1px solid var(--border)"></div>
+    <div id="ms-body" style="border-top:1px solid var(--border)">${_skelList(3, true)}</div>
   </div>
 
   <!-- 2단 레이아웃: 좌(투자포인트+주도주+수급) + 우(공시/신호) -->
@@ -676,8 +670,8 @@ async function loadInvestment() {
   // 전체 종목 + 산업별 동향 (내부에서 window._allMarketRows 세팅)
   await loadMarketOverview(maxDate);
 
-  // _allMarketRows 확보 후 내 종목 시세 탭 업데이트
-  if (_myStocksWlRows) _renderMyStocksPriceTab(_myStocksWlRows);
+  // _allMarketRows 확보 후 내 종목 시세 섹션 갱신
+  if (_myStocksWlRows) _renderMyStocksPriceSection(_myStocksWlRows);
 
   // Phase 1 — 온도계 + 거래대금 상위 (window._allMarketRows / _macroData 재활용)
   renderMarketTemperature();
@@ -929,30 +923,32 @@ function toggleInsightHistory() {
 
 
 // ── 내 종목 현황 카드 ────────────────────────────────────────────────────────
-let _myStocksTab = 'disc';
+// 보유/관심 종목의 시세·오늘 공시·최근 보고서를 한 카드에 세로로 쌓아 한눈에 보여준다.
+//   시세는 _allMarketRows(loadMarketOverview)에 의존 → 준비되면 별도로 갱신.
 let _myStocksWlRows = null;
 
-function switchMyStocksTab(tab) {
-  _myStocksTab = tab;
-  ['disc', 'price', 'report'].forEach(t => {
-    const p = document.getElementById('ms-panel-' + t);
-    const b = document.getElementById('ms-tab-' + t);
-    if (p) p.style.display = t === tab ? 'block' : 'none';
-    if (b) b.classList.toggle('active', t === tab);
-  });
-  if (tab === 'price' && _myStocksWlRows) _renderMyStocksPriceTab(_myStocksWlRows);
+// 섹션 미니 헤더
+function _msSecLabel(title, extra = '') {
+  return `<div style="display:flex;align-items:center;gap:6px;padding:8px 14px 6px;font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.02em">
+    <span style="width:2px;height:11px;background:var(--tg);border-radius:2px;flex-shrink:0"></span>${title}
+    ${extra ? `<span style="font-weight:400;color:var(--text3)">${extra}</span>` : ''}</div>`;
+}
+// 보유/관심 배지
+function _msTag(held) {
+  return `<span style="font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0;
+    background:${held?'rgba(245,58,92,.13)':'rgba(255,255,255,.06)'};
+    color:${held?'var(--red)':'var(--text2)'}">${held?'보유':'관심'}</span>`;
 }
 
 async function loadMyStocksCard() {
-  const discEl = document.getElementById('ms-panel-disc');
-  if (!discEl) return;
+  const body = document.getElementById('ms-body');
+  if (!body) return;
 
   const { data: wlRows, error: wlErr } = await sb.from('watchlist')
     .select('stock_code,corp_name,group_name');
 
   if (wlErr || !wlRows?.length) {
-    const msg = '<div style="padding:1.2rem;text-align:center;color:var(--text2);font-size:12px">보유/관심 종목을 추가하면 현황이 표시됩니다</div>';
-    discEl.innerHTML = msg;
+    body.innerHTML = '<div style="padding:1.2rem;text-align:center;color:var(--text2);font-size:12px">보유/관심 종목을 추가하면 현황이 표시됩니다</div>';
     return;
   }
 
@@ -976,6 +972,15 @@ async function loadMyStocksCard() {
     `<span style="color:var(--border);margin:0 5px">·</span>` +
     `<span style="color:var(--text2)">관심 ${watchCnt}</span>`;
 
+  // 골격: 시세 → 공시 → 보고서 (각 섹션은 독립 컨테이너, 비동기로 채움)
+  body.innerHTML =
+    `<div id="ms-sec-price"></div>` +
+    `<div id="ms-sec-disc" style="border-top:1px solid var(--border)"></div>` +
+    `<div id="ms-sec-report" style="border-top:1px solid var(--border)"></div>`;
+
+  // 시세 섹션 — _allMarketRows 준비됐으면 즉시, 아니면 loadInvestment가 나중에 갱신
+  _renderMyStocksPriceSection(wlRows);
+
   const todayStr   = fmtDate();
   const daysAgo30  = (() => { const d = new Date(); d.setDate(d.getDate()-30); return d.toISOString().split('T')[0]; })();
 
@@ -991,7 +996,7 @@ async function loadMyStocksCard() {
       .limit(20),
   ]);
 
-  // ── 공시 탭 ──
+  // ── 오늘 공시 섹션 ──
   const myDiscs = (discRes.data || []).filter(d => corpNameSet.has(norm(d.corp_name)));
 
   const CAT_ST = {
@@ -1010,71 +1015,75 @@ async function loadMyStocksCard() {
   };
   const cs = cat => CAT_ST[cat] || { c:'#8b90a7', bg:'rgba(139,144,167,.13)' };
 
-  if (!myDiscs.length) {
-    discEl.innerHTML = `<div style="padding:1.2rem;text-align:center;color:var(--text2);font-size:12px">오늘 보유·관심 종목 공시 없음 · ${todayStr} 기준</div>`;
-  } else {
-    discEl.innerHTML = myDiscs.map(d => {
-      const wl   = nameToWl[norm(d.corp_name)];
-      const held = wl?.group_name === '보유중';
-      const s    = cs(d.category || '기타');
-      const link = d.rcept_no ? `https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${d.rcept_no}` : null;
-      return `
-      <div style="display:flex;align-items:center;gap:7px;padding:7px 14px;border-bottom:1px solid var(--border);cursor:${link?'pointer':'default'}"
-        ${link ? `onclick="window.open('${link}','_blank')"` : ''}
-        onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background=''">
-        <span style="font-size:12px;font-weight:500;flex-shrink:0;min-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.corp_name}</span>
-        <span style="font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0;
-          background:${held?'rgba(245,58,92,.13)':'rgba(255,255,255,.06)'};
-          color:${held?'var(--red)':'var(--text2)'}">${held?'보유':'관심'}</span>
-        <span style="font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;flex-shrink:0;
-          background:${s.bg};color:${s.c}">${d.category||'기타'}</span>
-        <span style="font-size:11px;color:var(--text1);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.report_nm||'—'}</span>
-        ${link?`<span style="font-size:10px;color:var(--tg);flex-shrink:0">DART↗</span>`:''}
-      </div>`;
-    }).join('');
+  const discSec = document.getElementById('ms-sec-disc');
+  if (discSec) {
+    if (!myDiscs.length) {
+      discSec.innerHTML = _msSecLabel('오늘 공시', '0건') +
+        `<div style="padding:2px 14px 10px;font-size:11px;color:var(--text3)">오늘 내 종목 공시 없음 · ${todayStr} 기준</div>`;
+    } else {
+      discSec.innerHTML = _msSecLabel('오늘 공시', `${myDiscs.length}건`) +
+        myDiscs.map(d => {
+          const wl   = nameToWl[norm(d.corp_name)];
+          const held = wl?.group_name === '보유중';
+          const s    = cs(d.category || '기타');
+          const link = d.rcept_no ? `https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${d.rcept_no}` : null;
+          return `
+          <div style="display:flex;align-items:center;gap:7px;padding:6px 14px;border-top:1px solid var(--border);cursor:${link?'pointer':'default'}"
+            ${link ? `onclick="window.open('${link}','_blank')"` : ''}
+            onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background=''">
+            <span style="font-size:12px;font-weight:500;flex-shrink:0;min-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.corp_name}</span>
+            ${_msTag(held)}
+            <span style="font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;flex-shrink:0;
+              background:${s.bg};color:${s.c}">${d.category||'기타'}</span>
+            <span style="font-size:11px;color:var(--text1);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.report_nm||'—'}</span>
+            ${link?`<span style="font-size:10px;color:var(--tg);flex-shrink:0">DART↗</span>`:''}
+          </div>`;
+        }).join('');
+    }
   }
 
-  // 시세 탭 — _allMarketRows 이미 준비됐으면 즉시 렌더
-  if (window._allMarketRows?.length) _renderMyStocksPriceTab(wlRows);
-
-  // ── 보고서 탭 ──
-  const reportEl = document.getElementById('ms-panel-report');
-  if (!reportEl) return;
-  const reports = reportRes.data || [];
-  if (!reports.length) {
-    reportEl.innerHTML = `<div style="padding:1.2rem;text-align:center;color:var(--text2);font-size:12px">최근 30일 내 DART 보고서 없음</div>`;
-  } else {
-    reportEl.innerHTML = reports.map(r => {
-      const wl   = codeToWl[r.stock_code];
-      const held = wl?.group_name === '보유중';
-      let sumText = '';
-      if (r.summary) {
-        try { const p = JSON.parse(r.summary); sumText = (typeof p === 'string') ? p : (p.summary || p.text || ''); }
-        catch { sumText = typeof r.summary === 'string' ? r.summary : ''; }
-      }
-      return `
-      <div style="padding:8px 14px;border-bottom:1px solid var(--border)">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:${sumText?'3px':'0'}">
-          <span style="font-size:12px;font-weight:600">${r.stock_name||r.stock_code}</span>
-          <span style="font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0;
-            background:${held?'rgba(245,58,92,.13)':'rgba(255,255,255,.06)'};
-            color:${held?'var(--red)':'var(--text2)'}">${held?'보유':'관심'}</span>
-          ${r.report_type?`<span style="font-size:10px;color:var(--text2);padding:1px 5px;border-radius:3px;background:rgba(255,255,255,.05)">${r.report_type}</span>`:''}
-          <span style="font-size:10px;color:var(--text3);margin-left:auto">${r.receive_date||''}</span>
-        </div>
-        ${sumText?`<div style="font-size:11.5px;color:var(--text1);line-height:1.6;
-          display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${sumText}</div>`:''}
-      </div>`;
-    }).join('');
+  // ── 최근 보고서 섹션 ──
+  const reportSec = document.getElementById('ms-sec-report');
+  if (reportSec) {
+    const reports = reportRes.data || [];
+    if (!reports.length) {
+      reportSec.innerHTML = _msSecLabel('최근 보고서', '30일') +
+        `<div style="padding:2px 14px 10px;font-size:11px;color:var(--text3)">최근 30일 내 DART 분석 보고서 없음</div>`;
+    } else {
+      reportSec.innerHTML = _msSecLabel('최근 보고서', '30일') +
+        reports.map(r => {
+          const wl   = codeToWl[r.stock_code];
+          const held = wl?.group_name === '보유중';
+          let sumText = '';
+          if (r.summary) {
+            try { const p = JSON.parse(r.summary); sumText = (typeof p === 'string') ? p : (p.summary || p.text || ''); }
+            catch { sumText = typeof r.summary === 'string' ? r.summary : ''; }
+          }
+          return `
+          <div style="padding:7px 14px;border-top:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:${sumText?'3px':'0'}">
+              <span style="font-size:12px;font-weight:600">${r.stock_name||r.stock_code}</span>
+              ${_msTag(held)}
+              ${r.report_type?`<span style="font-size:10px;color:var(--text2);padding:1px 5px;border-radius:3px;background:rgba(255,255,255,.05)">${r.report_type}</span>`:''}
+              <span style="font-size:10px;color:var(--text3);margin-left:auto">${r.receive_date||''}</span>
+            </div>
+            ${sumText?`<div style="font-size:11.5px;color:var(--text1);line-height:1.6;
+              display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${sumText}</div>`:''}
+          </div>`;
+        }).join('');
+    }
   }
 }
 
-function _renderMyStocksPriceTab(wlRows) {
-  const priceEl = document.getElementById('ms-panel-price');
-  if (!priceEl || !wlRows?.length) return;
+// 시세 섹션 — 보유/관심 종목을 컴팩트 칩으로 한 줄에 나열 (등락 큰 순)
+function _renderMyStocksPriceSection(wlRows) {
+  const sec = document.getElementById('ms-sec-price');
+  if (!sec || !wlRows?.length) return;
   const allRows = window._allMarketRows || [];
+
   if (!allRows.length) {
-    priceEl.innerHTML = `<div style="padding:1.2rem;text-align:center;color:var(--text2);font-size:12px">시세 데이터 준비 중...</div>`;
+    sec.innerHTML = _msSecLabel('시세') +
+      `<div style="padding:2px 14px 10px;font-size:11px;color:var(--text3)">시세 데이터 준비 중...</div>`;
     return;
   }
   const codeToWl = {};
@@ -1084,27 +1093,28 @@ function _renderMyStocksPriceTab(wlRows) {
     .sort((a, b) => Math.abs(b.price_change_rate||0) - Math.abs(a.price_change_rate||0));
 
   if (!myRows.length) {
-    priceEl.innerHTML = `<div style="padding:1.2rem;text-align:center;color:var(--text2);font-size:12px">시세 데이터 없음</div>`;
+    sec.innerHTML = _msSecLabel('시세') +
+      `<div style="padding:2px 14px 10px;font-size:11px;color:var(--text3)">시세 데이터 없음</div>`;
     return;
   }
-  priceEl.innerHTML = myRows.map(r => {
-    const wl    = codeToWl[r.stock_code];
-    const held  = wl?.group_name === '보유중';
-    const chg   = r.price_change_rate ?? 0;
-    const safe  = (r.corp_name||'').replace(/'/g,"\\'");
-    const price = r.price != null ? Number(r.price).toLocaleString()+'원' : '';
+
+  const chips = myRows.map(r => {
+    const wl   = codeToWl[r.stock_code];
+    const held = wl?.group_name === '보유중';
+    const chg  = r.price_change_rate ?? 0;
+    const safe = (r.corp_name||'').replace(/'/g,"\\'");
     return `
-    <div onclick="openMarketDetail('${r.stock_code}','${safe}')"
-      style="display:flex;align-items:center;gap:8px;padding:7px 14px;border-bottom:1px solid var(--border);cursor:pointer"
-      onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background=''">
-      <span style="font-size:12px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.corp_name}</span>
-      <span style="font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0;
-        background:${held?'rgba(245,58,92,.13)':'rgba(255,255,255,.06)'};
-        color:${held?'var(--red)':'var(--text2)'}">${held?'보유':'관심'}</span>
-      ${price?`<span style="font-size:11px;color:var(--text1);flex-shrink:0">${price}</span>`:''}
-      <span style="font-size:12px;font-weight:700;flex-shrink:0;min-width:50px;text-align:right;color:${chgColor(chg)}">${chgStr(chg)}</span>
-    </div>`;
+    <span onclick="openMarketDetail('${r.stock_code}','${safe}')"
+      style="display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:100px;cursor:pointer;
+      border:1px solid ${held?'rgba(245,58,92,.25)':'var(--border)'};background:var(--bg2)"
+      onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='var(--bg2)'">
+      <span style="font-size:11.5px;font-weight:500;color:var(--text1)">${r.corp_name}</span>
+      <span style="font-size:11.5px;font-weight:700;color:${chgColor(chg)}">${chgStr(chg)}</span>
+    </span>`;
   }).join('');
+
+  sec.innerHTML = _msSecLabel('시세', `${myRows.length}종목`) +
+    `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:2px 14px 11px">${chips}</div>`;
 }
 
 
