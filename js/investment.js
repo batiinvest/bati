@@ -151,6 +151,21 @@ function pInvestment() {
     <div id="ms-body" style="border-top:1px solid var(--border)">${_skelList(3, true)}</div>
   </div>
 
+  <!-- 산업별 수급동향 — 로테이션 맵 + 산업 보드 (등락·거래대금·수급·국면). 내 종목 현황 바로 아래 배치 -->
+  <div id="sector-rot-card" class="card" style="margin-bottom:1rem">
+    <div class="card-header" style="flex-wrap:wrap;gap:6px">
+      <span class="card-title">${_ICO.flow}산업별 수급동향</span>
+      <span style="font-size:10px;color:var(--text2);font-weight:400">자금이 어디로 — 등락·거래대금·수급·국면</span>
+      <span id="sr-date" style="font-size:10px;color:var(--text2);margin-left:auto"></span>
+      <div style="display:flex;gap:4px">
+        <button class="chip"        data-sr-period="1"  onclick="switchSrPeriod(1)"  style="font-size:11px;padding:2px 8px">1일</button>
+        <button class="chip active" data-sr-period="5"  onclick="switchSrPeriod(5)"  style="font-size:11px;padding:2px 8px">5일</button>
+        <button class="chip"        data-sr-period="20" onclick="switchSrPeriod(20)" style="font-size:11px;padding:2px 8px">20일</button>
+      </div>
+    </div>
+    <div id="sector-rot-body" style="padding:0">${_skelList(8, true)}</div>
+  </div>
+
   <!-- 2단 레이아웃: 좌(투자포인트+주도주+수급) + 우(공시/신호) -->
   <div style="display:grid;grid-template-columns:2fr 3fr;gap:1rem;align-items:start;margin-bottom:1rem">
 
@@ -288,20 +303,7 @@ function pInvestment() {
   <div id="inv-tab-market" style="display:block">
 
 
-    <!-- 산업별 수급동향 — 로테이션 맵 + 산업 보드 (등락·거래대금·수급·국면) -->
-    <div id="sector-rot-card" class="card" style="margin-bottom:12px">
-      <div class="card-header" style="flex-wrap:wrap;gap:6px">
-        <span class="card-title">${_ICO.flow}산업별 수급동향</span>
-        <span style="font-size:10px;color:var(--text2);font-weight:400">자금이 어디로 — 등락·거래대금·수급·국면</span>
-        <span id="sr-date" style="font-size:10px;color:var(--text2);margin-left:auto"></span>
-        <div style="display:flex;gap:4px">
-          <button class="chip"        data-sr-period="1"  onclick="switchSrPeriod(1)"  style="font-size:11px;padding:2px 8px">1일</button>
-          <button class="chip active" data-sr-period="5"  onclick="switchSrPeriod(5)"  style="font-size:11px;padding:2px 8px">5일</button>
-          <button class="chip"        data-sr-period="20" onclick="switchSrPeriod(20)" style="font-size:11px;padding:2px 8px">20일</button>
-        </div>
-      </div>
-      <div id="sector-rot-body" style="padding:0">${_skelList(8, true)}</div>
-    </div>
+    <!-- (산업별 수급동향 → '내 종목 현황' 카드 바로 아래로 이동) -->
 
     <!-- (종목별 수급 순위 → Zone C 심화 분석으로 이동) -->
 
