@@ -62,14 +62,8 @@ async function loadUskrChart() {
   const refCode  = indCodes[0] || Object.keys(industryMap)[0];
   if (!refCode) return;
 
-  const { data: dateRows } = await sb.from('market_data')
-    .select('base_date')
-    .eq('stock_code', refCode)
-    .order('base_date', { ascending: false })
-    .limit(_uskrPeriod + 10);
-
-  if (!dateRows?.length) return;
-  const tradingDays = [...new Set(dateRows.map(r => r.base_date))].sort().slice(-_uskrPeriod);
+  const tradingDays = await fetchTradingDays(refCode, _uskrPeriod);   // config.js 공용
+  if (!tradingDays.length) return;
   const oldestDate  = tradingDays[0];
 
   // Step2+3: KR · US 병렬 조회 — 둘 다 oldestDate에만 의존하므로 동시에 받는다.

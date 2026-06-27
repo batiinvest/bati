@@ -195,11 +195,7 @@ function analyzeMarket({ m, krR, krPeriod, usIndAvg }) {
   };
 }
 
-function _fmt(v) {
-  if (v == null || isNaN(Number(v))) return '—';
-  const n = Number(v);
-  return (n >= 0 ? '+' : '') + n.toFixed(1) + '%';
-}
+// _fmt → config.js의 fmtPct로 통합 (Number 강제변환 + NaN 가드 동일, 동작 보존)
 
 
 // ════════════════════════════════════════════════════════════
@@ -364,8 +360,8 @@ async function _buildLiveSections() {
   if (lagSigs.length) {
     const best = lagSigs[0];
     const etf = USKR_LABELS[best.ind] || '';
-    const d1Str = best.usD1 != null ? `(당일 ${_fmt(best.usD1)})` : '';
-    opportunity = `${best.ind}${etf ? '('+etf+')' : ''} 후행 선점 — 미국 5일 ${_fmt(best.usChg)}${d1Str} 선행·국내 5일 ${_fmt(best.krChg)} 후행, 수급 유입 시 진입`;
+    const d1Str = best.usD1 != null ? `(당일 ${fmtPct(best.usD1)})` : '';
+    opportunity = `${best.ind}${etf ? '('+etf+')' : ''} 후행 선점 — 미국 5일 ${fmtPct(best.usChg)}${d1Str} 선행·국내 5일 ${fmtPct(best.krChg)} 후행, 수급 유입 시 진입`;
   } else if (syncUpSigs.length >= 2) {
     const inds = syncUpSigs.slice(0, 2).map(s => s.ind).join('·');
     opportunity = `${inds} 미·한 동반 강세 — 추세 추종 검토`;
@@ -373,7 +369,7 @@ async function _buildLiveSections() {
     const inds = a.krRising.slice(0, 2).map(x => x.ind).join('·');
     opportunity = `${inds} 모멘텀 강화 — 5일 대비 순위 상승, 매집 신호`;
   } else if (surgeStocks.length >= 2) {
-    const names = surgeStocks.slice(0, 2).map(r => `${r.corp_name}(${_fmt(r.price_change_rate)})`).join(' · ');
+    const names = surgeStocks.slice(0, 2).map(r => `${r.corp_name}(${fmtPct(r.price_change_rate)})`).join(' · ');
     opportunity = `${names} 급등 — 추격 자제, 다음날 지속성 확인`;
   } else if (topFrgnBuy.length >= 2 && (a.kospiChg ?? 0) > 0) {
     opportunity = `${topFrgnBuy.slice(0, 2).map(r => r.corp_name).join('·')} 외국인 집중 매수`;
@@ -384,11 +380,11 @@ async function _buildLiveSections() {
     risk = `VIX ${Number(m.vix).toFixed(0)} 공포 구간 — 신규 매수 중단, 헤지 확대`;
   } else if (riskSigs.length) {
     const s = riskSigs[0];
-    risk = `${s.ind} 디커플링 — 한국 5일 ${_fmt(s.krChg)} 상승 중 미국 5일 ${_fmt(s.usChg)} 부진, 차익 실현 우선`;
+    risk = `${s.ind} 디커플링 — 한국 5일 ${fmtPct(s.krChg)} 상승 중 미국 5일 ${fmtPct(s.usChg)} 부진, 차익 실현 우선`;
   } else if (syncDownSigs.length) {
     risk = `${syncDownSigs.map(s => s.ind).join('·')} 미·한 동반 약세 — 반등 매수 금지`;
   } else if (plungeStocks.length >= 2) {
-    const names = plungeStocks.slice(0, 2).map(r => `${r.corp_name}(${_fmt(r.price_change_rate)})`).join(' · ');
+    const names = plungeStocks.slice(0, 2).map(r => `${r.corp_name}(${fmtPct(r.price_change_rate)})`).join(' · ');
     risk = `${names} 급락 — 실적·공시 이슈 확인 필요`;
   } else if (a.krFalling.length >= 2) {
     risk = `${a.krFalling.slice(0, 2).map(x => x.ind).join('·')} 모멘텀 소멸 — 비중 축소 검토`;
@@ -409,7 +405,7 @@ async function _buildLiveSections() {
   const moodStr   = moodMap[a.krMarketState] || '혼조';
   const topIndStr = a.krSorted[0] ? ` · ${a.krSorted[0]} 주도` : '';
 
-  const oneLiner = `코스피 ${_fmt(a.kospiChg)} ${moodStr}${topIndStr}`;
+  const oneLiner = `코스피 ${fmtPct(a.kospiChg)} ${moodStr}${topIndStr}`;
 
   return {
     market_date:   m.base_date || new Date().toISOString().split('T')[0],

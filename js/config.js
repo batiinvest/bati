@@ -120,6 +120,20 @@ async function fetchPagesParallel(makeQuery, countQuery, pageSize = 1000) {
 }
 
 // ══════════════════════════════════════════
+//  특정 종목(refCode) 기준 최근 거래일 N개 — 차트 날짜축 확정 공용
+//  (chart-industry / chart-uskr). 달력이 아닌 실제 거래일 기준. 데이터 없으면 [].
+// ══════════════════════════════════════════
+async function fetchTradingDays(refCode, period) {
+  const { data } = await sb.from('market_data')
+    .select('base_date')
+    .eq('stock_code', refCode)
+    .order('base_date', { ascending: false })
+    .limit(period + 10);
+  if (!data?.length) return [];
+  return [...new Set(data.map(r => r.base_date))].sort().slice(-period);
+}
+
+// ══════════════════════════════════════════
 //  종목 검색 공통 fetcher — 회사명/코드 ilike 드롭다운용
 //  comparison·report·company의 .or(name.ilike,code.ilike) 중복을 통합.
 //  각 페이지는 scope/limit/orderBy/cols만 지정하고 렌더링은 자체 유지한다.
@@ -250,8 +264,8 @@ const chgColor = v => v > 0 ? 'var(--red)' : v < 0 ? 'var(--blue)' : 'var(--text
 const chgStr = v => v != null ? `${v > 0 ? '+' : ''}${v.toFixed(2)}%` : '—';
 
 // 등락률 1자리 % (예: +2.3% / -1.5% / —) — 0 이상이면 '+' (chgStr은 0에 '+' 없음 — 의도적 차이)
-// 주의: market-insight.js의 _fmt는 null→"+0.0%" 처리가 달라 통합하지 않음 (표기 보존).
-const fmtPct = v => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—';
+// null·NaN·비숫자는 '—' (Number 강제변환 + NaN 가드로 "+NaN%" 방지). market-insight.js의 _fmt를 이 함수로 통합.
+const fmtPct = v => { const n = Number(v); return (v != null && !isNaN(n)) ? `${n >= 0 ? '+' : ''}${n.toFixed(1)}%` : '—'; };
 
 // 가격(원) 표시 (예: 71,200원 / —) — null/undefined만 '—' (0은 "0원"; 주가엔 미발생)
 const fmtPrice = v => v != null ? v.toLocaleString() + '원' : '—';

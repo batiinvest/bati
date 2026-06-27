@@ -26,14 +26,7 @@ async function loadIndTrendChart() {
   const refCode = monCodes[0];
   if (!refCode) return;
 
-  const { data: dateRows } = await sb.from('market_data')
-    .select('base_date')
-    .eq('stock_code', refCode)
-    .order('base_date', { ascending: false })
-    .limit(_indTrendPeriod + 10);
-
-  if (!dateRows?.length) return;
-  const dateList = [...new Set(dateRows.map(r => r.base_date))].sort().slice(-_indTrendPeriod);
+  const dateList = await fetchTradingDays(refCode, _indTrendPeriod);   // config.js 공용
   if (dateList.length < 2) return;
   const oldestDate = dateList[0];
 
