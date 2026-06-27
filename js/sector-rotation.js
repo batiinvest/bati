@@ -22,26 +22,35 @@ let _srSortDir = -1;         // -1 내림차순, 1 오름차순
 let _srRows    = null;       // 조인된 산업별 행 캐시
 let _srSdsDate = null;       // sector_daily_summary 집계 기준일
 
-// ── 국면(Phase) 분류 — 등락률 × 수급 4사분면 ────────────────────────────────
+// ── 국면(Phase) 분류 — '시장 대비' 상대 등락 × 수급 4사분면 ───────────────────
 // 색 언어: 가격(빨강/파랑)과 충돌 피하려 국면 전용 팔레트 사용.
 const _SR_PHASE = {
-  lead:    { label: '주도', color: '#2dce89', bg: 'rgba(45,206,137,.13)', prio: 0, tip: '강세 + 자금유입 — 추세 주도, 추종 매수 구간' },
-  accum:   { label: '매집', color: '#f59e0b', bg: 'rgba(245,158,11,.13)', prio: 1, tip: '약세 + 자금유입 — 스마트머니 저점 매집, 역발상 관찰' },
-  dist:    { label: '분산', color: '#fb6340', bg: 'rgba(251,99,64,.13)', prio: 2, tip: '강세 + 자금유출 — 차익실현·분산 신호, 추격 경계' },
-  lag:     { label: '소외', color: '#8898aa', bg: 'rgba(136,152,170,.12)', prio: 3, tip: '약세 + 자금유출 — 소외·약세, 방어적 회피' },
+  lead:    { label: '주도', color: '#2dce89', bg: 'rgba(45,206,137,.13)', prio: 0, tip: '시장 대비 강세 + 자금유입 — 추세 주도, 추종 매수 구간' },
+  accum:   { label: '매집', color: '#f59e0b', bg: 'rgba(245,158,11,.13)', prio: 1, tip: '시장 대비 약세 + 자금유입 — 스마트머니 저점 매집, 역발상 관찰' },
+  dist:    { label: '분산', color: '#fb6340', bg: 'rgba(251,99,64,.13)', prio: 2, tip: '시장 대비 강세 + 자금유출 — 차익실현·분산 신호, 추격 경계' },
+  lag:     { label: '소외', color: '#8898aa', bg: 'rgba(136,152,170,.12)', prio: 3, tip: '시장 대비 약세 + 자금유출 — 소외·약세, 방어적 회피' },
   neutral: { label: '중립', color: 'var(--text2)', bg: 'transparent',      prio: 4, tip: '뚜렷한 방향성 없음' },
   na:      { label: '—',    color: 'var(--text3)', bg: 'transparent',      prio: 5, tip: '수급 데이터 집계 대기' },
 };
 
-function _srPhaseOf(ret, flow) {
-  if (ret == null || flow == null) return _SR_PHASE.na;
-  const rPos = ret > 0.05, rNeg = ret < -0.05;   // 누적 등락률 ±0.05% 데드존
+// 국면 분류 — '시장 대비' 상대 등락(rel) × 수급(flow) 4사분면.
+//  rel = 산업 등락 − 산업평균(시장 프록시). 절대 등락을 쓰면 하락장에 전 산업이 음수→
+//  하단 2사분면(매집/소외)에만 몰린다. 상대값은 시장보다 강/약으로 갈라 4사분면을 살린다.
+function _srPhaseOf(rel, flow) {
+  if (rel == null || flow == null) return _SR_PHASE.na;
+  const rPos = rel > 0.05, rNeg = rel < -0.05;   // 시장대비 ±0.05%p 데드존
   const fPos = flow > 0,   fNeg = flow < 0;
   if (rPos && fPos) return _SR_PHASE.lead;
   if (rNeg && fPos) return _SR_PHASE.accum;
   if (rPos && fNeg) return _SR_PHASE.dist;
   if (rNeg && fNeg) return _SR_PHASE.lag;
   return _SR_PHASE.neutral;
+}
+
+// 시장 프록시 = 해당 기간 산업 등락률의 단순평균(등가중). 상대 등락·국면의 기준선.
+function _srMktMean(rows, pk) {
+  const v = rows.map(r => r[pk].ret).filter(x => x != null);
+  return v.length ? v.reduce((s, x) => s + x, 0) / v.length : 0;
 }
 
 // US 선행 신호 (백엔드 collect_sector_summary.detect_signal 탐지) — US·KR·선행 컬럼에 표시
@@ -178,22 +187,23 @@ function renderSectorRotation() {
       : '수급 집계 대기';
   }
 
-  const pk = _srPeriod === 20 ? 'd20' : _srPeriod === 1 ? 'd1' : 'd5';
+  const pk  = _srPeriod === 20 ? 'd20' : _srPeriod === 1 ? 'd1' : 'd5';
+  const mkt = _srMktMean(_srRows, pk);   // 시장 프록시 — 상대 등락/국면의 기준선
 
   el.innerHTML =
-    _srSummary(_srRows, pk) +
+    _srSummary(_srRows, pk, mkt) +
     `<div style="display:flex;flex-wrap:wrap;gap:0;align-items:stretch">
        <div style="flex:2 1 340px;min-width:320px;padding:6px 10px 10px;box-sizing:border-box">
-         ${_srQuadrant(_srRows, pk)}
+         ${_srQuadrant(_srRows, pk, mkt)}
        </div>
        <div style="flex:3 1 480px;min-width:340px;border-left:1px solid var(--border);box-sizing:border-box">
-         ${_srTable(_srRows, pk)}
+         ${_srTable(_srRows, pk, mkt)}
        </div>
      </div>`;
 }
 
 // ── ① 요약 인사이트 1줄 ──────────────────────────────────────────────────────
-function _srSummary(rows, pk) {
+function _srSummary(rows, pk, mkt) {
   const withFlow = rows.filter(r => r[pk].flow != null);
   const withTV   = rows.filter(r => r.today.tv > 0);
 
@@ -218,7 +228,8 @@ function _srSummary(rows, pk) {
   const phaseCount = { lead: 0, accum: 0, dist: 0, lag: 0 };
   const _labelKey = { '주도': 'lead', '매집': 'accum', '분산': 'dist', '소외': 'lag' };
   rows.forEach(r => {
-    const k = _labelKey[_srPhaseOf(r[pk].ret, r[pk].flow).label];
+    const rel = r[pk].ret != null ? r[pk].ret - mkt : null;
+    const k = _labelKey[_srPhaseOf(rel, r[pk].flow).label];
     if (k) phaseCount[k]++;
   });
   const phStr = ['lead', 'accum', 'dist', 'lag']
@@ -231,7 +242,7 @@ function _srSummary(rows, pk) {
 }
 
 // ── ② 로테이션 맵 (사분면 SVG) ───────────────────────────────────────────────
-function _srQuadrant(rows, pk) {
+function _srQuadrant(rows, pk, mkt) {
   const pts = rows.filter(r => r[pk].ret != null && r[pk].flow != null);
   if (pts.length < 2)
     return `<div style="padding:2.5rem 1rem;text-align:center;color:var(--text2);font-size:12px">
@@ -242,11 +253,23 @@ function _srQuadrant(rows, pk) {
   const pw = W - ML - MR, ph = H - MT - MB;
   const x0 = ML, x1 = W - MR, y0 = MT, y1 = H - MB;
 
-  const xMax = Math.max(...pts.map(p => Math.abs(p[pk].flow)), 1) * 1.18;
-  const yMax = Math.max(...pts.map(p => Math.abs(p[pk].ret)), 0.5) * 1.18;
-  const mapX = v => x0 + (v + xMax) / (2 * xMax) * pw;
-  const mapY = v => y0 + ph - (v + yMax) / (2 * yMax) * ph;   // 위=강세
-  const cx = mapX(0), cy = mapY(0);
+  // ── 세로축: '시장 대비' 상대 등락 (절대 등락 − 시장평균). 0 기준 재중심화 →
+  //    하락장(전 산업 음수)에서도 시장보다 강/약으로 갈려 4사분면이 살아남는다.
+  const relOf = p => p[pk].ret - mkt;
+  const yMax  = Math.max(...pts.map(p => Math.abs(relOf(p))), 0.3) * 1.18;
+  const mapY  = v => y0 + ph - (v + yMax) / (2 * yMax) * ph;   // 위=시장대비 강세
+
+  // ── 가로축: 수급 '부호별 순위' 위치. 절대 순매수(원)는 반도체 등 대형주 산업이
+  //    수십 배로 지배해 선형축이면 나머지가 중앙에 압축된다. 유입(>0)은 우측 절반,
+  //    유출(<0)은 좌측 절반에 각자 순위로 고르게 배치 → 이상치 면역 + 중앙=수급 0.
+  const inflow  = pts.filter(p => p[pk].flow > 0).sort((a, b) => a[pk].flow - b[pk].flow);
+  const outflow = pts.filter(p => p[pk].flow < 0).sort((a, b) => a[pk].flow - b[pk].flow);
+  const xNorm = {};
+  outflow.forEach((p, i) => { xNorm[p.ind] = (i + 1) / (outflow.length + 1) * 0.5; });        // 강한 매도일수록 왼쪽
+  inflow.forEach((p, i)  => { xNorm[p.ind] = 0.5 + (i + 1) / (inflow.length + 1) * 0.5; });    // 강한 매수일수록 오른쪽
+  pts.forEach(p => { if (xNorm[p.ind] == null) xNorm[p.ind] = 0.5; });                          // 수급 0
+  const mapX = p => x0 + xNorm[p.ind] * pw;
+  const cx = x0 + 0.5 * pw, cy = mapY(0);
 
   const tvMax = Math.max(...pts.map(p => p.today.tv || 0), 1);
   const rOf   = tv => 4 + Math.sqrt((tv || 0) / tvMax) * 10;   // 4..14
@@ -278,12 +301,12 @@ function _srQuadrant(rows, pk) {
   const axes =
     `<text x="${x1}" y="${cy - 4}" font-size="9" fill="#8b91a7" text-anchor="end">수급 유입 →</text>` +
     `<text x="${x0}" y="${cy - 4}" font-size="9" fill="#8b91a7" text-anchor="start">← 유출</text>` +
-    `<text x="${cx + 4}" y="${y0 + 9}" font-size="9" fill="#8b91a7" text-anchor="start">▲ 등락률</text>`;
+    `<text x="${cx + 4}" y="${y0 + 9}" font-size="9" fill="#8b91a7" text-anchor="start">▲ 시장대비</text>`;
 
   // 버블 + 좌우 가장자리 라벨 컬럼 (수직 충돌회피 + 리더선) — 클러스터에서도 또렷하게
   const items = pts.map(p => ({
-    p, px: mapX(p[pk].flow), py: mapY(p[pk].ret), r: rOf(p.today.tv),
-    side: mapX(p[pk].flow) < cx ? 'L' : 'R',   // 버블이 중심 왼쪽이면 왼쪽 컬럼, 오른쪽이면 오른쪽 컬럼
+    p, px: mapX(p), py: mapY(relOf(p)), r: rOf(p.today.tv),
+    side: mapX(p) < cx ? 'L' : 'R',   // 버블이 중심 왼쪽이면 왼쪽 컬럼, 오른쪽이면 오른쪽 컬럼
   }));
   const GAP = 15, topY = y0 + 6, botY = y1 - 1;
   ['L', 'R'].forEach(side => {
@@ -299,7 +322,8 @@ function _srQuadrant(rows, pk) {
     const { p, px, py, r, side, ly } = it;
     const lblX = side === 'L' ? x0 - 5 : x1 + 5;   // 라벨을 플롯 가장자리에 밀착
     const anchor = side === 'L' ? 'end' : 'start';
-    const tip = `${p.ind} · ${_srPeriod}일 등락 ${fmtPct(p[pk].ret)} · 수급 ${fmtNet(p[pk].flow)}`;
+    const _rel = relOf(p);
+    const tip = `${p.ind} · ${_srPeriod}일 ${fmtPct(p[pk].ret)} (시장대비 ${_rel >= 0 ? '+' : ''}${_rel.toFixed(1)}%p) · 수급 ${fmtNet(p[pk].flow)}`;
     return `<g style="cursor:pointer" onclick="_srFocus('${p.ind}')"><title>${tip}</title>
       <path d="M ${lblX} ${(ly - 3).toFixed(1)} L ${px.toFixed(1)} ${py.toFixed(1)}" fill="none" stroke="${p.color}" stroke-width="0.7" opacity=".28"/>
       <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${r.toFixed(1)}"
@@ -310,7 +334,7 @@ function _srQuadrant(rows, pk) {
   }).join('');
 
   return `<div style="font-size:11px;font-weight:600;color:var(--text1);padding:2px 2px 6px">
-      로테이션 맵 <span style="font-weight:400;color:var(--text2);font-size:10px">버블=거래대금 · 클릭→표 강조</span>
+      로테이션 맵 <span style="font-weight:400;color:var(--text2);font-size:10px">세로=시장대비 · 가로=수급순위 · 버블=거래대금 · 클릭→표 강조</span>
     </div>
     <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:560px;display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg">
       ${bg}${cross}${corners}${axes}${bubbles}
@@ -318,8 +342,9 @@ function _srQuadrant(rows, pk) {
 }
 
 // ── ③ 산업 보드 (정렬 가능 표) ───────────────────────────────────────────────
-function _srTable(rows, pk) {
+function _srTable(rows, pk, mkt) {
   const pLbl = `${_srPeriod}일`;
+  const relOf = (r) => r[pk].ret != null ? r[pk].ret - mkt : null;   // 시장 대비 상대 등락
 
   // 정렬 키 추출
   const keyOf = (r) => {
@@ -330,7 +355,7 @@ function _srTable(rows, pk) {
       case 'breadth': return r.today.total ? r.today.rise / r.today.total : -Infinity;
       case 'tv':    return r.today.tv ?? -Infinity;
       case 'flow':  return r[pk].flow ?? -Infinity;
-      case 'phase': return -_srPhaseOf(r[pk].ret, r[pk].flow).prio;  // 주도가 위로
+      case 'phase': return -_srPhaseOf(relOf(r), r[pk].flow).prio;  // 주도가 위로
       default:      return r.today.tv ?? -Infinity;
     }
   };
@@ -364,7 +389,7 @@ function _srTable(rows, pk) {
   const body = sorted.map((r, i) => {
     const t  = r.today;
     const fp = r[pk];
-    const ph = _srPhaseOf(fp.ret, fp.flow);
+    const ph = _srPhaseOf(relOf(r), fp.flow);
 
     // 오늘 등락 + 시장대비 RS
     const retCell = t.ret != null
@@ -464,7 +489,7 @@ function _srTable(rows, pk) {
   const legend = `<div style="padding:6px 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-top:1px solid var(--border)">
       ${['lead', 'accum', 'dist', 'lag'].map(k =>
         `<span title="${_SR_PHASE[k].tip}" style="font-size:9.5px;color:${_SR_PHASE[k].color}">● ${_SR_PHASE[k].label}</span>`).join('')}
-      <span style="font-size:9.5px;color:var(--text3);margin-left:auto">α=시장대비 초과등락 · 수급=외국인+기관 누적순매수</span>
+      <span style="font-size:9.5px;color:var(--text3);margin-left:auto">국면·맵=시장대비 기준 · α=시장대비 초과등락 · 수급=외국인+기관 누적순매수</span>
     </div>`;
 
   return header + body + legend;
