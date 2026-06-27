@@ -37,14 +37,25 @@ async function loadIndTrendChart() {
   if (dateList.length < 2) return;
   const oldestDate = dateList[0];
 
-  // 모니터링 종목만 조회 (전체 상장사 × N일 → 모니터링 ~300 × N일, 약 88% 감소)
-  const allRows = await fetchAllPages((s, e) =>
+  // 모니터링 종목만 조회 (전체 상장사 × N일 → 모니터링 ~300 × N일, 약 88% 감소).
+  //  3달=90거래일이면 ~28페이지라 순차 조회는 느림 → 페이지를 병렬로 받는다(fetchPagesParallel).
+  //  ※ 병렬 range는 정렬 고정 필수 → stock_code,base_date 오름차순.
+  const krSel = (s, e) =>
     sb.from('market_data')
       .select('stock_code,base_date,price_change_rate')
       .in('stock_code', monCodes)
       .gte('base_date', oldestDate)
       .not('price_change_rate', 'is', null)
-      .range(s, e)
+      .order('stock_code', { ascending: true })
+      .order('base_date', { ascending: true })
+      .range(s, e);
+  const allRows = await fetchPagesParallel(
+    krSel,
+    sb.from('market_data')
+      .select('stock_code', { count: 'exact', head: true })
+      .in('stock_code', monCodes)
+      .gte('base_date', oldestDate)
+      .not('price_change_rate', 'is', null)
   );
 
   // 날짜 × 산업별 평균 등락률 집계

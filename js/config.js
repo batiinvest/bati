@@ -96,6 +96,27 @@ async function fetchAllPages(queryOrFn, pageSize = 1000) {
 }
 
 // ══════════════════════════════════════════
+//  fetchAllPages의 병렬판 — 페이지를 순차가 아니라 동시에 받는다.
+//  먼저 countQuery(head)로 총 행수를 구해 페이지 수를 정한 뒤 Promise.all로 일괄 요청.
+//  수만 행/수십 페이지(예: 3달 산업비교)에서 순차 대기를 없애 로딩을 크게 줄인다.
+//  ⚠️ 병렬 range는 정렬이 고정돼야 페이지 경계가 어긋나지 않음(누락/중복 방지)
+//     → makeQuery가 반드시 결정적 .order(...)를 포함해야 한다.
+//    makeQuery(s, e): range(s,e)까지 적용된 완성 쿼리를 매번 새로 만들어 반환
+//    countQuery     : 동일 필터에 { count:'exact', head:true }를 건 쿼리(개수만)
+// ══════════════════════════════════════════
+async function fetchPagesParallel(makeQuery, countQuery, pageSize = 1000) {
+  const { count, error } = await countQuery;
+  if (error) throw error;
+  const pages = Math.ceil((count || 0) / pageSize);
+  const results = await Promise.all(
+    Array.from({ length: pages }, (_, p) => makeQuery(p * pageSize, (p + 1) * pageSize - 1))
+  );
+  const all = [];
+  for (const r of results) { if (r.error) throw r.error; if (r.data) all.push(...r.data); }
+  return all;
+}
+
+// ══════════════════════════════════════════
 //  종목 검색 공통 fetcher — 회사명/코드 ilike 드롭다운용
 //  comparison·report·company의 .or(name.ilike,code.ilike) 중복을 통합.
 //  각 페이지는 scope/limit/orderBy/cols만 지정하고 렌더링은 자체 유지한다.
