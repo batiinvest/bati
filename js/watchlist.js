@@ -472,7 +472,7 @@ function saveJournalFromForm(stockCode, corpName) {
 function openTradeModal(watchlistId, stockCode, corpName, type, curPrice) {
   document.getElementById('m-trade')?.remove();
   const isBuy = type === 'buy';
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayStr();
   const nm = (corpName || '').replace(/'/g, "\\'");
   window._tradeType = type; // _tradePreview에서 신용 안내 분기용
   const overlay = document.createElement('div');

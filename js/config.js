@@ -55,6 +55,9 @@ const LITTLY_DONATE_URL = 'https://litt.ly/batiinvest';
 // ══════════════════════════════════════════
 //  공통 HTML 유틸
 // ══════════════════════════════════════════
+// HTML 이스케이프 — 템플릿 문자열에 DB/사용자 텍스트 삽입 시 (각 파일 인라인 정의 통합)
+const escapeHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 const loadingHTML = (msg = '') =>
   `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:13px"><span class="loading"></span>${msg ? ' ' + msg : ''}</div>`;
 

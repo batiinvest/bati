@@ -278,8 +278,8 @@ async function rpRenderReport() {
   const chg     = latest.price_change_rate ?? 0;
   const mktCap  = latest.market_cap || 0;
   const fr      = latest.foreign_hold_rate;
-  const chgColor = chg > 0 ? 'var(--red)' : chg < 0 ? 'var(--blue)' : 'var(--text3)';
-  const chgStr   = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+  const chgCol = chg > 0 ? 'var(--red)' : chg < 0 ? 'var(--blue)' : 'var(--text3)';
+  const chgTxt   = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
 
   // 52주 고/저 — DB w52_high/w52_low 컬럼 사용 (최신 기준)
   const high52 = latest.w52_high || 0;
@@ -345,7 +345,7 @@ async function rpRenderReport() {
         </div>
         <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
           <span style="font-size:34px;font-weight:700">${price ? fmtNum(price) + '원' : '—'}</span>
-          <span style="font-size:20px;font-weight:600;color:${chgColor}">${chgStr}</span>
+          <span style="font-size:20px;font-weight:600;color:${chgCol}">${chgTxt}</span>
         </div>
         <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap">
           ${mktCap ? `<span style="font-size:14px;color:var(--text1)">시총 <b style="color:var(--text1)">${fmtCap(mktCap)}</b></span>` : ''}
@@ -615,7 +615,7 @@ async function rpRenderReport() {
   const priceBadge = document.getElementById('rp-price-badge');
   const chgBadge   = document.getElementById('rp-chg-badge');
   if (priceBadge && price) priceBadge.textContent = fmtNum(price) + '원';
-  if (chgBadge) chgBadge.innerHTML = `<span style="color:${chgColor}">${chgStr}</span>`;
+  if (chgBadge) chgBadge.innerHTML = `<span style="color:${chgCol}">${chgTxt}</span>`;
 
   // 헤더 바 추가 정보 (시총, PER, PBR, ROE, 산업, 시장)
   try {
@@ -1742,7 +1742,7 @@ async function _rpLoadAndRenderDart(body) {
   const watch = _rpData.watch;
 
   // ── 헬퍼 ──
-  const esc = t => String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const esc = escapeHtml;
   const kv  = (k, v, c) => v ? `
     <div style="padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);
       border:1px solid var(--border);min-width:0">
@@ -2164,7 +2164,7 @@ function _fmtBillions(won) {
 // ── MD → 아코디언 섹션 HTML ───────────────────────────────────────────────────
 function _mdToAccordion(md) {
   const lines = md.split('\n');
-  const esc  = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const esc  = escapeHtml;
   const inl  = s => esc(s)
     .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
     .replace(/`(.+?)`/g,'<code style="background:var(--bg3);padding:1px 4px;border-radius:3px;font-size:11px">$1</code>');

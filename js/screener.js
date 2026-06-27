@@ -372,6 +372,6 @@ function exportScreener() {
   const csv = [headers.join(','), ...window._screenerData.map(r => keys.map(k => r[k] ?? '').join(','))].join('\n');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
-  a.download = 'screener_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.download = 'screener_' + todayStr() + '.csv';
   a.click();
 }

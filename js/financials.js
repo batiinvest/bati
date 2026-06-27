@@ -755,7 +755,6 @@ const _pct = v => v != null ? v.toFixed(1)+'%' : '—';
 const _num = v => v != null ? v.toLocaleString() : '—';
 const _cap = v => v != null ? fmtCap(v) : '—';
 const _won = fmtPrice;  // config.js 전역 헬퍼 — 동일 동작
-const _fmtB = v => v==null ? null : Math.round(v/100000000);
 
 function _w52bar(r) {
   const hi = r.w52_high||0, lo = r.w52_low||0, cur = r.price||0;

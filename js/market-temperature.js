@@ -264,7 +264,7 @@ async function renderMarketTemperature() {
   if (!el) return;
 
   const m       = window._macroData || {};
-  const today   = m.base_date || new Date().toISOString().slice(0, 10);
+  const today   = m.base_date || todayStr();
 
   // 전일 점수(스무딩용) + 5일 누적 외국인 수급 선행 로드
   const [prev, foreign5d] = await Promise.all([
