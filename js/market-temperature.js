@@ -11,10 +11,11 @@
  * ── 배점 구조 (총 100점) — 단일일 노이즈 제거, 추세/레벨 기반 ──────
  *  ① S&P500 5일 추세      15pt  5거래일 누적 (밤사이 단일일 노이즈 제거)
  *  ② USD/KRW 5일추세+레벨 15pt  원화 강세/약세 추세 + 고환율(>1450) 레짐 캡
- *  ③ 코스피/닥 5일 추세   20pt  5거래일 누적 등락률
- *  ④ 외국인 수급 5일 누적 20pt  지속성(누적) — 당일 1회는 반전 잦아 제외
- *  ⑤ VIX 레벨 + 5일 방향  15pt  내재변동성 레벨 + 급등/급락 가감
- *  ⑥ 미 10년 금리 레벨    15pt  금리 레벨(할인율 부담) + 5일 추세
+ *  ③ 코스피/닥 5일 추세   15pt  5거래일 누적 등락률 (1일치뿐이면 일간 스케일)
+ *  ④ 상승종목 비율        5pt   등락종목수 breadth — 지수 대형주 착시 보정
+ *  ⑤ 외국인 수급 5일 누적 20pt  지속성(누적) — 당일 1회는 반전 잦아 제외
+ *  ⑥ VIX 레벨 + 5일 방향  15pt  내재변동성 레벨 + 급등/급락 가감
+ *  ⑦ 미 10년 금리 레벨    15pt  금리 레벨(할인율 부담) + 5일 추세
  * ─────────────────────────────────────────────────────────
  * ※ 최종 점수는 전일과 EMA 스무딩(0.7/0.3)으로 휘프소(국면 일별 반전) 억제
  *
@@ -60,17 +61,19 @@ function _calcTemperature(prevScore = null, foreign5dEok = null) {
     : (fxLvl > 1450 ? '고환율 부담 · ' : '') + (fx5pct < -0.1 ? '원화 강세 ▲' : fx5pct > 0.1 ? '원화 약세 ▼' : '보합');
   parts.push({ label: `USD/KRW ${krwStr}`, pts: krwPts, max: 15, hint: krwHint });
 
-  // ③ 코스피/닥 5일 추세 (max 20)
+  // ③ 코스피/닥 5일 추세 (max 15)
   // 당일 등락만 반영하면 결과를 점수로 재포장하는 동어반복이 됨.
   // 최근 5 거래일 누적 등락률로 단기 추세를 평가한다.
-  // 데이터가 1건뿐이면 당일 등락으로 fallback.
+  // 데이터가 1건뿐이면 당일 등락으로 fallback — 이때는 일간 스케일 임계값 적용
+  // (5일 누적용 임계값에 당일 등락을 넣으면 강한 신호가 중립으로 뭉개짐).
   const _krRows = window._macroRows || [];
   const kr5dSum = _krRows.reduce((s, r) =>
     s + (((r.kospi_chg ?? 0) + (r.kosdaq_chg ?? 0)) / 2), 0);
-  // 임계값: 5일 누적 기준 (max 20pt로 조정)
-  const _krScale = [[5.0,20],[2.5,17],[0.5,13],[-0.5,9],[-2.5,5],[-5.0,2]];
-  // 데이터 없으면 중립 10pt (다른 지표의 null 중립 비율 ~47% 기준)
-  const krPts = _krRows.length === 0 ? 10 : (_krScale.find(([t]) => kr5dSum >= t)?.[1] ?? 0);
+  const _krScale5 = [[5.0,15],[2.5,12],[0.5,10],[-0.5,7],[-2.5,4],[-5.0,1]];   // 5일 누적
+  const _krScale1 = [[2.0,15],[1.0,12],[0.2,10],[-0.2,7],[-1.0,4],[-2.0,1]];   // 당일(1행 fallback)
+  const _krScale  = _krRows.length >= 2 ? _krScale5 : _krScale1;
+  // 데이터 없으면 중립 7pt (다른 지표의 null 중립 비율 ~47% 기준)
+  const krPts = _krRows.length === 0 ? 7 : (_krScale.find(([t]) => kr5dSum >= t)?.[1] ?? 0);
   score += krPts;
   const kr5dLabel = _krRows.length >= 2 ? '5일' : _krRows.length === 1 ? '당일' : '—';
   const krHint = _krRows.length === 0
@@ -80,11 +83,29 @@ function _calcTemperature(prevScore = null, foreign5dEok = null) {
     : '추세 중립';
   parts.push({
     label: `코스피/닥 ${kr5dLabel} ${_krRows.length > 0 ? (kr5dSum >= 0 ? '+' : '') + kr5dSum.toFixed(2) + '%' : '—'}`,
-    pts: krPts, max: 20,
+    pts: krPts, max: 15,
     hint: krHint,
   });
 
-  // ④ 외국인 수급 — 5일 누적(억원) (max 20)
+  // ④ 상승종목 비율 — breadth (max 5)
+  // 지수는 대형주 몇 개로 착시가 남 → 등락종목수로 상승의 '폭'을 보정.
+  // 당일 스냅샷 지표지만 보조 5pt라 단일일 노이즈 영향 제한적.
+  // window._marketBreadth는 loadMarketOverview(market-overview.js)가 채운 뒤 온도계가 호출됨.
+  const _bd = window._marketBreadth?.total || null;
+  const brRatio = (_bd && _bd.total > 0) ? _bd.rise / _bd.total : null;
+  const _brScale = [[0.60,5],[0.52,4],[0.42,3],[0.32,2],[0.22,1]];
+  const brPts = brRatio != null ? (_brScale.find(([t]) => brRatio >= t)?.[1] ?? 0) : 2;
+  score += brPts;
+  const brHint = brRatio == null ? '데이터 없음'
+    : brRatio >= 0.55 ? '폭넓은 상승'
+    : brRatio >= 0.45 ? '혼조'
+    : '하락 우위';
+  parts.push({
+    label: brRatio != null ? `상승종목 ${_bd.rise}/${_bd.total} (${Math.round(brRatio * 100)}%)` : '상승종목 —',
+    pts: brPts, max: 5, hint: brHint,
+  });
+
+  // ⑤ 외국인 수급 — 5일 누적(억원) (max 20)
   // 당일 순매수는 다음날 반전이 흔해 노이즈 → 5거래일 누적(지속성)으로 판정.
   // foreign5dEok(sector_daily_summary 합산) 없으면 당일 합산(_allMarketRows)으로 폴백.
   let frgnAmt, frgnPts;
@@ -105,7 +126,7 @@ function _calcTemperature(prevScore = null, foreign5dEok = null) {
     (frgnPts >= 16 ? '강한 매수' : frgnPts >= 12 ? '매수 우위' : frgnPts >= 8 ? '보합' : frgnPts >= 4 ? '매도 우위' : '강한 매도');
   parts.push({ label: `외국인 ${fStr}`, pts: frgnPts, max: 20, hint: frgnHint });
 
-  // ⑤ VIX 글로벌 공포지수 (max 15)
+  // ⑥ VIX 글로벌 공포지수 (max 15)
   // 미 S&P500 기반 간접지표 — 글로벌 위험선호도 반영
   // 임계값: 2023~2026 실제 VIX 분포 반영 (평균 15~20, 역대 저점 10~12)
   // 레벨은 내재변동성(상태변수)이라 단일 시점도 유효 → 레벨 점수 + 5일 급등/급락만 보조 가감.
@@ -124,7 +145,7 @@ function _calcTemperature(prevScore = null, foreign5dEok = null) {
     : '데이터 없음') + vixDir;
   parts.push({ label: vix != null ? `VIX ${Number(vix).toFixed(1)}` : 'VIX —', pts: vixPts, max: 15, hint: vixHint });
 
-  // ⑥ 미 10년 국채금리 방향 (max 15)
+  // ⑦ 미 10년 국채금리 방향 (max 15)
   // 금리 하락 = 유동성 확대 + 성장주 할인율 완화 = 긍정
   // 반도체·IT 비중 높은 코스피 특성상 금리 민감도 높음
   // 하루 bp 변동은 노이즈 → 금리 '레벨'(할인율 부담) 기준 + 5일 추세 가감.
@@ -222,10 +243,15 @@ async function _saveTempScore(dateStr, score) {
 
 async function _loadPrevTempScore(dateStr) {
   // dateStr 기준 직전 영업일 점수 조회 (최근 7일 내 가장 최신 키)
+  // 7일 하한 필수 — 점수는 페이지 열람 시에만 저장되므로, 오래 미접속 시
+  // 몇 주 전 점수와 스무딩되어 오늘 판단이 왜곡되는 것을 방지.
   try {
+    const minDate = new Date(new Date(dateStr).getTime() - 7 * 86400000)
+      .toISOString().slice(0, 10);
     const { data } = await sb.from('app_config')
       .select('key,value')
       .like('key', 'market_temp_%')
+      .gte('key', `market_temp_${minDate}`)
       .lt('key', `market_temp_${dateStr}`)
       .order('key', { ascending: false })
       .limit(1);
@@ -368,7 +394,7 @@ async function renderMarketTemperature() {
       <div onclick="toggleMjEvidence()" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 1rem;font-size:11px;color:var(--text2)"
         onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background=''">
         <span style="font-weight:600">판단 근거</span>
-        <span style="font-size:10px">S&amp;P·환율·5일추세·수급·VIX·금리 6지표 (점수 산출 기준)</span>
+        <span style="font-size:10px">S&amp;P·환율·5일추세·상승종목·수급·VIX·금리 7지표 (점수 산출 기준)</span>
         <span id="mj-ev-toggle" style="margin-left:auto;font-size:10px">펼치기 ▾</span>
       </div>
       <div id="mj-ev-body" style="display:none;padding:2px 1rem 10px">

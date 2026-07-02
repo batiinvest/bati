@@ -261,9 +261,17 @@ async function _loadSummaryFromDB() {
     const diffMs = Date.now() - new Date(data.market_date).getTime();
     if (diffMs > 3 * 24 * 60 * 60 * 1000) return null;
 
+    // 저장 경로(_insightSaveDB)가 JSON.stringify로 넣으므로 문자열로 돌아올 수 있음
+    // — loadInsightHistory와 동일한 방어 파싱 (미파싱 시 kp[0]이 '[' 한 글자가 되는 버그)
+    const _j = (v, fb) => {
+      if (v == null) return fb;
+      if (typeof v === 'string') { try { return JSON.parse(v); } catch { return fb; } }
+      return v;
+    };
+
     // 구 스키마(key_points/risk_factors 배열) 호환 — 핵심 1개씩만 추출
-    const kp = data.key_points   || [];
-    const rf = data.risk_factors || [];
+    const kp = _j(data.key_points,   []);
+    const rf = _j(data.risk_factors, []);
     const corePoints = [];
     if (kp[0]) corePoints.push({ type: 'up',   text: kp[0] });
     if (rf[0]) corePoints.push({ type: 'down', text: rf[0] });
@@ -272,7 +280,7 @@ async function _loadSummaryFromDB() {
     return {
       ...data,
       generated_by: 'db',
-      flow:          data.flow_summary   || {},
+      flow:          _j(data.flow_summary, {}),
       core_points:   corePoints,
     };
   } catch(e) {
