@@ -18,6 +18,8 @@
  *  ⑦ 미 10년 금리 레벨    15pt  금리 레벨(할인율 부담) + 5일 추세
  * ─────────────────────────────────────────────────────────
  * ※ 최종 점수는 전일과 EMA 스무딩(0.7/0.3)으로 휘프소(국면 일별 반전) 억제
+ * ※ 단, 당일 코스피/닥 평균 -3% 이하 급락일은 스무딩 생략 + 국면 상한 캡
+ *    (-3%↓ 35=경계, -5%↓ 19=위험) — 폭락은 노이즈가 아니라 정보
  *
  * ── 등급 구간 (20점 균등 간격) ──
  *  🔴 위험   0~19   현금 비중 극대화
@@ -166,8 +168,20 @@ function _calcTemperature(prevScore = null, foreign5dEok = null) {
     : '데이터 없음') + yDir;
   parts.push({ label: `미10년금리 ${ratesStr}`, pts: ratesPts, max: 15, hint: ratesHint });
 
-  // ── 휘프소(whipsaw) 억제: 전일 점수와 EMA 스무딩 (단일일 노이즈로 국면이 매일 뒤집히는 것 방지) ──
-  if (prevScore != null && !isNaN(prevScore)) score = Math.round(0.7 * score + 0.3 * prevScore);
+  // ── 휘프소(whipsaw) 억제 vs 급락일 오버라이드 ──────────────────────────────
+  // 평시: 전일 점수와 EMA 스무딩 (단일일 노이즈로 국면이 매일 뒤집히는 것 방지)
+  // 급락일(당일 코스피/닥 평균 -3% 이하): 폭락은 노이즈가 아니라 정보 → 스무딩 생략.
+  // 미국계 지표(S&P·VIX·금리·환율 60pt)는 한국 단독 위기에 둔감해 점수 바닥을
+  // 받치므로, 국면 상한 캡으로 KR 스트레스를 직접 반영한다.
+  const krToday = ((m.kospi_chg ?? 0) + (m.kosdaq_chg ?? 0)) / 2;
+  const krCrash = krToday <= -3;
+  let crashNote = '';
+  if (krCrash) {
+    score = Math.min(score, krToday <= -5 ? 19 : 35);
+    crashNote = `당일 코스피/닥 ${krToday.toFixed(1)}% 급락 반영`;
+  } else if (prevScore != null && !isNaN(prevScore)) {
+    score = Math.round(0.7 * score + 0.3 * prevScore);
+  }
 
   // ── 등급 결정 (20점 균등 간격) ──────────────────────────────────────────────
   let gradeTxt, gradeColor, gradeEmoji, strategy;
@@ -195,13 +209,19 @@ function _calcTemperature(prevScore = null, foreign5dEok = null) {
       strategy = '선별 접근 — 외국인·기관 동시 순매수 섹터만 소량 진입. 시장 방향성 확인 전 신규 포지션 자제, 기존 보유 유지.';
   } else if (score >= 20) {
     gradeTxt = '경계 국면'; gradeColor = '#fb6340'; gradeEmoji = '🟠';
-    strategy = '방어적 포지션 — 현금 비중 50% 이상 유지. VIX 하락 + 외국인 순매수 전환 확인 시 소량 타진. 낙폭 과대 대형주 단기 반등 관찰.';
+    if (krCrash)
+      strategy = '당일 급락 직후 — 성급한 저가 매수 금지. 반대매매·후속 하락 물량 확인이 먼저. 보유 종목 손절 기준 재점검, 기술적 반등은 비중 축소 기회로 활용.';
+    else
+      strategy = '방어적 포지션 — 현금 비중 50% 이상 유지. VIX 하락 + 외국인 순매수 전환 확인 시 소량 타진. 낙폭 과대 대형주 단기 반등 관찰.';
   } else {
     gradeTxt = '위험 국면'; gradeColor = '#f5365c'; gradeEmoji = '🔴';
-    strategy = '현금 비중 극대화 — 신규 진입 전면 자제. 기존 포지션 손절 기준 재점검 후 실행. VIX 30 이상·외국인 연속 매수 전환 시 역발상 진입 준비.';
+    if (krCrash)
+      strategy = '당일 폭락 — 신규 진입 전면 금지, 저가 매수 유혹 경계. 반대매매·투매 소화 여부부터 확인. 보유 포지션은 반등 시 현금화 우선, 손절 기준 즉시 실행.';
+    else
+      strategy = '현금 비중 극대화 — 신규 진입 전면 자제. 기존 포지션 손절 기준 재점검 후 실행. VIX 30 이상·외국인 연속 매수 전환 시 역발상 진입 준비.';
   }
 
-  return { score, gradeTxt, gradeColor, gradeEmoji, parts, strategy };
+  return { score, gradeTxt, gradeColor, gradeEmoji, parts, strategy, crashNote };
 }
 
 
@@ -298,6 +318,7 @@ async function renderMarketTemperature() {
     _loadForeign5dFlow(),
   ]);
   const t = _calcTemperature(prev ? prev.score : null, foreign5d);
+  window._marketTempScore = t.score;   // 레짐 게이트(market-insight.js Zone B)에서 참조
   await _saveTempScore(today, t.score);
 
   // 전일 대비 변화 뱃지
@@ -342,6 +363,8 @@ async function renderMarketTemperature() {
         margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         ${t.gradeEmoji} ${t.gradeTxt}
         ${diffBadge}
+        ${t.crashNote ? `<span style="font-size:10px;font-weight:600;color:#f5365c;
+          background:rgba(245,54,92,.12);border-radius:3px;padding:1px 6px">⚡ ${t.crashNote}</span>` : ''}
       </div>
       <!-- 포인터 마커 -->
       <div style="position:relative;height:7px;margin-bottom:2px">

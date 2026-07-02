@@ -383,8 +383,13 @@ async function _buildLiveSections() {
     opportunity = `${topFrgnBuy.slice(0, 2).map(r => r.corp_name).join('·')} 외국인 집중 매수`;
   }
 
+  // 시장 급락은 크로스 신호·매크로 레벨보다 앞서는 1순위 리스크 —
+  // 급락일에 "환율 부담" 같은 2차 요인이 첫 리스크로 뜨는 역전 방지.
+  const krAvgToday = ((m.kospi_chg ?? 0) + (m.kosdaq_chg ?? 0)) / 2;
   let risk = null;
-  if ((m.vix ?? 0) >= THR.VIX_HIGH) {
+  if (krAvgToday <= -2) {
+    risk = `코스피/닥 당일 ${fmtPct(krAvgToday)} 급락 — 후속 하락·반대매매 주의, 성급한 저가 매수 금지`;
+  } else if ((m.vix ?? 0) >= THR.VIX_HIGH) {
     risk = `VIX ${Number(m.vix).toFixed(0)} 공포 구간 — 신규 매수 중단, 헤지 확대`;
   } else if (riskSigs.length) {
     const s = riskSigs[0];
@@ -401,6 +406,13 @@ async function _buildLiveSections() {
   } else if ((m.vix ?? 0) >= THR.VIX_FEAR) {
     risk = `VIX ${Number(m.vix).toFixed(0)} 경계 구간 — 포지션 점검`;
   }
+
+  // 레짐 게이트 — 방어 국면(당일 급락·VIX 공포·온도계 <40)에선 진입 조건을 조인다.
+  // 배지 강등('기회'→'후보(관망)')은 _renderInsightCard가 DB·live 양 경로 공통 처리.
+  const defensive = krAvgToday <= -2 || (m.vix ?? 0) >= THR.VIX_HIGH
+    || (typeof window._marketTempScore === 'number' && window._marketTempScore < 40);
+  if (opportunity && defensive)
+    opportunity += ' · 방어 국면 — 신규 진입은 반등 확인 후';
 
   const corePoints = [];
   if (opportunity) corePoints.push({ type: 'up',   text: opportunity });
@@ -478,11 +490,22 @@ function _renderInsightCard(data) {
   // ─── 핵심 포인트 (기회 1 · 리스크 1 만) ───
   // ▲/▼ 화살표 대신 '기회/리스크' 배지 — 앱 전반의 ▲=빨강(가격상승) 색 언어와 충돌 방지.
   const typeStyle = {
-    up:   { label: '기회',  color: '#34d399',     bg: 'rgba(52,211,153,.14)' },
-    down: { label: '리스크', color: '#f0a93a',     bg: 'rgba(245,158,11,.14)' },
-    flat: { label: '관망',  color: 'var(--text2)', bg: 'rgba(255,255,255,.06)' },
+    up:    { label: '기회',        color: '#34d399',     bg: 'rgba(52,211,153,.14)' },
+    watch: { label: '후보(관망)',  color: '#60a5fa',     bg: 'rgba(96,165,250,.14)' },
+    down:  { label: '리스크',      color: '#f0a93a',     bg: 'rgba(245,158,11,.14)' },
+    flat:  { label: '관망',        color: 'var(--text2)', bg: 'rgba(255,255,255,.06)' },
   };
-  const pointsHTML = (data.core_points || []).map(p => {
+
+  // ─── 레짐 게이트 — 환경(Zone A)이 방어 국면이면 '기회' 배지를 '후보(관망)'로 강등 ───
+  // 온도계는 "지켜라", 전략은 "들어가라"가 한 카드에 공존하는 모순 방지.
+  // DB(백엔드)·live 양 경로가 모두 이 렌더러를 거치므로 여기 한 곳에서 게이트.
+  const _krAvg = ((f.kospi_chg ?? 0) + (f.kosdaq_chg ?? 0)) / 2;
+  const _defensive = _krAvg <= -2 || (f.vix ?? 0) >= THR.VIX_HIGH
+    || (typeof window._marketTempScore === 'number' && window._marketTempScore < 40);
+  const _gatedPts = (data.core_points || []).map(p =>
+    (_defensive && p.type === 'up') ? { ...p, type: 'watch' } : p);
+
+  const pointsHTML = _gatedPts.map(p => {
     const ts = typeStyle[p.type] || typeStyle.flat;
     return `
     <div style="display:flex;gap:7px;align-items:flex-start;margin-bottom:7px">
