@@ -261,29 +261,39 @@ async function _saveTempScore(dateStr, score) {
   }
 }
 
-async function _loadPrevTempScore(dateStr) {
-  // dateStr 기준 직전 영업일 점수 조회 (최근 7일 내 가장 최신 키)
-  // 7일 하한 필수 — 점수는 페이지 열람 시에만 저장되므로, 오래 미접속 시
-  // 몇 주 전 점수와 스무딩되어 오늘 판단이 왜곡되는 것을 방지.
+async function _loadTempHistory(dateStr) {
+  // dateStr 이전 점수 이력 최근 30건 (최신순) — 스무딩용 전일 점수 + 국면 지속일수 겸용
   try {
-    const minDate = new Date(new Date(dateStr).getTime() - 7 * 86400000)
-      .toISOString().slice(0, 10);
     const { data } = await sb.from('app_config')
       .select('key,value')
       .like('key', 'market_temp_%')
-      .gte('key', `market_temp_${minDate}`)
       .lt('key', `market_temp_${dateStr}`)
       .order('key', { ascending: false })
-      .limit(1);
-    if (data && data.length > 0) {
-      const val = parseInt(data[0].value, 10);
-      const prevDate = data[0].key.replace('market_temp_', '');
-      return isNaN(val) ? null : { score: val, date: prevDate };
-    }
+      .limit(30);
+    return (data || [])
+      .map(r => ({ date: r.key.replace('market_temp_', ''), score: parseInt(r.value, 10) }))
+      .filter(r => !isNaN(r.score));
   } catch (e) {
-    console.warn('[온도계] 이전 점수 조회 실패:', e);
+    console.warn('[온도계] 점수 이력 조회 실패:', e);
+    return [];
   }
-  return null;
+}
+
+// ── 국면 지속일수 — 등급 구간(20점 간격) 인덱스 기준 ─────────────────────────
+const _tempBand = s => s >= 80 ? 4 : s >= 60 ? 3 : s >= 40 ? 2 : s >= 20 ? 1 : 0;
+const _TEMP_BAND_NAMES = ['위험', '경계', '중립', '우호', '과열'];
+
+function _tempStreak(hist, todayScore, todayStr) {
+  // 오늘과 같은 국면이 며칠째 이어지는지 (저장 이력 기준).
+  // 이력은 열람일에만 쌓이므로 7일 초과 공백은 연속으로 보지 않고 단절.
+  const band = _tempBand(todayScore);
+  let streak = 1, prevDate = todayStr;
+  for (const rec of hist) {
+    const gapDays = (new Date(prevDate) - new Date(rec.date)) / 86400000;
+    if (gapDays > 7 || _tempBand(rec.score) !== band) break;
+    streak++; prevDate = rec.date;
+  }
+  return streak;
 }
 
 // ── 5일 누적 외국인 수급(억원) — sector_daily_summary.foreign_net_5d 산업 합산 ──
@@ -312,11 +322,14 @@ async function renderMarketTemperature() {
   const m       = window._macroData || {};
   const today   = m.base_date || todayStr();
 
-  // 전일 점수(스무딩용) + 5일 누적 외국인 수급 선행 로드
-  const [prev, foreign5d] = await Promise.all([
-    _loadPrevTempScore(today),
+  // 점수 이력(스무딩용 전일 + 국면 지속일수) + 5일 누적 외국인 수급 선행 로드
+  const [hist, foreign5d] = await Promise.all([
+    _loadTempHistory(today),
     _loadForeign5dFlow(),
   ]);
+  // 스무딩용 전일 점수 — 7일 내 최신 기록만 (장기 미접속 시 왜곡 방지)
+  const _minDate = new Date(new Date(today).getTime() - 7 * 86400000).toISOString().slice(0, 10);
+  const prev = (hist[0] && hist[0].date >= _minDate) ? hist[0] : null;
   const t = _calcTemperature(prev ? prev.score : null, foreign5d);
   window._marketTempScore = t.score;   // 레짐 게이트(market-insight.js Zone B)에서 참조
   await _saveTempScore(today, t.score);
@@ -346,6 +359,18 @@ async function renderMarketTemperature() {
       <span style="font-size:10px;color:var(--text2);margin-left:4px">(전일 ${prev.score}점)</span>`;
   }
 
+  // 국면 지속일수 / 국면 전환 뱃지 — 상태의 '나이'가 상태 자체만큼 중요
+  const streak = _tempStreak(hist, t.score, today);
+  let streakBadge = '';
+  if (streak >= 2) {
+    streakBadge = `<span style="font-size:10px;font-weight:600;color:var(--text2);
+      background:rgba(255,255,255,.07);border-radius:3px;padding:1px 6px">${streak}일째</span>`;
+  } else if (hist[0] && _tempBand(hist[0].score) !== _tempBand(t.score)) {
+    streakBadge = `<span style="font-size:10px;font-weight:700;color:${t.gradeColor};
+      background:${t.gradeColor}22;border-radius:3px;padding:1px 6px">국면 전환
+      ${_TEMP_BAND_NAMES[_tempBand(hist[0].score)]}→${_TEMP_BAND_NAMES[_tempBand(t.score)]}</span>`;
+  }
+
   // ── A. 환경(Regime) + 통합 행동지침 → #market-temp-body ──
   el.innerHTML = `
   <div style="display:flex;align-items:center;gap:16px;margin-bottom:10px">
@@ -362,6 +387,7 @@ async function renderMarketTemperature() {
       <div style="font-size:14px;font-weight:700;color:${t.gradeColor};
         margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         ${t.gradeEmoji} ${t.gradeTxt}
+        ${streakBadge}
         ${diffBadge}
         ${t.crashNote ? `<span style="font-size:10px;font-weight:600;color:#f5365c;
           background:rgba(245,54,92,.12);border-radius:3px;padding:1px 6px">⚡ ${t.crashNote}</span>` : ''}
