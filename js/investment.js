@@ -214,6 +214,7 @@ function pInvestment() {
             <button class="chip"        id="idea-tab-hgpr"     onclick="switchIdeaTab('hgpr')"     style="font-size:11px;padding:3px 10px">${_ICO.flag}신고가</button>
             <button class="chip"        id="idea-tab-earnings" onclick="switchIdeaTab('earnings')" style="font-size:11px;padding:3px 10px">${_ICO.bar}실적급등</button>
             <button class="chip"        id="idea-tab-surge"    onclick="switchIdeaTab('surge')"    style="font-size:11px;padding:3px 10px">${_ICO.arrowUp}급등</button>
+            <button class="chip"        id="idea-tab-outlook"  onclick="switchIdeaTab('outlook')"  style="font-size:11px;padding:3px 10px">${_ICO.chart}전망</button>
           </div>
         </div>
 
@@ -275,6 +276,12 @@ function pInvestment() {
         <div id="idea-panel-surge" style="display:none;border-top:1px solid var(--border)">
           <div style="padding:5px 10px;border-bottom:1px solid var(--border);font-size:10px;color:var(--text2)">거래대금 5억↑ · 상승률 상위 (최근 거래일 종가 기준)</div>
           <div id="idea-surge-body" style="padding:.25rem 0">${_skelList(8, true)}</div>
+        </div>
+
+        <!-- 전망 패널 (미래 실적 추정치 — 상향 감지 + 고성장, estimates.js) -->
+        <div id="idea-panel-outlook" style="display:none;border-top:1px solid var(--border)">
+          <div style="padding:5px 10px;border-bottom:1px solid var(--border);font-size:10px;color:var(--text2)">KIS 리서치 연간 추정치 (매일 18:40 갱신) · 커버 종목만 표시</div>
+          <div id="idea-outlook-body" style="padding:.25rem 0">${_skelList(8, true)}</div>
         </div>
       </div>
 
@@ -665,6 +672,7 @@ async function loadInvestment() {
   _allDiscLoaded = false;
   loadTodayDisclosures();
   loadEarningsSurge();
+  loadEstimateOutlook();  // '오늘의 아이디어' 전망 탭 (추정치 상향+고성장, estimates.js)
 
   const maxDate = await getLatestMarketDate();
   if (!maxDate) return;
@@ -863,7 +871,7 @@ function toggleLsBacktest() {
 // ── '오늘의 아이디어' 탭 전환 (주도주 / 신고가 / 실적급등) ───────────────────────
 // 각 패널은 기존 위젯 내용을 그대로 품고 있어(id 유지) 로더는 변경 불필요 — 표시 토글만.
 function switchIdeaTab(tab) {
-  ['ls', 'hgpr', 'earnings', 'surge'].forEach(t => {
+  ['ls', 'hgpr', 'earnings', 'surge', 'outlook'].forEach(t => {
     const panel = document.getElementById('idea-panel-' + t);
     if (panel) panel.style.display = (t === tab) ? 'block' : 'none';
     const btn = document.getElementById('idea-tab-' + t);
