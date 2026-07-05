@@ -77,12 +77,12 @@ function renderEstimateOutlook(revisions, estimates) {
     .slice(0, 12);
 
   const upHtml = upRows.length ? upRows.map(r => {
-    const safeName = (r.stock_name || r.stock_code).replace(/'/g, "\\'");
+    const safeName = escJsStr(r.stock_name || r.stock_code);
     return `
     <div onclick="openMarketDetail('${r.stock_code}','${safeName}')"
       style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);cursor:pointer"
       onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
-      <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.stock_name || r.stock_code}
+      <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.stock_name || r.stock_code)}
         <span style="font-size:9px;color:var(--text2);font-weight:600;margin-left:3px">${_estYearChip(r.fiscal_period)}</span></span>
       <span style="font-size:11px;white-space:nowrap">매출 ${_estPct(r.revenue_change_pct)}</span>
       <span style="font-size:11px;white-space:nowrap">영업익 ${_estPct(r.op_profit_change_pct)}</span>
@@ -107,13 +107,13 @@ function renderEstimateOutlook(revisions, estimates) {
     .slice(0, 12);
 
   const growHtml = growRows.length ? growRows.map((r, i) => {
-    const safeName = (r.stock_name || r.stock_code).replace(/'/g, "\\'");
+    const safeName = escJsStr(r.stock_name || r.stock_code);
     return `
     <div onclick="openMarketDetail('${r.stock_code}','${safeName}')"
       style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);cursor:pointer"
       onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
       <span style="width:16px;font-size:11px;color:var(--text2);font-weight:600;flex-shrink:0">${i + 1}</span>
-      <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.stock_name || r.stock_code}
+      <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.stock_name || r.stock_code)}
         <span style="font-size:9px;color:var(--text2);font-weight:600;margin-left:3px">${_estYearChip(r.fiscal_period)}</span></span>
       <span style="font-size:10px;color:var(--text2);white-space:nowrap">매출 ${_estWon(r.revenue)}</span>
       <span style="font-size:11px;white-space:nowrap">${_estPct(r.revenue_yoy)}</span>

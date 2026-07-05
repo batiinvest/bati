@@ -69,6 +69,7 @@ function pOverview() {
       ${Object.entries(catMap).sort((a,b)=>b[1].m-a[1].m).map(([cat,v])=>{
         const compList = companyRooms.filter(r=>r.cat===cat).sort((a,b)=>b.members-a.members);
         const catId = 'cat-' + cat.replace(/[^a-zA-Z0-9가-힣]/g,'');
+        const indLink = safeUrl(v.industryLink);  // javascript: 등 비정상 스킴 차단
         return `
         <div style="border-bottom:1px solid var(--border)">
           <div style="display:flex;align-items:center;gap:10px;padding:9px 0;cursor:pointer"
@@ -77,8 +78,8 @@ function pOverview() {
             <span style="font-weight:600;font-size:13px;min-width:56px">${cat}</span>
             ${v.industryM > 0 ? `
             <span style="font-size:12px;color:var(--tg)">
-              ${v.industryLink
-                ? `<a href="${v.industryLink}" target="_blank" style="color:var(--tg)" onclick="event.stopPropagation()">산업채팅방</a>`
+              ${indLink
+                ? `<a href="${escAttr(indLink)}" target="_blank" rel="noopener" style="color:var(--tg)" onclick="event.stopPropagation()">산업채팅방</a>`
                 : '산업채팅방'}
               <span style="color:var(--text1);margin-left:3px">${v.industryM.toLocaleString()}명</span>
             </span>` : '<span></span>'}
@@ -90,17 +91,17 @@ function pOverview() {
           <div id="${catId}" style="display:none;padding:2px 0 10px 18px">
             ${compList.map(r=>`
               <div style="display:flex;align-items:center;gap:6px;padding:3px 0">
-                <span style="font-size:12px;flex:1;color:var(--text1)">${r.name}</span>
+                <span style="font-size:12px;flex:1;color:var(--text1)">${escapeHtml(r.name)}</span>
                 <span style="font-size:12px;color:var(--text1);min-width:52px;text-align:right">${(r.members||0).toLocaleString()}명</span>
                 <span style="font-size:11px;font-weight:500;min-width:28px;text-align:center;color:${(r.members||0)>=(r.max_members||1000)?'var(--red)':'var(--green)'}">${(r.members||0)>=(r.max_members||1000)?'마감':'입장'}</span>
-                ${r.link?`<a href="${r.link}" target="_blank" style="font-size:12px;color:var(--tg);text-decoration:none">→</a>`:'<span style="width:12px"></span>'}
+                ${safeUrl(r.link)?`<a href="${escAttr(safeUrl(r.link))}" target="_blank" rel="noopener" style="font-size:12px;color:var(--tg);text-decoration:none">→</a>`:'<span style="width:12px"></span>'}
               </div>`).join('')}
           </div>
         </div>`;
       }).join('')}
     </div></div>
     <div class="card"><div class="card-header"><span class="card-title">채팅방 멤버 순위</span></div><div class="card-body" style="padding:.75rem 1rem;max-height:400px;overflow-y:auto">
-      ${sortedRooms.map((r,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px"><span style="width:16px;color:var(--text2);font-size:11px;font-weight:600">${i+1}</span><span style="flex:1">${r.name}</span><span style="color:var(--text1);font-size:12px">${(r.members||0).toLocaleString()}</span><div style="width:50px"><div class="progress"><div class="progress-fill" style="background:${CATS[r.cat]||'#888'};width:${Math.min(100,Math.round((r.members||0)/(r.max_members||1000)*100))}%"></div></div></div></div>`).join('')}
+      ${sortedRooms.map((r,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px"><span style="width:16px;color:var(--text2);font-size:11px;font-weight:600">${i+1}</span><span style="flex:1">${escapeHtml(r.name)}</span><span style="color:var(--text1);font-size:12px">${(r.members||0).toLocaleString()}</span><div style="width:50px"><div class="progress"><div class="progress-fill" style="background:${CATS[r.cat]||'#888'};width:${Math.min(100,Math.round((r.members||0)/(r.max_members||1000)*100))}%"></div></div></div></div>`).join('')}
     </div></div>
   </div>`;
 }
@@ -112,8 +113,8 @@ function _renderRoomRow(r) {
   return `<tr>
     <td><div style="display:flex;align-items:center;gap:6px">
       <span class="cat-dot" style="background:${CATS[r.cat]||'#888'}"></span>
-      <span style="font-weight:500">${r.name}</span>
-      ${r.code ? `<span style="font-size:10px;color:var(--text2)">${r.code}</span>` : ''}
+      <span style="font-weight:500">${escapeHtml(r.name)}</span>
+      ${r.code ? `<span style="font-size:10px;color:var(--text2)">${escapeHtml(r.code)}</span>` : ''}
     </div></td>
     <td>
       <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">

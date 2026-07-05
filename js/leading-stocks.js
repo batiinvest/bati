@@ -215,7 +215,12 @@ window.triggerLeadingStocks = async function() {
     let tries = 0;
     const MAX_TRIES = 36;
 
+    // 중복 트리거 시 이전 폴링 정리
+    if (window._lsPollTimer) clearInterval(window._lsPollTimer);
+
     const poll = setInterval(async () => {
+      // 페이지 이탈로 카드가 사라졌으면 폴링 중단 (유령 쿼리 방지)
+      if (!document.getElementById('ls-body')) { clearInterval(poll); return; }
       tries++;
       const cntEl = document.getElementById('ls-poll-counter');
       if (cntEl) cntEl.textContent = `${tries * 5}초 경과 / 최대 ${MAX_TRIES * 5}초`;
@@ -245,6 +250,7 @@ window.triggerLeadingStocks = async function() {
         if (typeof toast === 'function') toast('⚠️ 3분 내 계산 미완료 — 백엔드 서버 상태 확인', 'warning');
       }
     }, 5000);
+    window._lsPollTimer = poll;
 
   } catch(e) {
     if (typeof toast === 'function') toast('트리거 실패: ' + e.message, 'error');

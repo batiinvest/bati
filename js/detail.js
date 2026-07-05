@@ -3,7 +3,7 @@ function openDetail(id) {
   const r = A.rooms.find(x => x.id === id); if (!r) return;
   A.room = r;
   document.getElementById('d-title').textContent = r.name;
-  document.getElementById('d-tg').onclick = () => r.link && window.open(r.link, '_blank');
+  document.getElementById('d-tg').onclick = () => { const u = safeUrl(r.link); if (u) window.open(u, '_blank'); };
   dtab('info', document.querySelector('#m-detail .tab'));
   openModal('m-detail');
 }
@@ -16,7 +16,7 @@ function dtab(tab, el) {
   if (tab === 'info') {
     body.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:1rem">
-        ${[['이름',r.name],['종목코드',r.code||'-'],['산업',r.cat],['세부 분야',r.sub_cat||'-'],['멤버',`${(r.members||0).toLocaleString()} / ${r.max_members||1000}`],['상태',r.status==='full'?'<span class="badge badge-full">정원 마감</span>':'<span class="badge badge-open">입장 가능</span>'],['Chat ID',`<code style="font-size:11px;background:var(--bg3);padding:2px 6px;border-radius:4px">${r.chat_id}</code>`],['링크',r.link?`<a href="${r.link}" target="_blank">${r.link.slice(0,45)}</a>`:'-'],['키워드',r.keywords?`<span style="font-size:12px;color:var(--text1)">${r.keywords}</span>`:'-']].map(([k,v])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px"><span style="color:var(--text1)">${k}</span><span>${v}</span></div>`).join('')}
+        ${[['이름',escapeHtml(r.name)],['종목코드',escapeHtml(r.code||'-')],['산업',escapeHtml(r.cat)],['세부 분야',escapeHtml(r.sub_cat||'-')],['멤버',`${(r.members||0).toLocaleString()} / ${r.max_members||1000}`],['상태',r.status==='full'?'<span class="badge badge-full">정원 마감</span>':'<span class="badge badge-open">입장 가능</span>'],['Chat ID',`<code style="font-size:11px;background:var(--bg3);padding:2px 6px;border-radius:4px">${escapeHtml(r.chat_id)}</code>`],['링크',safeUrl(r.link)?`<a href="${escAttr(safeUrl(r.link))}" target="_blank" rel="noopener">${escapeHtml(r.link.slice(0,45))}</a>`:'-'],['키워드',r.keywords?`<span style="font-size:12px;color:var(--text1)">${escapeHtml(r.keywords)}</span>`:'-']].map(([k,v])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px"><span style="color:var(--text1)">${k}</span><span>${v}</span></div>`).join('')}
       </div>
       ${canEdit()?`<div style="display:flex;gap:8px">
         <button class="btn btn-sm" onclick="syncOne(${r.id})">멤버 수 동기화</button>
@@ -27,11 +27,11 @@ function dtab(tab, el) {
     if (!canEdit()) { body.innerHTML='<div style="padding:1rem;color:var(--text2);font-size:13px;text-align:center">수정 권한이 없습니다.</div>'; return; }
     const cats = INDUSTRIES;  // config.js 단일 정의 참조
     body.innerHTML=`
-      <div class="form-row"><div class="form-group"><label class="form-label">이름</label><input class="form-input" id="e-name" value="${r.name}"></div><div class="form-group"><label class="form-label">종목코드</label><input class="form-input" id="e-code" value="${r.code||''}"></div></div>
-      <div class="form-row"><div class="form-group"><label class="form-label">산업</label><select class="form-select" id="e-cat">${cats.map(c=>`<option ${c===r.cat?'selected':''}>${c}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">세부 분야</label><input class="form-input" id="e-sub" value="${r.sub_cat||''}"></div></div>
-      <div class="form-row"><div class="form-group"><label class="form-label">Chat ID</label><input class="form-input" id="e-chatid" value="${r.chat_id}"></div><div class="form-group"><label class="form-label">최대 정원</label><input class="form-input" type="number" id="e-max" value="${r.max_members||1000}"></div></div>
-      <div class="form-group"><label class="form-label">초대 링크</label><input class="form-input" id="e-link" value="${r.link||''}"></div>
-      <div class="form-group"><label class="form-label">키워드</label><input class="form-input" id="e-kw" value="${r.keywords||''}"></div>
+      <div class="form-row"><div class="form-group"><label class="form-label">이름</label><input class="form-input" id="e-name" value="${escAttr(r.name)}"></div><div class="form-group"><label class="form-label">종목코드</label><input class="form-input" id="e-code" value="${escAttr(r.code||'')}"></div></div>
+      <div class="form-row"><div class="form-group"><label class="form-label">산업</label><select class="form-select" id="e-cat">${cats.map(c=>`<option ${c===r.cat?'selected':''}>${c}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">세부 분야</label><input class="form-input" id="e-sub" value="${escAttr(r.sub_cat||'')}"></div></div>
+      <div class="form-row"><div class="form-group"><label class="form-label">Chat ID</label><input class="form-input" id="e-chatid" value="${escAttr(r.chat_id)}"></div><div class="form-group"><label class="form-label">최대 정원</label><input class="form-input" type="number" id="e-max" value="${r.max_members||1000}"></div></div>
+      <div class="form-group"><label class="form-label">초대 링크</label><input class="form-input" id="e-link" value="${escAttr(r.link||'')}"></div>
+      <div class="form-group"><label class="form-label">키워드</label><input class="form-input" id="e-kw" value="${escAttr(r.keywords||'')}"></div>
       <div style="display:flex;justify-content:flex-end;margin-top:.5rem"><button class="btn btn-primary" onclick="saveEdit(${r.id})">DB에 저장</button></div>`;
   } else if (tab === 'msg') {
     if (!canEdit()) { body.innerHTML='<div style="padding:1rem;color:var(--text2);font-size:13px;text-align:center">발송 권한이 없습니다.</div>'; return; }

@@ -109,6 +109,8 @@ async function loadMarketOverview(maxDate) {
   if (window.Chart) {
     const canvas = document.getElementById('ind-bar-chart');
     if (!canvas) return;
+    // 이전 인스턴스 정리 — canvas는 innerHTML로 갈려도 Chart 객체(리사이즈 리스너)는 남아 누수
+    if (window._indBarChart) { try { window._indBarChart.destroy(); } catch (e) {} window._indBarChart = null; }
     const chart = new window.Chart(canvas.getContext('2d'), {
       type: 'bar',
       data: {
@@ -313,7 +315,7 @@ async function loadMarketOverview(maxDate) {
         '</div>' +
         all.map((st, i) =>
           '<div style="display:grid;grid-template-columns:' + COLS + ';align-items:center;gap:0;padding:6px 14px;border-bottom:1px solid var(--border);cursor:pointer" ' +
-            'onclick="openStockDetail(\'' + st.stock_code + '\',\'' + (st.corp_name||'').replace(/'/g,"\\\\'" ) + '\')" ' +
+            'onclick="openStockDetail(\'' + st.stock_code + '\',\'' + escJsStr(st.corp_name || '') + '\')" ' +
             'onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"> ' +
             '<span style="font-size:11px;color:var(--text2)">' + (i+1) + '</span>' +
             '<span style="font-size:13px">' + st.corp_name + '</span>' +
@@ -414,8 +416,7 @@ async function loadNewHighStocks() {
   const body = document.getElementById('hgpr-body');
   if (!body) return;
 
-  const _kst  = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  const today = _kst.toISOString().split('T')[0];
+  const today = kstToday();  // config.js 공통 KST 기준
 
   const _HGPR_SEL = 'stock_code,corp_name,price,price_change_rate,market_cap,listing_shares,hgpr_cls,hgpr_cls_code';
 
@@ -484,8 +485,7 @@ async function loadNewHighStocks() {
 
   // 과거 7일 이력
   const codes = rows.map(r => r.stock_code);
-  const kst7  = new Date(Date.now() + 9*60*60*1000 - 7*24*60*60*1000);
-  const date7 = kst7.toISOString().split('T')[0];
+  const date7 = offsetDate(-7);  // KST 기준 7일 전
   const { data: hist7 } = await sb.from('market_data')
     .select('stock_code,base_date,hgpr_cls_code')
     .in('stock_code', codes)
@@ -643,7 +643,7 @@ function renderHgprTab(tab) {
       const chg   = r.price_change_rate;
       const chgTxt = chg!=null ? (chg>=0?'+':'')+chg.toFixed(2)+'%' : '—';
       const chgClr = chg>=0 ? 'var(--red)' : 'var(--blue)';
-      const safeName = (r.corp_name||r.stock_code).replace(/'/g,"\'");
+      const safeName = escJsStr(r.corp_name || r.stock_code);
 
       // ── Phase 2: 거래대금 + 외국인 배지 ──────────────────────
       const tvStr = r.tv >= 1e10
@@ -768,7 +768,7 @@ function renderHgprTab(tab) {
         const chg    = r.price_change_rate;
         const chgClr = (chg||0) >= 0 ? 'var(--red)' : 'var(--blue)';
         const chgTxt = chg != null ? (chg>=0?'+':'')+chg.toFixed(2)+'%' : '—';
-        const safeName = (r.corp_name||r.stock_code).replace(/'/g,"\'");
+        const safeName = escJsStr(r.corp_name || r.stock_code);
         return `<div onclick="openStockDetail('${r.stock_code}','${safeName}')"
           style="display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:6px;
             padding:5px 10px;border-bottom:1px solid var(--border);cursor:pointer;
@@ -990,9 +990,9 @@ function _renderFlowCol(tab, bodyId) {
   // ── 행 렌더링 ────────────────────────────────────────────────────────────────
   const TOP_N = 5;
   const mkRow = r => {
-    const safeName = (r.corp_name || r.stock_code).replace(/'/g, "\\'");
+    const safeName = escJsStr(r.corp_name || r.stock_code);
     const name     = r.corp_name || r.stock_code;
-    const dispName = name.length > 7 ? name.slice(0, 7) + '…' : name;
+    const dispName = escapeHtml(name.length > 7 ? name.slice(0, 7) + '…' : name);
 
     let cells;
     if (tab === 'both') {
@@ -1017,7 +1017,7 @@ function _renderFlowCol(tab, bodyId) {
     return `<div style="display:grid;grid-template-columns:${cols};align-items:center;padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer"
       onclick="openStockDetail('${r.stock_code}','${safeName}')"
       onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
-      <span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${name}">${dispName}</span>
+      <span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escAttr(name)}">${dispName}</span>
       <span style="font-size:11px;font-weight:700;color:${chgColor(r.price_change_rate)};text-align:right">${chgStr(r.price_change_rate)}</span>
       ${cells}
     </div>`;

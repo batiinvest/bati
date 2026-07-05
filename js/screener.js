@@ -152,7 +152,7 @@ async function runScreener() {
 
   // ── Step 1: market_data에서 밸류에이션/시총 필터 적용 (DB 레벨) ──
   let mktQuery = sb.from('market_data')
-    .select('stock_code,corp_name,market_cap,price,price_change_rate,per,pbr,market')
+    .select('stock_code,corp_name,market_cap,price,price_change_rate,per,pbr,market,foreign_hold_rate')
     .eq('base_date', maxDate)
     .order('market_cap', { ascending: false });
 
@@ -186,27 +186,39 @@ async function runScreener() {
       ? 'stock_code,operating_margin,roe,roa,debt_ratio,current_ratio,bsns_year,quarter,net_income,operating_income,total_debt'
       : 'stock_code,operating_margin,roe,roa,debt_ratio,current_ratio,bsns_year,quarter';
 
-    let finQuery = sb.from('financials')
-      .select(finSelect)
-      .eq('fs_div', 'CFS')
-      .in('stock_code', codes.slice(0, 500))
-      .order('bsns_year', { ascending: false })
-      .order('quarter',   { ascending: false });
+    // ⚠️ 기존 slice(0,500) + limit(2000)은 시총 하위 종목·뒤쪽 재무 행을
+    //    조용히 누락시켜 스크리닝 결과가 부정확했음.
+    //    → 코드 500개씩 청크 분할 + fetchAllPages로 전량 조회 (잘림 없음).
+    //    최근 3개년으로 한정 — 최신 행 + PEG용 연간 2개년이면 충분, 행수 폭증 방지.
+    const minYear = String(new Date().getFullYear() - 3);
+    const buildFinQuery = (chunk) => {
+      let q = sb.from('financials')
+        .select(finSelect)
+        .eq('fs_div', 'CFS')
+        .in('stock_code', chunk)
+        .gte('bsns_year', minYear)
+        .order('bsns_year', { ascending: false })
+        .order('quarter',   { ascending: false })
+        .order('stock_code');   // 병렬/페이지 경계 결정성 확보
+      if (f.marginMin != null) q = q.gte('operating_margin', f.marginMin);
+      if (f.marginMax != null) q = q.lte('operating_margin', f.marginMax);
+      if (f.roeMin    != null) q = q.gte('roe',              f.roeMin);
+      if (f.roeMax    != null) q = q.lte('roe',              f.roeMax);
+      if (f.roaMin    != null) q = q.gte('roa',              f.roaMin);
+      if (f.roaMax    != null) q = q.lte('roa',              f.roaMax);
+      if (f.debtMin   != null) q = q.gte('debt_ratio',       f.debtMin);
+      if (f.debtMax   != null) q = q.lte('debt_ratio',       f.debtMax);
+      if (f.crMin     != null) q = q.gte('current_ratio',    f.crMin);
+      if (f.crMax     != null) q = q.lte('current_ratio',    f.crMax);
+      return q;
+    };
 
-    if (f.marginMin != null) finQuery = finQuery.gte('operating_margin', f.marginMin);
-    if (f.marginMax != null) finQuery = finQuery.lte('operating_margin', f.marginMax);
-    if (f.roeMin    != null) finQuery = finQuery.gte('roe',              f.roeMin);
-    if (f.roeMax    != null) finQuery = finQuery.lte('roe',              f.roeMax);
-    if (f.roaMin    != null) finQuery = finQuery.gte('roa',              f.roaMin);
-    if (f.roaMax    != null) finQuery = finQuery.lte('roa',              f.roaMax);
-    if (f.debtMin   != null) finQuery = finQuery.gte('debt_ratio',       f.debtMin);
-    if (f.debtMax   != null) finQuery = finQuery.lte('debt_ratio',       f.debtMax);
-    if (f.crMin     != null) finQuery = finQuery.gte('current_ratio',    f.crMin);
-    if (f.crMax     != null) finQuery = finQuery.lte('current_ratio',    f.crMax);
-
-    // PEG 계산: 종목별 최신 2개 연간 행 필요 → limit 높여서 JS에서 처리
-    const limit = hasPegFilter ? 4000 : 2000;
-    const { data: finRows } = await finQuery.limit(limit);
+    const CHUNK = 500;
+    const finRows = [];
+    for (let i = 0; i < codes.length; i += CHUNK) {
+      const rows = await fetchAllPages(buildFinQuery(codes.slice(i, i + CHUNK)));
+      finRows.push(...rows);
+    }
 
     if (hasPegFilter) {
       // 종목별 최신 2개 연간 행 수집 → YoY net_income 성장률로 PEG 계산
@@ -333,11 +345,11 @@ async function runScreener() {
       </tr></thead>
       <tbody>${combined.map((r, i) => `<tr>
         <td style="color:var(--text3);font-size:11px;text-align:right;padding:6px 8px">${i+1}</td>
-        <td style="cursor:pointer" onclick="go('report');setTimeout(()=>rpQuickSearch&&rpQuickSearch('${r.corp_name}'),200)">
-          <div class="stock-name" style="color:var(--tg)">${r.corp_name}</div>
+        <td style="cursor:pointer" onclick="go('report');setTimeout(()=>rpQuickSearch&&rpQuickSearch('${escJsStr(r.corp_name)}'),200)">
+          <div class="stock-name" style="color:var(--tg)">${escapeHtml(r.corp_name)}</div>
           <div class="stock-code">${r.stock_code} · ${r.market||''}</div>
         </td>
-        <td><span class="badge badge-cat">${r.industry || '—'}</span></td>
+        <td><span class="badge badge-cat">${escapeHtml(r.industry || '—')}</span></td>
         <td class="num">${fmtPrice(r.price)}</td>
         <td class="num" style="color:${chgColor(r.price_change_rate)}">${chgStr(r.price_change_rate)}</td>
         <td class="num">${fmtCap(r.market_cap)}</td>
@@ -345,10 +357,10 @@ async function runScreener() {
         <td class="num">${num(r.pbr)}</td>
         <td class="num ${r.roe!=null&&r.roe>15?'num-up':r.roe!=null&&r.roe<0?'num-down':''}">${pct(r.roe)}</td>
         <td class="num ${r.operating_margin!=null&&r.operating_margin>10?'num-up':r.operating_margin!=null&&r.operating_margin<0?'num-down':''}">${pct(r.operating_margin)}</td>
-        <td class="num">${r.foreign_ownership!=null ? r.foreign_ownership.toFixed(1)+'%' : '—'}</td>
+        <td class="num">${r.foreign_hold_rate!=null ? r.foreign_hold_rate.toFixed(1)+'%' : '—'}</td>
         <td>${_sig(r)}</td>
         <td style="padding:4px 6px">
-          <button onclick="scAddToWatchlist('${r.stock_code}','${r.corp_name.replace(/'/g,"\\'")}');event.stopPropagation()"
+          <button onclick="scAddToWatchlist('${r.stock_code}','${escJsStr(r.corp_name)}');event.stopPropagation()"
             style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(45,206,137,.15);color:#2dce89;border:1px solid rgba(45,206,137,.3);cursor:pointer;white-space:nowrap">+WL</button>
         </td>
       </tr>`).join('')}</tbody>

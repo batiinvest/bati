@@ -281,11 +281,8 @@ textarea.form-input { resize:vertical; min-height:100px; }
 
 /* ── 모바일 반응형: 스크리너·워치리스트·주도주 (P3-3) ─────────────── */
 @media(max-width:900px){
-  /* 스크리너 결과 테이블 — ROA·부채비율 숨김 */
-  .screener-result-table th:nth-child(15),
-  .screener-result-table td:nth-child(15),
-  .screener-result-table th:nth-child(14),
-  .screener-result-table td:nth-child(14) { display:none; }
+  /* (스크리너 nth-child(14,15) 숨김 제거 — 현재 테이블은 13열, 죽은 규칙이었음.
+     좁은 화면은 .table-wrap 가로 스크롤로 대응) */
 
   /* 워치리스트 테이블은 탭별로 컬럼을 자동 선별(JS) — 고정 nth-child 숨김 제거 */
 
@@ -337,11 +334,8 @@ textarea.form-input { resize:vertical; min-height:100px; }
 @media(max-width:600px){ .wl-drawer { width:100vw; } }
 
 @media(max-width:480px){
-  /* 스크리너 테이블 — PEG·EV/EBITDA 추가 숨김 */
-  .screener-result-table th:nth-child(9),
-  .screener-result-table td:nth-child(9),
-  .screener-result-table th:nth-child(10),
-  .screener-result-table td:nth-child(10) { display:none; }
+  /* (스크리너 nth-child(9,10) 숨김 제거 — 컬럼 구성 변경 후 주석과 달리
+     ROE·영업이익률을 숨기고 있었음. 가로 스크롤로 대응) */
 
   /* 포트폴리오 요약 1열 */
   #wl-summary > div > div { min-width:100%; flex:1 1 100%; }
@@ -573,10 +567,7 @@ td { padding:7px 10px; font-size:var(--fs-data); }
 .grade-a { background:rgba(0,192,135,.15);  color:var(--up); }
 .grade-b { background:rgba(42,171,238,.12); color:var(--tg); }
 
-/* 스켈레톤 로딩 */
-.skeleton { background:linear-gradient(90deg,var(--bg3) 25%,var(--bg2) 50%,var(--bg3) 75%);
-            background-size:200% 100%; animation:shimmer 1.5s infinite; border-radius:4px; display:inline-block; }
-@keyframes shimmer { 0%{background-position:200%} 100%{background-position:-200%} }
+/* (스켈레톤 로딩 — 상단 'Skeleton loading' 단일 정의 사용, 중복 제거) */
 
 /* ── Task 8-1: 종목 툴팁 ── */
 .stock-tooltip { position:absolute; z-index:100; background:var(--bg2); border:1px solid var(--border2);
@@ -593,7 +584,9 @@ td { padding:7px 10px; font-size:var(--fs-data); }
 .nav-admin-items .nav-item { padding-left:2.25rem; font-size:12px; opacity:.8; }
 
 /* ── market-strip 추가 스타일 ── */
-.market-strip { display:flex !important; gap:16px; font-size:var(--fs-data); }
+/* ⚠️ display:flex !important 금지 — 위 @media(max-width:900px)의 display:none !important를
+   소스 순서로 무효화해 모바일에서 스트립이 다시 보이는 버그가 있었음 */
+.market-strip { gap:16px; font-size:var(--fs-data); }
 .market-strip-item { display:flex; align-items:center; gap:4px; cursor:pointer; }
 .market-strip-val { font-weight:600; font-size:13px; }
 .market-strip-chg { font-size:11px; }

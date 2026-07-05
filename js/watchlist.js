@@ -133,13 +133,13 @@ async function searchWatchlistStock(query) {
   dd.style.display = 'block';
   dd.innerHTML = results.map(c => {
     const code = (c.code||'').split('.')[0];
-    return `<div onclick="selectWatchlistStock('${code}','${c.name}','${c.industry||''}','${c.market||''}')"
+    return `<div onclick="selectWatchlistStock('${code}','${escJsStr(c.name)}','${escJsStr(c.industry||'')}','${escJsStr(c.market||'')}')"
       style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px"
       onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
-      <span style="font-weight:500">${c.name}</span>
+      <span style="font-weight:500">${escapeHtml(c.name)}</span>
       <span style="font-size:11px;color:var(--text2)">${code}</span>
-      ${c.industry ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:var(--bg3);color:var(--text2)">${c.industry}</span>` : ''}
-      <span style="font-size:10px;color:var(--text2);margin-left:auto">${c.market||''}</span>
+      ${c.industry ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:var(--bg3);color:var(--text2)">${escapeHtml(c.industry)}</span>` : ''}
+      <span style="font-size:10px;color:var(--text2);margin-left:auto">${escapeHtml(c.market||'')}</span>
     </div>`;
   }).join('');
 }
@@ -346,7 +346,7 @@ async function saveJournal(payload) {
 // 복기 모달 — 자동 지표 + 회고 입력
 async function openJournalModal(stockCode, corpName) {
   document.getElementById('m-journal')?.remove();
-  const nm = (corpName || '').replace(/'/g, "\\'");
+  const nm = escJsStr(corpName || '');
 
   const { data: txs } = await sb.from('portfolio_transactions')
     .select('*').eq('stock_code', stockCode).order('trade_date', { ascending: true });
@@ -388,7 +388,7 @@ async function openJournalModal(stockCode, corpName) {
   overlay.innerHTML = `
     <div class="modal" style="width:520px;max-width:95vw;max-height:90vh;overflow-y:auto">
       <div class="modal-header">
-        <span class="modal-title">${corpName} · 📝 매매 복기</span>
+        <span class="modal-title">${escapeHtml(corpName)} · 📝 매매 복기</span>
         <button class="modal-close" onclick="document.getElementById('m-journal').remove()">×</button>
       </div>
       <div style="padding:1.25rem;display:flex;flex-direction:column;gap:14px">
@@ -402,7 +402,7 @@ async function openJournalModal(stockCode, corpName) {
           ${auto('목표가 대비', targetHitPct!=null?`${targetHitPct.toFixed(0)}% 도달`:'—')}
         </div>
         ${w.thesis_1 ? `<div style="font-size:12px;background:var(--bg3);border-radius:6px;padding:8px 10px;line-height:1.5">
-          <span style="color:var(--text2)">당시 근거 · </span>${w.thesis_1}${w.risk_1?`<br><span style="color:var(--text2)">리스크 · </span>${w.risk_1}`:''}</div>` : ''}
+          <span style="color:var(--text2)">당시 근거 · </span>${escapeHtml(w.thesis_1)}${w.risk_1?`<br><span style="color:var(--text2)">리스크 · </span>${escapeHtml(w.risk_1)}`:''}</div>` : ''}
         <div>
           <div style="font-size:12px;color:var(--text1);margin-bottom:4px">매도 사유</div>
           <select class="form-select" id="j-reason" style="width:100%">
@@ -413,16 +413,16 @@ async function openJournalModal(stockCode, corpName) {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div>
             <div style="font-size:12px;color:var(--text1);margin-bottom:4px">잘한 점</div>
-            <textarea class="form-input" id="j-well" placeholder="예: 분할 매수로 평단 낮춤" style="width:100%;box-sizing:border-box;height:54px;resize:vertical">${j.did_well||''}</textarea>
+            <textarea class="form-input" id="j-well" placeholder="예: 분할 매수로 평단 낮춤" style="width:100%;box-sizing:border-box;height:54px;resize:vertical">${escapeHtml(j.did_well||'')}</textarea>
           </div>
           <div>
             <div style="font-size:12px;color:var(--text1);margin-bottom:4px">아쉬운 점</div>
-            <textarea class="form-input" id="j-poorly" placeholder="예: 목표 직전 조기 청산" style="width:100%;box-sizing:border-box;height:54px;resize:vertical">${j.did_poorly||''}</textarea>
+            <textarea class="form-input" id="j-poorly" placeholder="예: 목표 직전 조기 청산" style="width:100%;box-sizing:border-box;height:54px;resize:vertical">${escapeHtml(j.did_poorly||'')}</textarea>
           </div>
         </div>
         <div>
           <div style="font-size:12px;color:var(--text1);margin-bottom:4px">교훈 (다음 거래에 적용)</div>
-          <input type="text" class="form-input" id="j-lesson" placeholder="예: 목표가 80%부터 분할 매도 룰화" value="${(j.lesson||'').replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box">
+          <input type="text" class="form-input" id="j-lesson" placeholder="예: 목표가 80%부터 분할 매도 룰화" value="${escAttr(j.lesson||'')}" style="width:100%;box-sizing:border-box">
         </div>
         <div>
           <div style="font-size:12px;color:var(--text1);margin-bottom:4px">프로세스 점수 <span style="color:var(--text2);font-weight:400">(결과와 무관하게 판단·실행의 질)</span></div>
@@ -473,7 +473,7 @@ function openTradeModal(watchlistId, stockCode, corpName, type, curPrice) {
   document.getElementById('m-trade')?.remove();
   const isBuy = type === 'buy';
   const today = todayStr();
-  const nm = (corpName || '').replace(/'/g, "\\'");
+  const nm = escJsStr(corpName || '');
   window._tradeType = type; // _tradePreview에서 신용 안내 분기용
   const overlay = document.createElement('div');
   overlay.id = 'm-trade';

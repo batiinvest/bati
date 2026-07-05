@@ -506,7 +506,7 @@ async function loadFinancialData(el) {
 // ══════════════════════════════════════════
 async function openStockDetail(code, name, initTab = 'overview') {
   const _canEditSD = typeof canEdit === 'function' ? canEdit() : true;
-  const _sdSafeName = (name || '').replace(/'/g, "\\'");
+  const _sdSafeName = escJsStr(name || '');
   document.getElementById('m-stock-detail')?.remove();
   const modal = document.createElement('div');
   modal.id = 'm-stock-detail';
@@ -523,9 +523,9 @@ async function openStockDetail(code, name, initTab = 'overview') {
         <div style="display:flex;align-items:flex-start;justify-content:space-between">
           <div>
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
-              <span style="font-size:20px;font-weight:700">${name}</span>
+              <span style="font-size:20px;font-weight:700">${escapeHtml(name)}</span>
               <span style="font-size:11px;color:var(--text2);padding:2px 7px;background:var(--bg3);
-                border-radius:4px;border:1px solid var(--border);font-family:monospace">${code}</span>
+                border-radius:4px;border:1px solid var(--border);font-family:monospace">${escapeHtml(code)}</span>
               <span id="sd-industry-badge" style="font-size:11px;color:var(--tg)"></span>
             </div>
             <div id="sd-sub-info" style="font-size:11px;color:var(--text2)"></div>

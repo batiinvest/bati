@@ -56,7 +56,19 @@ const LITTLY_DONATE_URL = 'https://litt.ly/batiinvest';
 //  공통 HTML 유틸
 // ══════════════════════════════════════════
 // HTML 이스케이프 — 템플릿 문자열에 DB/사용자 텍스트 삽입 시 (각 파일 인라인 정의 통합)
-const escapeHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const escapeHtml = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// HTML 속성값 이스케이프 — title="..." value="..." 등 따옴표 속성 삽입용
+const escAttr = s => String(s ?? '')
+  .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+  .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// 인라인 onclick 안 JS 문자열 리터럴 삽입용 — JS escape 후 HTML attr escape
+// 사용: onclick="openStockDetail('${code}','${escJsStr(name)}')"
+const escJsStr = s => escAttr(String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+
+// href/window.open용 URL 검증 — http(s)만 허용, 그 외(javascript: 등)는 빈 문자열
+const safeUrl = u => /^https?:\/\//i.test(String(u || '').trim()) ? String(u).trim() : '';
 
 const loadingHTML = (msg = '') =>
   `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:13px"><span class="loading"></span>${msg ? ' ' + msg : ''}</div>`;
@@ -298,8 +310,11 @@ function fmtWon(won, signed = false) {
 
 // ── 날짜 포맷 헬퍼 — 전 파일에서 참조 ──────────────────────────────────────
 
-/** 오늘 날짜 → 'YYYY-MM-DD' 문자열 */
-const todayStr = () => new Date().toISOString().slice(0, 10);
+/** KST 기준 오늘 날짜 → 'YYYY-MM-DD' (앱 전체 단일 기준 — UTC/로컬 혼용 금지) */
+const kstToday = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+
+/** @deprecated kstToday 별칭 — 기존 호출부 호환용 (과거 UTC 기준이던 것을 KST로 통일) */
+const todayStr = kstToday;
 
 /**
  * Date 객체 → 'YYYY-MM-DD' 문자열
@@ -309,10 +324,10 @@ const fmtDate = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
 /**
- * 오늘 기준 N일 후 날짜 → 'YYYY-MM-DD'
+ * KST 오늘 기준 N일 후 날짜 → 'YYYY-MM-DD'
  * 예: offsetDate(7) → 7일 후
  */
-const offsetDate = (days) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+const offsetDate = (days) => new Date(Date.now() + 9 * 3600e3 + days * 86400000).toISOString().slice(0, 10);
 
 // ══════════════════════════════════════════
 //  전역 캐시 — companies 산업 매핑

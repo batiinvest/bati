@@ -534,7 +534,15 @@ function _updateInvTimestamp() {
 }
 
 // ── 새로고침 ──────────────────────────────────────────────────
+// 진행 중 타이머 핸들 — 연타·페이지 이탈 시 중첩/유령 재로드 방지
+let _invRefreshTimers = [];
+function _clearInvRefreshTimers() {
+  _invRefreshTimers.forEach(t => { clearInterval(t); clearTimeout(t); });
+  _invRefreshTimers = [];
+}
+
 async function refreshInvestment() {
+  _clearInvRefreshTimers();  // 연타 시 이전 카운트다운/재로드 취소
   _latestMarketDate = null;
   const btn = document.getElementById('inv-refresh-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
@@ -597,18 +605,25 @@ async function refreshInvestment() {
       let remaining = 70;
       const timer = setInterval(() => {
         remaining--;
-        if (btn) btn.textContent = `⏳ ${remaining}초`;
+        // 페이지 이탈로 버튼이 사라졌으면 카운트다운 중단
+        const b = document.getElementById('inv-refresh-btn');
+        if (!b) { clearInterval(timer); return; }
+        b.textContent = `⏳ ${remaining}초`;
         if (remaining <= 0) clearInterval(timer);
       }, 1000);
+      _invRefreshTimers.push(timer);
 
-      // 70초 후 재로드 + 버튼 복구
-      setTimeout(async () => {
+      // 70초 후 재로드 + 버튼 복구 — 시황 페이지에 머물러 있을 때만
+      const reload = setTimeout(async () => {
         clearInterval(timer);
+        if (A.page !== 'investment') return;  // 이탈했으면 유령 재로드 방지
         _latestMarketDate = null;
         await loadInvestment();
-        if (btn) { btn.disabled = false; btn.textContent = '🔄 새로고침'; }
+        const b = document.getElementById('inv-refresh-btn');
+        if (b) { b.disabled = false; b.textContent = '🔄 새로고침'; }
         toast('✅ 최신 데이터로 업데이트됐습니다', 'success');
       }, 70000);
+      _invRefreshTimers.push(reload);
 
       return; // finally에서 버튼 복구 안 되도록
     }
@@ -652,7 +667,7 @@ async function loadInvestment() {
       // ② 종목 데이터(breadth·수급·급등락·거래대금·신고가 공통 기준) — 신선도 경고
       let mktStr = '';
       if (mktDate) {
-        const todayKst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const todayKst = kstToday();
         const diffDays = Math.round((new Date(todayKst) - new Date(mktDate)) / 86400000);
         const stale = diffDays >= 5; // 정상 주간 사이클(주말 포함)을 넘어선 경우만 경고
         mktStr = `<span title="breadth·수급·급등락·거래대금·신고가 공통 기준일" style="${stale ? 'color:var(--yellow);font-weight:600' : 'color:var(--text2)'}">`
@@ -749,11 +764,11 @@ async function loadInvestment() {
   const dropKosdaq  = _byMkt('KOSDAQ', true);
 
   const rankRow = (r, i) => `
-    <div onclick="openMarketDetail('${r.stock_code}','${(r.corp_name||r.stock_code||'').replace(/'/g,"\\'")}')"
+    <div onclick="openMarketDetail('${r.stock_code}','${escJsStr(r.corp_name||r.stock_code||'')}')"
       style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-bottom:1px solid var(--border);cursor:pointer"
       onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
       <span style="width:14px;font-size:10px;color:var(--text2);font-weight:600;flex-shrink:0">${i+1}</span>
-      <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.corp_name}</span>
+      <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.corp_name)}</span>
       ${wlBadge(r.stock_code)}
       <span style="font-size:12px;font-weight:700;color:${chgColor(r.price_change_rate)};flex-shrink:0">${chgStr(r.price_change_rate)}</span>
     </div>`;
@@ -811,13 +826,13 @@ function renderVolumeLeaders() {
         : (r.tv / 1e8).toFixed(0) + '억';
       const barPct = Math.round(r.tv / maxTV * 100);
       return `
-      <div onclick="openMarketDetail('${r.stock_code}','${(r.corp_name||r.stock_code||'').replace(/'/g,"\\'")}')"
+      <div onclick="openMarketDetail('${r.stock_code}','${escJsStr(r.corp_name||r.stock_code||'')}')"
         style="display:flex;align-items:center;gap:8px;padding:6px 12px;
         border-bottom:1px solid var(--border);cursor:pointer"
         onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
         <span style="min-width:16px;font-size:11px;color:var(--text2);font-weight:600">${i + 1}</span>
         <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px"><span style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.corp_name}</span>${wlBadge(r.stock_code)}</div>
+          <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px"><span style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.corp_name)}</span>${wlBadge(r.stock_code)}</div>
           <div style="height:3px;border-radius:2px;background:var(--border);overflow:hidden">
             <div style="height:100%;width:${barPct}%;background:${p.color};border-radius:2px"></div>
           </div>
@@ -902,13 +917,13 @@ function renderIdeaSurge() {
     const tv    = r.trading_value || ((r.volume ?? 0) * (r.price ?? 0));
     const tvStr = tv >= 1e12 ? (tv / 1e12).toFixed(1) + '조'
                 : tv >= 1e8  ? Math.round(tv / 1e8).toLocaleString() + '억' : '';
-    const safeName = (r.corp_name || r.stock_code || '').replace(/'/g, "\\'");
+    const safeName = escJsStr(r.corp_name || r.stock_code || '');
     return `
     <div onclick="openMarketDetail('${r.stock_code}','${safeName}')"
       style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);cursor:pointer"
       onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
       <span style="width:16px;font-size:11px;color:var(--text2);font-weight:600;flex-shrink:0">${i + 1}</span>
-      <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.corp_name}${mkTag}</span>
+      <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.corp_name)}${mkTag}</span>
       <span style="font-size:10px;color:var(--text2);white-space:nowrap">${tvStr}</span>
       <span style="font-size:12px;font-weight:700;color:${chgColor(r.price_change_rate)};flex-shrink:0;min-width:48px;text-align:right">${chgStr(r.price_change_rate)}</span>
     </div>`;
@@ -987,13 +1002,13 @@ async function loadMyStocksCard() {
 
   body.innerHTML = _skelList(4, true);
 
-  const todayStr   = fmtDate();
-  const daysAgo30  = (() => { const d = new Date(); d.setDate(d.getDate()-30); return d.toISOString().split('T')[0]; })();
+  const todayKst  = kstToday();   // 공시 기준일 — KST 단일 기준 (fmtDate 로컬TZ 혼용 제거)
+  const daysAgo30 = offsetDate(-30);
 
   const [discRes, reportRes] = await Promise.all([
     sb.from('daily_disclosures')
       .select('corp_name,report_nm,rcept_no,category')
-      .eq('base_date', todayStr),
+      .eq('base_date', todayKst),
     sb.from('dart_reports')
       .select('stock_code,stock_name,report_type,receive_date,summary')
       .in('stock_code', stockCodes)
@@ -1014,7 +1029,7 @@ async function loadMyStocksCard() {
     (reportsByCode[r.stock_code] = reportsByCode[r.stock_code] || []).push(r);
   });
 
-  _myStocksData = { wlRows, discsByCode, reportsByCode, nameToWl, todayStr };
+  _myStocksData = { wlRows, discsByCode, reportsByCode, nameToWl, todayKst };
   _renderMyStocks();
 }
 
@@ -1023,7 +1038,7 @@ function _renderMyStocks() {
   const body = document.getElementById('ms-body');
   if (!body || !_myStocksData) return;
 
-  const { wlRows, discsByCode, reportsByCode, todayStr } = _myStocksData;
+  const { wlRows, discsByCode, reportsByCode, todayKst } = _myStocksData;
   const allRows = window._allMarketRows || [];
   const mktByCode = {};
   allRows.forEach(r => { mktByCode[r.stock_code] = r; });
@@ -1059,7 +1074,7 @@ function _renderMyStocks() {
   const priceReady = allRows.length > 0;
 
   const rows = items.map(it => {
-    const safe = (it.name || '').replace(/'/g, "\\'");
+    const safe = escJsStr(it.name || '');
 
     // 등락률
     const chgHTML = it.chg != null
@@ -1077,9 +1092,9 @@ function _renderMyStocks() {
         ? `<span style="font-size:10px;color:var(--text3);flex-shrink:0">+${it.discs.length - 1}</span>` : '';
       discHTML = `
         <span ${click} style="font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;flex-shrink:0;
-          background:${s.bg};color:${s.c};cursor:${link ? 'pointer' : 'default'}">${d0.category || '공시'}</span>
-        <span ${click} title="${(d0.report_nm || '').replace(/"/g, '&quot;')}"
-          style="font-size:11px;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;cursor:${link ? 'pointer' : 'default'}">${d0.report_nm || '공시'}</span>
+          background:${s.bg};color:${s.c};cursor:${link ? 'pointer' : 'default'}">${escapeHtml(d0.category || '공시')}</span>
+        <span ${click} title="${escAttr(d0.report_nm || '')}"
+          style="font-size:11px;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;cursor:${link ? 'pointer' : 'default'}">${escapeHtml(d0.report_nm || '공시')}</span>
         ${more}`;
     }
 
@@ -1088,7 +1103,7 @@ function _renderMyStocks() {
     if (it.reports.length) {
       const latest = it.reports[0];
       const md = (latest.receive_date || '').slice(5).replace('-', '/');
-      reportHTML = `<span title="${(latest.report_type || 'DART 분석 보고서')}"
+      reportHTML = `<span title="${escAttr(latest.report_type || 'DART 분석 보고서')}"
         style="font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;flex-shrink:0;
         background:rgba(42,171,238,.13);color:#2AABEE">📄 리포트${md ? ' ' + md : ''}${it.reports.length > 1 ? ` +${it.reports.length - 1}` : ''}</span>`;
     }
@@ -1098,7 +1113,7 @@ function _renderMyStocks() {
       style="display:flex;align-items:center;gap:8px;padding:7px 14px 7px 12px;border-top:1px solid var(--border);cursor:pointer;
       border-left:2px solid ${it.hasEvent ? 'var(--tg)' : 'transparent'}"
       onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background=''">
-      <span style="font-size:12px;font-weight:500;color:var(--text1);flex-shrink:0;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.name}</span>
+      <span style="font-size:12px;font-weight:500;color:var(--text1);flex-shrink:0;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(it.name)}</span>
       <span style="font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0;
         background:${it.held?'rgba(245,58,92,.13)':'rgba(255,255,255,.06)'};
         color:${it.held?'var(--red)':'var(--text2)'}">${it.held?'보유':'관심'}</span>
@@ -1112,7 +1127,7 @@ function _renderMyStocks() {
   const header = `<div style="display:flex;align-items:center;gap:6px;padding:7px 14px 7px 12px;font-size:11px;color:var(--text2)">
     <span style="width:2px;height:11px;background:var(--tg);border-radius:2px;flex-shrink:0"></span>
     ${eventCnt ? `오늘 <b style="color:var(--text1)">${eventCnt}</b>종목에 공시·리포트` : '오늘 공시·리포트 있는 종목 없음'}
-    <span style="color:var(--text3);margin-left:auto">${todayStr} 기준 · 리포트 30일</span>
+    <span style="color:var(--text3);margin-left:auto">${todayKst} 기준 · 리포트 30일</span>
   </div>`;
 
   body.innerHTML = header + rows;
