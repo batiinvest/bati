@@ -541,6 +541,12 @@ function _clearInvRefreshTimers() {
   _invRefreshTimers = [];
 }
 
+// 페이지 이탈 정리 훅 — nav go()가 PAGE_META.onUnload로 호출
+function unloadInvestment() {
+  _clearInvRefreshTimers();
+  if (window._lsPollTimer) { clearInterval(window._lsPollTimer); window._lsPollTimer = null; }
+}
+
 async function refreshInvestment() {
   _clearInvRefreshTimers();  // 연타 시 이전 카운트다운/재로드 취소
   _latestMarketDate = null;
@@ -764,9 +770,8 @@ async function loadInvestment() {
   const dropKosdaq  = _byMkt('KOSDAQ', true);
 
   const rankRow = (r, i) => `
-    <div onclick="openMarketDetail('${r.stock_code}','${escJsStr(r.corp_name||r.stock_code||'')}')"
-      style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-bottom:1px solid var(--border);cursor:pointer"
-      onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
+    <div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||r.stock_code||'')}" data-stock-tab="market"
+      style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-bottom:1px solid var(--border)">
       <span style="width:14px;font-size:10px;color:var(--text2);font-weight:600;flex-shrink:0">${i+1}</span>
       <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.corp_name)}</span>
       ${wlBadge(r.stock_code)}
@@ -819,17 +824,12 @@ function renderVolumeLeaders() {
       const c     = r.price_change_rate ?? 0;
       const cc    = c > 0 ? 'var(--red)' : c < 0 ? 'var(--blue)' : 'var(--text3)';
       const cs    = (c >= 0 ? '+' : '') + c.toFixed(1) + '%';
-      const tvStr = r.tv >= 1e12
-        ? (r.tv / 1e12).toFixed(1) + '조'
-        : r.tv >= 1e11
-        ? (r.tv / 1e11).toFixed(1) + '천억'
-        : (r.tv / 1e8).toFixed(0) + '억';
+      const tvStr = fmtTV(r.tv);
       const barPct = Math.round(r.tv / maxTV * 100);
       return `
-      <div onclick="openMarketDetail('${r.stock_code}','${escJsStr(r.corp_name||r.stock_code||'')}')"
+      <div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||r.stock_code||'')}" data-stock-tab="market"
         style="display:flex;align-items:center;gap:8px;padding:6px 12px;
-        border-bottom:1px solid var(--border);cursor:pointer"
-        onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
+        border-bottom:1px solid var(--border)">
         <span style="min-width:16px;font-size:11px;color:var(--text2);font-weight:600">${i + 1}</span>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px"><span style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.corp_name)}</span>${wlBadge(r.stock_code)}</div>
@@ -915,13 +915,10 @@ function renderIdeaSurge() {
     const mkTag = r.market === 'KOSDAQ'
       ? '<span style="font-size:9px;color:var(--text2);margin-left:2px;font-weight:600">Q</span>' : '';
     const tv    = r.trading_value || ((r.volume ?? 0) * (r.price ?? 0));
-    const tvStr = tv >= 1e12 ? (tv / 1e12).toFixed(1) + '조'
-                : tv >= 1e8  ? Math.round(tv / 1e8).toLocaleString() + '억' : '';
-    const safeName = escJsStr(r.corp_name || r.stock_code || '');
+    const tvStr = fmtTV(tv);
     return `
-    <div onclick="openMarketDetail('${r.stock_code}','${safeName}')"
-      style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);cursor:pointer"
-      onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
+    <div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||r.stock_code||'')}" data-stock-tab="market"
+      style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border)">
       <span style="width:16px;font-size:11px;color:var(--text2);font-weight:600;flex-shrink:0">${i + 1}</span>
       <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.corp_name)}${mkTag}</span>
       <span style="font-size:10px;color:var(--text2);white-space:nowrap">${tvStr}</span>
@@ -1074,7 +1071,6 @@ function _renderMyStocks() {
   const priceReady = allRows.length > 0;
 
   const rows = items.map(it => {
-    const safe = escJsStr(it.name || '');
 
     // 등락률
     const chgHTML = it.chg != null
@@ -1109,10 +1105,9 @@ function _renderMyStocks() {
     }
 
     return `
-    <div onclick="openMarketDetail('${it.code}','${safe}')"
-      style="display:flex;align-items:center;gap:8px;padding:7px 14px 7px 12px;border-top:1px solid var(--border);cursor:pointer;
-      border-left:2px solid ${it.hasEvent ? 'var(--tg)' : 'transparent'}"
-      onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background=''">
+    <div class="stock-row" data-stock-open="${it.code}" data-stock-name="${escAttr(it.name)}" data-stock-tab="market"
+      style="display:flex;align-items:center;gap:8px;padding:7px 14px 7px 12px;border-top:1px solid var(--border);
+      border-left:2px solid ${it.hasEvent ? 'var(--tg)' : 'transparent'}">
       <span style="font-size:12px;font-weight:500;color:var(--text1);flex-shrink:0;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(it.name)}</span>
       <span style="font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0;
         background:${it.held?'rgba(245,58,92,.13)':'rgba(255,255,255,.06)'};

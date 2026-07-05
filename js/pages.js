@@ -2,10 +2,11 @@
 // 투자현황 → investment.js / 스크리너 → screener.js
 
 /**
- * PAGE_META — 페이지 키 → { title, fn, onLoad } 단일 정의
+ * PAGE_META — 페이지 키 → { title, fn, onLoad, onUnload } 단일 정의
  * nav.js와 draw()가 이 테이블을 참조 (타이틀/함수명 중복 정의 방지)
  *
- * onLoad: draw() 후 추가로 실행할 초기화 함수명 (문자열 or null)
+ * onLoad:   draw() 후 추가로 실행할 초기화 함수명 (문자열 or null)
+ * onUnload: 다른 페이지로 떠날 때 정리 함수명 (타이머·폴링·차트 해제) — go()가 호출
  */
 const PAGE_META = {
   overview:   { title: '채널 대시보드', fn: 'pOverview',    onLoad: null },
@@ -13,7 +14,7 @@ const PAGE_META = {
   notice:     { title: '공지 발송',     fn: 'pNotice',      onLoad: 'loadNotices' },
   logs:       { title: '동기화 로그',   fn: 'pLogs',        onLoad: 'loadLogs' },
   botconfig:  { title: '봇 관리',       fn: 'pBotConfig',   onLoad: 'loadBotConfig' },
-  investment: { title: '오늘의 시황',   fn: 'pInvestment',  onLoad: 'loadInvestment' },
+  investment: { title: '오늘의 시황',   fn: 'pInvestment',  onLoad: 'loadInvestment', onUnload: 'unloadInvestment' },
   company:    { title: '모니터링 종목',  fn: 'pCompany',     onLoad: 'loadCompanyPage' },
   watchlist:  { title: '투자노트',      fn: 'pWatchlist',   onLoad: '_initWatchlist' },
   screener:   { title: '종목 스크리너', fn: 'pScreener',    onLoad: null },

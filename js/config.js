@@ -272,8 +272,8 @@ function fmtEok(eok) {
 // 등락률 색상 — 한국 주식 관행 (상승=빨강, 하락=파랑)
 const chgColor = v => v > 0 ? 'var(--red)' : v < 0 ? 'var(--blue)' : 'var(--text3)';
 
-// 등락률 문자열 (예: +2.34% / -1.50% / —)
-const chgStr = v => v != null ? `${v > 0 ? '+' : ''}${v.toFixed(2)}%` : '—';
+// 등락률 문자열 (예: +2.34% / -1.50% / —) — Number 강제 + NaN 가드 (fmtPct와 동일 방어)
+const chgStr = v => { const n = Number(v); return (v != null && !isNaN(n)) ? `${n > 0 ? '+' : ''}${n.toFixed(2)}%` : '—'; };
 
 // 등락률 1자리 % (예: +2.3% / -1.5% / —) — 0 이상이면 '+' (chgStr은 0에 '+' 없음 — 의도적 차이)
 // null·NaN·비숫자는 '—' (Number 강제변환 + NaN 가드로 "+NaN%" 방지). market-insight.js의 _fmt를 이 함수로 통합.
@@ -281,6 +281,15 @@ const fmtPct = v => { const n = Number(v); return (v != null && !isNaN(n)) ? `${
 
 // 가격(원) 표시 (예: 71,200원 / —) — null/undefined만 '—' (0은 "0원"; 주가엔 미발생)
 const fmtPrice = v => v != null ? v.toLocaleString() + '원' : '—';
+
+// 거래대금(원) → '1.2조' / '3.4천억' / '567억' (없으면 '')
+// investment/market-overview 인라인 삼항 3곳 통합 — 표기 규칙 단일화
+function fmtTV(won) {
+  if (won == null || !won) return '';
+  if (won >= 1e12) return (won / 1e12).toFixed(1) + '조';
+  if (won >= 1e11) return (won / 1e11).toFixed(1) + '천억';
+  return Math.round(won / 1e8).toLocaleString() + '억';
+}
 
 // 순매수 금액 포맷 (단위: 백만원 → 조/억 표시)
 // 예: 1_500_000 → "+1.5조" / 123_400 → "+1,234억" / -50_000 → "-500억"
@@ -531,8 +540,33 @@ function toggleAdminNav() {
 
 // 키보드 단축키 (Task 8-2)
 document.addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  // 입력 요소·모달/드로어 열림 상태에선 무시 — 모달 위에서 1~5로 배경 페이지가 바뀌는 문제 방지
+  if (e.target.closest('input,textarea,select,[contenteditable="true"]')) return;
+  if (document.querySelector('.modal-overlay.open, .wl-drawer.open, #m-stock-detail, #m-journal, #m-trade')) return;
   const map = { '1':'investment','2':'screener','3':'watchlist','4':'report','5':'comparison' };
   if (map[e.key]) go(map[e.key]);
   if (e.key === '/') { e.preventDefault(); document.querySelector('.search-box')?.focus(); }
+});
+
+// ══════════════════════════════════════════
+//  종목 행 클릭 위임 — data-stock-open 패턴
+//  사용: <div class="stock-row" data-stock-open="005930"
+//            data-stock-name="삼성전자" data-stock-tab="market">
+//  인라인 onclick + escJsStr 수작업을 대체 (이스케이프 실수·핸들러 수백 개 제거).
+//  행 내부의 a/button/[data-no-detail]은 자체 동작 우선.
+// ══════════════════════════════════════════
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-stock-open]');
+  if (!el) return;
+  if (e.target.closest('a,button,[data-no-detail]')) return;
+  if (typeof openStockDetail !== 'function') return;
+  openStockDetail(el.dataset.stockOpen, el.dataset.stockName || '', el.dataset.stockTab || 'overview');
+});
+
+// ── 산업 select 옵션 채우기 — index.html 모달 3곳 하드코딩 제거 (INDUSTRIES 단일 소스) ──
+// config.js는 body 끝에서 로드되므로 DOM 파싱 완료 상태 — 즉시 실행 안전
+document.querySelectorAll('[data-industry-options]').forEach(sel => {
+  const withEmpty = sel.dataset.industryOptions === 'empty';
+  sel.innerHTML = (withEmpty ? '<option value="">선택</option>' : '') +
+    INDUSTRIES.map(i => `<option>${i}</option>`).join('');
 });

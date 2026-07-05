@@ -107,31 +107,24 @@ function _showCapUnit(elId, val) {
   }
 }
 
-let _wlCompanies = null;
+let _wlSearchTimer = null;
 
 async function searchWatchlistStock(query) {
   const dd = document.getElementById('wl-search-dropdown');
   if (!query || query.length < 1) { dd.style.display = 'none'; return; }
 
-  // 전체 companies 캐시 로드 (최초 1회)
-  if (!_wlCompanies) {
-    _wlCompanies = await fetchAllPages(
-      sb.from('companies')
-        .select('code,name,industry,sub_industry,market')
-        .eq('active', true)
-    );
-  }
+  // config.js 공용 searchCompanies 사용 — 기존 전 상장사 풀 캐시(수천 행 선로드) 제거
+  clearTimeout(_wlSearchTimer);
+  _wlSearchTimer = setTimeout(async () => {
+    const { data: results } = await searchCompanies(query, {
+      scope: 'active', limit: 10,
+      cols: 'code,name,industry,sub_industry,market',
+    });
 
-  const q = query.toLowerCase();
-  const results = _wlCompanies.filter(c =>
-    c.name?.toLowerCase().includes(q) ||
-    (c.code || '').replace('.KS','').replace('.KQ','').includes(q)
-  ).slice(0, 10);
+    if (!results?.length) { dd.style.display = 'none'; return; }
 
-  if (!results.length) { dd.style.display = 'none'; return; }
-
-  dd.style.display = 'block';
-  dd.innerHTML = results.map(c => {
+    dd.style.display = 'block';
+    dd.innerHTML = results.map(c => {
     const code = (c.code||'').split('.')[0];
     return `<div onclick="selectWatchlistStock('${code}','${escJsStr(c.name)}','${escJsStr(c.industry||'')}','${escJsStr(c.market||'')}')"
       style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px"
@@ -141,7 +134,8 @@ async function searchWatchlistStock(query) {
       ${c.industry ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:var(--bg3);color:var(--text2)">${escapeHtml(c.industry)}</span>` : ''}
       <span style="font-size:10px;color:var(--text2);margin-left:auto">${escapeHtml(c.market||'')}</span>
     </div>`;
-  }).join('');
+    }).join('');
+  }, 200);
 }
 
 async function selectWatchlistStock(code, name, industry, market) {

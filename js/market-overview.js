@@ -314,11 +314,10 @@ async function loadMarketOverview(maxDate) {
           th('foreign_hold_rate', '외국인보유율') +
         '</div>' +
         all.map((st, i) =>
-          '<div style="display:grid;grid-template-columns:' + COLS + ';align-items:center;gap:0;padding:6px 14px;border-bottom:1px solid var(--border);cursor:pointer" ' +
-            'onclick="openStockDetail(\'' + st.stock_code + '\',\'' + escJsStr(st.corp_name || '') + '\')" ' +
-            'onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"> ' +
+          '<div class="stock-row" data-stock-open="' + st.stock_code + '" data-stock-name="' + escAttr(st.corp_name || '') + '" ' +
+            'style="display:grid;grid-template-columns:' + COLS + ';align-items:center;gap:0;padding:6px 14px;border-bottom:1px solid var(--border)">' +
             '<span style="font-size:11px;color:var(--text2)">' + (i+1) + '</span>' +
-            '<span style="font-size:13px">' + st.corp_name + '</span>' +
+            '<span style="font-size:13px">' + escapeHtml(st.corp_name) + '</span>' +
             '<span style="font-size:12px;color:var(--text1);text-align:right;padding-right:8px">' +
               fmtPrice(st.price) +
             '</span>' +
@@ -643,12 +642,11 @@ function renderHgprTab(tab) {
       const chg   = r.price_change_rate;
       const chgTxt = chg!=null ? (chg>=0?'+':'')+chg.toFixed(2)+'%' : '—';
       const chgClr = chg>=0 ? 'var(--red)' : 'var(--blue)';
-      const safeName = escJsStr(r.corp_name || r.stock_code);
 
       // ── Phase 2: 거래대금 + 외국인 배지 ──────────────────────
       const tvStr = r.tv >= 1e10
         ? '<span style="font-size:9px;padding:1px 4px;border-radius:3px;background:rgba(245,158,11,.12);color:#f59e0b;font-weight:600">' +
-          (r.tv >= 1e11 ? (r.tv/1e11).toFixed(1)+'천억' : (r.tv/1e8).toFixed(0)+'억') + '</span>'
+          fmtTV(r.tv) + '</span>'
         : '';
       const frgnBadge = r.foreign_net_buy != null && r.foreign_net_buy !== 0
         ? (r.foreign_net_buy > 0
@@ -656,14 +654,12 @@ function renderHgprTab(tab) {
             : '<span style="font-size:9px;padding:1px 4px;border-radius:3px;background:rgba(74,158,255,.10);color:var(--blue);font-weight:600">외↓</span>')
         : '';
 
-      return `<div onclick="openStockDetail('${r.stock_code}','${safeName}')"
+      return `<div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||r.stock_code)}"
         style="display:grid;grid-template-columns:1fr auto 52px 70px;align-items:center;gap:6px;
-          padding:5px 10px;border-bottom:1px solid var(--border);cursor:pointer;
-          border-left:2px solid ${bClr}"
-        onmouseover="this.style.background='rgba(255,255,255,.03)'"
-        onmouseout="this.style.background=''">
+          padding:5px 10px;border-bottom:1px solid var(--border);
+          border-left:2px solid ${bClr}">
         <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-          ${r.corp_name||r.stock_code}
+          ${escapeHtml(r.corp_name||r.stock_code)}
         </div>
         <div style="display:flex;align-items:center;gap:3px;flex-wrap:nowrap">
           ${streakBadge(r)}${tvStr}${frgnBadge}
@@ -768,16 +764,13 @@ function renderHgprTab(tab) {
         const chg    = r.price_change_rate;
         const chgClr = (chg||0) >= 0 ? 'var(--red)' : 'var(--blue)';
         const chgTxt = chg != null ? (chg>=0?'+':'')+chg.toFixed(2)+'%' : '—';
-        const safeName = escJsStr(r.corp_name || r.stock_code);
-        return `<div onclick="openStockDetail('${r.stock_code}','${safeName}')"
+        return `<div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||r.stock_code)}"
           style="display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:6px;
-            padding:5px 10px;border-bottom:1px solid var(--border);cursor:pointer;
-            border-left:2px solid ${bClr}"
-          onmouseover="this.style.background='rgba(255,255,255,.03)'"
-          onmouseout="this.style.background=''">
+            padding:5px 10px;border-bottom:1px solid var(--border);
+            border-left:2px solid ${bClr}">
           <div style="min-width:0">
-            <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.corp_name||r.stock_code}</div>
-            <div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.industry||''}</div>
+            <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.corp_name||r.stock_code)}</div>
+            <div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.industry||'')}</div>
           </div>
           <div style="font-size:12px;font-weight:700;color:${chgClr};white-space:nowrap">${chgTxt}</div>
           <div style="font-size:10px;color:var(--text2);white-space:nowrap;text-align:right">${r.market_cap?fmtCap(r.market_cap):'—'}</div>
@@ -990,7 +983,6 @@ function _renderFlowCol(tab, bodyId) {
   // ── 행 렌더링 ────────────────────────────────────────────────────────────────
   const TOP_N = 5;
   const mkRow = r => {
-    const safeName = escJsStr(r.corp_name || r.stock_code);
     const name     = r.corp_name || r.stock_code;
     const dispName = escapeHtml(name.length > 7 ? name.slice(0, 7) + '…' : name);
 
@@ -1014,9 +1006,8 @@ function _renderFlowCol(tab, bodyId) {
       cells = `<span style="font-size:11px;font-weight:600;text-align:right;color:var(--yellow)">${amt}</span>`;
     }
 
-    return `<div style="display:grid;grid-template-columns:${cols};align-items:center;padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer"
-      onclick="openStockDetail('${r.stock_code}','${safeName}')"
-      onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+    return `<div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(name)}"
+      style="display:grid;grid-template-columns:${cols};align-items:center;padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.04)">
       <span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escAttr(name)}">${dispName}</span>
       <span style="font-size:11px;font-weight:700;color:${chgColor(r.price_change_rate)};text-align:right">${chgStr(r.price_change_rate)}</span>
       ${cells}
@@ -1042,7 +1033,7 @@ function toggleFlowMore(tab) {
   if (!moreDiv) return;
   const isOpen = moreDiv.style.display !== 'none';
   moreDiv.style.display = isOpen ? 'none' : 'block';
-  btn.textContent = isOpen
+  if (btn) btn.textContent = isOpen
     ? `더보기 ▾ (${moreDiv.children.length}개)`
     : '접기 ▴';
 }

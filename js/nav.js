@@ -7,8 +7,11 @@ function go(page) {
     toast('접근 권한이 없습니다. 관리자에게 문의하세요.', 'error');
     return;
   }
-  // 이전 페이지가 남긴 타이머 정리 (시황 새로고침 카운트다운 등 — 유령 재로드 방지)
-  if (typeof _clearInvRefreshTimers === 'function') _clearInvRefreshTimers();
+  // 이전 페이지 정리 훅 — PAGE_META.onUnload (타이머·폴링 등, 유령 재로드 방지)
+  const prevMeta = PAGE_META[A.page];
+  if (prevMeta?.onUnload && typeof window[prevMeta.onUnload] === 'function') {
+    try { window[prevMeta.onUnload](); } catch (e) { console.warn('[onUnload]', e); }
+  }
   A.page = page;
   closeSidebar();
   document.querySelectorAll('.nav-item').forEach(el =>

@@ -302,11 +302,17 @@ async function runScreener() {
   const pct = v => v != null ? v.toFixed(1) + '%' : '—';
   const num = v => v != null ? v.toFixed(1) : '—';
 
-  // 재무 기준 분기 표시 (최다 등장 분기 기준)
-  const finPeriodSample = Object.values(finMap)[0];
-  const finPeriodLabel  = finPeriodSample
-    ? `재무 기준: ${finPeriodSample.bsns_year} ${finPeriodSample.quarter || ''}`
-    : '';
+  // 재무 기준 분기 표시 — 실제 최다 등장 분기 (기존엔 임의 첫 항목이라 라벨이 부정확했음)
+  let finPeriodLabel = '';
+  {
+    const counts = {};
+    Object.values(finMap).forEach(fr => {
+      const k = `${fr.bsns_year} ${fr.quarter || '연간'}`;
+      counts[k] = (counts[k] || 0) + 1;
+    });
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+    if (top) finPeriodLabel = `재무 기준: ${top[0]} (최다 ${top[1]}종목)`;
+  }
 
   // 신호 배지 계산
   const _sig = r => {
@@ -381,7 +387,14 @@ function exportScreener() {
   if (!window._screenerData?.length) return;
   const keys    = ['corp_name','industry','market','capEok','price','price_change_rate','per','pbr','peg','evEbitda','operating_margin','roe','roa','debt_ratio'];
   const headers = ['종목명','산업','시장','시총(억)','현재가','등락률','PER','PBR','PEG','EV/EBITDA','영업이익률','ROE','ROA','부채비율'];
-  const csv = [headers.join(','), ...window._screenerData.map(r => keys.map(k => r[k] ?? '').join(','))].join('\n');
+  // CSV 셀 인용 — 쉼표/따옴표/줄바꿈 포함 값 파손 방지.
+  // 문자열 값이 수식 문자(=,+,@)로 시작하면 인젝션 무력화 (숫자 음수는 그대로)
+  const cell = v => {
+    let s = String(v ?? '');
+    if (typeof v === 'string' && /^[=+@]/.test(s)) s = "'" + s;
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const csv = [headers.join(','), ...window._screenerData.map(r => keys.map(k => cell(r[k])).join(','))].join('\n');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
   a.download = 'screener_' + todayStr() + '.csv';

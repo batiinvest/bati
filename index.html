@@ -16,7 +16,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
   <!-- ── 스타일 ── -->
-  <link rel="stylesheet" href="css/style.css?v=2">
+  <link rel="stylesheet" href="css/style.css?v=3">
 
   <!-- ── 추가 인라인 스타일 (blue 변수: 하락색) ── -->
   <style>
@@ -298,13 +298,8 @@
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">산업</label>
-        <select class="form-select" id="a-cat">
-          <option value="">선택</option>
-          <option>바이오</option><option>뷰티</option><option>로봇</option>
-          <option>2차전지</option><option>신재생</option><option>소비재</option>
-          <option>테크</option><option>반도체</option><option>엔터</option>
-          <option>조선</option><option>우주</option>
-        </select>
+        <!-- 옵션은 config.js가 INDUSTRIES에서 채움 (단일 소스) -->
+        <select class="form-select" id="a-cat" data-industry-options="empty"></select>
       </div>
       <div class="form-group"><label class="form-label">세부 분야</label><input class="form-input" id="a-sub" placeholder="세부 분야"></div>
     </div>
@@ -337,13 +332,7 @@
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">산업</label>
-        <select class="form-select" id="sa-industry">
-          <option value="">선택</option>
-          <option>바이오</option><option>뷰티</option><option>로봇</option>
-          <option>2차전지</option><option>신재생</option><option>소비재</option>
-          <option>테크</option><option>반도체</option><option>엔터</option>
-          <option>조선</option><option>우주</option>
-        </select>
+        <select class="form-select" id="sa-industry" data-industry-options="empty"></select>
       </div>
       <div class="form-group"><label class="form-label">세부 분야</label><input class="form-input" id="sa-sub" placeholder="세부 분야"></div>
     </div>
@@ -382,12 +371,7 @@
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">산업</label>
-        <select class="form-select" id="se-industry">
-          <option>바이오</option><option>뷰티</option><option>로봇</option>
-          <option>2차전지</option><option>신재생</option><option>소비재</option>
-          <option>테크</option><option>반도체</option><option>엔터</option>
-          <option>조선</option><option>우주</option>
-        </select>
+        <select class="form-select" id="se-industry" data-industry-options="all"></select>
       </div>
       <div class="form-group"><label class="form-label">세부 분야</label><input class="form-input" id="se-sub"></div>
     </div>
@@ -451,25 +435,25 @@
     16. earnings-surge.js  — 실적 급등 카드                   ← 신규
     17. investment.js      — 시황 페이지 뼈대 (위 참조)
 ════════════════════════════════════════════ -->
-<script src="js/config.js?v=9"></script>
+<script src="js/config.js?v=10"></script>
 <script src="js/auth.js?v=2"></script>
-<script src="js/pages.js?v=4"></script>
-<script src="js/nav.js?v=3"></script>
+<script src="js/pages.js?v=5"></script>
+<script src="js/nav.js?v=4"></script>
 <script src="js/detail.js?v=3"></script>
 <script src="js/telegram.js?v=2"></script>
 <script src="js/rooms.js?v=3"></script>
 <script src="js/bots.js?v=2"></script>
 <script src="js/stocks.js?v=2"></script>
-<script src="js/watchlist.js?v=5"></script>
+<script src="js/watchlist.js?v=6"></script>
 <script src="js/company.js?v=2"></script>
-<script src="js/screener.js?v=5"></script>
+<script src="js/screener.js?v=6"></script>
 <script src="js/report.js?v=7"></script>
 <script src="js/comparison.js?v=2"></script>
 <script src="js/financials.js?v=5"></script>
 <script src="js/chart-macro.js?v=2"></script>
 <script src="js/chart-industry.js?v=5"></script>
 <script src="js/chart-uskr.js?v=6"></script>
-<script src="js/market-overview.js?v=3"></script>
+<script src="js/market-overview.js?v=4"></script>
 <script src="js/market-insight.js?v=7"></script>
 <script src="js/market-temperature.js?v=8"></script>
 <script src="js/leading-stocks.js?v=4"></script>
@@ -478,8 +462,8 @@
 <script src="js/sector-rotation.js?v=11"></script>
 <script src="js/disclosure.js?v=2"></script>
 <script src="js/earnings-surge.js?v=2"></script>
-<script src="js/estimates.js?v=2"></script>
-<script src="js/investment.js?v=14"></script>
+<script src="js/estimates.js?v=3"></script>
+<script src="js/investment.js?v=15"></script>
 
 <script>
   // 앱 부팅

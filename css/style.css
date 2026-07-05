@@ -569,6 +569,10 @@ td { padding:7px 10px; font-size:var(--fs-data); }
 
 /* (스켈레톤 로딩 — 상단 'Skeleton loading' 단일 정의 사용, 중복 제거) */
 
+/* ── 종목 행 (data-stock-open 위임 클릭 대상) — 인라인 onmouseover/out 대체 ── */
+.stock-row { cursor:pointer; transition:background .1s; }
+.stock-row:hover { background:rgba(255,255,255,.03); }
+
 /* ── Task 8-1: 종목 툴팁 ── */
 .stock-tooltip { position:absolute; z-index:100; background:var(--bg2); border:1px solid var(--border2);
                  border-radius:8px; padding:10px 12px; min-width:200px; box-shadow:0 8px 24px rgba(0,0,0,.4);
