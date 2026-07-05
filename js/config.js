@@ -291,6 +291,28 @@ function fmtTV(won) {
   return Math.round(won / 1e8).toLocaleString() + '억';
 }
 
+// 접기/펼치기 토글 공용 — display 토글 + 라벨 교체 + 열릴 때 콜백
+// toggle* 6곳(ZoneC/LsBacktest/TrendChart/InsightHistory/CatDetail/FlowMore) 통합
+// labels: [열림 라벨, 닫힘 라벨] (라벨 요소·배열 없으면 생략 가능)
+// 반환: 토글 후 열림 여부 (body 요소 없으면 null — 호출부 후처리 가드용)
+function toggleSection(bodyId, labelId, labels, onOpen) {
+  const body = document.getElementById(bodyId);
+  if (!body) return null;
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  const lbl = labelId ? document.getElementById(labelId) : null;
+  if (lbl && labels) lbl.textContent = open ? labels[0] : labels[1];
+  if (open && typeof onOpen === 'function') onOpen();
+  return open;
+}
+
+// 기준일 배지 통일 — 'YYYY-MM-DD 기준' 단일 포맷 (날짜 없으면 빈 값)
+// 카드마다 제각각이던 기준일 표기(ls-date/flow-date-label/hgpr-date 등) 수렴
+function setAsOf(elId, date) {
+  const el = document.getElementById(elId);
+  if (el) el.textContent = date ? `${date} 기준` : '';
+}
+
 // 순매수 금액 포맷 (단위: 백만원 → 조/억 표시)
 // 예: 1_500_000 → "+1.5조" / 123_400 → "+1,234억" / -50_000 → "-500억"
 function fmtNet(val) {

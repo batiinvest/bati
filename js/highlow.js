@@ -49,7 +49,7 @@ async function loadHighLow() {
     ]);
     if (!maxDate) { el.innerHTML = emptyHTML('시장 데이터 없음'); return; }
 
-    document.getElementById('hl-date').textContent = maxDate + ' 기준';
+    setAsOf('hl-date', maxDate);
 
     const monCodes = Object.keys(indMap);
     if (!monCodes.length) { el.innerHTML = emptyHTML('모니터링 종목 없음'); return; }

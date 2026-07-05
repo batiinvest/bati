@@ -6,13 +6,7 @@ let _invTrendChart = null;
 
 // ── 시황 차트 접기/펼치기 ──
 function toggleTrendChart() {
-  const body   = document.getElementById('inv-trend-body');
-  const toggle = document.getElementById('inv-trend-toggle');
-  if (!body) return;
-  const open = body.style.display === 'none';
-  body.style.display = open ? 'block' : 'none';
-  if (toggle) toggle.textContent = open ? '접기 ▴' : '펼치기 ▾';
-  if (open) loadTrendChart();
+  toggleSection('inv-trend-body', 'inv-trend-toggle', ['접기 ▴', '펼치기 ▾'], loadTrendChart);
 }
 
 // ── 전체 종목 + 산업별 동향 ──
@@ -531,8 +525,7 @@ async function loadNewHighStocks() {
   };
 
   // 기준일 표시 (today가 아니라 실제 조회된 거래일)
-  const hgprDateEl = document.getElementById('hgpr-date');
-  if (hgprDateEl) hgprDateEl.textContent = targetDate ? `${targetDate} 기준` : '';
+  setAsOf('hgpr-date', targetDate);
 
   _hgprExpanded = false;
   renderHgprTab(_hgprTab);
@@ -846,9 +839,7 @@ async function loadFlowData() {
     }
     _flowDate = maxDate;
 
-    // 날짜 표시
-    const dateEl = document.getElementById('flow-date-label');
-    if (dateEl) dateEl.textContent = maxDate + ' 기준';
+    setAsOf('flow-date-label', maxDate);
 
     const SEL = 'stock_code,corp_name,price,price_change_rate,market_cap,foreign_net_buy,institution_net_buy,foreign_hold_rate,market';
 
@@ -1029,11 +1020,9 @@ function _renderFlowCol(tab, bodyId) {
 
 function toggleFlowMore(tab) {
   const moreDiv = document.getElementById(`flow-more-${tab}`);
+  const open    = toggleSection(`flow-more-${tab}`, null, null);
   const btn     = document.getElementById(`flow-more-btn-${tab}`);
-  if (!moreDiv) return;
-  const isOpen = moreDiv.style.display !== 'none';
-  moreDiv.style.display = isOpen ? 'none' : 'block';
-  if (btn) btn.textContent = isOpen
-    ? `더보기 ▾ (${moreDiv.children.length}개)`
-    : '접기 ▴';
+  if (btn && open != null) btn.textContent = open
+    ? '접기 ▴'
+    : `더보기 ▾ (${moreDiv.children.length}개)`;
 }

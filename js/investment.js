@@ -858,28 +858,17 @@ function renderVolumeLeaders() {
 // 비교 차트(inv-trend/ind-trend/uskr)는 display:none 상태에서 0px로 그려지므로,
 // 펼칠 때 해당 로더를 재호출해 올바른 크기로 다시 그린다 (toggleTrendChart와 동일 패턴).
 function toggleZoneC() {
-  const body = document.getElementById('inv-zonec');
-  const tog  = document.getElementById('zonec-toggle');
-  if (!body) return;
-  const open = body.style.display === 'none';
-  body.style.display = open ? 'block' : 'none';
-  if (tog) tog.textContent = open ? '접기 ▴' : '펼치기 ▾';
-  if (open) {
+  toggleSection('inv-zonec', 'zonec-toggle', ['접기 ▴', '펼치기 ▾'], () => {
     try { if (typeof loadTrendChart    === 'function') loadTrendChart();    } catch(e) { console.warn('[ZoneC] trend', e); }
     try { if (typeof loadIndTrendChart === 'function') loadIndTrendChart(); } catch(e) { console.warn('[ZoneC] indTrend', e); }
     try { if (typeof loadUskrChart     === 'function') loadUskrChart();     } catch(e) { console.warn('[ZoneC] uskr', e); }
-  }
+  });
 }
 
 
 // ── 주도주 백테스트(과거 주도주 수익률) 접기/펼치기 ──────────────────────────────
 function toggleLsBacktest() {
-  const b = document.getElementById('ls-bt-body');
-  const c = document.getElementById('ls-bt-chev');
-  if (!b) return;
-  const open = b.style.display === 'none';
-  b.style.display = open ? 'block' : 'none';
-  if (c) c.textContent = open ? '▴' : '▾';
+  toggleSection('ls-bt-body', 'ls-bt-chev', ['▴', '▾']);
 }
 
 
@@ -930,13 +919,9 @@ function renderIdeaSurge() {
 
 // ── 투자포인트 히스토리 토글 ───────────────────────────────────────────────────
 function toggleInsightHistory() {
-  const hist = document.getElementById('insight-history');
+  const open = toggleSection('insight-history', null, null, loadInsightHistory);
   const btn  = document.getElementById('btn-insight-hist');
-  if (!hist) return;
-  const isOpen = hist.style.display !== 'none';
-  hist.style.display = isOpen ? 'none' : 'block';
-  if (btn) btn.classList.toggle('active', !isOpen);
-  if (!isOpen) loadInsightHistory();
+  if (btn && open != null) btn.classList.toggle('active', open);
 }
 
 

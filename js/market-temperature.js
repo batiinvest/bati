@@ -451,9 +451,7 @@ async function renderMarketTemperature() {
       </div>`;
   }
 
-  // 날짜 표시
-  const dateEl = document.getElementById('market-temp-date');
-  if (dateEl) dateEl.textContent = today ? `${today} 기준` : '';
+  setAsOf('market-temp-date', today);
 }
 
 // ── 근거(6지표) 접기/펼치기 ─────────────────────────────────────────────────

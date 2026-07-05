@@ -53,9 +53,7 @@ async function loadLeadingStocks() {
 
     if (error) throw error;
 
-    // 날짜 표시
-    const dateEl = document.getElementById('ls-date');
-    if (dateEl) dateEl.textContent = dateRow.base_date + ' 기준';
+    setAsOf('ls-date', dateRow.base_date);
 
     window._lsAllData = data || [];
     renderLeadingStocks();
@@ -124,9 +122,8 @@ function renderLeadingStocks() {
       : '';
 
     return `
-    <div onclick="openMarketDetail('${r.stock_code}','${(r.corp_name||r.stock_code).replace(/'/g,"\\'")}')"
-      style="display:flex;align-items:flex-start;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border);cursor:pointer"
-      onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">
+    <div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||r.stock_code)}" data-stock-tab="market"
+      style="display:flex;align-items:flex-start;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border)">
       <!-- 순위 -->
       <div style="min-width:20px;padding-top:3px;flex-shrink:0">
         <span style="font-size:${i < 3 ? '13' : '11'}px;font-weight:700;color:${i < 3 ? scoreColor : 'var(--text3)'}">${r.rank}</span>

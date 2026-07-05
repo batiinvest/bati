@@ -173,13 +173,10 @@ async function loadAllDisclosures() {
 
 // ── 오늘 실적 공시 목록 ──
 async function loadTodayDisclosures() {
-  const el     = document.getElementById('inv-disclosure-list');
-  const dateEl = document.getElementById('inv-disclosure-date');
+  const el = document.getElementById('inv-disclosure-list');
   if (!el) return;
 
-  if (dateEl) {
-    dateEl.textContent = `${fmtDate()} 기준`;
-  }
+  setAsOf('inv-disclosure-date', fmtDate());
 
   const { data: cfg } = await sb.from('app_config')
     .select('value,description')

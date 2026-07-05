@@ -276,9 +276,8 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
           trendFlags.debt_surge       && `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(139,144,167,.15);color:#8b90a7;font-weight:600" title="부채비율 급증 (+30%p↑)">📛부채급증</span>`,
         ].filter(Boolean).join('');
 
-        return `<div style="display:grid;grid-template-columns:200px 1fr 1fr;align-items:stretch;padding:8px 14px;border-bottom:1px solid var(--border);cursor:pointer"
-          onclick="openFinTrend('${r.stock_code}','${r.corp_name}')"
-          onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+        return `<div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||'')}" data-stock-tab="financial"
+          style="display:grid;grid-template-columns:200px 1fr 1fr;align-items:stretch;padding:8px 14px;border-bottom:1px solid var(--border)">
 
           <div style="padding-right:12px;border-right:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;gap:3px">
             <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">

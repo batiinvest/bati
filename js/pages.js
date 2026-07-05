@@ -319,10 +319,5 @@ async function loadLogs() {
 // ── 재무 상태 ──
 
 function toggleCatDetail(id) {
-  const el = document.getElementById(id);
-  const icon = document.getElementById(id + '-icon');
-  if (!el) return;
-  const isOpen = el.style.display !== 'none';
-  el.style.display = isOpen ? 'none' : 'block';
-  if (icon) icon.textContent = isOpen ? '▶' : '▼';
+  toggleSection(id, id + '-icon', ['▼', '▶']);
 }
