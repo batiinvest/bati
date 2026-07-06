@@ -103,62 +103,65 @@ function splitMessage(text, maxLen = 4000) {
   return parts;
 }
 
+// 발송은 백엔드 위임 — bot_requests 큐잉 후 폴링. 대상 해석·분할·notice_history 기록은
+// 백엔드 bot_requests.py가 수행 (프론트는 확인 다이얼로그용 개수 계산만).
 async function doNotice(content, target, btnId, progId) {
   if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
   if (!content) { toast('내용 입력 필요', 'error'); return; }
 
   const parseMode = document.getElementById('i-parse-mode')?.value || 'HTML';
 
-  let targets = A.rooms;
-  // room:ID 형식 — 개별 채팅방 발송
+  // 확인 다이얼로그용 대상 개수 (실제 대상 해석은 백엔드가 동일 규칙으로 재수행)
+  let count = A.rooms.length;
   if (target.startsWith('room:')) {
     const id = parseInt(target.replace('room:', ''));
-    const r = A.rooms.find(x => x.id === id);
-    if (!r) { toast('채팅방을 찾을 수 없습니다.', 'error'); return; }
-    targets = [r];
+    if (!A.rooms.find(x => x.id === id)) { toast('채팅방을 찾을 수 없습니다.', 'error'); return; }
+    count = 1;
   } else if (target === 'admin_direct') {
-    const adminCid = (A.config?.admin_chat_id || '').trim();
-    if (!adminCid) { toast('admin_chat_id 미설정', 'error'); return; }
-    targets = [{ chat_id: adminCid, name: adminCid }];
+    if (!(A.config?.admin_chat_id || '').trim()) { toast('admin_chat_id 미설정', 'error'); return; }
+    count = 1;
   } else if (target === 'bati_direct') {
-    targets = [{ chat_id: '@BatiInvestChat', name: '바티인베스트 채팅방' }];
+    count = 1;
   } else if (target === 'open') {
-    targets = targets.filter(r => r.status === 'open');
+    count = A.rooms.filter(r => r.status === 'open').length;
   } else if (target !== 'all') {
-    targets = targets.filter(r => r.cat === target);
+    count = A.rooms.filter(r => r.cat === target).length;
   }
 
-  // --- 구분자가 있으면 그것만 사용, 없으면 4096자 기준 자동 분할
+  // --- 구분자가 있으면 그것만 사용, 없으면 4096자 기준 자동 분할 (미리보기용 개수)
   const manualParts = content.split(/\r?\n---\r?\n/).map(s => s.trim()).filter(Boolean);
   const parts = manualParts.length > 1 ? manualParts : splitMessage(content);
   const splitInfo = parts.length > 1 ? ` (${parts.length}개 메시지로 발송)` : '';
-  if (!confirm(`${targets.length}개 채팅방에 발송?${splitInfo}\n형식: ${parseMode}`)) return;
+  if (!confirm(`${count}개 채팅방에 발송?${splitInfo}\n형식: ${parseMode}\n\n봇이 1분 내 발송을 시작합니다.`)) return;
 
   const btn = document.getElementById(btnId), prog = document.getElementById(progId);
-  btn.disabled = true; prog.classList.remove('hidden');
-  let ok = 0;
-  for (let i = 0; i < targets.length; i++) {
-    prog.innerHTML = `<span class="loading"></span>${i+1}/${targets.length} — ${targets[i].name}`;
-    try {
-      for (let p = 0; p < parts.length; p++) {
-        if (parts.length > 1) {
-          prog.innerHTML = `<span class="loading"></span>${i+1}/${targets.length} — ${targets[i].name} (${p+1}/${parts.length})`;
-        }
-        await tg('sendMessage', { chat_id: targets[i].chat_id, text: parts[p], parse_mode: parseMode });
-        if (p < parts.length - 1) await new Promise(r => setTimeout(r, 500));
-      }
-      ok++;
-    } catch(e) {
-      console.error(`[공지실패] ${targets[i].name}:`, e.message);
-    }
-    await new Promise(r => setTimeout(r, 400));
+  if (btn) btn.disabled = true;
+  if (prog) { prog.classList.remove('hidden'); prog.innerHTML = '<span class="loading"></span>봇에 발송 요청 중...'; }
+
+  try {
+    const reqId = await enqueueBotRequest('notice', { target, content, parse_mode: parseMode });
+    localStorage.setItem('bati-intro-draft', content);
+    const res = await waitBotRequest(reqId, {
+      onTick: (row, sec) => {
+        const p = document.getElementById(progId);
+        if (p) p.innerHTML = `<span class="loading"></span>${row?.status === 'processing' ? '발송 중' : '봇 처리 대기'}... ${sec}초 (최대 1분 내 시작)`;
+      },
+    });
+    const p = document.getElementById(progId);
+    if (p) p.innerHTML = `✓ ${res.ok_count ?? 0}/${res.sent_count ?? count} 완료${splitInfo} — DB 저장됨`;
+    toast(`발송 완료: ${res.ok_count ?? 0}/${res.sent_count ?? count}${splitInfo}`, 'success');
+    setTimeout(() => {
+      document.getElementById(progId)?.classList.add('hidden');
+      if (A.page === 'notice') loadNotices();
+    }, 3000);
+  } catch (e) {
+    const p = document.getElementById(progId);
+    if (p) p.innerHTML = `✗ ${e.message}`;
+    toast('발송 실패: ' + e.message, 'error');
+  } finally {
+    const b = document.getElementById(btnId);
+    if (b) b.disabled = false;
   }
-  await DB('notice_history').insert([{ target, content, sent_count: targets.length, ok_count: ok, sent_by: A.user.id }]);
-  localStorage.setItem('bati-intro-draft', content);
-  prog.innerHTML = `✓ ${ok}/${targets.length} 완료${splitInfo} — DB 저장됨`;
-  btn.disabled = false;
-  toast(`발송 완료: ${ok}/${targets.length}${splitInfo}`, 'success');
-  setTimeout(() => { prog.classList.add('hidden'); if (A.page === 'notice') loadNotices(); }, 3000);
 }
 
 // 대상 변경 시 발송 개수 표시
@@ -480,13 +483,15 @@ function autoGenNotice() {
 const sendInline = () => doNotice(document.getElementById('i-content').value.trim(), document.getElementById('i-target').value, 'i-btn', 'i-prog');
 
 async function sendSingleNotice(id) {
+  if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
   const r = A.rooms.find(x => x.id === id); if (!r) return;
   const content = document.getElementById('s-content').value.trim();
   if (!content) { toast('내용 입력 필요', 'error'); return; }
   try {
-    await tgSend(r.chat_id, content);
-    await DB('notice_history').insert([{ target: r.name, content, sent_count: 1, ok_count: 1, sent_by: A.user.id }]);
-    toast(`${r.name} 발송 완료`, 'success');
+    toast(`📡 ${r.name} 발송 요청 — 봇이 1분 내 처리합니다`, 'info');
+    const reqId = await enqueueBotRequest('notice_single', { room_id: id, content });
+    await waitBotRequest(reqId);
+    toast(`✓ ${r.name} 발송 완료`, 'success');
   } catch(e) { toast('실패: ' + e.message, 'error'); }
 }
 
@@ -501,10 +506,17 @@ async function saveConfig(key, value) {
   toast(`설정 저장됨`, 'success');
 }
 
+// 봇 연결 테스트 — 백엔드 큐(ping)로 왕복 확인 (프론트는 토큰 미보유)
 async function testBot() {
-  const el = document.getElementById('bot-result'); el.innerHTML = '<span class="loading"></span>테스트 중...';
-  try { const b = await tg('getMe'); el.innerHTML = `<span style="color:var(--green)">✓ @${b.username} (${b.first_name})</span>`; }
-  catch(e) { el.innerHTML = `<span style="color:var(--red)">✗ ${e.message}</span>`; }
+  const el = document.getElementById('bot-result');
+  if (el) el.innerHTML = '<span class="loading"></span>봇 응답 대기 중... (최대 1분)';
+  try {
+    const reqId = await enqueueBotRequest('ping');
+    const b = await waitBotRequest(reqId, { timeoutMs: 90000 });
+    if (el) el.innerHTML = `<span style="color:var(--green)">✓ @${escapeHtml(b.username || '')} (${escapeHtml(b.first_name || '')}) — 백엔드 봇 정상</span>`;
+  } catch(e) {
+    if (el) el.innerHTML = `<span style="color:var(--red)">✗ ${escapeHtml(e.message)}</span>`;
+  }
 }
 
 // ══════════════════════════════════════════

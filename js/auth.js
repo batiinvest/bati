@@ -168,7 +168,4 @@ function showLoginScreen() {
   document.getElementById('login-screen').classList.remove('hidden');
 }
 
-// ══════════════════════════════════════════
-//  TELEGRAM (토큰은 DB app_config에서)
-// ══════════════════════════════════════════
-const botToken = () => A.config['tg_bot_token'] || '';
+// (botToken 제거 — 봇 토큰은 백엔드 .env에만 존재. 쓰기 작업은 bot_requests 큐로 위임)

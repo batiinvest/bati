@@ -753,16 +753,13 @@ const saveAlertConfig = saveConfigKey;
 function pSettings() {
   if (!isAdmin()) return `<div style="padding:2rem;text-align:center;color:var(--text2);font-size:13px">admin만 설정 변경 가능합니다.</div>`;
   return `
-  <div class="card" style="max-width:560px;margin-bottom:1rem"><div class="card-header"><span class="card-title">Bot 토큰 (DB 저장)</span></div><div class="card-body">
-    <div class="form-group">
-      <label class="form-label">Telegram Bot Token</label>
-      <input class="form-input" id="cfg-token" type="password" value="${A.config['tg_bot_token']||''}" placeholder="123456789:ABCdef...">
-      <div class="form-hint">@BotFather에서 발급. Supabase app_config 테이블에 저장됩니다.</div>
+  <div class="card" style="max-width:560px;margin-bottom:1rem"><div class="card-header"><span class="card-title">텔레그램 봇</span></div><div class="card-body">
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:.75rem">
+      봇 토큰은 백엔드 서버(.env)에만 보관됩니다 — 대시보드는 토큰을 갖지 않으며,
+      동기화·공지 발송은 <code style="background:var(--bg3);padding:1px 6px;border-radius:3px;font-size:11px">bot_requests</code> 큐로 봇에 위임됩니다.
+      토큰 변경은 서버 <code style="background:var(--bg3);padding:1px 6px;border-radius:3px;font-size:11px">/home/kjhofone/.env</code>의 TELEGRAM_BOT_TOKEN 수정 후 봇 재시작.
     </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" onclick="saveConfig('tg_bot_token', document.getElementById('cfg-token').value.trim()).then(()=>{ A.config['tg_bot_token']=document.getElementById('cfg-token').value.trim(); })">DB에 저장</button>
-      <button class="btn" onclick="testBot()">연결 테스트</button>
-    </div>
+    <button class="btn" onclick="testBot()">봇 연결 테스트</button>
     <div id="bot-result" style="margin-top:.75rem;font-size:13px"></div>
   </div></div>
 
