@@ -7,7 +7,7 @@
 // 행 클릭 → 드로어 열기 (버튼·인라인편집 셀 클릭은 가드로 제외)
 function wlOpenDrawer(ev, code) {
   if (ev && ev.target.closest('button, input, textarea, select, a, .wl-editable, .wl-rowmenu')) return;
-  window._wlDrawerCode = code;
+  WL.drawerCode = code;
   if (!document.getElementById('wl-drawer')) {
     const bd = document.createElement('div');
     bd.id = 'wl-drawer-backdrop'; bd.className = 'wl-drawer-backdrop';
@@ -35,13 +35,13 @@ function wlCloseDrawer() {
     document.getElementById('wl-drawer-backdrop')?.remove();
     document.getElementById('wl-drawer')?.remove();
   }, 220);
-  window._wlDrawerCode = null;
+  WL.drawerCode = null;
 }
 
-// 드로어 내용 렌더 — window._wlCache 스냅샷에서 (재조회 없음)
+// 드로어 내용 렌더 — WL.cache 스냅샷에서 (재조회 없음)
 function wlRenderDrawer(code) {
   const dr = document.getElementById('wl-drawer'); if (!dr) return;
-  const C = window._wlCache || {};
+  const C = WL.cache || {};
   const w = C.byCode?.[code];
   if (!w) { wlCloseDrawer(); return; }
   const mkt = C.priceMap?.[code] || {};
@@ -177,7 +177,7 @@ function wlRenderDrawer(code) {
 
 // 드로어 내 필드 직접 편집 → watchlist 저장 + 갱신 (포커스가 드로어 밖일 때만 재렌더; 탭 이동 중 포커스 뺏김 방지)
 async function wlDrawerEdit(ev, code, field, kind) {
-  const w = window._wlCache?.byCode?.[code]; if (!w) return;
+  const w = WL.cache?.byCode?.[code]; if (!w) return;
   const v = (ev.target.value ?? '').trim();
   const out = kind === 'num' ? (v ? parseFloat(v) : null)
             : kind === 'int' ? (v ? parseInt(v)   : null)
@@ -190,7 +190,7 @@ async function wlDrawerEdit(ev, code, field, kind) {
 // 목표 비중은 app_config에 저장 (saveTargetWeight 내부에서 loadWatchlist 호출)
 async function wlDrawerEditWeight(ev, code) {
   const v = (ev.target.value ?? '').trim();
-  const cur = window._wlCache?.targetWeights?.[code];
+  const cur = WL.cache?.targetWeights?.[code];
   const next = v === '' ? null : parseFloat(v);
   if (String(cur ?? '') === String(next ?? '')) return;
   await saveTargetWeight(code, next);

@@ -19,10 +19,10 @@
  *   없으면 프론트 실시간 계산으로 폴백.
  *
  * 의존:
- *   window._macroData         (chart-macro.js)
- *   window._krIndFinalReturn  (chart-industry.js)
- *   window._krIndDates        (chart-industry.js)
- *   window._allMarketRows     (market-overview.js)
+ *   INV.macroData         (chart-macro.js)
+ *   IND.krFinalReturn  (chart-industry.js)
+ *   IND.krDates        (chart-industry.js)
+ *   INV.allMarketRows     (market-overview.js)
  *   window.USKR_MAP           (chart-uskr.js)
  *   window.INDUSTRIES      (config.js)
  *   sb                        (config.js)
@@ -52,9 +52,9 @@ const THR = {
 // ① 데이터 수집 (기존 유지)
 // ════════════════════════════════════════════════════════════
 async function buildInsightData() {
-  const m       = window._macroData        || {};
-  const krR     = window._krIndFinalReturn || {};
-  const indDates = window._krIndDates      || {};
+  const m       = INV.macroData        || {};
+  const krR     = IND.krFinalReturn || {};
+  const indDates = IND.krDates      || {};
 
   // US ETF 산업별 평균 등락률
   const usIndAvg = {};
@@ -201,9 +201,9 @@ function analyzeMarket({ m, krR, krPeriod, usIndAvg }) {
 // ════════════════════════════════════════════════════════════
 // 프론트 → DB 저장 (어드민 전용)
 // ════════════════════════════════════════════════════════════
-window._insightSaveDB = async function() {
+INV.insightSaveDB = async function() {
   const btn  = document.getElementById('insight-save-btn');
-  const data = window._insightCurrentData;
+  const data = INV.insightCurrentData;
   if (!data || data.generated_by !== 'live') return;
 
   if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
@@ -261,7 +261,7 @@ async function _loadSummaryFromDB() {
     const diffMs = Date.now() - new Date(data.market_date).getTime();
     if (diffMs > 3 * 24 * 60 * 60 * 1000) return null;
 
-    // 저장 경로(_insightSaveDB)가 JSON.stringify로 넣으므로 문자열로 돌아올 수 있음
+    // 저장 경로(INV.insightSaveDB)가 JSON.stringify로 넣으므로 문자열로 돌아올 수 있음
     // — loadInsightHistory와 동일한 방어 파싱 (미파싱 시 kp[0]이 '[' 한 글자가 되는 버그)
     const _j = (v, fb) => {
       if (v == null) return fb;
@@ -296,7 +296,7 @@ async function _loadSummaryFromDB() {
 async function _buildLiveSections() {
   const { m, krR, krPeriod, usIndAvg } = await buildInsightData();
   const a = analyzeMarket({ m, krR, krPeriod, usIndAvg });
-  const allRows = window._allMarketRows || [];
+  const allRows = INV.allMarketRows || [];
 
   // ── 외국인 순매수 상위 ──
   const topFrgnBuy = [...allRows]
@@ -304,7 +304,7 @@ async function _buildLiveSections() {
     .sort((a, b) => (b.foreign_net_buy ?? 0) - (a.foreign_net_buy ?? 0))
     .slice(0, 3);
 
-  // ── 급등/급락 종목 (window._allMarketRows 활용) ──
+  // ── 급등/급락 종목 (INV.allMarketRows 활용) ──
   const surgeStocks = [...allRows]
     .filter(r => r.corp_name && (r.price_change_rate ?? 0) >= THR.SURGE)
     .sort((a, b) => (b.price_change_rate ?? 0) - (a.price_change_rate ?? 0))
@@ -410,7 +410,7 @@ async function _buildLiveSections() {
   // 레짐 게이트 — 방어 국면(당일 급락·VIX 공포·온도계 <40)에선 진입 조건을 조인다.
   // 배지 강등('기회'→'후보(관망)')은 _renderInsightCard가 DB·live 양 경로 공통 처리.
   const defensive = krAvgToday <= -2 || (m.vix ?? 0) >= THR.VIX_HIGH
-    || (typeof window._marketTempScore === 'number' && window._marketTempScore < 40);
+    || (typeof INV.tempScore === 'number' && INV.tempScore < 40);
   if (opportunity && defensive)
     opportunity += ' · 방어 국면 — 신규 진입은 반등 확인 후';
 
@@ -464,7 +464,7 @@ function _renderInsightCard(data) {
   if (!el) return;
 
   // 어드민 저장 버튼용으로 현재 데이터 보관
-  window._insightCurrentData = data;
+  INV.insightCurrentData = data;
 
   const f = data.flow || {};
 
@@ -501,7 +501,7 @@ function _renderInsightCard(data) {
   // DB(백엔드)·live 양 경로가 모두 이 렌더러를 거치므로 여기 한 곳에서 게이트.
   const _krAvg = ((f.kospi_chg ?? 0) + (f.kosdaq_chg ?? 0)) / 2;
   const _defensive = _krAvg <= -2 || (f.vix ?? 0) >= THR.VIX_HIGH
-    || (typeof window._marketTempScore === 'number' && window._marketTempScore < 40);
+    || (typeof INV.tempScore === 'number' && INV.tempScore < 40);
   const _gatedPts = (data.core_points || []).map(p =>
     (_defensive && p.type === 'up') ? { ...p, type: 'watch' } : p);
 
@@ -529,7 +529,7 @@ function _renderInsightCard(data) {
   const admEl = document.getElementById('mj-admin-btns');
   if (admEl) {
     admEl.innerHTML = (_isAdm && data.generated_by === 'live')
-      ? `<button id="insight-save-btn" class="chip" style="font-size:11px;padding:2px 8px" onclick="window._insightSaveDB()">DB 저장</button>`
+      ? `<button id="insight-save-btn" class="chip" style="font-size:11px;padding:2px 8px" onclick="INV.insightSaveDB()">DB 저장</button>`
       : '';
   }
 

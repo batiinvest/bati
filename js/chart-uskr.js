@@ -1,5 +1,8 @@
 // chart-uskr.js — US vs KR 산업 비교 차트
-// 의존: config.js (INDUSTRIES, IND_COLORS), chart-industry.js (_krIndDates)
+// 의존: config.js (INDUSTRIES, IND_COLORS), chart-industry.js (IND.krDates)
+
+// 페이지 상태 네임스페이스 — 구 window._uskr* 수렴
+const USKR = {};
 
 // ══════════════════════════════════════════════════════════════
 // 🌐 US vs KR 산업 비교 차트
@@ -30,8 +33,8 @@ let _uskrMode     = 'avg';   // 'avg' = KR평균 vs US평균, 'all' = KR평균 +
 
 function selectUskrInd(ind) {
   _uskrSelected = ind;
-  window._uskrPinned  = null;  // 산업 전환 시 고정 해제
-  window._uskrHovered = null;
+  USKR.pinned  = null;  // 산업 전환 시 고정 해제
+  USKR.hovered = null;
   document.querySelectorAll('[id^="uskr-btn-"]').forEach(b =>
     b.classList.toggle('active', b.id === 'uskr-btn-' + ind));
   loadUskrChart();
@@ -55,7 +58,7 @@ async function loadUskrChart() {
 
   // ── loadIndTrendChart와 완전히 동일한 방식으로 날짜·데이터 확정 ──
   // Step1: 실제 거래일 목록을 refCode 기준으로 확정 (달력 기준 아님)
-  const industryMap = window._industryMapCache || {};
+  const industryMap = CACHE.industryMap || {};
   // ※ 전체 맵의 첫 종목이 아닌, 선택 산업 내 첫 종목을 기준으로 사용
   //   → 산업별 데이터 보유 기간이 달라도 선택 산업 기준으로 일관된 날짜 확정
   const indCodes = Object.keys(industryMap).filter(k => industryMap[k] === ind);
@@ -163,8 +166,8 @@ async function loadUskrChart() {
 
   // ── 차트 그리기 ──
   if (_uskrChart) { _uskrChart.destroy(); _uskrChart = null; }
-  window._uskrPinned  = window._uskrPinned  || null;
-  window._uskrHovered = null;
+  USKR.pinned  = USKR.pinned  || null;
+  USKR.hovered = null;
   if (!window.Chart) return;
 
   _uskrChart = new window.Chart(canvas.getContext('2d'), {
@@ -261,8 +264,8 @@ async function loadUskrChart() {
     getChart: () => _uskrChart,
     applyHighlight: _applyUskrHighlight,
     state: {
-      get pinned()  { return window._uskrPinned; },  set pinned(v)  { window._uskrPinned = v; },
-      get hovered() { return window._uskrHovered; }, set hovered(v) { window._uskrHovered = v; },
+      get pinned()  { return USKR.pinned; },  set pinned(v)  { USKR.pinned = v; },
+      get hovered() { return USKR.hovered; }, set hovered(v) { USKR.hovered = v; },
     },
   });
 }

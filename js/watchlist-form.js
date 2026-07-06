@@ -70,7 +70,7 @@ function syncRRTarget(val) {
 }
 
 function _syncPriceCap(prefix, from, val) {
-  const shares = window._wlShares;
+  const shares = WL.shares;
   const hint = document.getElementById(`${prefix}-cap-hint`);
   if (!shares || !val) { if (hint) hint.textContent = ''; return; }
 
@@ -172,11 +172,11 @@ async function selectWatchlistStock(code, name, industry, market) {
 
     // 주식수 = 시총 / 현재가 (계산용 저장)
     if (m.market_cap && m.price) {
-      window._wlShares = Math.round(m.market_cap / m.price); // 원/원 = 주수
+      WL.shares = Math.round(m.market_cap / m.price); // 원/원 = 주수
       document.getElementById('wl-shares-hint').textContent =
-        `발행주식수 약 ${Math.round(window._wlShares/10000).toLocaleString()}만주 기준`;
+        `발행주식수 약 ${Math.round(WL.shares/10000).toLocaleString()}만주 기준`;
     } else {
-      window._wlShares = null;
+      WL.shares = null;
       document.getElementById('wl-shares-hint').textContent = '';
     }
   }
@@ -241,14 +241,14 @@ async function renderWatchlistForm(id) {
     w = data || {};
   }
   // 스크리너 원클릭 추가: prefill 적용 (stock_code/corp_name만 미리 채움)
-  if (!id && window._wlPrefill) {
-    Object.assign(w, window._wlPrefill);
-    window._wlPrefill = null;
+  if (!id && WL.prefill) {
+    Object.assign(w, WL.prefill);
+    WL.prefill = null;
   }
 
-  // 수정 모드: stock_code로 market data 선로드 → _wlShares 세팅 (시총↔주가 연동)
+  // 수정 모드: stock_code로 market data 선로드 → WL.shares 세팅 (시총↔주가 연동)
   // await으로 폼 렌더 전에 완료 → race condition 방지
-  window._wlShares = null;
+  WL.shares = null;
   let _mktCache = null;
   if (w.stock_code) {
     const { data: mkt } = await sb.from('market_data')
@@ -260,7 +260,7 @@ async function renderWatchlistForm(id) {
     if (m) {
       _mktCache = m;
       if (m.market_cap && m.price) {
-        window._wlShares = Math.round(m.market_cap / m.price);
+        WL.shares = Math.round(m.market_cap / m.price);
       }
     }
   }
@@ -279,7 +279,7 @@ async function renderWatchlistForm(id) {
     </div>`;
 
   // 탭값(all/pipeline/청산)은 실제 그룹명이 아니므로 보유중 탭에서만 그룹 프리필, 그 외 '관심'
-  const defaultGroup = w.group_name || (window._wlGroup === '보유중' ? '보유중' : '관심');
+  const defaultGroup = w.group_name || (WL.group === '보유중' ? '보유중' : '관심');
   const isHolding = (defaultGroup === '보유중');
 
   body.innerHTML = `
@@ -442,17 +442,17 @@ async function renderWatchlistForm(id) {
       ? `<span style="color:${chgColor(m.price_change_rate)}">${m.price_change_rate>0?'+':''}${m.price_change_rate.toFixed(2)}%</span>` : '—';
     if (capEl)   capEl.textContent = m.market_cap ? fmtEok(m.market_cap / 1e8) : '—';
     if (perEl)   perEl.textContent = m.per ? m.per.toFixed(1) : '—';
-    if (hint && window._wlShares) hint.textContent = `발행주식수 약 ${Math.round(window._wlShares/10000).toLocaleString()}만주 기준`;
+    if (hint && WL.shares) hint.textContent = `발행주식수 약 ${Math.round(WL.shares/10000).toLocaleString()}만주 기준`;
     if (rrCur && m.price && !rrCur.value) { rrCur.value = m.price; _calcRR(); }
     // 기존 저장값 있으면 시총 단위 힌트 미리 표시
-    if (w.watch_price && window._wlShares) {
-      const wCap = Math.round(w.watch_price * window._wlShares / 1e8);
+    if (w.watch_price && WL.shares) {
+      const wCap = Math.round(w.watch_price * WL.shares / 1e8);
       const wcEl = document.getElementById('wl-watch_cap');
       if (wcEl && !wcEl.value) wcEl.value = wCap;
       _showCapUnit('wl-watch-cap-unit', wCap);
     }
-    if (w.target_price && window._wlShares) {
-      const tCap = Math.round(w.target_price * window._wlShares / 1e8);
+    if (w.target_price && WL.shares) {
+      const tCap = Math.round(w.target_price * WL.shares / 1e8);
       const tcEl = document.getElementById('wl-target_cap');
       if (tcEl && !tcEl.value) tcEl.value = tCap;
       _showCapUnit('wl-target-cap-unit', tCap);

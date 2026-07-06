@@ -55,7 +55,7 @@ async function loadLeadingStocks() {
 
     setAsOf('ls-date', dateRow.base_date);
 
-    window._lsAllData = data || [];
+    INV.lsAllData = data || [];
     renderLeadingStocks();
   } catch(e) {
     console.error('[LeadingStocks]', e);
@@ -77,7 +77,7 @@ function renderLeadingStocks() {
   const el = document.getElementById('ls-body');
   if (!el) return;
 
-  const all = window._lsAllData || [];
+  const all = INV.lsAllData || [];
   if (!all.length) { el.innerHTML = _lsEmptyHtml(); return; }
 
   let rows = all;
@@ -213,7 +213,7 @@ window.triggerLeadingStocks = async function() {
     const MAX_TRIES = 36;
 
     // 중복 트리거 시 이전 폴링 정리
-    if (window._lsPollTimer) clearInterval(window._lsPollTimer);
+    if (INV.lsPollTimer) clearInterval(INV.lsPollTimer);
 
     const poll = setInterval(async () => {
       // 페이지 이탈로 카드가 사라졌으면 폴링 중단 (유령 쿼리 방지)
@@ -247,7 +247,7 @@ window.triggerLeadingStocks = async function() {
         if (typeof toast === 'function') toast('⚠️ 3분 내 계산 미완료 — 백엔드 서버 상태 확인', 'warning');
       }
     }, 5000);
-    window._lsPollTimer = poll;
+    INV.lsPollTimer = poll;
 
   } catch(e) {
     if (typeof toast === 'function') toast('트리거 실패: ' + e.message, 'error');

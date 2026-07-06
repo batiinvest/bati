@@ -20,6 +20,11 @@ const INV_ALL_METRICS = [
 const INV = {
   selected: new Set(['sp500','nasdaq','kospi','kosdaq']),
   period:   7,
+  // ── 구 window._* 수렴 (런타임 대입) ──
+  // tab·highlighted·hovered: 시황 페이지 UI 상태
+  // allMarketRows·macroData·macroRows·marketBreadth·tempScore·indMapData:
+  //   market-overview/-insight/-temperature/sector-rotation/chart-macro가 공유하는 시장 데이터 캐시
+  // moSort·indBarChart·insightSaveDB·insightCurrentData·lsPollTimer·lsAllData: 섹션별 상태
 };
 
 // ── 카드 SVG 아이콘 맵 ──
@@ -85,7 +90,7 @@ function _macroCard(label, value, chg, color) {
 
 // ── 페이지 HTML ──
 function pInvestment() {
-  window._invTab = window._invTab || 'market';
+  INV.tab = INV.tab || 'market';
   return `
   <!-- 페이지 헤더 -->
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:8px">
@@ -519,7 +524,7 @@ function pInvestment() {
 
 // ── 탭 전환 (2단 레이아웃으로 전환 후 no-op, 호환성 유지) ──
 function setInvTab(tab) {
-  window._invTab = tab;
+  INV.tab = tab;
 }
 
 // ── 날짜/시간 업데이트 ────────────────────────────────────────
@@ -544,7 +549,7 @@ function _clearInvRefreshTimers() {
 // 페이지 이탈 정리 훅 — nav go()가 PAGE_META.onUnload로 호출
 function unloadInvestment() {
   _clearInvRefreshTimers();
-  if (window._lsPollTimer) { clearInterval(window._lsPollTimer); window._lsPollTimer = null; }
+  if (INV.lsPollTimer) { clearInterval(INV.lsPollTimer); INV.lsPollTimer = null; }
 }
 
 async function refreshInvestment() {
@@ -554,7 +559,7 @@ async function refreshInvestment() {
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
 
   try {
-    if (window._invTab === 'disclosure') {
+    if (INV.tab === 'disclosure') {
       _allDiscLoaded = false;
       loadTodayDisclosures();
       loadEarningsSurge();
@@ -635,7 +640,7 @@ async function refreshInvestment() {
     }
   } finally {
     // 시황 탭은 70초 후 자동 복구, 공시 탭만 즉시 복구
-    if (window._invTab === 'disclosure') {
+    if (INV.tab === 'disclosure') {
       if (btn) { btn.disabled = false; btn.textContent = '🔄 새로고침'; }
     }
   }
@@ -698,13 +703,13 @@ async function loadInvestment() {
   const maxDate = await getLatestMarketDate();
   if (!maxDate) return;
 
-  // 전체 종목 + 산업별 동향 (내부에서 window._allMarketRows 세팅)
+  // 전체 종목 + 산업별 동향 (내부에서 INV.allMarketRows 세팅)
   await loadMarketOverview(maxDate);
 
-  // _allMarketRows 확보 후 내 종목 현황 행(등락률) 갱신
+  // INV.allMarketRows 확보 후 내 종목 현황 행(등락률) 갱신
   if (_myStocksWlRows) _renderMyStocks();
 
-  // Phase 1 — 온도계 + 거래대금 상위 (window._allMarketRows / _macroData 재활용)
+  // Phase 1 — 온도계 + 거래대금 상위 (INV.allMarketRows / INV.macroData 재활용)
   renderMarketTemperature();
   renderVolumeLeaders();
   renderIdeaSurge(); // '오늘의 아이디어' 급등 탭
@@ -712,7 +717,7 @@ async function loadInvestment() {
   // Phase 2 — 주도주 탐색기 + 백테스트 + 산업별 수급동향(산업 강도 매트릭스 통합)
   loadLeadingStocks();
   loadLeadingBacktest();
-  loadSectorRotation();  // 산업별 수급동향(로테이션 맵+보드, US·KR·선행 컬럼 통합) — _indMapData(신선)+sector_daily_summary
+  loadSectorRotation();  // 산업별 수급동향(로테이션 맵+보드, US·KR·선행 컬럼 통합) — INV.indMapData(신선)+sector_daily_summary
   loadStockFlow();
 
   // 모니터링 종목 목록 — getIndustryMap() 캐시 재활용 (companies 중복 조회 방지)
@@ -722,7 +727,7 @@ async function loadInvestment() {
   if (!monList.length) return;
 
   // loadMarketOverview에서 이미 가져온 전체 데이터를 메모리에서 필터
-  const allRows = window._allMarketRows || [];
+  const allRows = INV.allMarketRows || [];
   const monSet  = new Set(monList);
   let mktRows   = allRows.filter(r => monSet.has(r.stock_code));
 
@@ -750,10 +755,10 @@ async function loadInvestment() {
   }
 
   // 전체 상장사 급등/급락 — loadMarketOverview가 이미 가져온 데이터를 메모리에서 계산
-  // (DB 쿼리 4회 → 0회, window._allMarketRows 재활용)
+  // (DB 쿼리 4회 → 0회, INV.allMarketRows 재활용)
   // 최소 거래대금 5억원 필터 — 거래량 극소 껍데기 급등 종목 제거
   const _MIN_TV = 5e8; // 5억원
-  const _all = (window._allMarketRows || []).filter(r => {
+  const _all = (INV.allMarketRows || []).filter(r => {
     if (r.price_change_rate == null) return false;
     const tv = r.trading_value || ((r.volume ?? 0) * (r.price ?? 0));
     return tv >= _MIN_TV;
@@ -794,7 +799,7 @@ function renderVolumeLeaders() {
   const el = document.getElementById('inv-volume-body');
   if (!el) return;
 
-  const allRows = window._allMarketRows || [];
+  const allRows = INV.allMarketRows || [];
   if (!allRows.length) {
     el.innerHTML = '<div style="grid-column:1/-1;padding:1rem;text-align:center;color:var(--text2);font-size:12px">데이터 없음</div>';
     return;
@@ -884,12 +889,12 @@ function switchIdeaTab(tab) {
 }
 
 // ── '급등' 탭 — 당일 상승률 상위 (거래대금 5억↑, 껍데기 급등 제외) ────────────────
-// 이미 로드된 window._allMarketRows 재사용 (별도 쿼리 없음). 행 클릭 → 상세.
+// 이미 로드된 INV.allMarketRows 재사용 (별도 쿼리 없음). 행 클릭 → 상세.
 function renderIdeaSurge() {
   const el = document.getElementById('idea-surge-body');
   if (!el) return;
   const MIN_TV = 5e8; // 거래대금 5억원
-  const rows = (window._allMarketRows || [])
+  const rows = (INV.allMarketRows || [])
     .filter(r => r.price_change_rate != null && r.corp_name)
     .filter(r => (r.trading_value || ((r.volume ?? 0) * (r.price ?? 0))) >= MIN_TV)
     .sort((a, b) => b.price_change_rate - a.price_change_rate)
@@ -933,7 +938,7 @@ function toggleInsightHistory() {
 // 종목당 한 줄: [종목명][보유/관심][등락률][오늘 공시][최근 보고서]
 //   → 한 종목의 등락이 오늘 공시·리포트와 상관있는지 한눈에 읽힌다.
 //   이벤트(공시 or 리포트) 있는 종목을 위로, 그 안에서 등락 큰 순으로 정렬.
-//   시세는 _allMarketRows(loadMarketOverview)에 의존 → 준비되면 _renderMyStocks() 재호출로 갱신.
+//   시세는 INV.allMarketRows(loadMarketOverview)에 의존 → 준비되면 _renderMyStocks() 재호출로 갱신.
 let _myStocksWlRows = null;
 let _myStocksData   = null;   // { wlRows, discsByCode, reportsByCode, nameToWl }
 
@@ -1021,7 +1026,7 @@ function _renderMyStocks() {
   if (!body || !_myStocksData) return;
 
   const { wlRows, discsByCode, reportsByCode, todayKst } = _myStocksData;
-  const allRows = window._allMarketRows || [];
+  const allRows = INV.allMarketRows || [];
   const mktByCode = {};
   allRows.forEach(r => { mktByCode[r.stock_code] = r; });
 

@@ -18,6 +18,13 @@ const sb = supabase.createClient(SB_URL, SB_KEY, {
 const DB = sb.from.bind(sb);
 
 // ══════════════════════════════════════════
+//  전역 데이터 캐시 네임스페이스 — 구 window._* 수렴
+//  industryMap(산업맵)·subIndustryMap(세부분야)·wlCodesLoaded(투자노트 코드셋)
+//  ※ 페이지 상태는 각 페이지 파일의 const 네임스페이스(WL·FIN·CMP·SCR·INV·IND·USKR·SURGE) 사용
+// ══════════════════════════════════════════
+const CACHE = {};
+
+// ══════════════════════════════════════════
 //  산업 목록 — 단일 정의, 전체 파일 참조
 // ══════════════════════════════════════════
 const INDUSTRIES = ['바이오','뷰티','로봇','2차전지','신재생','소비재','테크','반도체','엔터','조선','우주'];
@@ -207,7 +214,7 @@ function _normCode(code) { return String(code || '').replace(/\.(KS|KQ)$/i, '');
 
 // 투자노트 종목코드 로드 → 보유/관심 Set 구성 (force=true면 캐시 무시 재조회)
 async function loadWatchlistCodes(force = false) {
-  if (window._wlCodesLoaded && !force) return;
+  if (CACHE.wlCodesLoaded && !force) return;
   try {
     const { data } = await sb.from('watchlist').select('stock_code,group_name');
     const held = new Set(), watch = new Set();
@@ -216,7 +223,7 @@ async function loadWatchlistCodes(force = false) {
       if (r.group_name === '보유중') held.add(c); else watch.add(c);
     });
     _wlHeldCodes = held; _wlWatchCodes = watch;
-    window._wlCodesLoaded = true;
+    CACHE.wlCodesLoaded = true;
   } catch (e) { /* 비로그인·권한 등 — 배지 미표시로 graceful degrade */ }
 }
 
@@ -370,7 +377,7 @@ let _globalSubMap      = null;  // ✅ subMap도 모듈 스코프에 캐싱 (캐
 
 async function getIndustryMap() {
   if (_globalIndustryMap) {
-    window._subIndustryMap = _globalSubMap;
+    CACHE.subIndustryMap = _globalSubMap;
     return _globalIndustryMap;
   }
 
@@ -386,8 +393,8 @@ async function getIndustryMap() {
       Object.assign(subMap, cachedSub ? JSON.parse(cachedSub) : {});
       _globalIndustryMap       = map;
       _globalSubMap            = subMap;
-      window._industryMapCache = map;
-      window._subIndustryMap   = subMap;
+      CACHE.industryMap = map;
+      CACHE.subIndustryMap   = subMap;
       return map;
     } catch(e) {
       console.warn('[getIndustryMap] app_config 캐시 파싱 실패 — DB 직접 조회', e);
@@ -415,8 +422,8 @@ async function getIndustryMap() {
 
   _globalIndustryMap       = map;
   _globalSubMap            = subMap;
-  window._industryMapCache = map;
-  window._subIndustryMap   = subMap;
+  CACHE.industryMap = map;
+  CACHE.subIndustryMap   = subMap;
   return map;
 }
 

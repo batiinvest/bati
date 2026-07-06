@@ -5,8 +5,8 @@
  * 별도 DB 쿼리 없음 — loadMarketOverview() 완료 후 호출.
  *
  * 의존:
- *   window._macroData     (chart-macro.js)
- *   window._allMarketRows (market-overview.js)
+ *   INV.macroData     (chart-macro.js)
+ *   INV.allMarketRows (market-overview.js)
  *
  * ── 배점 구조 (총 100점) — 단일일 노이즈 제거, 추세/레벨 기반 ──────
  *  ① S&P500 5일 추세      15pt  5거래일 누적 (밤사이 단일일 노이즈 제거)
@@ -31,10 +31,10 @@
 
 // ── 온도 계산 ─────────────────────────────────────────────────────────────────
 function _calcTemperature(prevScore = null, foreign5dEok = null) {
-  const m    = window._macroData     || {};
-  const rows = window._allMarketRows || [];
-  // 5일치 매크로(오래된→최신) — 추세/레벨 계산용 (window._macroRows = 5일치)
-  const mr   = (window._macroRows || []).slice().sort((a, b) => (a.base_date > b.base_date ? 1 : -1));
+  const m    = INV.macroData     || {};
+  const rows = INV.allMarketRows || [];
+  // 5일치 매크로(오래된→최신) — 추세/레벨 계산용 (INV.macroRows = 5일치)
+  const mr   = (INV.macroRows || []).slice().sort((a, b) => (a.base_date > b.base_date ? 1 : -1));
   const n    = mr.length;
   const sumChg = key => mr.reduce((s, r) => s + (r[key] ?? 0), 0);   // 5일 누적 변화
 
@@ -68,7 +68,7 @@ function _calcTemperature(prevScore = null, foreign5dEok = null) {
   // 최근 5 거래일 누적 등락률로 단기 추세를 평가한다.
   // 데이터가 1건뿐이면 당일 등락으로 fallback — 이때는 일간 스케일 임계값 적용
   // (5일 누적용 임계값에 당일 등락을 넣으면 강한 신호가 중립으로 뭉개짐).
-  const _krRows = window._macroRows || [];
+  const _krRows = INV.macroRows || [];
   const kr5dSum = _krRows.reduce((s, r) =>
     s + (((r.kospi_chg ?? 0) + (r.kosdaq_chg ?? 0)) / 2), 0);
   const _krScale5 = [[5.0,15],[2.5,12],[0.5,10],[-0.5,7],[-2.5,4],[-5.0,1]];   // 5일 누적
@@ -92,8 +92,8 @@ function _calcTemperature(prevScore = null, foreign5dEok = null) {
   // ④ 상승종목 비율 — breadth (max 5)
   // 지수는 대형주 몇 개로 착시가 남 → 등락종목수로 상승의 '폭'을 보정.
   // 당일 스냅샷 지표지만 보조 5pt라 단일일 노이즈 영향 제한적.
-  // window._marketBreadth는 loadMarketOverview(market-overview.js)가 채운 뒤 온도계가 호출됨.
-  const _bd = window._marketBreadth?.total || null;
+  // INV.marketBreadth는 loadMarketOverview(market-overview.js)가 채운 뒤 온도계가 호출됨.
+  const _bd = INV.marketBreadth?.total || null;
   const brRatio = (_bd && _bd.total > 0) ? _bd.rise / _bd.total : null;
   const _brScale = [[0.60,5],[0.52,4],[0.42,3],[0.32,2],[0.22,1]];
   const brPts = brRatio != null ? (_brScale.find(([t]) => brRatio >= t)?.[1] ?? 0) : 2;
@@ -109,7 +109,7 @@ function _calcTemperature(prevScore = null, foreign5dEok = null) {
 
   // ⑤ 외국인 수급 — 5일 누적(억원) (max 20)
   // 당일 순매수는 다음날 반전이 흔해 노이즈 → 5거래일 누적(지속성)으로 판정.
-  // foreign5dEok(sector_daily_summary 합산) 없으면 당일 합산(_allMarketRows)으로 폴백.
+  // foreign5dEok(sector_daily_summary 합산) 없으면 당일 합산(INV.allMarketRows)으로 폴백.
   let frgnAmt, frgnPts;
   if (foreign5dEok != null) {
     frgnAmt = foreign5dEok;
@@ -319,7 +319,7 @@ async function renderMarketTemperature() {
   const el = document.getElementById('market-temp-body');
   if (!el) return;
 
-  const m       = window._macroData || {};
+  const m       = INV.macroData || {};
   const today   = m.base_date || todayStr();
 
   // 점수 이력(스무딩용 전일 + 국면 지속일수) + 5일 누적 외국인 수급 선행 로드
@@ -331,7 +331,7 @@ async function renderMarketTemperature() {
   const _minDate = new Date(new Date(today).getTime() - 7 * 86400000).toISOString().slice(0, 10);
   const prev = (hist[0] && hist[0].date >= _minDate) ? hist[0] : null;
   const t = _calcTemperature(prev ? prev.score : null, foreign5d);
-  window._marketTempScore = t.score;   // 레짐 게이트(market-insight.js Zone B)에서 참조
+  INV.tempScore = t.score;   // 레짐 게이트(market-insight.js Zone B)에서 참조
   await _saveTempScore(today, t.score);
 
   // 전일 대비 변화 뱃지

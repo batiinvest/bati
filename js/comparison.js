@@ -8,6 +8,7 @@ const CMP = {
   metric: 'revenue',  // 선택된 지표
   period: '8',         // 표시 분기 수
   normalize: false,    // 정규화 차트 (100 기준)
+  // 구 window._cmp* 수렴 (런타임 대입): metricCache·sortedLabels·stockDataMap·chartLabels·chartDatasets
 };
 
 const CMP_METRICS = [
@@ -313,11 +314,11 @@ function initCmpPage() {
   if (_cmpRadarInstance) { _cmpRadarInstance.destroy(); _cmpRadarInstance = null; }
 
   // 캐시 전체 초기화 — 이전 실행 데이터 제거
-  window._cmpChartDatasets = null;
-  window._cmpChartLabels   = null;
-  window._cmpMetricCache   = {};   // ← 지표별 캐시 초기화
-  window._cmpStockDataMap  = null;
-  window._cmpSortedLabels  = null;
+  CMP.chartDatasets = null;
+  CMP.chartLabels   = null;
+  CMP.metricCache   = {};   // ← 지표별 캐시 초기화
+  CMP.stockDataMap  = null;
+  CMP.sortedLabels  = null;
 
   // UI 초기화 후 선택 목록 렌더
   renderCmpSelected();
@@ -350,9 +351,9 @@ async function runComparison() {
   if (CMP.selectedCodes.length < 1) { toast('종목을 1개 이상 선택해주세요.', 'error'); return; }
 
   // 실행 시마다 지표 캐시 초기화 — 종목 조합 변경 반영
-  window._cmpMetricCache  = {};
-  window._cmpStockDataMap = null;
-  window._cmpSortedLabels = null;
+  CMP.metricCache  = {};
+  CMP.stockDataMap = null;
+  CMP.sortedLabels = null;
 
   const el = document.getElementById('cmp-result');
   el.innerHTML = loadingHTML('데이터 로드 중...');
@@ -617,12 +618,12 @@ async function runComparison() {
       </div>`;
 
     // stockDataMap 전역 저장
-    window._cmpStockDataMap = stockDataMap;
-    window._cmpSortedLabels = sortedLabels;
+    CMP.stockDataMap = stockDataMap;
+    CMP.sortedLabels = sortedLabels;
 
     // 차트 + 상세 테이블 렌더링
-    window._cmpChartDatasets = datasets;
-    window._cmpChartLabels   = sortedLabels;
+    CMP.chartDatasets = datasets;
+    CMP.chartLabels   = sortedLabels;
     renderCmpChart(metric);
     renderCmpDetailTable(metric);
     _drawSparklines(metric);
@@ -638,10 +639,10 @@ async function runComparison() {
 function renderCmpDetailTable(metricKey) {
   const body  = document.getElementById('cmp-detail-body');
   const title = document.getElementById('cmp-detail-title');
-  if (!body || !window._cmpStockDataMap || !window._cmpSortedLabels) return;
+  if (!body || !CMP.stockDataMap || !CMP.sortedLabels) return;
 
   const metaDef = CMP_METRICS.find(m => m.key === metricKey) || CMP_METRICS[0];
-  const labels  = window._cmpSortedLabels;
+  const labels  = CMP.sortedLabels;
   if (title) title.textContent = `${metaDef.label} — 분기별 비교`;
 
   const fmtVal = (v) => {
@@ -675,7 +676,7 @@ function renderCmpDetailTable(metricKey) {
   const stockRowMap = {};
   CMP.selectedCodes.forEach(s => {
     stockRowMap[s.code] = {};
-    (window._cmpStockDataMap[s.code] || []).forEach(r => {
+    (CMP.stockDataMap[s.code] || []).forEach(r => {
       stockRowMap[s.code][`${r.bsns_year} ${r.quarter}`] = r[metricKey];
     });
   });
@@ -736,7 +737,7 @@ function renderCmpDetailTable(metricKey) {
 // ── Sparkline 렌더링 (renderCmpDetailTable 호출 후) ──
 function _drawSparklines(metricKey) {
   requestAnimationFrame(() => {
-    const map = window._cmpStockDataMap || {};
+    const map = CMP.stockDataMap || {};
     const sparkKey = metricKey;
 
     CMP.selectedCodes.forEach((s, si) => {
@@ -790,7 +791,7 @@ function _cmpSetActiveMetric(metricKey) {
 let _cmpChartInstance = null;
 function renderCmpChart(metricKey) {
   const canvas = document.getElementById('cmp-chart');
-  if (!canvas || !window._cmpSortedLabels) return;
+  if (!canvas || !CMP.sortedLabels) return;
 
   // CMP.metric 업데이트
   CMP.metric = metricKey;
@@ -798,11 +799,11 @@ function renderCmpChart(metricKey) {
   _cmpSetActiveMetric(metricKey);
 
   const metaDef = CMP_METRICS.find(m => m.key === metricKey) || CMP_METRICS[0];
-  const labels  = window._cmpSortedLabels;
+  const labels  = CMP.sortedLabels;
 
   // 캐시 있으면 즉시 렌더, 없으면 DB 조회
-  if (window._cmpMetricCache?.[metricKey]) {
-    drawCmpChart(canvas, window._cmpMetricCache[metricKey], labels, metaDef);
+  if (CMP.metricCache?.[metricKey]) {
+    drawCmpChart(canvas, CMP.metricCache[metricKey], labels, metaDef);
     renderCmpDetailTable(metricKey);
     _drawSparklines(metricKey);
   } else {
@@ -811,9 +812,9 @@ function renderCmpChart(metricKey) {
 }
 
 async function fetchCmpMetricAndRender(metricKey, canvas, labels, metaDef) {
-  if (!window._cmpMetricCache) window._cmpMetricCache = {};
-  if (window._cmpMetricCache[metricKey]) {
-    drawCmpChart(canvas, window._cmpMetricCache[metricKey], labels, metaDef);
+  if (!CMP.metricCache) CMP.metricCache = {};
+  if (CMP.metricCache[metricKey]) {
+    drawCmpChart(canvas, CMP.metricCache[metricKey], labels, metaDef);
     renderCmpDetailTable(metricKey);
     return;
   }
@@ -866,7 +867,7 @@ async function fetchCmpMetricAndRender(metricKey, canvas, labels, metaDef) {
     };
   });
 
-  window._cmpMetricCache[metricKey] = datasets;
+  CMP.metricCache[metricKey] = datasets;
 
   _cmpSetActiveMetric(metricKey);
 

@@ -148,7 +148,7 @@ async function openJournalModal(stockCode, corpName) {
   }
 
   // 거래내역이 나중에 바뀌어도 복기 시점 값 보존 (저장 스냅샷)
-  window._journalSnap = {
+  WL.journalSnap = {
     watchlist_id: w.id || null,
     closed_date:  rt.closedDate || null,
     realized:     rt.realized ?? null,
@@ -232,7 +232,7 @@ function _setJournalScore(n) {
 
 function saveJournalFromForm(stockCode, corpName) {
   const g = id => document.getElementById(id)?.value?.trim() || null;
-  const snap = window._journalSnap || {};
+  const snap = WL.journalSnap || {};
   saveJournal({
     stock_code:    stockCode,
     corp_name:     corpName,
@@ -258,7 +258,7 @@ function openTradeModal(watchlistId, stockCode, corpName, type, curPrice) {
   const isBuy = type === 'buy';
   const today = todayStr();
   const nm = escJsStr(corpName || '');
-  window._tradeType = type; // _tradePreview에서 신용 안내 분기용
+  WL.tradeType = type; // _tradePreview에서 신용 안내 분기용
   const overlay = document.createElement('div');
   overlay.id = 'm-trade';
   overlay.className = 'modal-overlay open';
@@ -334,7 +334,7 @@ function _tradePreview() {
   const qty    = parseFloat(document.getElementById('trade-qty')?.value)   || 0;
   const fee    = parseFloat(document.getElementById('trade-fee')?.value)   || 0;
   const method = document.getElementById('trade-method')?.value || 'cash';
-  const isBuy  = window._tradeType !== 'sell';
+  const isBuy  = WL.tradeType !== 'sell';
   const el = document.getElementById('trade-preview');
   if (!el) return;
   if (!price || !qty) { el.textContent = '체결가와 수량을 입력하면 거래대금이 계산됩니다.'; return; }

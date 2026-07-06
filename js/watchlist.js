@@ -1,6 +1,9 @@
 // 투자노트 — 메인 테이블·필터·요약 카드·인라인 편집
 // 분할: watchlist-trades.js(거래·복기), watchlist-drawer.js(드로어), watchlist-form.js(검색·모달폼)
 
+// 페이지 상태 네임스페이스 — 구 window._wl* 수렴 (group·sort·actionFilter·pipeFilter·drawerCode·cache·shares·prefill·benchCache·tradeType·journalSnap)
+const WL = {};
+
 // =============================================
 //  관심종목 (Watchlist) 페이지
 // =============================================
@@ -25,27 +28,27 @@ function pWatchlist() {
 function setWlGroup(el, group) {
   document.querySelectorAll('.chip[data-group]').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
-  window._wlGroup = group;
-  window._wlActionFilter = null; // 탭 전환 시 액션 필터 초기화
-  window._wlPipeFilter   = null; // 파이프라인 하위 필터(관심/후보) 초기화
+  WL.group = group;
+  WL.actionFilter = null; // 탭 전환 시 액션 필터 초기화
+  WL.pipeFilter   = null; // 파이프라인 하위 필터(관심/후보) 초기화
   loadWatchlist();
 }
 
 // 파이프라인 탭 하위 필터 (관심 / 후보) — 같은 칩 재클릭 시 해제
 function wlSetPipeFilter(cat) {
-  window._wlPipeFilter = (window._wlPipeFilter === cat) ? null : cat;
+  WL.pipeFilter = (WL.pipeFilter === cat) ? null : cat;
   loadWatchlist();
 }
 
 // '오늘의 액션' 필터 토글 (손절 도달 / 매수구간 / 점검 임박) — 같은 칩 재클릭 시 해제
 function wlSetActionFilter(type) {
-  window._wlActionFilter = (window._wlActionFilter === type) ? null : type;
+  WL.actionFilter = (WL.actionFilter === type) ? null : type;
   loadWatchlist();
 }
 
 // 벤치마크(코스피/코스닥) 기간 수익률 — macro_data 시계열에서 계산 (세션 캐시)
 async function fetchBenchmarkReturns() {
-  if (window._benchCache) return window._benchCache;
+  if (WL.benchCache) return WL.benchCache;
   try {
     const { data } = await sb.from('macro_data')
       .select('base_date,kospi,kosdaq')
@@ -65,13 +68,13 @@ async function fetchBenchmarkReturns() {
       return { w: ret(latest[idx], w[idx]), m: ret(latest[idx], m[idx]), q: ret(latest[idx], q[idx]) };
     };
     const result = { kospi: mk('kospi'), kosdaq: mk('kosdaq'), baseDate: latest.base_date };
-    window._benchCache = result;
+    WL.benchCache = result;
     return result;
   } catch (e) { return null; }
 }
 
 async function loadWatchlist() {
-  const group = window._wlGroup || 'all';
+  const group = WL.group || 'all';
   const listEl = document.getElementById('wl-list');
   if (!listEl) return;
   listEl.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text2)"><span class="loading"></span></div>';
@@ -150,7 +153,7 @@ async function loadWatchlist() {
   const portfolioRows = allRows || [];
 
   // ── 탭 필터: 전체 / 보유중 / 파이프라인(관심·후보, 하위필터) / 청산 ──
-  const pipeFilter = window._wlPipeFilter || null; // '관심' | '후보' | null
+  const pipeFilter = WL.pipeFilter || null; // '관심' | '후보' | null
   const tabFilter = (w) => {
     const cat = wlCategory(w);
     if (group === 'all')      return true;
@@ -206,15 +209,15 @@ async function loadWatchlist() {
         Math.abs(valMap[w.stock_code] / totalAssets * 100 - tw) >= REBAL_WARN) rebalCodes.add(w.stock_code);
   }
   // 활성 필터가 가리키는 집합이 비면 자동 해제 (예: 거래 기록 후 손절 해소)
-  if (window._wlActionFilter) {
-    const _s = window._wlActionFilter === 'stop'    ? stopHitCodes
-             : window._wlActionFilter === 'target'  ? targetHitCodes
-             : window._wlActionFilter === 'trim'    ? trimZoneCodes
-             : window._wlActionFilter === 'buy'     ? buyZoneCodes
-             : window._wlActionFilter === 'check'   ? checkDueCodes
-             : window._wlActionFilter === 'rebal'   ? rebalCodes
-             : window._wlActionFilter === 'journal' ? needJournalCodes : null;
-    if (!_s || _s.size === 0) window._wlActionFilter = null;
+  if (WL.actionFilter) {
+    const _s = WL.actionFilter === 'stop'    ? stopHitCodes
+             : WL.actionFilter === 'target'  ? targetHitCodes
+             : WL.actionFilter === 'trim'    ? trimZoneCodes
+             : WL.actionFilter === 'buy'     ? buyZoneCodes
+             : WL.actionFilter === 'check'   ? checkDueCodes
+             : WL.actionFilter === 'rebal'   ? rebalCodes
+             : WL.actionFilter === 'journal' ? needJournalCodes : null;
+    if (!_s || _s.size === 0) WL.actionFilter = null;
   }
 
   document.getElementById('wl-count').textContent = `${data.length}개${pipeFilter?` · ${pipeFilter}`:''}`;
@@ -338,14 +341,14 @@ async function loadWatchlist() {
   // ── 드로어가 즉시 렌더하도록 현재 데이터 스냅샷 캐시 (재조회 없이 행 클릭 → 상세) ──
   const _byCode = {}, _effMap = {};
   portfolioRows.forEach(w => { _byCode[w.stock_code] = w; _effMap[w.stock_code] = effPos(w); });
-  window._wlCache = {
+  WL.cache = {
     byCode: _byCode, effMap: _effMap, priceMap, industryMap,
     roeMap, opmMap, revMap, opMap, valMap, totalAssets, journalMap, targetWeights,
   };
   // 드로어가 열려 있고 현재 사용자가 드로어 내부를 편집 중이 아니면 최신 데이터로 갱신
-  if (document.getElementById('wl-drawer') && window._wlDrawerCode) {
+  if (document.getElementById('wl-drawer') && WL.drawerCode) {
     const ae = document.activeElement;
-    if (!(ae && ae.closest && ae.closest('.wl-drawer'))) wlRenderDrawer(window._wlDrawerCode);
+    if (!(ae && ae.closest && ae.closest('.wl-drawer'))) wlRenderDrawer(WL.drawerCode);
   }
 
   // ── 포트폴리오 요약 카드 ─────────────────────────────────────────────────
@@ -615,8 +618,8 @@ async function loadWatchlist() {
   }
 
   // ── 정렬 ─────────────────────────────────────────────────────────────────
-  if (!window._wlSort) window._wlSort = { key: null, asc: true };
-  const { key: sortKey, asc: sortAsc } = window._wlSort;
+  if (!WL.sort) WL.sort = { key: null, asc: true };
+  const { key: sortKey, asc: sortAsc } = WL.sort;
 
   const sortVal = (w) => {
     const mkt = priceMap[w.stock_code] || {};
@@ -691,13 +694,13 @@ async function loadWatchlist() {
   const header = `<tr>${cols.map(k => colTag(thMap[k], k)).join('')}</tr>`;
 
   // ── '오늘의 액션' 필터 적용 ──
-  const _afCodes = window._wlActionFilter === 'stop'    ? stopHitCodes
-                 : window._wlActionFilter === 'target'  ? targetHitCodes
-                 : window._wlActionFilter === 'trim'    ? trimZoneCodes
-                 : window._wlActionFilter === 'buy'     ? buyZoneCodes
-                 : window._wlActionFilter === 'check'   ? checkDueCodes
-                 : window._wlActionFilter === 'rebal'   ? rebalCodes
-                 : window._wlActionFilter === 'journal' ? needJournalCodes : null;
+  const _afCodes = WL.actionFilter === 'stop'    ? stopHitCodes
+                 : WL.actionFilter === 'target'  ? targetHitCodes
+                 : WL.actionFilter === 'trim'    ? trimZoneCodes
+                 : WL.actionFilter === 'buy'     ? buyZoneCodes
+                 : WL.actionFilter === 'check'   ? checkDueCodes
+                 : WL.actionFilter === 'rebal'   ? rebalCodes
+                 : WL.actionFilter === 'journal' ? needJournalCodes : null;
   const visRows = _afCodes ? sorted.filter(w => _afCodes.has(w.stock_code)) : sorted;
 
   // ── 각 행 ─────────────────────────────────────────────────────────────────
@@ -1011,10 +1014,10 @@ async function wlInlineEditCost(td, id, curAvg, curQty) {
 }
 
 function wlSortBy(key) {
-  if (window._wlSort.key === key) {
-    window._wlSort.asc = !window._wlSort.asc;
+  if (WL.sort.key === key) {
+    WL.sort.asc = !WL.sort.asc;
   } else {
-    window._wlSort = { key, asc: true };
+    WL.sort = { key, asc: true };
   }
   loadWatchlist();
 }
@@ -1044,7 +1047,7 @@ function wlToggleRowMenu(btn, id, code, name, hasTx, isClosed) {
 async function deleteWatchlist(id, name) {
   if (!confirm(`${name}을 관심종목에서 삭제할까요?`)) return;
   // 드로어로 보고 있던 종목이면 닫기 (loadWatchlist 후 캐시에서 사라지므로 미리 처리)
-  if (window._wlDrawerCode && window._wlCache?.byCode?.[window._wlDrawerCode]?.id === id) wlCloseDrawer();
+  if (WL.drawerCode && WL.cache?.byCode?.[WL.drawerCode]?.id === id) wlCloseDrawer();
   await sb.from('watchlist').delete().eq('id', id);
   loadWatchlist();
 }

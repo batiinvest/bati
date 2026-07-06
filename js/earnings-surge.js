@@ -4,6 +4,9 @@
 // [v2] 등급 계산 제거 — grade.py → earnings_grade_history DB에서 읽기
 //   gradeRow() 로직은 grade.py 단일 구현으로 일원화
 
+// 페이지 상태 네임스페이스 — 구 window._surge* 수렴
+const SURGE = {};
+
 let _earningsSurgeTab  = 'revenue';
 let _surgeGradeFilter  = 'all';
 let _surgeAllResults   = [];
@@ -46,7 +49,7 @@ function renderSurgeList() {
     ? gradeOrder.filter(g => filtered.some(r => r.grade === g))
     : [_surgeGradeFilter];
 
-  el.innerHTML = renderSurgeHTML(filtered, gradesToShow, window._surgeHistMap || {});
+  el.innerHTML = renderSurgeHTML(filtered, gradesToShow, SURGE.histMap || {});
 }
 
 // ── 메인 로드 ──
@@ -127,7 +130,7 @@ async function loadEarningsSurge() {
     const key = r.stock_code;
     if (!trendFlagMap[key]) trendFlagMap[key] = r.trend_flags;
   });
-  window._surgeTrendFlagMap = trendFlagMap;
+  SURGE.trendFlagMap = trendFlagMap;
 
   // ── 4. 등급 이력 (신규/향상/강등/연속 배지용) ──
   const { data: gradeHist } = await sb.from('earnings_grade_history')
@@ -144,8 +147,8 @@ async function loadEarningsSurge() {
   });
 
   _surgeAllResults       = gradeRows;
-  window._surgeHistMap   = histMap;
-  window._surgeGradeHistMap = gradeHistMap;
+  SURGE.histMap   = histMap;
+  SURGE.gradeHistMap = gradeHistMap;
 
   renderSurgeList();
 }
@@ -153,7 +156,7 @@ async function loadEarningsSurge() {
 // ── 렌더링 ──
 function renderSurgeHTML(surges, gradesToShow, histMap) {
   const metric = _earningsSurgeTab || 'revenue';
-  const gradeHistMap = window._surgeGradeHistMap || {};
+  const gradeHistMap = SURGE.gradeHistMap || {};
   const GRADE_ORDER  = { 'S': 4, 'A': 3, 'B': 2, '관찰': 1 };
 
   // 등급 이력 분석 (배지 + 흐름 텍스트)
@@ -269,7 +272,7 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
         else if (p1 != null && p2 != null && cur2 > p1 && p1 > p2) qoqSig = '🔥';
 
         const gradeMeta = getGradeMeta(r);
-        const trendFlags = (window._surgeTrendFlagMap || {})[r.stock_code] || {};
+        const trendFlags = (SURGE.trendFlagMap || {})[r.stock_code] || {};
         const trendBadges = [
           trendFlags.rev_slowdown     && `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(245,158,11,.15);color:#f59e0b;font-weight:600" title="매출 성장 둔화 3분기 연속">⚠️성장둔화</span>`,
           trendFlags.op_leverage_fail && `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(245,54,92,.12);color:#f5365c;font-weight:600" title="매출↑ 영업이익↓ (레버리지 역전)">🔴레버리지역전</span>`,

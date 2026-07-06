@@ -34,8 +34,8 @@ async function loadMacroData() {
   const { data } = await sb.from('macro_data')
     .select('*').order('base_date', { ascending: false }).limit(5);
   const m = data?.[0] || {};
-  window._macroData = m;   // market-insight.js / market-temperature.js 재활용
-  window._macroRows = data || []; // 5일치 — 온도계 5일 추세 계산용
+  INV.macroData = m;   // market-insight.js / market-temperature.js 재활용
+  INV.macroRows = data || []; // 5일치 — 온도계 5일 추세 계산용
 
   // (정리됨) 매크로 카드 그리드·위험 스트립·증시동향 헤더 배너(inv-banner-content) 모두 제거 —
   // 매크로 지수는 전역 탑바 스트립·시장 온도계 6세부요소·Zone A 브리핑 위험배지가 담당(중복 제거).
@@ -61,11 +61,11 @@ function _macroAsOfLabel(m) {
 
 // ── 탑바 시장 스트립 렌더 ──
 // 지수값 바로 밑 둘째 줄(서브 행): 코스피·코스닥=상승종목수(breadth) 미니 바, S&P500·나스닥=선물 등락률.
-// breadth 데이터는 loadMarketOverview(market-overview.js)가 window._marketBreadth에 채운 뒤 재호출.
+// breadth 데이터는 loadMarketOverview(market-overview.js)가 INV.marketBreadth에 채운 뒤 재호출.
 function _renderTopbarStrip() {
   const strip = document.getElementById('topbar-market-strip');
-  const m  = window._macroData || {};
-  const bd = window._marketBreadth || {};
+  const m  = INV.macroData || {};
+  const bd = INV.marketBreadth || {};
 
   // 지수값 밑 둘째 줄 — 코스피·코스닥: 상승종목수(breadth) 미니 바
   // '등락' 라벨(선물 라벨과 시각적 대칭) + 툴팁으로 막대 의미를 명시(직관성).
@@ -267,7 +267,7 @@ async function loadTrendChart() {
 
   const labels = rows.map(r => r.base_date);
 
-  const _hl = window._invHighlighted || null;
+  const _hl = INV.highlighted || null;
   const datasets = selectedMetrics.map(m => {
     const values = rows.map(r => r[m.col]);
     const base   = values.find(v => v != null);
@@ -288,8 +288,8 @@ async function loadTrendChart() {
   });
 
   if (_invTrendChart) { _invTrendChart.destroy(); _invTrendChart = null; }
-  window._invHighlighted = window._invHighlighted || null;
-  window._invHovered = null;
+  INV.highlighted = INV.highlighted || null;
+  INV.hovered = null;
 
   _invTrendChart = new Chart(canvas.getContext('2d'), {
     type: 'line',
@@ -328,13 +328,13 @@ async function loadTrendChart() {
   });
 
   canvas._invMoveHandler = (e) => {
-    if (window._invHighlighted) return;   // 고정 중엔 호버 무시
+    if (INV.highlighted) return;   // 고정 중엔 호버 무시
     const chart = _invTrendChart;
     if (!chart) return;
     const pts = chart.getElementsAtEventForMode(e, 'nearest', { intersect: false }, true);
     const label = pts.length ? chart.data.datasets[pts[0].datasetIndex]?.label : null;
-    if (label === window._invHovered) return;
-    window._invHovered = label;
+    if (label === INV.hovered) return;
+    INV.hovered = label;
     // 호버용 임시 적용 (pinned 아님)
     chart.data.datasets.forEach(ds => {
       const m = INV_ALL_METRICS.find(x => x.name === ds.label);
@@ -351,8 +351,8 @@ async function loadTrendChart() {
   };
 
   canvas._invLeaveHandler = () => {
-    if (window._invHighlighted) return;   // 고정 중엔 복원 안 함
-    window._invHovered = null;
+    if (INV.highlighted) return;   // 고정 중엔 복원 안 함
+    INV.hovered = null;
     _applyInvHighlight();
   };
 
@@ -362,8 +362,8 @@ async function loadTrendChart() {
     const pts = chart.getElementsAtEventForMode(e, 'nearest', { intersect: false }, true);
     const clicked = pts.length ? chart.data.datasets[pts[0].datasetIndex]?.label : null;
     // 같은 선 재클릭 → 고정 해제
-    window._invHighlighted = (clicked && clicked !== window._invHighlighted) ? clicked : null;
-    window._invHovered = window._invHighlighted;
+    INV.highlighted = (clicked && clicked !== INV.highlighted) ? clicked : null;
+    INV.hovered = INV.highlighted;
     _applyInvHighlight();
   };
 
@@ -376,7 +376,7 @@ async function loadTrendChart() {
 function _applyInvHighlight() {
   const chart = _invTrendChart;
   if (!chart) return;
-  const hl = window._invHighlighted;
+  const hl = INV.highlighted;
   chart.data.datasets.forEach((ds) => {
     const m = INV_ALL_METRICS.find(x => x.name === ds.label);
     const color = m ? m.color : '#ffffff';

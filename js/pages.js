@@ -29,7 +29,7 @@ const PAGE_META = {
 };
 
 // watchlist 초기화 래퍼 (onLoad 단일 함수 제약 우회)
-function _initWatchlist() { window._wlGroup = 'all'; loadWatchlist(); }
+function _initWatchlist() { WL.group = 'all'; loadWatchlist(); }
 
 function pOverview() {
   const isFull = r => r.status === 'full' || r.status === 'paid' || (r.members || 0) >= (r.max_members || 1000);

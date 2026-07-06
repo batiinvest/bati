@@ -19,12 +19,12 @@ async function loadMarketOverview(maxDate) {
       .eq('base_date', maxDate)
       .not('price_change_rate', 'is', null)
   );
-  // 급등/급락 카드에서 재활용 — investment.js가 window._allMarketRows 참조
-  window._allMarketRows = all;
+  // 급등/급락 카드에서 재활용 — investment.js가 INV.allMarketRows 참조
+  INV.allMarketRows = all;
   const enriched = all.map(r => ({
     ...r,
     industry:    industryMap[r.stock_code] || r.market || '기타',
-    sub_industry: (window._subIndustryMap || {})[r.stock_code] || '기타',
+    sub_industry: (CACHE.subIndustryMap || {})[r.stock_code] || '기타',
   }));
 
   // ── 전체/시장별 집계 ──────────────────────────────────────────
@@ -44,7 +44,7 @@ async function loadMarketOverview(maxDate) {
 
   // ── 시장 breadth → 탑바 스트립의 코스피·코스닥 지수 밑에 노출 ──
   // 지수값/등락률은 _renderTopbarStrip(chart-macro.js)이 그리고, 그 밑에 상승종목수(breadth) 미니 바.
-  window._marketBreadth = { kospi, kosdaq, total: { total: enriched.length, rise, fall, flat }, avg };
+  INV.marketBreadth = { kospi, kosdaq, total: { total: enriched.length, rise, fall, flat }, avg };
   if (typeof _renderTopbarStrip === 'function') _renderTopbarStrip();
 
   // ── 산업별 + 세부섹터별 집계 (모니터링 종목만) ─────────────────
@@ -79,7 +79,7 @@ async function loadMarketOverview(maxDate) {
     .map(([ind, d]) => ({ ind, ...d, avg: d.sumChg / d.total }))
     .sort((a, b) => b.avg - a.avg);
 
-  window._indMapData = indMap;
+  INV.indMapData = indMap;
 
   const sorted = indRows.slice().sort((a, b) => b.avg - a.avg);
   const labels  = sorted.map(d => d.ind);
@@ -104,7 +104,7 @@ async function loadMarketOverview(maxDate) {
     const canvas = document.getElementById('ind-bar-chart');
     if (!canvas) return;
     // 이전 인스턴스 정리 — canvas는 innerHTML로 갈려도 Chart 객체(리사이즈 리스너)는 남아 누수
-    if (window._indBarChart) { try { window._indBarChart.destroy(); } catch (e) {} window._indBarChart = null; }
+    if (INV.indBarChart) { try { INV.indBarChart.destroy(); } catch (e) {} INV.indBarChart = null; }
     const chart = new window.Chart(canvas.getContext('2d'), {
       type: 'bar',
       data: {
@@ -158,7 +158,7 @@ async function loadMarketOverview(maxDate) {
             chart.getDatasetMeta(di).data.forEach((bar, i) => {
               const val   = ds.data[i];
               const ind   = chart.data.labels[i];
-              const iData = (window._indMapData || {})[ind];
+              const iData = (INV.indMapData || {})[ind];
               const isPos = val >= 0;
               const mainClr  = isPos ? 'rgba(245,54,92,1)' : 'rgba(42,171,238,1)';
               const x        = isPos ? bar.x + 4 : bar.x - 4;
@@ -190,7 +190,7 @@ async function loadMarketOverview(maxDate) {
         }
       }]
     });
-    window._indBarChart = chart;
+    INV.indBarChart = chart;
 
     // y축 라벨 위에 클릭 가능한 오버레이 생성
     setTimeout(() => {
@@ -218,7 +218,7 @@ async function loadMarketOverview(maxDate) {
   }
 
   window.showIndDetail = (indName) => {
-    const d = window._indMapData[indName];
+    const d = INV.indMapData[indName];
     if (!d) return;
     d.avg = d.total ? d.sumChg / d.total : 0;
     const subRows = Object.entries(d.subs)
@@ -278,7 +278,7 @@ async function loadMarketOverview(maxDate) {
     const thStyle = col => 'cursor:pointer;text-align:right;font-size:11px;padding:4px 4px;color:' +
       (col===_sortCol?'var(--tg)':'var(--text2)') + ';white-space:nowrap;user-select:none';
     const th = (col, label) =>
-      '<span style="' + thStyle(col) + '" onclick="window._moSort(\'' + col + '\')">' + label + sortIcon(col) + '</span>';
+      '<span style="' + thStyle(col) + '" onclick="INV.moSort(\'' + col + '\')">' + label + sortIcon(col) + '</span>';
 
     const renderStockPanel = (title, avg, stocks, rise, fall, flat) => {
       const all = [...stocks].sort((a, b) => {
@@ -327,7 +327,7 @@ async function loadMarketOverview(maxDate) {
         ).join('');
     };
 
-    window._moSort = col => {
+    INV.moSort = col => {
       if (_sortCol === col) _sortDir *= -1;
       else { _sortCol = col; _sortDir = -1; }
       const sp = document.getElementById('sub-stock-panel');
@@ -379,7 +379,7 @@ async function loadMarketOverview(maxDate) {
   // US ETF 매핑 먼저 로드 (us_etf_map → USKR_MAP)
   await loadUskrMap();
 
-  // 산업별 흐름 비교 차트 로드 → 완료 후 US vs KR 차트 로드 (_krIndDates 의존)
+  // 산업별 흐름 비교 차트 로드 → 완료 후 US vs KR 차트 로드 (IND.krDates 의존)
   await loadIndTrendChart();
   loadUsEtfBanner();
   loadUskrChart();
@@ -470,7 +470,7 @@ async function loadNewHighStocks() {
 
   // 모니터링 종목 + 산업 정보 — getIndustryMap() 캐시 재활용 (companies 중복 조회 방지)
   const _indMap  = await getIndustryMap();
-  const _subMap  = window._subIndustryMap || {};
+  const _subMap  = CACHE.subIndustryMap || {};
   const monMap = {};  // code → { industry, sub_industry }
   Object.keys(_indMap).forEach(code => {
     monMap[code] = { industry: _indMap[code], sub_industry: _subMap[code] || '' };
@@ -494,7 +494,7 @@ async function loadNewHighStocks() {
 
   // 각 행에 메타 추가 (+ _allMarketRows에서 volume/foreign_net_buy 조인)
   const _mrMap = {};
-  (window._allMarketRows || []).forEach(r => { _mrMap[r.stock_code] = r; });
+  (INV.allMarketRows || []).forEach(r => { _mrMap[r.stock_code] = r; });
 
   const enriched = rows.map(r => {
     const dates  = (histMap[r.stock_code] || []).sort().reverse();

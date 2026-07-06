@@ -1,6 +1,9 @@
 // chart-industry.js — KR 산업별 흐름 비교 차트
 // 의존: config.js (INDUSTRIES, IND_COLORS, IND_DEFAULT_COLORS)
 
+// 페이지 상태 네임스페이스 — 구 window._ind*/_krInd* 수렴. krDates·krFinalReturn은 market-insight/chart-uskr가 소비
+const IND = {};
+
 // ══════════════════════════════════════════
 //  📈 산업별 흐름 비교 차트
 // ══════════════════════════════════════════
@@ -60,7 +63,7 @@ async function loadIndTrendChart() {
     if (!indDates[ind][r.base_date]) indDates[ind][r.base_date] = [];
     indDates[ind][r.base_date].push(r.price_change_rate);
   });
-  window._krIndDates = indDates;  // US vs KR 차트에서 재활용
+  IND.krDates = indDates;  // US vs KR 차트에서 재활용
 
   // 산업 목록 (데이터 있는 것만)
   const industries = Object.keys(indDates).sort();
@@ -70,7 +73,7 @@ async function loadIndTrendChart() {
   industries.forEach(ind => {
     indFinalReturn[ind] = indCumReturn(indDates[ind], dateList);  // config.js 공용 헬퍼
   });
-  window._krIndFinalReturn = indFinalReturn;  // market-insight.js에서 재활용
+  IND.krFinalReturn = indFinalReturn;  // market-insight.js에서 재활용
 
   // 수익률 순으로 정렬된 산업 목록
   const industriesSorted = [...industries].sort(
@@ -90,7 +93,7 @@ async function loadIndTrendChart() {
       const ret   = indFinalReturn[ind];
       const retColor = ret >= 0 ? 'var(--red)' : 'var(--blue)';
       const retStr  = (ret >= 0 ? '+' : '') + ret.toFixed(1) + '%';
-      const isChecked = window._indChecked?.[ind] !== false;
+      const isChecked = IND.checked?.[ind] !== false;
 
       const lbl = document.createElement('label');
       lbl.className = 'ind-legend-item';
@@ -102,7 +105,7 @@ async function loadIndTrendChart() {
         <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></span>
         <span>${ind}</span>
         <span style="font-weight:700;color:${retColor};font-size:11px">${retStr}</span>`;
-      lbl.onclick = () => { window._toggleIndLegend(ind); };
+      lbl.onclick = () => { IND.toggleLegend(ind); };
 
       if (btnGroup) checksEl.insertBefore(lbl, btnGroup);
       else checksEl.appendChild(lbl);
@@ -111,13 +114,13 @@ async function loadIndTrendChart() {
 
   // ── 필터 모드 적용 ──
   let selectedInds;
-  const mode = window._indFilterMode || 'all';
+  const mode = IND.filterMode || 'all';
   if (mode === 'top') {
     selectedInds = industriesSorted.slice(0, 3);
   } else if (mode === 'bottom') {
     selectedInds = industriesSorted.slice(-3);
   } else {
-    selectedInds = industriesSorted.filter(ind => window._indChecked?.[ind] !== false);
+    selectedInds = industriesSorted.filter(ind => IND.checked?.[ind] !== false);
     if (selectedInds.length === 0) selectedInds = [...industriesSorted];
   }
 
@@ -126,7 +129,7 @@ async function loadIndTrendChart() {
     const color = IND_COLORS[ind] || IND_DEFAULT_COLORS[industries.indexOf(ind) % IND_DEFAULT_COLORS.length];
     const data = indCumIndexSeries(indDates[ind], dateList);  // config.js 공용 헬퍼
 
-    const _pin = window._indPinned;
+    const _pin = IND.pinned;
     const active = !_pin || ind === _pin;
     return {
       label: ind, data,
@@ -181,8 +184,8 @@ async function loadIndTrendChart() {
     getChart: () => _indTrendChart2,
     applyHighlight: _applyIndHighlight,
     state: {
-      get pinned()  { return window._indPinned; },  set pinned(v)  { window._indPinned = v; },
-      get hovered() { return window._indHovered; }, set hovered(v) { window._indHovered = v; },
+      get pinned()  { return IND.pinned; },  set pinned(v)  { IND.pinned = v; },
+      get hovered() { return IND.hovered; }, set hovered(v) { IND.hovered = v; },
     },
   });
 }
@@ -214,22 +217,22 @@ function _applyIndHighlight(label) {
 }
 
 // 호버/클릭 하이라이트 상태
-window._indHovered = null;
-window._indPinned  = null;   // 클릭으로 고정된 산업
-window._indChecked    = {};   // { 반도체: true, ... }
-window._indFilterMode = 'all';
+IND.hovered = null;
+IND.pinned  = null;   // 클릭으로 고정된 산업
+IND.checked    = {};   // { 반도체: true, ... }
+IND.filterMode = 'all';
 
-window._toggleIndLegend = function(ind) {
-  if (!window._indChecked) window._indChecked = {};
-  window._indChecked[ind] = window._indChecked[ind] === false ? true : false;
+IND.toggleLegend = function(ind) {
+  if (!IND.checked) IND.checked = {};
+  IND.checked[ind] = IND.checked[ind] === false ? true : false;
   const lbl = document.getElementById('ind-lbl-' + ind);
-  if (lbl) lbl.style.opacity = window._indChecked[ind] === false ? '0.35' : '1';
+  if (lbl) lbl.style.opacity = IND.checked[ind] === false ? '0.35' : '1';
   loadIndTrendChart();
 };
 
 // ③ 상/하위 필터 버튼
 function filterIndTrend(mode) {
-  window._indFilterMode = mode;
+  IND.filterMode = mode;
   ['top','bottom','all'].forEach(m => {
     const btn = document.getElementById('btn-' + (m === 'all' ? 'all' : m === 'top' ? 'top3' : 'bot3'));
     if (btn) btn.classList.toggle('active', m === mode);
@@ -245,7 +248,7 @@ function setIndTrendPeriod(period) {
 }
 
 function toggleIndTrend(ind) {
-  window._toggleIndLegend(ind);
+  IND.toggleLegend(ind);
 }
 
 

@@ -1,6 +1,9 @@
 ﻿// financials.js — 기업 분석 (시장 현황/재무제표)
 // fmtCap, chgColor, chgStr, loadingHTML, emptyHTML, errorHTML, fetchAllPages → config.js 참조
 
+// 페이지 상태 네임스페이스 — 구 window._fin*/_sd* 수렴 (view·chart·drawChart·render·getRows·rows·indMap·sdCode 등)
+const FIN = {};
+
 // 검색 debounce — 키스트로크마다 API 호출 방지
 let _finSearchTimer = null;
 function _finSearchDebounce() {
@@ -74,7 +77,7 @@ function _applyFinFilter(rows) {
   if (F.q) rows = rows.filter(r => r.corp_name.includes(F.q));
   if (F.industry !== '전체') {
     const indStocks = new Set(
-      Object.entries(window._finIndMap || {})
+      Object.entries(FIN.indMap || {})
         .filter(([, ind]) => ind === F.industry)
         .map(([code]) => code)
     );
@@ -223,8 +226,8 @@ function initFinancials() {
 
   // #fin-table 높이를 viewport 잔여 공간에 맞게 설정
   requestAnimationFrame(_setFinTableHeight);
-  window.removeEventListener('resize', window._finResizeHandler);
-  window._finResizeHandler = _setFinTableHeight;
+  window.removeEventListener('resize', FIN.resizeHandler);
+  FIN.resizeHandler = _setFinTableHeight;
   window.addEventListener('resize', _setFinTableHeight);
 }
 
@@ -233,9 +236,9 @@ async function loadFinancials() {
   if (!el) return;
 
   // 산업 필터용 companies 매핑: config.js 전역 캐시 사용
-  if (!window._finIndMap) {
+  if (!FIN.indMap) {
     const map = await getIndustryMap();  // config.js 전역 캐시 (이미 로드된 경우 즉시 반환)
-    window._finIndMap = map;             // 기존 참조 코드(_finIndMap)와 호환성 유지
+    FIN.indMap = map;             // 기존 참조 코드(_finIndMap)와 호환성 유지
   }
 
   // 탭 active 상태 업데이트
@@ -579,7 +582,7 @@ async function openStockDetail(code, name, initTab = 'overview') {
   document.body.appendChild(modal);
 
   // 기본 정보 로드
-  window._sdCode = code; window._sdName = name;
+  FIN.sdCode = code; FIN.sdName = name;
   try {
     const { data: ci } = await sb.from('companies')
       .select('industry,sub_industry,market')
@@ -1245,17 +1248,17 @@ async function _renderFinancialTab(body, code, name) {
 
     body.innerHTML = `
       <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
-        <button id="btn-quarter" class="chip active" onclick="window._finView='quarter';window._finRender()">분기별</button>
-        <button id="btn-annual"  class="chip"        onclick="window._finView='annual'; window._finRender()">연간별 <span style="font-size:10px;color:var(--text2)">(Q4 누적)</span></button>
-        <button id="btn-qcomp"   class="chip"        onclick="window._finView='qcomp';  window._finRender()">분기비교</button>
+        <button id="btn-quarter" class="chip active" onclick="FIN.view='quarter';FIN.render()">분기별</button>
+        <button id="btn-annual"  class="chip"        onclick="FIN.view='annual'; FIN.render()">연간별 <span style="font-size:10px;color:var(--text2)">(Q4 누적)</span></button>
+        <button id="btn-qcomp"   class="chip"        onclick="FIN.view='qcomp';  FIN.render()">분기비교</button>
         <div style="display:flex;gap:4px;margin-left:auto;align-items:center">
-          <button id="btn-chart-rev"  class="chip active" onclick="window._finChart='revenue'; window._finDrawChart()">매출·영업이익</button>
-          <button id="btn-chart-gpm"  class="chip"        onclick="window._finChart='gpm';     window._finDrawChart()">매출·GPM·판관비</button>
-          <button id="btn-chart-cf"   class="chip"        onclick="window._finChart='cf';      window._finDrawChart()">현금흐름</button>
+          <button id="btn-chart-rev"  class="chip active" onclick="FIN.chart='revenue'; FIN.drawChart()">매출·영업이익</button>
+          <button id="btn-chart-gpm"  class="chip"        onclick="FIN.chart='gpm';     FIN.drawChart()">매출·GPM·판관비</button>
+          <button id="btn-chart-cf"   class="chip"        onclick="FIN.chart='cf';      FIN.drawChart()">현금흐름</button>
           <div style="display:flex;align-items:center;gap:6px;margin-left:8px;border-left:1px solid var(--border);padding-left:8px">
             <span style="font-size:11px;color:var(--text2)">차트</span>
-            <button onclick="window._finResizeChart(-60)" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text1);width:22px;height:22px;font-size:14px;line-height:1">−</button>
-            <button onclick="window._finResizeChart(+60)" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text1);width:22px;height:22px;font-size:14px;line-height:1">+</button>
+            <button onclick="FIN.resizeChart(-60)" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text1);width:22px;height:22px;font-size:14px;line-height:1">−</button>
+            <button onclick="FIN.resizeChart(+60)" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text1);width:22px;height:22px;font-size:14px;line-height:1">+</button>
           </div>
         </div>
       </div>
@@ -1277,12 +1280,12 @@ async function _renderFinancialTab(body, code, name) {
         <tbody id="fin-table-body"></tbody>
       </table></div>`;
 
-    window._finChartH = 220;
-    window._finResizeChart = (delta) => {
-      window._finChartH = Math.max(160, Math.min(600, window._finChartH + delta));
+    FIN.chartH = 220;
+    FIN.resizeChart = (delta) => {
+      FIN.chartH = Math.max(160, Math.min(600, FIN.chartH + delta));
       const wrap = document.getElementById('fin-chart-wrap');
-      if (wrap) wrap.style.height = window._finChartH + 'px';
-      window._finDrawChart();
+      if (wrap) wrap.style.height = FIN.chartH + 'px';
+      FIN.drawChart();
     };
 
     let finChart  = null;
@@ -1294,33 +1297,33 @@ async function _renderFinancialTab(body, code, name) {
       finCharts = [];
     };
 
-    window._finView  = 'quarter';
-    window._finChart = 'revenue';
-    window._finCompQ = 'Q1';
-    window._fins     = fins;
+    FIN.view  = 'quarter';
+    FIN.chart = 'revenue';
+    FIN.compQ = 'Q1';
+    FIN.rows     = fins;
 
-    window._finGetRows = () => {
-      if (window._finView === 'annual') {
-        return window._fins.filter(f => f.quarter === 'Q4').map(f => ({...f, label: f.bsns_year+'년'}));
+    FIN.getRows = () => {
+      if (FIN.view === 'annual') {
+        return FIN.rows.filter(f => f.quarter === 'Q4').map(f => ({...f, label: f.bsns_year+'년'}));
       } else {
         // quarter / qcomp 모두 전체 분기 반환 (qcomp는 render에서 피벗 처리)
-        return window._fins.map(f => ({...f, label: f.bsns_year+' '+f.quarter}));
+        return FIN.rows.map(f => ({...f, label: f.bsns_year+' '+f.quarter}));
       }
     };
 
-    window._finDrawChart = () => {
+    FIN.drawChart = () => {
       ['rev','gpm','cf'].forEach(t => {
         const b = document.getElementById('btn-chart-'+t);
-        if (b) b.classList.toggle('active', t === {revenue:'rev',gpm:'gpm',cf:'cf'}[window._finChart]);
+        if (b) b.classList.toggle('active', t === {revenue:'rev',gpm:'gpm',cf:'cf'}[FIN.chart]);
       });
       if (!window.Chart) return;
       _destroyAll();
 
       // ── 분기비교: 4개 미니차트 ──────────────────────────────────────────
-      if (window._finView === 'qcomp') {
+      if (FIN.view === 'qcomp') {
         const wrap = document.getElementById('fin-chart-wrap');
         if (!wrap) return;
-        const allRows = window._finGetRows();
+        const allRows = FIN.getRows();
         const QUARTERS = ['Q1','Q2','Q3','Q4'];
         const COLORS   = ['rgba(42,171,238,0.7)','rgba(45,206,137,0.7)','rgba(251,163,35,0.7)','rgba(245,54,92,0.7)'];
 
@@ -1387,14 +1390,14 @@ async function _renderFinancialTab(body, code, name) {
       }
 
       // ── 분기별 / 연간별: 기존 단일 차트 ────────────────────────────────
-      const rows   = window._finGetRows();
+      const rows   = FIN.getRows();
       const labels = rows.map(r => r.label);
       const canvas = document.getElementById('fin-chart-canvas');
       if (!canvas) return;
 
       let datasets, chartType;
 
-      if (window._finChart === 'revenue') {
+      if (FIN.chart === 'revenue') {
         // 매출액(막대) + 영업이익(막대) + 영업이익률(라인, 우축)
         chartType = 'bar';
         datasets = [
@@ -1424,7 +1427,7 @@ async function _renderFinancialTab(body, code, name) {
             borderWidth: 2,
           },
         ];
-      } else if (window._finChart === 'gpm') {
+      } else if (FIN.chart === 'gpm') {
         // 매출액(막대) + GPM(라인) + 판관비비율(라인), 우축 %
         chartType = 'bar';
         datasets = [
@@ -1474,7 +1477,7 @@ async function _renderFinancialTab(body, code, name) {
         ];
       }
 
-      const hasY2 = ['revenue','gpm'].includes(window._finChart);
+      const hasY2 = ['revenue','gpm'].includes(FIN.chart);
       finChart = new window.Chart(canvas.getContext('2d'), {
         type: chartType,
         data: { labels, datasets },
@@ -1500,25 +1503,25 @@ async function _renderFinancialTab(body, code, name) {
       });
     };
 
-    window._finRender = () => {
+    FIN.render = () => {
       ['quarter','annual','qcomp'].forEach(t => {
         const b = document.getElementById('btn-'+t);
-        if (b) b.classList.toggle('active', t === window._finView);
+        if (b) b.classList.toggle('active', t === FIN.view);
       });
 
       // qcomp ↔ 일반 전환 시 차트 wrap 복원
       const wrap = document.getElementById('fin-chart-wrap');
-      if (wrap && window._finView !== 'qcomp') {
+      if (wrap && FIN.view !== 'qcomp') {
         if (!wrap.querySelector('#fin-chart-canvas')) {
-          wrap.style.height = window._finChartH + 'px';
+          wrap.style.height = FIN.chartH + 'px';
           wrap.innerHTML = '<canvas id="fin-chart-canvas"></canvas>';
         }
       }
 
-      const rows = window._finGetRows();
+      const rows = FIN.getRows();
       const area = document.getElementById('fin-table-area');
 
-      if (window._finView === 'qcomp') {
+      if (FIN.view === 'qcomp') {
         // ── 분기비교: Q1/Q2/Q3/Q4 각각 연도별 YoY 비교 ─────────────────
         const metrics = [
           { label: '매출액',       fn: r => `<b>${fmt(r.revenue)}</b>` },
@@ -1586,10 +1589,10 @@ async function _renderFinancialTab(body, code, name) {
         </table>`;
       }
 
-      window._finDrawChart();
+      FIN.drawChart();
     };
 
-    window._finRender();
+    FIN.render();
 
   } catch(e) {
     body.innerHTML = `<div style="color:var(--red);padding:20px">오류: ${e.message}</div>`;

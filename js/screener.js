@@ -7,6 +7,9 @@
 //   - market_data + financials JOIN은 PostgREST 미지원이라 market_data 기준으로 조회 후
 //     financials는 최신 분기 1건씩만 조회 (종목별 최신값 캐시)
 
+// 페이지 상태 네임스페이스 — 구 window._screenerData 수렴
+const SCR = {};
+
 function pScreener() {
   return `
   <div style="display:flex;gap:6px;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
@@ -371,11 +374,11 @@ async function runScreener() {
         </td>
       </tr>`).join('')}</tbody>
     </table></div>`;
-  window._screenerData = combined;
+  SCR.data = combined;
 }
 
 function scAddToWatchlist(code, name) {
-  window._wlPrefill = { stock_code: code, corp_name: name };
+  WL.prefill = { stock_code: code, corp_name: name };
   if (typeof openWatchlistModal === 'function') {
     openWatchlistModal(null);
   } else {
@@ -384,7 +387,7 @@ function scAddToWatchlist(code, name) {
 }
 
 function exportScreener() {
-  if (!window._screenerData?.length) return;
+  if (!SCR.data?.length) return;
   const keys    = ['corp_name','industry','market','capEok','price','price_change_rate','per','pbr','peg','evEbitda','operating_margin','roe','roa','debt_ratio'];
   const headers = ['종목명','산업','시장','시총(억)','현재가','등락률','PER','PBR','PEG','EV/EBITDA','영업이익률','ROE','ROA','부채비율'];
   // CSV 셀 인용 — 쉼표/따옴표/줄바꿈 포함 값 파손 방지.
@@ -394,7 +397,7 @@ function exportScreener() {
     if (typeof v === 'string' && /^[=+@]/.test(s)) s = "'" + s;
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   };
-  const csv = [headers.join(','), ...window._screenerData.map(r => keys.map(k => cell(r[k])).join(','))].join('\n');
+  const csv = [headers.join(','), ...SCR.data.map(r => keys.map(k => cell(r[k])).join(','))].join('\n');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
   a.download = 'screener_' + todayStr() + '.csv';

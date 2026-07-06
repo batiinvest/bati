@@ -632,7 +632,7 @@ async function monApply() {
         if (badge) badge.style.display = 'none';
         // 시황 페이지 캐시 초기화 → 다음 진입 시 최신 데이터 반영
         if (typeof _latestMarketDate !== 'undefined') _latestMarketDate = null;
-        if (typeof window._industryMapCache !== 'undefined') window._industryMapCache = null;
+        if (typeof CACHE.industryMap !== 'undefined') CACHE.industryMap = null;
         // 보드 새로고침
         _monLoadBoard();
         // 현재 시황 페이지가 열려있으면 즉시 재로드

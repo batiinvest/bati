@@ -7,7 +7,7 @@
  *   ② 산업 보드(표): 오늘 등락·시장대비 RS·상승종목(breadth)·거래대금(비중)·수급·국면
  *
  * 데이터 (추가 쿼리 최소화):
- *   - 오늘 등락/거래대금/breadth: window._indMapData (market-overview.js, market_data 최신일 = 신선)
+ *   - 오늘 등락/거래대금/breadth: INV.indMapData (market-overview.js, market_data 최신일 = 신선)
  *   - 누적 수급/누적 등락률/US선행/신호: sector_daily_summary (백엔드 집계 — 자체 1회 조회)
  *
  * 주의: market_data의 1일 외국인/기관 순매수는 사실상 비어있어(전체 종목 중 극소수만 채움)
@@ -71,7 +71,7 @@ function _srTV(tv) {
   return Math.round(tv / 1e8) + '억';
 }
 
-// ── 로드 — sector_daily_summary 자체 조회 후 window._indMapData(신선)와 조인 ──
+// ── 로드 — sector_daily_summary 자체 조회 후 INV.indMapData(신선)와 조인 ──
 async function loadSectorRotation() {
   const el = document.getElementById('sector-rot-body');
   if (!el) return;
@@ -100,9 +100,9 @@ async function loadSectorRotation() {
 
 // 신선(오늘) 보드 + 누적 수급(SDS) 조인 → 산업별 행
 function _buildSrRows(sdsByInd) {
-  const indMap    = window._indMapData || {};
-  const marketAvg = (window._marketBreadth && typeof window._marketBreadth.avg === 'number')
-    ? window._marketBreadth.avg : 0;
+  const indMap    = INV.indMapData || {};
+  const marketAvg = (INV.marketBreadth && typeof INV.marketBreadth.avg === 'number')
+    ? INV.marketBreadth.avg : 0;
 
   const flowOf = (f, i) => (f == null && i == null) ? null : (f || 0) + (i || 0);
 
