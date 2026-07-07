@@ -151,7 +151,7 @@ function _rpFormatNote(note) {
 function _rpEarningsCard(fin) {
   if (!fin?.length) return `
     <div class="card" style="padding:16px">
-      <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text1)">📊 실적 트렌드</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text1)">${_ICO.bar}실적 트렌드</div>
       <div style="padding:20px;text-align:center;color:var(--text2);font-size:12px">재무 데이터 없음</div>
     </div>`;
 
@@ -180,7 +180,7 @@ function _rpEarningsCard(fin) {
 
     <!-- ① 타이틀 + KPI chips -->
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-      <span style="font-size:14px;font-weight:700;color:var(--text1);white-space:nowrap">📊 실적 트렌드</span>
+      <span style="font-size:14px;font-weight:700;color:var(--text1);white-space:nowrap">${_ICO.bar}실적 트렌드</span>
       ${chip('매출 YoY', yoy != null ? (yoy>=0?'+':'')+yoy.toFixed(1)+'%' : null, yoy>=0?'var(--red)':'var(--blue)')}
       ${chip('영업이익 YoY', opYoy != null ? (opYoy>=0?'+':'')+opYoy.toFixed(1)+'%' : null, opYoy>=0?'var(--red)':'var(--blue)')}
       ${chip('영업이익률', opMargin != null ? opMargin.toFixed(1)+'%' : null, opMargin >= 15 ? '#4ade80' : opMargin >= 5 ? 'var(--text2)' : 'var(--red)')}

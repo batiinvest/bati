@@ -794,8 +794,8 @@ async function loadWatchlist() {
       const jr = _journalAvailable ? journalMap[w.stock_code] : null;
       const jName = (w.corp_name || '').replace(/'/g, "\\'");
       const jLine = !_journalAvailable ? ''
-        : jr ? `<div style="font-size:11px;color:var(--accent);cursor:pointer" title="복기 보기/수정" onclick="event.stopPropagation();openJournalModal('${w.stock_code}','${jName}')">📝 ${'★'.repeat(jr.process_score||0)||'기록'}${jr.lesson?` · ${jr.lesson.length>16?jr.lesson.slice(0,16)+'…':jr.lesson}`:''}</div>`
-             : `<div style="font-size:11px;color:var(--text3);cursor:pointer" title="복기 작성" onclick="event.stopPropagation();openJournalModal('${w.stock_code}','${jName}')">📝 복기 필요</div>`;
+        : jr ? `<div style="font-size:11px;color:var(--accent);cursor:pointer" title="복기 보기/수정" onclick="event.stopPropagation();openJournalModal('${w.stock_code}','${jName}')">${_ICO.pen}${'★'.repeat(jr.process_score||0)||'기록'}${jr.lesson?` · ${jr.lesson.length>16?jr.lesson.slice(0,16)+'…':jr.lesson}`:''}</div>`
+             : `<div style="font-size:11px;color:var(--text3);cursor:pointer" title="복기 작성" onclick="event.stopPropagation();openJournalModal('${w.stock_code}','${jName}')">${_ICO.pen}복기 필요</div>`;
       costCell = `<div style="font-size:12px;color:var(--text2);font-weight:600">청산 완료</div>
                   <div style="font-size:12px;font-weight:700;color:${chgColor(e.realized)}">실현 ${fmtWon(e.realized, true)}</div>
                   ${jLine}`;
@@ -896,13 +896,22 @@ async function loadWatchlist() {
     return `<tr style="cursor:pointer;${rowBg}" onclick="wlOpenDrawer(event,'${w.stock_code}')" onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background='${baseBg}'">${cols.map(k => colTag(tdMap[k], k)).join('')}</tr>`;
   }).join('');
 
+  // 색점 범례 — 헤더 ●가 가리키는 가격 컬럼의 의미 (표시 중인 컬럼만)
+  const _legendItems = [
+    cols.includes('watch')  ? '<span><span style="color:#4a9eff">●</span> 관심가 · 진입 대기 기준</span>' : '',
+    cols.includes('target') ? '<span><span style="color:#a78bfa">●</span> 목표가 · 익절 기준(업사이드)</span>' : '',
+    cols.includes('cost')   ? '<span><span style="color:var(--accent)">●</span> 평단 · 보유 원가(손익)</span>' : '',
+  ].filter(Boolean);
+  const _legend = _legendItems.length
+    ? `<div style="display:flex;gap:14px;flex-wrap:wrap;padding:6px 4px 0;font-size:11px;color:var(--text3)">${_legendItems.join('')}</div>` : '';
+
   listEl.innerHTML = `${pipeBar}
     <div class="card" style="overflow-x:auto;padding:0">
       <table class="wl-table" style="width:100%;border-collapse:collapse">
         <thead>${header}</thead>
         <tbody>${rows}</tbody>
       </table>
-    </div>`;
+    </div>${_legend}`;
 }
 
 // ── 인라인 편집 ──────────────────────────────────────────────────────────────
@@ -1035,7 +1044,7 @@ function wlToggleRowMenu(btn, id, code, name, hasTx, isClosed) {
        onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">${label}</div>`;
   menu.innerHTML =
     (hasTx ? item('거래 이력', `openTradeHistory('${code}','${name}')`) : '') +
-    (isClosed && _journalAvailable ? item('📝 복기', `openJournalModal('${code}','${name}')`, 'var(--accent)') : '') +
+    (isClosed && _journalAvailable ? item(_ICO.pen + '복기', `openJournalModal('${code}','${name}')`, 'var(--accent)') : '') +
     item('수정', `openWatchlistModal(${id})`) +
     item('삭제', `deleteWatchlist(${id},'${name}')`, 'var(--red)');
   btn.parentElement.appendChild(menu);

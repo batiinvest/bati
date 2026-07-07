@@ -28,8 +28,8 @@ function pFinancials() {
   const industries = ['전체', ...INDUSTRIES];
   return `
   <div style="display:flex;gap:6px;align-items:center;margin-bottom:.75rem;flex-wrap:wrap">
-    <button class="chip" onclick="go('screener')">🔎 필터 스크리닝</button>
-    <button class="chip active" onclick="go('financials')">📊 기업 분석</button>
+    <button class="chip" onclick="go('screener')">${_ICO.search}필터 스크리닝</button>
+    <button class="chip active" onclick="go('financials')">${_ICO.bar}기업 분석</button>
   </div>
   <div class="tabs" style="margin-bottom:.75rem">
     <button class="tab fin-tab ${F.mode==='market'?'active':''}" data-mode="market" onclick="F.mode='market';loadFinancials()">시장 현황</button>

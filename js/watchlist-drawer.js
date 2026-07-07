@@ -98,7 +98,7 @@ function wlRenderDrawer(code) {
     <button class="btn btn-sm" style="color:var(--buy);font-weight:700" onclick="openTradeModal(${w.id},'${code}','${nm}','buy',${price||'null'})">매수</button>
     <button class="btn btn-sm" style="color:var(--sell);font-weight:700" onclick="openTradeModal(${w.id},'${code}','${nm}','sell',${price||'null'})">매도</button>
     ${e.hasTx ? `<button class="btn btn-sm" onclick="openTradeHistory('${code}','${nm}')">거래 이력</button>` : ''}
-    ${e.closed && _journalAvailable ? `<button class="btn btn-sm" style="color:var(--accent)" onclick="openJournalModal('${code}','${nm}')">📝 복기</button>` : ''}
+    ${e.closed && _journalAvailable ? `<button class="btn btn-sm" style="color:var(--accent)" onclick="openJournalModal('${code}','${nm}')">${_ICO.pen}복기</button>` : ''}
   </div>`;
   if (e.avg && e.qty && price) {
     const pnl = (price - e.avg) * e.qty, pnlPct = (price - e.avg) / e.avg * 100;

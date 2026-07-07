@@ -172,7 +172,7 @@ async function openJournalModal(stockCode, corpName) {
   overlay.innerHTML = `
     <div class="modal" style="width:520px;max-width:95vw;max-height:90vh;overflow-y:auto">
       <div class="modal-header">
-        <span class="modal-title">${escapeHtml(corpName)} · 📝 매매 복기</span>
+        <span class="modal-title">${escapeHtml(corpName)} · ${_ICO.pen}매매 복기</span>
         <button class="modal-close" onclick="document.getElementById('m-journal').remove()">×</button>
       </div>
       <div style="padding:1.25rem;display:flex;flex-direction:column;gap:14px">

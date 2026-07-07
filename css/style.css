@@ -10,6 +10,7 @@
      매수/매도 '행동' 색은 등락색과 분리(--buy/--sell) */
   --up: #f5365c;
   --down: #4a9eff;
+  --blue: #4a9eff;   /* 하락색 별칭 (구 index.html 인라인 정의를 이동) */
   --buy: #00c087;
   --sell: #f5365c;
   --neutral: #8898aa;
@@ -39,7 +40,7 @@
 body { background:var(--bg); color:var(--text); font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,sans-serif; font-size:14px; line-height:1.5; min-height:100vh; }
 
 /* ── 전역 스크롤바 스타일 ── */
-::-webkit-scrollbar { width:4px; height:4px; }
+::-webkit-scrollbar { width:8px; height:8px; }
 ::-webkit-scrollbar-track { background:transparent; }
 ::-webkit-scrollbar-thumb { background:rgba(255,255,255,.12); border-radius:2px; }
 ::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.22); }
@@ -116,7 +117,7 @@ body { background:var(--bg); color:var(--text); font-family:'Pretendard','Apple 
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,.18) transparent;
 }
-.table-wrap::-webkit-scrollbar { height: 5px; }
+.table-wrap::-webkit-scrollbar { height: 8px; }
 .table-wrap::-webkit-scrollbar-track { background: var(--bg3); border-radius: 3px; }
 .table-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,.22); border-radius: 3px; }
 .table-wrap::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.38); }
@@ -138,6 +139,10 @@ tr:hover td { background:rgba(255,255,255,.04); }
 .chip { padding:4px 12px; font-size:12px; border-radius:100px; border:1px solid var(--border); cursor:pointer; background:transparent; color:var(--text2); font-family:inherit; transition:all .15s; }
 .chip:hover { color:var(--text); border-color:var(--border2); }
 .chip.active { background:var(--tg); color:#fff; border-color:var(--tg); }
+/* 카드 헤더·툴바용 소형 칩 — 인라인 font-size/padding 지정 대체 */
+.chip.chip-sm { font-size:11px; padding:3px 9px; }
+/* 카드 제목 옆 부제 — 인라인 지정 대체 */
+.card-sub { font-size:11px; color:var(--text2); font-weight:400; }
 .search-box { padding:6px 12px; font-size:13px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg2); color:var(--text); font-family:inherit; flex:1; max-width:220px; }
 .search-box:focus { outline:none; border-color:var(--tg); }
 .search-box::placeholder { color:var(--text3); }
@@ -158,8 +163,10 @@ a:hover { text-decoration:underline; }
 .hidden { display:none !important; }
 .menu-btn { background:none; border:none; color:var(--text); cursor:pointer; padding:6px; border-radius:var(--radius-sm); display:none; align-items:center; justify-content:center; }
 .menu-btn:hover { background:var(--bg3); }
-.overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:49; opacity:0; pointer-events:none; transition:opacity .25s; }
 .empty-row { color:var(--text3); text-align:center; padding:2rem !important; }
+/* 모바일 사이드바 오버레이 — 구 .overlay(미사용)와 index.html 인라인 정의를 여기로 단일화 */
+#sidebar-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:49; display:none; }
+#sidebar-overlay.active { display:block; }
 
 /* ── Modal ── */
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:var(--z-modal); opacity:0; pointer-events:none; transition:opacity .2s; }
@@ -212,8 +219,6 @@ textarea.form-input { resize:vertical; min-height:100px; }
   .topbar-actions .btn-label { display:none; }
   .content { padding:.875rem; }
   .menu-btn { display:flex !important; }
-  .overlay { display:block; }
-  .overlay.active { opacity:1; pointer-events:all; }
 
   /* ── 메트릭 카드 ── */
   .metrics-grid { grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:1rem; }
@@ -290,6 +295,10 @@ textarea.form-input { resize:vertical; min-height:100px; }
   font-size:11px; color:var(--text3); opacity:0; transition:opacity .15s; pointer-events:none;
 }
 .wl-editable:hover::after { opacity:.7; }
+/* 터치 기기는 hover가 없어 편집 가능 셀을 발견할 수 없음 → 연필 힌트 상시 노출 */
+@media (pointer: coarse) {
+  .wl-editable::after { opacity:.45; }
+}
 
 /* ── 모바일 반응형: 스크리너·워치리스트·주도주 (P3-3) ─────────────── */
 @media(max-width:900px){

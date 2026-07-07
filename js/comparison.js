@@ -563,23 +563,23 @@ async function runComparison() {
           <span class="card-title">분기별 재무 비교</span>
           <div style="display:flex;gap:6px;flex-wrap:wrap;flex:1">
             ${CMP_METRICS.map(m => `
-              <button class="chip ${CMP.metric===m.key?'active':''}"
+              <button class="chip chip-sm ${CMP.metric===m.key?'active':''}"
                 data-metric="${m.key}"
                 onclick="CMP.metric='${m.key}';document.getElementById('cmp-metric').value='${m.key}';renderCmpChart('${m.key}')"
-                style="font-size:11px;padding:3px 8px">${m.label}</button>
+               >${m.label}</button>
             `).join('')}
           </div>
           <div style="display:flex;gap:6px;align-items:center;margin-left:auto">
             <button id="cmp-normalize-btn"
               onclick="CMP.normalize=!CMP.normalize;this.classList.toggle('active');renderCmpChart(CMP.metric)"
-              class="chip ${CMP.normalize?'active':''}"
-              style="font-size:11px;padding:3px 8px" title="100 기준 정규화 — 성장률 비교">
+              class="chip chip-sm ${CMP.normalize?'active':''}"
+              title="100 기준 정규화 — 성장률 비교">
               📐 정규화
             </button>
             <button id="cmp-median-btn"
               onclick="CMP.showMedian=!CMP.showMedian;this.classList.toggle('active');renderCmpChart(CMP.metric)"
-              class="chip ${CMP.showMedian?'active':''}"
-              style="font-size:11px;padding:3px 8px" title="산업 중위값 기준선 표시">
+              class="chip chip-sm ${CMP.showMedian?'active':''}"
+              title="산업 중위값 기준선 표시">
               ⊘ 중위값
             </button>
           </div>
