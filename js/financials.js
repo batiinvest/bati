@@ -513,7 +513,7 @@ async function openStockDetail(code, name, initTab = 'overview') {
   document.getElementById('m-stock-detail')?.remove();
   const modal = document.createElement('div');
   modal.id = 'm-stock-detail';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px;backdrop-filter:blur(3px)';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:var(--z-modal-top);display:flex;align-items:center;justify-content:center;padding:12px;backdrop-filter:blur(3px)';
 
   modal.innerHTML = `
     <div style="background:var(--bg2);border-radius:14px;width:100%;max-width:1100px;

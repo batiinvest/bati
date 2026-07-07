@@ -249,7 +249,7 @@ async function loadWatchlist() {
         const lossPct = (e.avg && p) ? (p - e.avg) / e.avg * 100 : null;
         const ctx = `현재가 ${p?p.toLocaleString():'—'}원 · 손절 ${w.stop_price?.toLocaleString()}원 이탈${lossPct!=null?` · <span style="color:${chgColor(lossPct)};font-weight:600">${lossPct.toFixed(1)}%</span>`:''}`;
         return itemRow('var(--red)','🛑',code,ctx,
-          aBtn('매도','var(--down)',`openTradeModal(${w.id},'${code}','${esc(w.corp_name)}','sell',${p||'null'})`)
+          aBtn('매도','var(--sell)',`openTradeModal(${w.id},'${code}','${esc(w.corp_name)}','sell',${p||'null'})`)
         + aBtn('이력','var(--text2)',`openTradeHistory('${code}','${esc(w.corp_name)}')`));
       }).join('');
       groups.push({ label:'손절 도달', count:stopHitCodes.size, color:'var(--red)', rows });
@@ -261,7 +261,7 @@ async function loadWatchlist() {
         const overPct = (w.target_price && p) ? (p - w.target_price) / w.target_price * 100 : null;
         const ctx = `현재가 ${p?p.toLocaleString():'—'}원 ≥ 목표 ${w.target_price?.toLocaleString()}원${overPct!=null&&overPct>0?` (+${overPct.toFixed(1)}%)`:''}${gainPct!=null?` · 평가 <span style="color:${chgColor(gainPct)};font-weight:600">${gainPct>=0?'+':''}${gainPct.toFixed(1)}%</span>`:''} · 익절 검토`;
         return itemRow('var(--up)','🎯',code,ctx,
-          aBtn('매도','var(--down)',`openTradeModal(${w.id},'${code}','${esc(w.corp_name)}','sell',${p||'null'})`)
+          aBtn('매도','var(--sell)',`openTradeModal(${w.id},'${code}','${esc(w.corp_name)}','sell',${p||'null'})`)
         + aBtn('이력','var(--text2)',`openTradeHistory('${code}','${esc(w.corp_name)}')`));
       }).join('');
       groups.push({ label:'목표 도달 (익절 검토)', count:targetHitCodes.size, color:'var(--up)', rows });
@@ -274,7 +274,7 @@ async function loadWatchlist() {
         const gainPct = (e.avg && p) ? (p - e.avg) / e.avg * 100 : null;
         const ctx = `현재가 ${p?p.toLocaleString():'—'}원 · 목표까지 +${up!=null?up.toFixed(1):'—'}%${reach!=null?` (도달률 ${reach.toFixed(0)}%)`:''}${gainPct!=null?` · 평가 <span style="color:${chgColor(gainPct)};font-weight:600">${gainPct>=0?'+':''}${gainPct.toFixed(1)}%</span>`:''} · 분할 익절`;
         return itemRow('var(--accent)','✂️',code,ctx,
-          aBtn('매도','var(--down)',`openTradeModal(${w.id},'${code}','${esc(w.corp_name)}','sell',${p||'null'})`)
+          aBtn('매도','var(--sell)',`openTradeModal(${w.id},'${code}','${esc(w.corp_name)}','sell',${p||'null'})`)
         + aBtn('이력','var(--text2)',`openTradeHistory('${code}','${esc(w.corp_name)}')`));
       }).join('');
       groups.push({ label:'익절 구간 (분할 익절)', count:trimZoneCodes.size, color:'var(--accent)', rows });
@@ -284,10 +284,10 @@ async function loadWatchlist() {
         const w = byCode[code], p = priceMap[code]?.price;
         const rr = (w.target_price && w.stop_price && p && p > w.stop_price) ? (w.target_price - p)/(p - w.stop_price) : null;
         const ctx = `현재가 ${p?p.toLocaleString():'—'}원 ≤ 관심가 ${w.watch_price?.toLocaleString()}원${rr!=null?` · 손익비 ${rr.toFixed(1)}:1`:''}`;
-        return itemRow('var(--up)','✅',code,ctx,
-          aBtn('매수','var(--up)',`openTradeModal(${w.id},'${code}','${esc(w.corp_name)}','buy',${p||'null'})`));
+        return itemRow('var(--buy)','✅',code,ctx,
+          aBtn('매수','var(--buy)',`openTradeModal(${w.id},'${code}','${esc(w.corp_name)}','buy',${p||'null'})`));
       }).join('');
-      groups.push({ label:'매수 구간', count:buyZoneCodes.size, color:'var(--up)', rows });
+      groups.push({ label:'매수 구간', count:buyZoneCodes.size, color:'var(--buy)', rows });
     }
     if (rebalCodes.size) {
       const rows = [...rebalCodes].map(code => {
@@ -295,8 +295,8 @@ async function loadWatchlist() {
         const gap = curPct - tw, tradeAmt = (tw - curPct)/100*totalAssets, p = priceMap[code]?.price;
         const ctx = `현재 ${curPct.toFixed(1)}% · 목표 ${tw.toFixed(1)}% (<span style="color:var(--accent);font-weight:600">${gap>=0?'+':''}${gap.toFixed(1)}%p</span>) → ${tradeAmt>0?'매수':'매도'} ${fmtWon(Math.abs(tradeAmt))}`;
         return itemRow('var(--accent)','⚖️',code,ctx, tradeAmt>0
-          ? aBtn('매수','var(--up)',`openTradeModal(${w.id},'${code}','${esc(w.corp_name)}','buy',${p||'null'})`)
-          : aBtn('매도','var(--down)',`openTradeModal(${w.id},'${code}','${esc(w.corp_name)}','sell',${p||'null'})`));
+          ? aBtn('매수','var(--buy)',`openTradeModal(${w.id},'${code}','${esc(w.corp_name)}','buy',${p||'null'})`)
+          : aBtn('매도','var(--sell)',`openTradeModal(${w.id},'${code}','${esc(w.corp_name)}','sell',${p||'null'})`));
       }).join('');
       groups.push({ label:'리밸런싱', count:rebalCodes.size, color:'var(--accent)', rows });
     }
@@ -744,7 +744,7 @@ async function loadWatchlist() {
       const gap = watchGap != null ? Math.abs(watchGap).toFixed(1) + '%' : '—';
       const watchCapStr = capOfPrice(w.watch_price);
       if (isAtBuy) {
-        watchCell = `<div style="color:var(--up);font-weight:700;font-size:12px">✅ 매수 구간</div>
+        watchCell = `<div style="color:var(--buy);font-weight:700;font-size:12px">✅ 매수 구간</div>
                      <div style="font-size:12px;font-weight:600"><span style="font-size:10px;font-weight:700;color:#4a9eff">진입 </span>${w.watch_price.toLocaleString()}원</div>
                      ${watchCapStr ? `<div style="font-size:11px;color:var(--text1)">${watchCapStr}</div>` : ''}`;
       } else {
@@ -883,9 +883,9 @@ async function loadWatchlist() {
       check: `<td class="wl-editable" style="${tdStyle}" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'next_check_date',${JSON.stringify(w.next_check_date||'')},'date')">${checkCell}</td>`,
       actions: `<td style="${tdStyle};white-space:nowrap">
         <div style="display:flex;gap:4px;align-items:center;position:relative">
-          <button class="btn btn-sm" style="color:var(--up);font-weight:700" title="매수 기록"
+          <button class="btn btn-sm" style="color:var(--buy);font-weight:700" title="매수 기록"
             onclick="openTradeModal(${w.id},'${w.stock_code}','${nameEsc}','buy',${price||'null'})">매수</button>
-          <button class="btn btn-sm" style="color:var(--down);font-weight:700" title="매도 기록"
+          <button class="btn btn-sm" style="color:var(--sell);font-weight:700" title="매도 기록"
             onclick="openTradeModal(${w.id},'${w.stock_code}','${nameEsc}','sell',${price||'null'})">매도</button>
           <button class="btn btn-sm" title="더보기"
             onclick="wlToggleRowMenu(this,${w.id},'${w.stock_code}','${nameEsc}',${e.hasTx},${e.closed})">⋯</button>

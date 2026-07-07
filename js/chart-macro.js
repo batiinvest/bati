@@ -308,12 +308,12 @@ async function loadTrendChart() {
       },
       scales: {
         x: {
-          ticks: { color: 'var(--text3)', maxTicksLimit: 7, maxRotation: 0 },
-          grid:  { color: 'var(--border)' },
+          ticks: { color: chartTheme().tick, maxTicksLimit: 7, maxRotation: 0 },
+          grid:  { color: chartTheme().grid },
         },
         y: {
-          ticks: { color: 'var(--text3)', callback: v => v + '' },
-          grid:  { color: 'var(--border)' },
+          ticks: { color: chartTheme().tick, callback: v => v + '' },
+          grid:  { color: chartTheme().grid },
         }
       }
     }

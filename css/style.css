@@ -2,17 +2,28 @@
 :root {
   --bg:#0f1117; --bg2:#1a1d27; --bg3:#222535;
   --border:rgba(255,255,255,0.08); --border2:rgba(255,255,255,0.14);
-  --text:#f0f2f8; --text2:#a8adc4; --text3:#6b7694;
+  --text:#f0f2f8; --text1:#cfd4e4; --text2:#a8adc4; --text3:#6b7694;
   --tg:#2AABEE; --tg2:#1e96d3; --green:#2dce89; --red:#f5365c; --yellow:#fb6340;
   --radius:10px; --radius-sm:6px;
 
-  /* 투자 전용 컬러 */
-  --up: #00c087;
-  --down: #ff3b5c;
+  /* 투자 전용 컬러 — 등락은 한국식(상승=빨강, 하락=파랑)으로 단일화.
+     매수/매도 '행동' 색은 등락색과 분리(--buy/--sell) */
+  --up: #f5365c;
+  --down: #4a9eff;
+  --buy: #00c087;
+  --sell: #f5365c;
   --neutral: #8898aa;
   --accent: #f0a500;
   --signal-hot: rgba(240,165,0,.12);
   --signal-cold: rgba(0,192,135,.08);
+
+  /* z-index 스케일 — 산재한 숫자(49~9999) 수렴용 */
+  --z-sticky: 40;
+  --z-sidebar: 50;
+  --z-drawer: 70;
+  --z-modal: 200;
+  --z-modal-top: 300;
+  --z-toast: 400;
 
   /* 정보 밀도 타이포그래피 */
   --fs-data: 12px;
@@ -151,7 +162,7 @@ a:hover { text-decoration:underline; }
 .empty-row { color:var(--text3); text-align:center; padding:2rem !important; }
 
 /* ── Modal ── */
-.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:200; opacity:0; pointer-events:none; transition:opacity .2s; }
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:var(--z-modal); opacity:0; pointer-events:none; transition:opacity .2s; }
 .modal-overlay.open { opacity:1; pointer-events:all; }
 .modal { background:var(--bg2); border:1px solid var(--border2); border-radius:14px; padding:1.5rem; width:480px; max-width:94vw; max-height:90vh; overflow-y:auto; transform:translateY(16px); transition:transform .2s; }
 .modal-overlay.open .modal { transform:translateY(0); }
@@ -179,7 +190,7 @@ textarea.form-input { resize:vertical; min-height:100px; }
 .tab.active { color:var(--tg); border-bottom-color:var(--tg); font-weight:500; }
 
 /* ── Toast ── */
-.toast-container { position:fixed; bottom:1.5rem; right:1.5rem; z-index:999; display:flex; flex-direction:column; gap:8px; }
+.toast-container { position:fixed; bottom:1.5rem; right:1.5rem; z-index:var(--z-toast); display:flex; flex-direction:column; gap:8px; }
 .toast { background:var(--bg2); border:1px solid var(--border2); border-radius:var(--radius); padding:10px 14px; font-size:13px; min-width:260px; animation:slideUp .25s ease; }
 .toast-success { border-left:3px solid var(--green); }
 .toast-error { border-left:3px solid var(--red); }
@@ -343,6 +354,11 @@ textarea.form-input { resize:vertical; min-height:100px; }
 
 @media(min-width:901px){
   .menu-btn { display:none !important; }
+}
+
+/* ── 터치 기기: 16px 미만 input은 iOS Safari가 포커스 시 페이지를 강제 확대함 ── */
+@media (pointer: coarse) {
+  .form-input, .form-select, .search-box { font-size:16px; }
 }
 
 /* ════════════════════════════════════
@@ -559,12 +575,12 @@ td { padding:7px 10px; font-size:var(--fs-data); }
 
 /* 신호 배지 */
 .sig { display:inline-flex; align-items:center; gap:3px; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:600; }
-.sig-buy    { background:rgba(0,192,135,.15); color:var(--up);     border:1px solid rgba(0,192,135,.25); }
-.sig-sell   { background:rgba(255,59,92,.12);  color:var(--down);   border:1px solid rgba(255,59,92,.2); }
+.sig-buy    { background:rgba(0,192,135,.15); color:var(--buy);    border:1px solid rgba(0,192,135,.25); }
+.sig-sell   { background:rgba(255,59,92,.12);  color:var(--sell);   border:1px solid rgba(255,59,92,.2); }
 .sig-watch  { background:rgba(240,165,0,.12);  color:var(--accent); border:1px solid rgba(240,165,0,.2); }
 .sig-neutral{ background:rgba(136,152,170,.1); color:var(--neutral); border:1px solid var(--border); }
 .grade-s { background:rgba(240,165,0,.2);   color:#f0a500; font-weight:700; }
-.grade-a { background:rgba(0,192,135,.15);  color:var(--up); }
+.grade-a { background:rgba(0,192,135,.15);  color:var(--buy); }
 .grade-b { background:rgba(42,171,238,.12); color:var(--tg); }
 
 /* (스켈레톤 로딩 — 상단 'Skeleton loading' 단일 정의 사용, 중복 제거) */

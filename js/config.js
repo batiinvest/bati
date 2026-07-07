@@ -55,6 +55,21 @@ function indCumReturn(dayChgMap, dates) {
   return parseFloat((cum - 100).toFixed(2));
 }
 
+// ══════════════════════════════════════════
+//  Chart.js 테마 헬퍼 — canvas는 CSS 변수를 해석하지 못하므로
+//  'var(--text3)' 같은 값을 옵션에 직접 넘기면 축/그리드 색이 무시된다.
+//  계산된 실제 색상값을 읽어 넘길 것. (chart-macro 등 모든 Chart 옵션 공용)
+// ══════════════════════════════════════════
+function chartTheme() {
+  const s = getComputedStyle(document.documentElement);
+  const v = (name, fallback) => (s.getPropertyValue(name) || '').trim() || fallback;
+  return {
+    tick:      v('--text2', '#a8adc4'),
+    grid:      'rgba(255,255,255,.06)',
+    tooltipBg: v('--bg2', '#1a1d27'),
+  };
+}
+
 // 유료 채팅방 입장 후원 링크 (Litt.ly)
 // 유료방은 직접 입장 링크 대신 이 후원 페이지로 안내 → 후원(결제) 후 봇에서 방 선택·입장
 const LITTLY_DONATE_URL = 'https://litt.ly/batiinvest';

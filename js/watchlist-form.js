@@ -371,7 +371,7 @@ async function renderWatchlistForm(id) {
           ${inp('stop_price','🛑 손절가 (원)','','number')}
         </div>
         <div style="font-size:11px;color:var(--text2);margin-top:6px">
-          💡 평단·수량은 테이블의 <b style="color:var(--up)">매수</b>/<b style="color:var(--down)">매도</b> 버튼으로 거래를 기록하면 자동 계산됩니다. (수동 입력도 가능)
+          💡 평단·수량은 테이블의 <b style="color:var(--buy)">매수</b>/<b style="color:var(--sell)">매도</b> 버튼으로 거래를 기록하면 자동 계산됩니다. (수동 입력도 가능)
         </div>
       </div>
 

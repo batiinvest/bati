@@ -265,7 +265,7 @@ function openTradeModal(watchlistId, stockCode, corpName, type, curPrice) {
   overlay.innerHTML = `
     <div class="modal" style="width:430px;max-width:94vw">
       <div class="modal-header">
-        <span class="modal-title">${corpName} · <span style="color:${isBuy?'var(--up)':'var(--down)'}">${isBuy ? '매수' : '매도'}</span> 기록</span>
+        <span class="modal-title">${corpName} · <span style="color:${isBuy?'var(--buy)':'var(--sell)'}">${isBuy ? '매수' : '매도'}</span> 기록</span>
         <button class="modal-close" onclick="document.getElementById('m-trade').remove()">×</button>
       </div>
       <div style="padding:1.25rem;display:flex;flex-direction:column;gap:12px">
@@ -308,7 +308,7 @@ function openTradeModal(watchlistId, stockCode, corpName, type, curPrice) {
         <div id="trade-preview" style="font-size:12px;color:var(--text2);background:var(--bg2);border-radius:6px;padding:8px 12px"></div>
         <div style="display:flex;gap:8px;justify-content:flex-end">
           <button class="btn" onclick="document.getElementById('m-trade').remove()">취소</button>
-          <button class="btn btn-primary" style="background:${isBuy?'var(--up)':'var(--down)'};border-color:transparent;color:#fff"
+          <button class="btn btn-primary" style="background:${isBuy?'var(--buy)':'var(--sell)'};border-color:transparent;color:#fff"
             onclick="saveTrade(${watchlistId},'${stockCode}','${nm}','${type}')">${isBuy?'매수 기록':'매도 기록'}</button>
         </div>
       </div>
@@ -432,7 +432,7 @@ async function openTradeHistory(stockCode, corpName) {
     const amt = Number(t.price) * Number(t.quantity) + (Number(t.fee) || 0);
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 8px;font-size:12px">${t.trade_date}</td>
-      <td style="padding:7px 8px;font-size:12px;font-weight:700;color:${isBuy?'var(--up)':'var(--down)'}">${isBuy?'매수':'매도'}${t.trade_method==='credit'?` <span style="font-size:9px;padding:1px 4px;border-radius:3px;background:var(--accent);color:#1b1300;font-weight:700">신용</span>`:''}</td>
+      <td style="padding:7px 8px;font-size:12px;font-weight:700;color:${isBuy?'var(--buy)':'var(--sell)'}">${isBuy?'매수':'매도'}${t.trade_method==='credit'?` <span style="font-size:9px;padding:1px 4px;border-radius:3px;background:var(--accent);color:#1b1300;font-weight:700">신용</span>`:''}</td>
       <td style="padding:7px 8px;font-size:12px;text-align:right">${Number(t.price).toLocaleString()}원</td>
       <td style="padding:7px 8px;font-size:12px;text-align:right">${Number(t.quantity).toLocaleString()}주</td>
       <td style="padding:7px 8px;font-size:12px;text-align:right">${Math.round(amt).toLocaleString()}원</td>
@@ -468,8 +468,8 @@ async function openTradeHistory(stockCode, corpName) {
       <tbody>${rows}</tbody>
     </table>
     <div style="margin-top:12px;text-align:right">
-      <button class="btn btn-sm" style="color:var(--up)" onclick="openTradeModal(${txs[0].watchlist_id},'${stockCode}','${nm}','buy',null)">+ 매수</button>
-      <button class="btn btn-sm" style="color:var(--down)" onclick="openTradeModal(${txs[0].watchlist_id},'${stockCode}','${nm}','sell',null)">+ 매도</button>
+      <button class="btn btn-sm" style="color:var(--buy)" onclick="openTradeModal(${txs[0].watchlist_id},'${stockCode}','${nm}','buy',null)">+ 매수</button>
+      <button class="btn btn-sm" style="color:var(--sell)" onclick="openTradeModal(${txs[0].watchlist_id},'${stockCode}','${nm}','sell',null)">+ 매도</button>
     </div>`;
 }
 

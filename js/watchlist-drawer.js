@@ -95,8 +95,8 @@ function wlRenderDrawer(code) {
   // ── 포지션 / 청산 ──
   let posHtml = '';
   const acts = `<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-    <button class="btn btn-sm" style="color:var(--up);font-weight:700" onclick="openTradeModal(${w.id},'${code}','${nm}','buy',${price||'null'})">매수</button>
-    <button class="btn btn-sm" style="color:var(--down);font-weight:700" onclick="openTradeModal(${w.id},'${code}','${nm}','sell',${price||'null'})">매도</button>
+    <button class="btn btn-sm" style="color:var(--buy);font-weight:700" onclick="openTradeModal(${w.id},'${code}','${nm}','buy',${price||'null'})">매수</button>
+    <button class="btn btn-sm" style="color:var(--sell);font-weight:700" onclick="openTradeModal(${w.id},'${code}','${nm}','sell',${price||'null'})">매도</button>
     ${e.hasTx ? `<button class="btn btn-sm" onclick="openTradeHistory('${code}','${nm}')">거래 이력</button>` : ''}
     ${e.closed && _journalAvailable ? `<button class="btn btn-sm" style="color:var(--accent)" onclick="openJournalModal('${code}','${nm}')">📝 복기</button>` : ''}
   </div>`;
