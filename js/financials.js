@@ -1,4 +1,4 @@
-﻿// financials.js — 기업 분석 (시장 현황/재무제표)
+// financials.js — 기업 분석 (시장 현황/재무제표)
 // fmtCap, chgColor, chgStr, loadingHTML, emptyHTML, errorHTML, fetchAllPages → config.js 참조
 
 // 페이지 상태 네임스페이스 — 구 window._fin*/_sd* 수렴 (view·chart·drawChart·render·getRows·rows·indMap·sdCode 등)
@@ -323,7 +323,7 @@ async function loadMarketData(el) {
       const w52pct = (r.w52_high && r.w52_low && r.price && r.w52_high > r.w52_low)
         ? Math.round((r.price - r.w52_low) / (r.w52_high - r.w52_low) * 100) : null;
       const w52bar = w52pct != null
-        ? `<div style="display:flex;align-items:center;gap:3px;font-size:10px">
+        ? `<div style="display:flex;align-items:center;gap:3px;font-size:11px">
             <span style="width:40px;height:3px;background:var(--bg3);border-radius:2px;display:inline-block;position:relative">
               <span style="position:absolute;left:0;top:0;height:100%;width:${Math.max(2,w52pct)}%;
                 background:${w52pct>=80?'var(--red)':w52pct<=20?'var(--blue)':'var(--tg)'};border-radius:2px"></span>
@@ -360,8 +360,8 @@ async function loadMarketData(el) {
           ${w52bar}
         </td>
         <td style="color:var(--blue);font-size:12px">${n(r.w52_low)}</td>
-        <td style="font-size:10px;color:var(--text2)">${r.w52_high_date||'—'}</td>
-        <td style="font-size:10px;color:var(--text2)">${r.w52_low_date||'—'}</td>
+        <td style="font-size:11px;color:var(--text2)">${r.w52_high_date||'—'}</td>
+        <td style="font-size:11px;color:var(--text2)">${r.w52_low_date||'—'}</td>
         <td style="font-size:11px">${p(r.price && r.w52_high ? (r.price - r.w52_high) / r.w52_high * 100 : null)}</td>
         <td style="font-size:11px">${p(r.price && r.w52_low  ? (r.price - r.w52_low)  / r.w52_low  * 100 : null)}</td>
         <td style="font-size:11px;color:var(--text2);font-family:monospace">${r.price_change_sign||'—'}</td>
@@ -382,7 +382,7 @@ async function loadFinancialData(el) {
   const pct  = v => v != null ? v.toFixed(1) + '%' : '—';
   const cap  = v => v != null ? fmtCap(v) : '—';
   const num  = v => v != null ? v.toLocaleString() : '—';
-  const src  = (s) => `<span style="font-size:9px;padding:1px 4px;border-radius:3px;
+  const src  = (s) => `<span style="font-size:11px;padding:1px 4px;border-radius:3px;
     background:${s==='DART'?'rgba(45,206,137,.15)':s==='계산'?'rgba(251,99,64,.15)':'rgba(42,171,238,.15)'};
     color:${s==='DART'?'var(--green)':s==='계산'?'var(--yellow)':'var(--tg)'};font-weight:600">${s}</span>`;
 
@@ -458,7 +458,7 @@ async function loadFinancialData(el) {
         <td style="font-size:11px;color:var(--text2);font-family:monospace">${r.stock_code}</td>
         <td style="font-size:11px;color:var(--text2)">${r.bsns_year||'—'}</td>
         <td style="font-size:11px;color:var(--text2)">${r.quarter||'—'}</td>
-        <td style="font-size:10px">${r.fs_div==='CFS'?'연결':'별도'}</td>
+        <td style="font-size:11px">${r.fs_div==='CFS'?'연결':'별도'}</td>
         <td>${cap(r.revenue)}</td>
         <td>${cap(r.gross_profit)}</td>
         <td>${cap(r.cogs)}</td>
@@ -556,17 +556,17 @@ async function openStockDetail(code, name, initTab = 'overview') {
       <div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0;padding:0 20px;
         background:var(--bg2);overflow-x:auto;scrollbar-width:none">
         ${[
-          ['overview',  '📋', '종합'],
-          ['market',    '📊', '시장 데이터'],
-          ['financial', '💰', '재무제표'],
-          ['supply',    '🔄', '수급'],
-          ['opinion',   '🎯', '증권사 의견'],
+          ['overview',  _ICO.doc,     '종합'],
+          ['market',    _ICO.bar,     '시장 데이터'],
+          ['financial', _ICO.coin,    '재무제표'],
+          ['supply',    _ICO.shuffle, '수급'],
+          ['opinion',   _ICO.target,  '증권사 의견'],
         ].map(([id, ic, lb]) => `
           <button id="sd-tab-${id}" onclick="window.sdSwitchTab('${id}')"
             style="background:none;border:none;border-bottom:2px solid transparent;
               padding:10px 16px;cursor:pointer;font-size:13px;font-weight:600;
               color:var(--text2);white-space:nowrap;transition:.15s;flex-shrink:0">
-            ${ic} ${lb}
+            ${ic}${lb}
           </button>`).join('')}
       </div>
 
@@ -579,6 +579,11 @@ async function openStockDetail(code, name, initTab = 'overview') {
     </div>`;
 
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  // ESC 닫기 — 모달이 다른 경로(X·배경·전체 리포트)로 제거됐으면 리스너만 정리
+  document.addEventListener('keydown', function _sdEsc(e) {
+    if (!document.body.contains(modal)) { document.removeEventListener('keydown', _sdEsc); return; }
+    if (e.key === 'Escape') { modal.remove(); document.removeEventListener('keydown', _sdEsc); }
+  });
   document.body.appendChild(modal);
 
   // 기본 정보 로드
@@ -765,7 +770,7 @@ function _w52bar(r) {
   const c = pct>=80?'var(--red)':pct<=20?'var(--blue)':'var(--tg)';
   return `
     <div style="margin:8px 0 4px">
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text1);margin-bottom:4px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text1);margin-bottom:4px">
         <span>저 ${_won(lo)}</span>
         <span style="color:${c};font-weight:700">현재 ${pct}%</span>
         <span>고 ${_won(hi)}</span>
@@ -928,15 +933,15 @@ async function _sdMarket(body, code, name) {
         </div>
         <div style="display:grid;grid-template-columns:1fr;gap:8px">
           <div>
-            <div style="font-size:10px;color:var(--tg);margin-bottom:3px;font-weight:600">주가 (원)</div>
+            <div style="font-size:11px;color:var(--tg);margin-bottom:3px;font-weight:600">주가 (원)</div>
             <div style="position:relative;height:130px"><canvas id="sd-chart-price"></canvas></div>
           </div>
           <div>
-            <div style="font-size:10px;color:var(--green);margin-bottom:3px;font-weight:600">거래량</div>
+            <div style="font-size:11px;color:var(--green);margin-bottom:3px;font-weight:600">거래량</div>
             <div style="position:relative;height:80px"><canvas id="sd-chart-volume"></canvas></div>
           </div>
           <div>
-            <div style="font-size:10px;color:var(--yellow);margin-bottom:3px;font-weight:600">외국인 보유율 (%)</div>
+            <div style="font-size:11px;color:var(--yellow);margin-bottom:3px;font-weight:600">외국인 보유율 (%)</div>
             <div style="position:relative;height:80px"><canvas id="sd-chart-foreign"></canvas></div>
           </div>
         </div>
@@ -1190,7 +1195,7 @@ async function _sdOpinion(body, code, name) {
           <div style="background:var(--bg3);border-radius:8px;padding:12px 14px;border:1px solid var(--border);text-align:center">
             <div style="font-size:11px;color:var(--text1);margin-bottom:4px">${lb}</div>
             <div style="font-size:18px;font-weight:700">${v}</div>
-            ${sub?`<div style="font-size:10px;color:${upside&&upside>=0?'var(--green)':'var(--text2)'};margin-top:2px">${sub}</div>`:''}
+            ${sub?`<div style="font-size:11px;color:${upside&&upside>=0?'var(--green)':'var(--text2)'};margin-top:2px">${sub}</div>`:''}
           </div>`).join('')}
       </div>
       <!-- 의견 목록 -->
@@ -1249,7 +1254,7 @@ async function _renderFinancialTab(body, code, name) {
     body.innerHTML = `
       <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
         <button id="btn-quarter" class="chip active" onclick="FIN.view='quarter';FIN.render()">분기별</button>
-        <button id="btn-annual"  class="chip"        onclick="FIN.view='annual'; FIN.render()">연간별 <span style="font-size:10px;color:var(--text2)">(Q4 누적)</span></button>
+        <button id="btn-annual"  class="chip"        onclick="FIN.view='annual'; FIN.render()">연간별 <span style="font-size:11px;color:var(--text2)">(Q4 누적)</span></button>
         <button id="btn-qcomp"   class="chip"        onclick="FIN.view='qcomp';  FIN.render()">분기비교</button>
         <div style="display:flex;gap:4px;margin-left:auto;align-items:center">
           <button id="btn-chart-rev"  class="chip active" onclick="FIN.chart='revenue'; FIN.drawChart()">매출·영업이익</button>

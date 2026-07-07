@@ -1,4 +1,4 @@
-﻿// market-overview.js — 시황 탭: 매크로 지표, 흐름 차트, 전체 종목 동향
+// market-overview.js — 시황 탭: 매크로 지표, 흐름 차트, 전체 종목 동향
 // 의존: config.js (sb, chgColor, chgStr, fmtCap, getIndustryMap, IND_COLORS, getLatestMarketDate), investment.js (INV_ALL_METRICS, INV)
 
 // ── 흐름 비교 차트 전역 변수 ──
@@ -258,7 +258,7 @@ async function loadMarketOverview(maxDate) {
           '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">' +
             '<span style="font-size:12px;font-weight:700">' + s.sub + '</span>' +
             '<span style="font-size:13px;font-weight:800;color:' + chgColor(s.avg) + '">' + chgStr(s.avg) + '</span>' +
-            '<span style="font-size:10px;color:var(--text2)">▲' + s.rise + ' ▼' + s.fall + ' · ' + s.total + '개</span>' +
+            '<span style="font-size:11px;color:var(--text2)">▲' + s.rise + ' ▼' + s.fall + ' · ' + s.total + '개</span>' +
           '</div>' +
           '<div style="display:flex;gap:3px;flex-wrap:wrap">' +
             top3.map(st => mkTag(st, chgColor(st.price_change_rate))).join('') +
@@ -571,9 +571,9 @@ function renderHgprTab(tab) {
     const badge  = clsLabel[r.hgpr_cls_code] || '';
     const bClr   = clsColor[r.hgpr_cls_code] || 'var(--tg)';
     const histBadges = [];
-    if (r.isFirst)   histBadges.push(`<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(245,54,92,.15);color:var(--red);font-weight:600">🎯첫</span>`);
-    if (r.streak>=2) histBadges.push(`<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(251,99,64,.15);color:var(--yellow);font-weight:600">🔥${r.streak}일</span>`);
-    else if (r.count7>=3) histBadges.push(`<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(42,171,238,.15);color:var(--tg);font-weight:600">📈${r.count7}회</span>`);
+    if (r.isFirst)   histBadges.push(`<span style="font-size:11px;padding:1px 5px;border-radius:3px;background:rgba(245,54,92,.15);color:var(--red);font-weight:600">🎯첫</span>`);
+    if (r.streak>=2) histBadges.push(`<span style="font-size:11px;padding:1px 5px;border-radius:3px;background:rgba(251,99,64,.15);color:var(--yellow);font-weight:600">🔥${r.streak}일</span>`);
+    else if (r.count7>=3) histBadges.push(`<span style="font-size:11px;padding:1px 5px;border-radius:3px;background:rgba(42,171,238,.15);color:var(--tg);font-weight:600">📈${r.count7}회</span>`);
     const indCell = showIndustry
       ? `<td style="padding:5px 10px;font-size:11px;color:var(--text2)">${r.industry}</td>`
       : '';
@@ -585,7 +585,7 @@ function renderHgprTab(tab) {
       ${indCell}
       <td style="padding:5px 12px">
         <div style="display:flex;align-items:center;gap:3px;flex-wrap:wrap">
-          <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:${bClr}22;color:${bClr};font-weight:600">${badge}</span>
+          <span style="font-size:11px;padding:1px 5px;border-radius:3px;background:${bClr}22;color:${bClr};font-weight:600">${badge}</span>
           ${histBadges.join('')}
         </div>
       </td>
@@ -622,11 +622,11 @@ function renderHgprTab(tab) {
                      '연간 신고가':'연간','역사적 신고가':'역사적' };
 
     const streakBadge = r => {
-      if (r.streak >= 3)  return `<span style="display:inline-block;min-width:52px;text-align:center;font-size:10px;padding:1px 5px;border-radius:10px;background:rgba(245,54,92,.18);color:var(--red);font-weight:700">🔥${r.streak}일 연속</span>`;
-      if (r.streak === 2) return `<span style="display:inline-block;min-width:52px;text-align:center;font-size:10px;padding:1px 5px;border-radius:10px;background:rgba(251,99,64,.15);color:var(--yellow);font-weight:700">🔥2일 연속</span>`;
-      if (r.isFirst)      return `<span style="display:inline-block;min-width:52px;text-align:center;font-size:10px;padding:1px 5px;border-radius:10px;background:rgba(42,171,238,.15);color:var(--tg);font-weight:700">🎯 첫 신고가</span>`;
-      if (r.count7 >= 3)  return `<span style="display:inline-block;min-width:52px;text-align:center;font-size:10px;padding:1px 5px;border-radius:10px;background:rgba(45,206,137,.12);color:var(--green);font-weight:700">📈${r.count7}회</span>`;
-      return `<span style="display:inline-block;min-width:52px;font-size:10px;padding:1px 5px;color:var(--text2)">—</span>`;
+      if (r.streak >= 3)  return `<span style="display:inline-block;min-width:52px;text-align:center;font-size:11px;padding:1px 5px;border-radius:10px;background:rgba(245,54,92,.18);color:var(--red);font-weight:700">🔥${r.streak}일 연속</span>`;
+      if (r.streak === 2) return `<span style="display:inline-block;min-width:52px;text-align:center;font-size:11px;padding:1px 5px;border-radius:10px;background:rgba(251,99,64,.15);color:var(--yellow);font-weight:700">🔥2일 연속</span>`;
+      if (r.isFirst)      return `<span style="display:inline-block;min-width:52px;text-align:center;font-size:11px;padding:1px 5px;border-radius:10px;background:rgba(42,171,238,.15);color:var(--tg);font-weight:700">🎯 첫 신고가</span>`;
+      if (r.count7 >= 3)  return `<span style="display:inline-block;min-width:52px;text-align:center;font-size:11px;padding:1px 5px;border-radius:10px;background:rgba(45,206,137,.12);color:var(--green);font-weight:700">📈${r.count7}회</span>`;
+      return `<span style="display:inline-block;min-width:52px;font-size:11px;padding:1px 5px;color:var(--text2)">—</span>`;
     };
 
     const makeRow = r => {
@@ -638,13 +638,13 @@ function renderHgprTab(tab) {
 
       // ── Phase 2: 거래대금 + 외국인 배지 ──────────────────────
       const tvStr = r.tv >= 1e10
-        ? '<span style="font-size:9px;padding:1px 4px;border-radius:3px;background:rgba(245,158,11,.12);color:#f59e0b;font-weight:600">' +
+        ? '<span style="font-size:11px;padding:1px 4px;border-radius:3px;background:rgba(245,158,11,.12);color:#f59e0b;font-weight:600">' +
           fmtTV(r.tv) + '</span>'
         : '';
       const frgnBadge = r.foreign_net_buy != null && r.foreign_net_buy !== 0
         ? (r.foreign_net_buy > 0
-            ? '<span style="font-size:9px;padding:1px 4px;border-radius:3px;background:rgba(42,171,238,.12);color:var(--tg);font-weight:600">외↑</span>'
-            : '<span style="font-size:9px;padding:1px 4px;border-radius:3px;background:rgba(74,158,255,.10);color:var(--blue);font-weight:600">외↓</span>')
+            ? '<span style="font-size:11px;padding:1px 4px;border-radius:3px;background:rgba(42,171,238,.12);color:var(--tg);font-weight:600">외↑</span>'
+            : '<span style="font-size:11px;padding:1px 4px;border-radius:3px;background:rgba(74,158,255,.10);color:var(--blue);font-weight:600">외↓</span>')
         : '';
 
       return `<div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||r.stock_code)}"
@@ -675,14 +675,14 @@ function renderHgprTab(tab) {
           background:rgba(42,171,238,.06);border-bottom:1px solid var(--border);
           display:flex;align-items:center;justify-content:space-between">
           <span>${ind}</span>
-          <span style="font-weight:400;color:var(--text2);font-size:10px">${indRows.length}개</span>
+          <span style="font-weight:400;color:var(--text2);font-size:11px">${indRows.length}개</span>
         </div>
         <div style="display:grid;grid-template-columns:1fr 90px 52px 70px;
           padding:4px 10px 3px;background:var(--bg2);border-bottom:1px solid var(--border)">
-          <span style="font-size:10px;color:var(--text2)">종목</span>
-          <span style="font-size:10px;color:var(--text2);text-align:center">연속/첫신고가</span>
-          <span style="font-size:10px;color:var(--text2);text-align:right">등락률</span>
-          <span style="font-size:10px;color:var(--text2);text-align:right">시총</span>
+          <span style="font-size:11px;color:var(--text2)">종목</span>
+          <span style="font-size:11px;color:var(--text2);text-align:center">연속/첫신고가</span>
+          <span style="font-size:11px;color:var(--text2);text-align:right">등락률</span>
+          <span style="font-size:11px;color:var(--text2);text-align:right">시총</span>
         </div>
         ${rows_html}
       </div>`;
@@ -763,10 +763,10 @@ function renderHgprTab(tab) {
             border-left:2px solid ${bClr}">
           <div style="min-width:0">
             <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.corp_name||r.stock_code)}</div>
-            <div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.industry||'')}</div>
+            <div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.industry||'')}</div>
           </div>
           <div style="font-size:12px;font-weight:700;color:${chgClr};white-space:nowrap">${chgTxt}</div>
-          <div style="font-size:10px;color:var(--text2);white-space:nowrap;text-align:right">${r.market_cap?fmtCap(r.market_cap):'—'}</div>
+          <div style="font-size:11px;color:var(--text2);white-space:nowrap;text-align:right">${r.market_cap?fmtCap(r.market_cap):'—'}</div>
         </div>`;
       }).join('');
 
@@ -780,13 +780,13 @@ function renderHgprTab(tab) {
         <div style="padding:7px 10px;background:${g.hdrBg};border-bottom:1px solid var(--border);
           display:flex;align-items:center;justify-content:space-between">
           <span style="font-size:11px;font-weight:700;color:${g.textColor}">${g.icon}${g.icon?' ':''}${g.title}</span>
-          <span style="font-size:10px;font-weight:400;color:var(--text2)">${g.members.length}개</span>
+          <span style="font-size:11px;font-weight:400;color:var(--text2)">${g.members.length}개</span>
         </div>
         <div style="display:grid;grid-template-columns:1fr auto auto;gap:6px;
           padding:3px 10px;background:var(--bg2);border-bottom:1px solid var(--border)">
-          <span style="font-size:10px;color:var(--text2)">종목</span>
-          <span style="font-size:10px;color:var(--text2)">등락</span>
-          <span style="font-size:10px;color:var(--text2);text-align:right">시총</span>
+          <span style="font-size:11px;color:var(--text2)">종목</span>
+          <span style="font-size:11px;color:var(--text2)">등락</span>
+          <span style="font-size:11px;color:var(--text2);text-align:right">시총</span>
         </div>
         ${itemsHtml}${moreHtml}
       </div>`;
@@ -932,8 +932,8 @@ function _renderFlowCol(tab, bodyId) {
 
   if (!rows.length) {
     const msg = tab === 'both'
-      ? '오늘 외국인·기관 동시 순매수 종목 없음<br><span style="font-size:10px">외국인↔기관 매수 방향 상이</span>'
-      : tab === 'orgn' ? '기관 집계 전<br><span style="font-size:10px">09:35·11:25·13:25·14:35</span>' : '데이터 없음';
+      ? '오늘 외국인·기관 동시 순매수 종목 없음<br><span style="font-size:11px">외국인↔기관 매수 방향 상이</span>'
+      : tab === 'orgn' ? '기관 집계 전<br><span style="font-size:11px">09:35·11:25·13:25·14:35</span>' : '데이터 없음';
     body.innerHTML = `<div style="padding:1.5rem;color:var(--text2);font-size:12px;text-align:center">${msg}</div>`;
     return;
   }
@@ -944,18 +944,18 @@ function _renderFlowCol(tab, bodyId) {
   // orgn: 종목 | 등락 | 금액
   const CFG = {
     both: { cols: '1fr 44px 82px',
-            hdr: `<span style="font-size:10px;color:var(--text2)">종목</span>
-                  <span style="font-size:10px;color:var(--text2);text-align:right">등락</span>
-                  <span style="font-size:10px;text-align:right"><span style="color:var(--tg)">외</span><span style="color:var(--text2)">/</span><span style="color:var(--yellow)">기</span>(억)</span>` },
+            hdr: `<span style="font-size:11px;color:var(--text2)">종목</span>
+                  <span style="font-size:11px;color:var(--text2);text-align:right">등락</span>
+                  <span style="font-size:11px;text-align:right"><span style="color:var(--tg)">외</span><span style="color:var(--text2)">/</span><span style="color:var(--yellow)">기</span>(억)</span>` },
     frgn: { cols: '1fr 44px 52px 44px',
-            hdr: `<span style="font-size:10px;color:var(--text2)">종목</span>
-                  <span style="font-size:10px;color:var(--text2);text-align:right">등락</span>
-                  <span style="font-size:10px;color:${_frgnSellMode?'var(--blue)':'var(--tg)'};text-align:right">금액(억)</span>
-                  <span style="font-size:10px;color:var(--text2);text-align:right">보유율</span>` },
+            hdr: `<span style="font-size:11px;color:var(--text2)">종목</span>
+                  <span style="font-size:11px;color:var(--text2);text-align:right">등락</span>
+                  <span style="font-size:11px;color:${_frgnSellMode?'var(--blue)':'var(--tg)'};text-align:right">금액(억)</span>
+                  <span style="font-size:11px;color:var(--text2);text-align:right">보유율</span>` },
     orgn: { cols: '1fr 44px 52px',
-            hdr: `<span style="font-size:10px;color:var(--text2)">종목</span>
-                  <span style="font-size:10px;color:var(--text2);text-align:right">등락</span>
-                  <span style="font-size:10px;color:var(--yellow);text-align:right">금액(억)</span>` },
+            hdr: `<span style="font-size:11px;color:var(--text2)">종목</span>
+                  <span style="font-size:11px;color:var(--text2);text-align:right">등락</span>
+                  <span style="font-size:11px;color:var(--yellow);text-align:right">금액(억)</span>` },
   };
   const { cols, hdr } = CFG[tab];
 
@@ -963,9 +963,9 @@ function _renderFlowCol(tab, bodyId) {
   const frgnToggle = tab === 'frgn'
     ? `<div style="display:flex;gap:4px;padding:4px 8px;border-bottom:1px solid var(--border);background:var(--bg2)">
          <button class="chip ${!_frgnSellMode?'active':''}" onclick="_setFlowMode(false)"
-           style="font-size:10px;padding:2px 8px;flex:1">순매수 ▲</button>
+           style="font-size:11px;padding:2px 8px;flex:1">순매수 ▲</button>
          <button class="chip ${_frgnSellMode?'active':''}" onclick="_setFlowMode(true)"
-           style="font-size:10px;padding:2px 8px;flex:1;${_frgnSellMode?'color:var(--blue)':''}">순매도 ▼</button>
+           style="font-size:11px;padding:2px 8px;flex:1;${_frgnSellMode?'color:var(--blue)':''}">순매도 ▼</button>
        </div>`
     : '';
 
@@ -981,7 +981,7 @@ function _renderFlowCol(tab, bodyId) {
     if (tab === 'both') {
       const fAmt = _flowAmtFmt(r.foreign_net_buy, r.price);
       const oAmt = _flowAmtFmt(r.institution_net_buy, r.price);
-      cells = `<span style="font-size:10px;font-weight:600;text-align:right">` +
+      cells = `<span style="font-size:11px;font-weight:600;text-align:right">` +
         `<span style="color:var(--tg)">${fAmt}</span>` +
         `<span style="color:var(--text2)">/</span>` +
         `<span style="color:var(--yellow)">${oAmt}</span></span>`;
@@ -989,8 +989,8 @@ function _renderFlowCol(tab, bodyId) {
       const amtClr = _frgnSellMode ? 'var(--blue)' : 'var(--tg)';
       const amt    = _flowAmtFmt(r.foreign_net_buy, r.price);
       const holdRate = r.foreign_hold_rate != null
-        ? `<span style="font-size:10px;color:var(--text2);text-align:right">${r.foreign_hold_rate.toFixed(1)}%</span>`
-        : `<span style="font-size:10px;color:var(--text2);text-align:right">—</span>`;
+        ? `<span style="font-size:11px;color:var(--text2);text-align:right">${r.foreign_hold_rate.toFixed(1)}%</span>`
+        : `<span style="font-size:11px;color:var(--text2);text-align:right">—</span>`;
       cells = `<span style="font-size:11px;font-weight:600;text-align:right;color:${amtClr}">${amt}</span>${holdRate}`;
     } else {
       const amt = _flowAmtFmt(r.institution_net_buy, r.price);

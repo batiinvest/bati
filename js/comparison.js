@@ -1,4 +1,4 @@
-﻿// comparison.js — 기업 비교 분석 페이지
+// comparison.js — 기업 비교 분석 페이지
 // 의존: config.js (INDUSTRIES, CATS, fetchAllPages, fmtCap, chgColor, chgStr, loadingHTML, emptyHTML)
 
 // ── 비교 상태 ──
@@ -338,9 +338,9 @@ function renderCmpSelected() {
       <span style="width:10px;height:10px;border-radius:50%;background:${CMP_COLORS[i%CMP_COLORS.length]};flex-shrink:0"></span>
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</div>
-        ${s.subIndustry ? `<div style="font-size:10px;color:var(--text2)">${s.subIndustry}</div>` : ''}
+        ${s.subIndustry ? `<div style="font-size:11px;color:var(--text2)">${s.subIndustry}</div>` : ''}
       </div>
-      <span style="font-size:10px;color:var(--text2)">${s.code}</span>
+      <span style="font-size:11px;color:var(--text2)">${s.code}</span>
       <button onclick="removeCmpStock('${s.code}')"
         style="background:none;border:none;color:var(--text2);cursor:pointer;padding:0 2px;font-size:14px;line-height:1">×</button>
     </div>`).join('');
@@ -514,7 +514,7 @@ async function runComparison() {
                 if (w52 && price) {
                   const pct = Math.round((price - w52.low) / (w52.high - w52.low) * 100);
                   const barColor = pct >= 80 ? 'var(--red)' : pct <= 20 ? 'var(--blue)' : 'var(--tg)';
-                  w52bar = `<div style="font-size:10px;color:var(--text2);margin-bottom:3px;display:flex;justify-content:space-between">
+                  w52bar = `<div style="font-size:11px;color:var(--text2);margin-bottom:3px;display:flex;justify-content:space-between">
                     <span>${w52.low.toLocaleString()}</span><span>${pct}%</span><span>${w52.high.toLocaleString()}</span>
                   </div>
                   <div style="background:var(--bg3);border-radius:3px;height:6px;position:relative;width:120px">
@@ -528,7 +528,7 @@ async function runComparison() {
                     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
                       <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></span>
                       <span style="font-weight:500">${s.name}</span>
-                      ${ma?.newHigh ? `<span style="font-size:10px;padding:1px 5px;border-radius:3px;
+                      ${ma?.newHigh ? `<span style="font-size:11px;padding:1px 5px;border-radius:3px;
                         background:${ma.newHighCode==='3'?'rgba(255,193,7,.2)':ma.newHighCode==='2'?'rgba(255,107,54,.2)':'rgba(42,171,238,.15)'};
                         color:${ma.newHighCode==='3'?'#ffc107':ma.newHighCode==='2'?'#ff6b35':'var(--tg)'};
                         font-weight:600;white-space:nowrap">${ma.newHigh}</span>` : ''}
@@ -715,9 +715,9 @@ function renderCmpDetailTable(metricKey) {
               const yoy = calcYoY(rowMap, lbl, labels);
               const yoyColor = yoy != null ? (parseFloat(yoy)>0?'var(--red)':'var(--blue)') : '';
               const yoyStr = yoy != null
-                ? `<div style="font-size:10px;color:${yoyColor};font-weight:600;margin-top:1px">YoY ${parseFloat(yoy)>0?'▲':'▼'}${Math.abs(yoy)}%</div>` : '';
+                ? `<div style="font-size:11px;color:${yoyColor};font-weight:600;margin-top:1px">YoY ${parseFloat(yoy)>0?'▲':'▼'}${Math.abs(yoy)}%</div>` : '';
               const qoqStr = qoq != null && li > 0
-                ? `<div style="font-size:10px;color:${qoqColor};margin-top:1px">QoQ ${parseFloat(qoq) > 0 ? '▲' : '▼'}${Math.abs(qoq)}%</div>`
+                ? `<div style="font-size:11px;color:${qoqColor};margin-top:1px">QoQ ${parseFloat(qoq) > 0 ? '▲' : '▼'}${Math.abs(qoq)}%</div>`
                 : '';
               return `<td style="padding:6px 12px;text-align:right;vertical-align:top">
                 <div>${fmtVal(cur)}</div>${yoyStr}${qoqStr}

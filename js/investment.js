@@ -1,4 +1,4 @@
-﻿// investment.js — 오늘의 시황 페이지
+// investment.js — 오늘의 시황 페이지
 
 // ── 전체 지표 정의 ──
 const INV_ALL_METRICS = [
@@ -27,30 +27,7 @@ const INV = {
   // moSort·indBarChart·insightSaveDB·insightCurrentData·lsPollTimer·lsAllData: 섹션별 상태
 };
 
-// ── 카드 SVG 아이콘 맵 ──
-const _ICO = (() => {
-  const s = (d, w=14, mr=5) =>
-    `<svg style="width:${w}px;height:${w}px;vertical-align:-2px;margin-right:${mr}px;flex-shrink:0" viewBox="0 0 16 16" fill="none">${d}</svg>`;
-  return {
-    bar:      s('<rect x="2" y="8" width="3" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="6.5" y="5" width="3" height="9" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="3" width="3" height="11" rx="1" stroke="currentColor" stroke-width="1.5"/>'),
-    chart:    s('<path d="M2 12l3-4 3 2 3-5 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'),
-    bulb:     s('<path d="M8 2a4 4 0 0 1 2.5 7.1V11a.5.5 0 0 1-.5.5h-4A.5.5 0 0 1 5.5 11V9.1A4 4 0 0 1 8 2z" stroke="currentColor" stroke-width="1.4"/><path d="M6.5 13h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>'),
-    flag:     s('<path d="M4 2v12M4 2l8 3-8 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'),
-    flow:     s('<path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>'),
-    arrowUp:  s('<path d="M8 13V3M4 7l4-4 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>', 12, 4),
-    arrowDn:  s('<path d="M8 3v10M4 9l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>', 12, 4),
-    shuffle:  s('<path d="M2 5h3l8 6h1M14 5h-1l-2 1.5M2 11h3l2-1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 3l2 2-2 2M13 9l2 2-2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>'),
-    globe:    s('<circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M8 2.5C6.5 4 5.5 5.8 5.5 8s1 4 2.5 5.5M8 2.5C9.5 4 10.5 5.8 10.5 8s-1 4-2.5 5.5M2.5 8h11" stroke="currentColor" stroke-width="1.3"/>'),
-    building: s('<rect x="3" y="2" width="10" height="12" rx="1" stroke="currentColor" stroke-width="1.4"/><path d="M6 6h1M9 6h1M6 9h1M9 9h1M7 14v-3h2v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>'),
-    grid:     s('<rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/>'),
-    doc:      s('<rect x="3" y="1.5" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>'),
-    rocket:   s('<path d="M8 2c2.5 0 5 2.2 5 5.5C13 10.5 10.5 12.5 8 14 5.5 12.5 3 10.5 3 7.5 3 4.2 5.5 2 8 2z" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="7.5" r="1.5" stroke="currentColor" stroke-width="1.3"/>'),
-    refresh:  s('<path d="M13.5 8A5.5 5.5 0 112.5 5M2.5 2v3h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>', 12, 3),
-    temp:     s('<path d="M10 9.2V3a2 2 0 0 0-4 0v6.2A4 4 0 1 0 10 9.2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>'),
-    coin:     s('<ellipse cx="8" cy="5" rx="5.5" ry="2.2" stroke="currentColor" stroke-width="1.4"/><path d="M2.5 5v6c0 1.2 2.5 2.2 5.5 2.2s5.5-1 5.5-2.2V5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M2.5 8c0 1.2 2.5 2.2 5.5 2.2S13.5 9.2 13.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>'),
-    history:  s('<circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M8 5v3.5l2.5 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>'),
-  };
-})();
+// (카드 SVG 아이콘 맵 _ICO → config.js로 이동 — 상세 모달 등 다른 파일도 공용 사용)
 
 // ── 스켈레톤 리스트 헬퍼 ──
 function _skelList(n=5, compact=false) {
@@ -80,7 +57,7 @@ function _macroCard(label, value, chg, color) {
   return `
   <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;
               border-left:3px solid ${color};cursor:pointer" title="${label}">
-    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">${label}</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:4px">${label}</div>
     <div style="font-size:15px;font-weight:700;font-variant-numeric:tabular-nums">${value}</div>
     <div style="font-size:11px;color:${up?'var(--up)':'var(--down)'};margin-top:2px">
       ${up?'▲':'▼'} ${Math.abs(chg).toFixed(2)}%
@@ -105,8 +82,8 @@ function pInvestment() {
   <div class="card insight-card" style="margin-bottom:1rem">
     <div class="card-header" style="flex-wrap:wrap;gap:6px">
       <span class="card-title">${_ICO.temp}오늘의 시장 판단</span>
-      <span style="font-size:10px;color:var(--text2);font-weight:400">지금 들어가도 되나 → 무엇을 할까</span>
-      <span id="mj-source" style="font-size:10px;color:var(--text2);margin-left:auto"></span>
+      <span style="font-size:11px;color:var(--text2);font-weight:400">지금 들어가도 되나 → 무엇을 할까</span>
+      <span id="mj-source" style="font-size:11px;color:var(--text2);margin-left:auto"></span>
       <span style="font-size:11px;color:var(--text2)" id="market-temp-date"></span>
       <div style="display:flex;gap:5px;align-items:center">
         <button class="chip" id="btn-insight-hist" style="font-size:11px;padding:2px 8px;display:none"
@@ -138,7 +115,7 @@ function pInvestment() {
       <div style="padding:7px 1rem 4px;font-size:11px;font-weight:600;color:var(--text2);
         letter-spacing:.04em;display:flex;align-items:center;gap:6px">
         최근 시장 국면
-        <span style="font-size:10px;font-weight:400;opacity:.7">(DB 저장 기준)</span>
+        <span style="font-size:11px;font-weight:400;opacity:.7">(DB 저장 기준)</span>
       </div>
       <div id="insight-history-body" style="padding:0 1rem .75rem">
         <div style="color:var(--text2);font-size:12px;padding:.5rem 0"><span class="loading"></span></div>
@@ -150,8 +127,8 @@ function pInvestment() {
   <div class="card" id="my-stocks-card" style="margin-bottom:1rem">
     <div class="card-header" style="flex-wrap:wrap;gap:6px">
       <span class="card-title">${_ICO.doc}내 종목 현황</span>
-      <span style="font-size:10px;color:var(--text2);font-weight:400">시세 · 오늘 공시 · 최근 보고서</span>
-      <span id="ms-count-badge" style="font-size:10px;color:var(--text2);margin-left:auto"></span>
+      <span style="font-size:11px;color:var(--text2);font-weight:400">시세 · 오늘 공시 · 최근 보고서</span>
+      <span id="ms-count-badge" style="font-size:11px;color:var(--text2);margin-left:auto"></span>
     </div>
     <div id="ms-body" style="border-top:1px solid var(--border)">${_skelList(3, true)}</div>
   </div>
@@ -160,8 +137,8 @@ function pInvestment() {
   <div id="sector-rot-card" class="card" style="margin-bottom:1rem">
     <div class="card-header" style="flex-wrap:wrap;gap:6px">
       <span class="card-title">${_ICO.flow}산업별 수급동향</span>
-      <span style="font-size:10px;color:var(--text2);font-weight:400">자금이 어디로 — 등락·거래대금·수급·국면</span>
-      <span id="sr-date" style="font-size:10px;color:var(--text2);margin-left:auto"></span>
+      <span style="font-size:11px;color:var(--text2);font-weight:400">자금이 어디로 — 등락·거래대금·수급·국면</span>
+      <span id="sr-date" style="font-size:11px;color:var(--text2);margin-left:auto"></span>
       <div style="display:flex;gap:4px">
         <button class="chip"        data-sr-period="1"  onclick="switchSrPeriod(1)"  style="font-size:11px;padding:2px 8px">1일</button>
         <button class="chip active" data-sr-period="5"  onclick="switchSrPeriod(5)"  style="font-size:11px;padding:2px 8px">5일</button>
@@ -172,7 +149,7 @@ function pInvestment() {
   </div>
 
   <!-- 2단 레이아웃: 좌(투자포인트+주도주+수급) + 우(공시/신호) -->
-  <div style="display:grid;grid-template-columns:2fr 3fr;gap:1rem;align-items:start;margin-bottom:1rem">
+  <div class="inv-2col">
 
     <!-- 좌 패널 -->
     <div id="inv-left" style="display:flex;flex-direction:column;gap:1rem">
@@ -188,15 +165,15 @@ function pInvestment() {
         </div>
         <div class="flow-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--border)">
           <div>
-            <div style="padding:5px 8px;font-size:10px;font-weight:600;color:var(--text1);background:var(--bg2);border-bottom:1px solid var(--border)">${_ICO.shuffle}동시매수</div>
+            <div style="padding:5px 8px;font-size:11px;font-weight:600;color:var(--text1);background:var(--bg2);border-bottom:1px solid var(--border)">${_ICO.shuffle}동시매수</div>
             <div id="flow-body-both">${_skelList(6, true)}</div>
           </div>
           <div style="border-left:1px solid var(--border)">
-            <div style="padding:5px 8px;font-size:10px;font-weight:600;color:var(--tg);background:var(--bg2);border-bottom:1px solid var(--border)">${_ICO.globe}외국인</div>
+            <div style="padding:5px 8px;font-size:11px;font-weight:600;color:var(--tg);background:var(--bg2);border-bottom:1px solid var(--border)">${_ICO.globe}외국인</div>
             <div id="flow-body-frgn">${_skelList(6, true)}</div>
           </div>
           <div style="border-left:1px solid var(--border)">
-            <div style="padding:5px 8px;font-size:10px;font-weight:600;color:var(--yellow);background:var(--bg2);border-bottom:1px solid var(--border)">${_ICO.building}기관</div>
+            <div style="padding:5px 8px;font-size:11px;font-weight:600;color:var(--yellow);background:var(--bg2);border-bottom:1px solid var(--border)">${_ICO.building}기관</div>
             <div id="flow-body-orgn">${_skelList(6, true)}</div>
           </div>
         </div>
@@ -213,7 +190,7 @@ function pInvestment() {
       <div class="card" style="margin-bottom:0">
         <div class="card-header" style="flex-wrap:wrap;gap:6px">
           <span class="card-title">${_ICO.bulb}오늘의 아이디어</span>
-          <span style="font-size:10px;color:var(--text2);font-weight:400">발굴 → 클릭 → 상세·⭐관심</span>
+          <span style="font-size:11px;color:var(--text2);font-weight:400">발굴 → 클릭 → 상세·⭐관심</span>
           <div style="display:flex;gap:4px;margin-left:auto;flex-wrap:wrap">
             <button class="chip active" id="idea-tab-ls"       onclick="switchIdeaTab('ls')"       style="font-size:11px;padding:3px 10px">${_ICO.rocket}주도주</button>
             <button class="chip"        id="idea-tab-hgpr"     onclick="switchIdeaTab('hgpr')"     style="font-size:11px;padding:3px 10px">${_ICO.flag}신고가</button>
@@ -226,10 +203,10 @@ function pInvestment() {
         <!-- 주도주 패널 -->
         <div id="idea-panel-ls" style="border-top:1px solid var(--border)">
           <div style="padding:5px 10px;border-bottom:1px solid var(--border);display:flex;gap:3px;align-items:center">
-            <button class="chip active" data-ls-tab="all"    onclick="switchLsTab('all')"    style="font-size:10px;padding:3px 8px">전체</button>
-            <button class="chip"        data-ls-tab="kospi"  onclick="switchLsTab('kospi')"  style="font-size:10px;padding:3px 8px">코스피</button>
-            <button class="chip"        data-ls-tab="kosdaq" onclick="switchLsTab('kosdaq')" style="font-size:10px;padding:3px 8px">코스닥</button>
-            <span style="font-size:10px;color:var(--text2);margin-left:auto;align-self:center" id="ls-date"></span>
+            <button class="chip active" data-ls-tab="all"    onclick="switchLsTab('all')"    style="font-size:11px;padding:3px 8px">전체</button>
+            <button class="chip"        data-ls-tab="kospi"  onclick="switchLsTab('kospi')"  style="font-size:11px;padding:3px 8px">코스피</button>
+            <button class="chip"        data-ls-tab="kosdaq" onclick="switchLsTab('kosdaq')" style="font-size:11px;padding:3px 8px">코스닥</button>
+            <span style="font-size:11px;color:var(--text2);margin-left:auto;align-self:center" id="ls-date"></span>
             <button id="ls-refresh-btn" onclick="refreshLeadingStocks()"
               style="font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid var(--border);
                      background:transparent;color:var(--text2);cursor:pointer;margin-left:6px"
@@ -237,12 +214,12 @@ function pInvestment() {
           </div>
           <div id="ls-body">${_skelList(8)}</div>
           <div style="padding:5px 10px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;gap:3px;align-items:center">
-            <span onclick="toggleLsBacktest()" style="font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;user-select:none">과거 주도주 수익률 <span id="ls-bt-chev" style="font-size:9px">▾</span></span>
-            <span id="ls-bt-date" style="font-size:10px;color:var(--text2);margin-left:auto;align-self:center"></span>
+            <span onclick="toggleLsBacktest()" style="font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;user-select:none">과거 주도주 수익률 <span id="ls-bt-chev" style="font-size:11px">▾</span></span>
+            <span id="ls-bt-date" style="font-size:11px;color:var(--text2);margin-left:auto;align-self:center"></span>
             <div style="display:flex;gap:3px">
-              <button class="chip active" data-bt-period="1w" onclick="switchBtPeriod('1w')" style="font-size:10px;padding:2px 6px">1주</button>
-              <button class="chip"        data-bt-period="1m" onclick="switchBtPeriod('1m')" style="font-size:10px;padding:2px 6px">1달</button>
-              <button class="chip"        data-bt-period="3m" onclick="switchBtPeriod('3m')" style="font-size:10px;padding:2px 6px">3달</button>
+              <button class="chip active" data-bt-period="1w" onclick="switchBtPeriod('1w')" style="font-size:11px;padding:2px 6px">1주</button>
+              <button class="chip"        data-bt-period="1m" onclick="switchBtPeriod('1m')" style="font-size:11px;padding:2px 6px">1달</button>
+              <button class="chip"        data-bt-period="3m" onclick="switchBtPeriod('3m')" style="font-size:11px;padding:2px 6px">3달</button>
             </div>
           </div>
           <div id="ls-bt-body" style="padding:6px 8px;display:none">${_skelList(5)}</div>
@@ -251,8 +228,8 @@ function pInvestment() {
         <!-- 신고가 패널 -->
         <div id="idea-panel-hgpr" style="display:none;border-top:1px solid var(--border)">
           <div style="padding:5px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span style="font-size:10px;color:var(--text2)">KIS 기준 신고가 지정 종목</span>
-            <span id="hgpr-date" style="font-size:10px;color:var(--text2)"></span>
+            <span style="font-size:11px;color:var(--text2)">KIS 기준 신고가 지정 종목</span>
+            <span id="hgpr-date" style="font-size:11px;color:var(--text2)"></span>
             <div style="display:flex;gap:4px;margin-left:auto">
               <button class="chip active" data-hgpr-tab="monitored" onclick="switchHgprTab('monitored')" style="font-size:11px;padding:2px 8px">⭐ 모니터링</button>
               <button class="chip"        data-hgpr-tab="all"       onclick="switchHgprTab('all')"       style="font-size:11px;padding:2px 8px">전체 종목</button>
@@ -279,13 +256,13 @@ function pInvestment() {
 
         <!-- 급등 패널 (당일 상승률 상위, 거래대금 필터) -->
         <div id="idea-panel-surge" style="display:none;border-top:1px solid var(--border)">
-          <div style="padding:5px 10px;border-bottom:1px solid var(--border);font-size:10px;color:var(--text2)">거래대금 5억↑ · 상승률 상위 (최근 거래일 종가 기준)</div>
+          <div style="padding:5px 10px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text2)">거래대금 5억↑ · 상승률 상위 (최근 거래일 종가 기준)</div>
           <div id="idea-surge-body" style="padding:.25rem 0">${_skelList(8, true)}</div>
         </div>
 
         <!-- 전망 패널 (미래 실적 추정치 — 상향 감지 + 고성장, estimates.js) -->
         <div id="idea-panel-outlook" style="display:none;border-top:1px solid var(--border)">
-          <div style="padding:5px 10px;border-bottom:1px solid var(--border);font-size:10px;color:var(--text2)">KIS 리서치 연간 추정치 (매일 18:40 갱신) · 커버 종목만 표시</div>
+          <div style="padding:5px 10px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text2)">KIS 리서치 연간 추정치 (매일 18:40 갱신) · 커버 종목만 표시</div>
           <div id="idea-outlook-body" style="padding:.25rem 0">${_skelList(8, true)}</div>
         </div>
       </div>
@@ -348,8 +325,8 @@ function pInvestment() {
     <!-- ③-b 종목별 수급 순위 (외국인/기관 10거래일 누적) -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="flex-wrap:wrap;gap:6px">
-        <span class="card-title">🏦 종목별 수급 순위 <span style="font-size:10px;font-weight:400;color:var(--text2)">(10거래일 누적)</span></span>
-        <span style="font-size:10px;color:var(--text2)" id="stockflow-date"></span>
+        <span class="card-title">${_ICO.bank}종목별 수급 순위 <span style="font-size:11px;font-weight:400;color:var(--text2)">(10거래일 누적)</span></span>
+        <span style="font-size:11px;color:var(--text2)" id="stockflow-date"></span>
         <div style="display:flex;gap:4px;margin-left:auto">
           <button class="chip active" data-sflow-type="foreign" onclick="switchStockFlowType('foreign')" style="font-size:11px;padding:2px 8px">외국인</button>
           <button class="chip"        data-sflow-type="inst"    onclick="switchStockFlowType('inst')"    style="font-size:11px;padding:2px 8px">기관</button>
@@ -407,7 +384,7 @@ function pInvestment() {
                 onchange="toggleInvMetric('${m.col}')" ${['sp500','nasdaq','kospi','kosdaq'].includes(m.col)?'checked':''}>
               <span style="width:8px;height:8px;border-radius:50%;background:${m.color};flex-shrink:0"></span>
               <span>${m.name}</span>
-              <span style="font-size:10px;color:var(--text2)">${m.group}</span>
+              <span style="font-size:11px;color:var(--text2)">${m.group}</span>
             </label>
           `).join('')}
         </div>
@@ -777,7 +754,7 @@ async function loadInvestment() {
   const rankRow = (r, i) => `
     <div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||r.stock_code||'')}" data-stock-tab="market"
       style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-bottom:1px solid var(--border)">
-      <span style="width:14px;font-size:10px;color:var(--text2);font-weight:600;flex-shrink:0">${i+1}</span>
+      <span style="width:14px;font-size:11px;color:var(--text2);font-weight:600;flex-shrink:0">${i+1}</span>
       <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.corp_name)}</span>
       ${wlBadge(r.stock_code)}
       <span style="font-size:12px;font-weight:700;color:${chgColor(r.price_change_rate)};flex-shrink:0">${chgStr(r.price_change_rate)}</span>
@@ -907,7 +884,7 @@ function renderIdeaSurge() {
 
   el.innerHTML = rows.map((r, i) => {
     const mkTag = r.market === 'KOSDAQ'
-      ? '<span style="font-size:9px;color:var(--text2);margin-left:2px;font-weight:600">Q</span>' : '';
+      ? '<span style="font-size:11px;color:var(--text2);margin-left:2px;font-weight:600">Q</span>' : '';
     const tv    = r.trading_value || ((r.volume ?? 0) * (r.price ?? 0));
     const tvStr = fmtTV(tv);
     return `
@@ -915,7 +892,7 @@ function renderIdeaSurge() {
       style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border)">
       <span style="width:16px;font-size:11px;color:var(--text2);font-weight:600;flex-shrink:0">${i + 1}</span>
       <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.corp_name)}${mkTag}</span>
-      <span style="font-size:10px;color:var(--text2);white-space:nowrap">${tvStr}</span>
+      <span style="font-size:11px;color:var(--text2);white-space:nowrap">${tvStr}</span>
       <span style="font-size:12px;font-weight:700;color:${chgColor(r.price_change_rate)};flex-shrink:0;min-width:48px;text-align:right">${chgStr(r.price_change_rate)}</span>
     </div>`;
   }).join('');
@@ -1075,9 +1052,9 @@ function _renderMyStocks() {
       const link = d0.rcept_no ? `https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${d0.rcept_no}` : null;
       const click = link ? `onclick="event.stopPropagation();window.open('${link}','_blank')"` : '';
       const more  = it.discs.length > 1
-        ? `<span style="font-size:10px;color:var(--text3);flex-shrink:0">+${it.discs.length - 1}</span>` : '';
+        ? `<span style="font-size:11px;color:var(--text3);flex-shrink:0">+${it.discs.length - 1}</span>` : '';
       discHTML = `
-        <span ${click} style="font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;flex-shrink:0;
+        <span ${click} style="font-size:11px;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;flex-shrink:0;
           background:${s.bg};color:${s.c};cursor:${link ? 'pointer' : 'default'}">${escapeHtml(d0.category || '공시')}</span>
         <span ${click} title="${escAttr(d0.report_nm || '')}"
           style="font-size:11px;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;cursor:${link ? 'pointer' : 'default'}">${escapeHtml(d0.report_nm || '공시')}</span>
@@ -1090,7 +1067,7 @@ function _renderMyStocks() {
       const latest = it.reports[0];
       const md = (latest.receive_date || '').slice(5).replace('-', '/');
       reportHTML = `<span title="${escAttr(latest.report_type || 'DART 분석 보고서')}"
-        style="font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;flex-shrink:0;
+        style="font-size:11px;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;flex-shrink:0;
         background:rgba(42,171,238,.13);color:#2AABEE">📄 리포트${md ? ' ' + md : ''}${it.reports.length > 1 ? ` +${it.reports.length - 1}` : ''}</span>`;
     }
 
@@ -1099,7 +1076,7 @@ function _renderMyStocks() {
       style="display:flex;align-items:center;gap:8px;padding:7px 14px 7px 12px;border-top:1px solid var(--border);
       border-left:2px solid ${it.hasEvent ? 'var(--tg)' : 'transparent'}">
       <span style="font-size:12px;font-weight:500;color:var(--text1);flex-shrink:0;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(it.name)}</span>
-      <span style="font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0;
+      <span style="font-size:11px;padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0;
         background:${it.held?'rgba(245,58,92,.13)':'rgba(255,255,255,.06)'};
         color:${it.held?'var(--red)':'var(--text2)'}">${it.held?'보유':'관심'}</span>
       ${chgHTML}

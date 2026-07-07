@@ -1,4 +1,4 @@
-﻿/**
+/**
  * leading-stocks.js — 주도주 탐색기
  *
  * leading_stocks 테이블(백엔드 일배치 생성)에서 오늘의 주도주 Top 10 렌더링.
@@ -98,27 +98,27 @@ function renderLeadingStocks() {
     const miniBar = (label, val, max, color) => {
       const pct = Math.round((val || 0) / max * 100);
       return `<div style="display:flex;align-items:center;gap:3px">
-        <span style="font-size:9px;color:var(--text2);width:34px;flex-shrink:0;white-space:nowrap">${label}</span>
+        <span style="font-size:11px;color:var(--text2);width:34px;flex-shrink:0;white-space:nowrap">${label}</span>
         <div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden;min-width:20px">
           <div style="height:100%;width:${pct}%;background:${color};border-radius:2px"></div>
         </div>
-        <span style="font-size:9px;color:var(--text2);width:18px;text-align:right;flex-shrink:0">${val || 0}</span>
+        <span style="font-size:11px;color:var(--text2);width:18px;text-align:right;flex-shrink:0">${val || 0}</span>
       </div>`;
     };
 
     const mktTag = (r.market === 'KOSDAQ' && _lsTab === 'all')
-      ? '<span style="font-size:9px;color:var(--text2);margin-left:2px;font-weight:600">Q</span>' : '';
+      ? '<span style="font-size:11px;color:var(--text2);margin-left:2px;font-weight:600">Q</span>' : '';
     const indTag = r.industry
-      ? `<span style="font-size:10px;color:var(--text2)">${r.industry}</span>` : '';
+      ? `<span style="font-size:11px;color:var(--text2)">${r.industry}</span>` : '';
     const chg5dStr = r.price_chg_5d != null
-      ? `<span style="font-size:10px;color:${chgColor(r.price_chg_5d)}">${r.price_chg_5d >= 0 ? '+' : ''}${Number(r.price_chg_5d).toFixed(1)}%</span>`
+      ? `<span style="font-size:11px;color:${chgColor(r.price_chg_5d)}">${r.price_chg_5d >= 0 ? '+' : ''}${Number(r.price_chg_5d).toFixed(1)}%</span>`
       : '';
     const volRatio = r.volume_ratio != null && r.volume_ratio > 1.5
-      ? `<span style="font-size:9px;color:#f59e0b;padding:1px 4px;border-radius:3px;background:rgba(245,158,11,.1)">거래 ${Number(r.volume_ratio).toFixed(1)}x</span>` : '';
+      ? `<span style="font-size:11px;color:#f59e0b;padding:1px 4px;border-radius:3px;background:rgba(245,158,11,.1)">거래 ${Number(r.volume_ratio).toFixed(1)}x</span>` : '';
     const frgnTag = r.foreign_3d_sum != null && r.foreign_3d_sum !== 0
       ? (r.foreign_3d_sum > 0
-          ? `<span style="font-size:9px;color:var(--tg);padding:1px 4px;border-radius:3px;background:rgba(42,171,238,.1)">외국인↑</span>`
-          : `<span style="font-size:9px;color:var(--blue);padding:1px 4px;border-radius:3px;background:rgba(74,158,255,.08)">외국인↓</span>`)
+          ? `<span style="font-size:11px;color:var(--tg);padding:1px 4px;border-radius:3px;background:rgba(42,171,238,.1)">외국인↑</span>`
+          : `<span style="font-size:11px;color:var(--blue);padding:1px 4px;border-radius:3px;background:rgba(74,158,255,.08)">외국인↓</span>`)
       : '';
 
     return `
@@ -152,7 +152,7 @@ function renderLeadingStocks() {
       <!-- 총점 -->
       <div style="text-align:right;flex-shrink:0;padding-top:2px">
         <div style="font-size:18px;font-weight:800;line-height:1;color:${scoreColor};font-variant-numeric:tabular-nums">${total}</div>
-        <div style="font-size:9px;color:var(--text2);margin-top:1px">/ 100</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:1px">/ 100</div>
       </div>
     </div>`;
   }).join('');
@@ -180,7 +180,7 @@ function _lsCalcHtml() {
   return `<div id="ls-calc-state" style="padding:1.5rem;text-align:center;color:var(--text2);font-size:12px;line-height:2">
     <span class="loading"></span> 백엔드에서 주도주 스코어 계산 중...<br>
     <span style="font-size:11px;opacity:.7">전체 종목 분석 (최대 3분 소요)</span>
-    <div id="ls-poll-counter" style="font-size:10px;color:var(--text2);margin-top:2px;opacity:.6"></div>
+    <div id="ls-poll-counter" style="font-size:11px;color:var(--text2);margin-top:2px;opacity:.6"></div>
   </div>`;
 }
 
@@ -441,15 +441,15 @@ function _renderBacktest(el, { windowStart, latestDate, results, total, avgRet, 
   <!-- 요약 카드 -->
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
     <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:10px;text-align:center">
-      <div style="font-size:10px;color:var(--text2);margin-bottom:4px">평균 수익률</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px">평균 수익률</div>
       <div>${fmtRet(avgRet, 18)}</div>
     </div>
     <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:10px;text-align:center">
-      <div style="font-size:10px;color:var(--text2);margin-bottom:4px">성공률 (양수)</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px">성공률 (양수)</div>
       <div style="font-size:18px;font-weight:700;color:${winColor}">${winStr}</div>
     </div>
     <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:10px;text-align:center">
-      <div style="font-size:10px;color:var(--text2);margin-bottom:4px">시장 대비</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px">시장 대비</div>
       <div style="font-size:18px;font-weight:700;color:${excessColor}">${excessStr}</div>
     </div>
   </div>
@@ -469,10 +469,10 @@ function _renderBacktest(el, { windowStart, latestDate, results, total, avgRet, 
       return `
       <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;
         border-radius:var(--radius-sm);background:${r.ret > 0 ? 'rgba(245,54,92,.05)' : r.ret < 0 ? 'rgba(74,158,255,.05)' : 'transparent'}">
-        <span style="font-size:10px;color:var(--text2);min-width:16px">#${r.rank}</span>
+        <span style="font-size:11px;color:var(--text2);min-width:16px">#${r.rank}</span>
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.corp_name}</div>
-          <div style="font-size:10px;color:var(--text2)">
+          <div style="font-size:11px;color:var(--text2)">
             선정일 ${r.entry_date} &nbsp;${r.entry_price?.toLocaleString()}원 → ${r.curr_price?.toLocaleString()}원
           </div>
         </div>

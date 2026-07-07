@@ -169,10 +169,10 @@ async function _rpLoadAndRenderDart(body) {
         const isLoss    = sub.netIncome != null && sub.netIncome < 0;
         const isInsolvent = sub.note?.includes('자본잠식');
         const badge = isInsolvent
-          ? `<span style="font-size:10px;padding:2px 6px;border-radius:100px;background:#ef444420;color:#ef4444;font-weight:700">자본잠식</span>`
+          ? `<span style="font-size:11px;padding:2px 6px;border-radius:100px;background:#ef444420;color:#ef4444;font-weight:700">자본잠식</span>`
           : isLoss
-          ? `<span style="font-size:10px;padding:2px 6px;border-radius:100px;background:#f5a62320;color:#f5a623;font-weight:700">순손실</span>`
-          : `<span style="font-size:10px;padding:2px 6px;border-radius:100px;background:#4ade8020;color:#4ade80;font-weight:700">정상</span>`;
+          ? `<span style="font-size:11px;padding:2px 6px;border-radius:100px;background:#f5a62320;color:#f5a623;font-weight:700">순손실</span>`
+          : `<span style="font-size:11px;padding:2px 6px;border-radius:100px;background:#4ade8020;color:#4ade80;font-weight:700">정상</span>`;
         return `
         <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;
           background:var(--bg3);border-radius:var(--radius-sm);flex-wrap:wrap">
@@ -504,7 +504,7 @@ function _mdToAccordion(md) {
               document.getElementById('${sid}'),this.querySelector('span'))"
             style="padding:9px 14px;background:var(--bg2);cursor:pointer;display:flex;
               align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text1);user-select:none">
-            <span style="font-size:9px;color:var(--text2);transition:transform .15s">▶</span>
+            <span style="font-size:11px;color:var(--text2);transition:transform .15s">▶</span>
             ${esc(title)}
           </div>
           <div id="${sid}" style="display:none;padding:12px 14px;flex-direction:column;gap:6px">`;
@@ -537,7 +537,7 @@ function _mdToAccordion(md) {
     if (/^[-*] /.test(line)) {
       const t = line.replace(/^[-*] /,'').trim();
       html += `<div style="display:flex;align-items:flex-start;gap:6px;padding:1px 0">
-        <span style="color:var(--text2);font-size:9px;margin-top:5px;flex-shrink:0">◦</span>
+        <span style="color:var(--text2);font-size:11px;margin-top:5px;flex-shrink:0">◦</span>
         <span style="font-size:12px;color:var(--text1);line-height:1.6">${keyword(t)}</span>
       </div>`;
       i++; continue;

@@ -1,4 +1,4 @@
-﻿// disclosure.js — 공시 탭: 오늘 실적 공시, 전체 공시 토글
+// disclosure.js — 공시 탭: 오늘 실적 공시, 전체 공시 토글
 // 의존: config.js (sb)
 //
 // [v3] daily_disclosures 테이블 조회 (app_config JSON 탈출)
@@ -89,24 +89,24 @@ async function loadAllDisclosures() {
     const { type, buy, sell, change, ratio_before, ratio_after, period } = summary;
     if (type === 'plan') {
       const parts = [];
-      if (buy)    parts.push(`<span style="color:var(--red);font-size:10px;font-weight:600">▲예정취득 ${buy.toLocaleString()}주</span>`);
-      if (sell)   parts.push(`<span style="color:var(--blue);font-size:10px;font-weight:600">▼예정처분 ${sell.toLocaleString()}주</span>`);
-      if (period) parts.push(`<span style="color:var(--text2);font-size:10px">(${period})</span>`);
+      if (buy)    parts.push(`<span style="color:var(--red);font-size:11px;font-weight:600">▲예정취득 ${buy.toLocaleString()}주</span>`);
+      if (sell)   parts.push(`<span style="color:var(--blue);font-size:11px;font-weight:600">▼예정처분 ${sell.toLocaleString()}주</span>`);
+      if (period) parts.push(`<span style="color:var(--text2);font-size:11px">(${period})</span>`);
       return parts.join(' ');
     }
-    if (type === 'major') return `<span style="color:var(--yellow);font-size:10px;font-weight:600">⚠ 최대주주 지분변동</span>`;
+    if (type === 'major') return `<span style="color:var(--yellow);font-size:11px;font-weight:600">⚠ 최대주주 지분변동</span>`;
     if (type === 'bulk') {
       const bfRt = ratio_before != null ? ratio_before.toFixed(2) + '%' : '';
       const afRt = ratio_after  != null ? ratio_after.toFixed(2)  + '%' : '';
       const rtTxt = (bfRt && afRt && bfRt !== afRt) ? `${bfRt}→${afRt}` : (afRt || bfRt || '');
-      if (change > 0)  return `<span style="color:var(--red);font-size:10px;font-weight:600">▲취득 ${Math.abs(change).toLocaleString()}주${rtTxt ? ' (' + rtTxt + ')' : ''}</span>`;
-      if (change < 0)  return `<span style="color:var(--blue);font-size:10px;font-weight:600">▼처분 ${Math.abs(change).toLocaleString()}주${rtTxt ? ' (' + rtTxt + ')' : ''}</span>`;
-      return `<span style="color:var(--text2);font-size:10px">${rtTxt ? '보유 ' + rtTxt + ' ' : ''}변동없음</span>`;
+      if (change > 0)  return `<span style="color:var(--red);font-size:11px;font-weight:600">▲취득 ${Math.abs(change).toLocaleString()}주${rtTxt ? ' (' + rtTxt + ')' : ''}</span>`;
+      if (change < 0)  return `<span style="color:var(--blue);font-size:11px;font-weight:600">▼처분 ${Math.abs(change).toLocaleString()}주${rtTxt ? ' (' + rtTxt + ')' : ''}</span>`;
+      return `<span style="color:var(--text2);font-size:11px">${rtTxt ? '보유 ' + rtTxt + ' ' : ''}변동없음</span>`;
     }
     // insider
     const parts = [];
-    if (buy)  parts.push(`<span style="color:var(--red);font-size:10px;font-weight:600">▲취득 ${buy.toLocaleString()}주</span>`);
-    if (sell) parts.push(`<span style="color:var(--blue);font-size:10px;font-weight:600">▼처분 ${sell.toLocaleString()}주</span>`);
+    if (buy)  parts.push(`<span style="color:var(--red);font-size:11px;font-weight:600">▲취득 ${buy.toLocaleString()}주</span>`);
+    if (sell) parts.push(`<span style="color:var(--blue);font-size:11px;font-weight:600">▼처분 ${sell.toLocaleString()}주</span>`);
     return parts.join(' ');
   };
 
@@ -147,7 +147,7 @@ async function loadAllDisclosures() {
             const countBadge = isInsider && origCount > 1
               ? `<span style="display:inline-flex;align-items:center;justify-content:center;
                   min-width:18px;height:18px;padding:0 5px;border-radius:100px;
-                  background:var(--tg);color:#fff;font-size:10px;font-weight:700;flex-shrink:0">${origCount}</span>` : '';
+                  background:var(--tg);color:#fff;font-size:11px;font-weight:700;flex-shrink:0">${origCount}</span>` : '';
             return `<div style="display:flex;flex-direction:column;gap:3px;padding:6px 10px;
                 background:var(--bg3);border-radius:var(--radius-sm);
                 border:1px solid ${badge ? 'var(--border2)' : 'var(--border)'};
@@ -158,7 +158,7 @@ async function loadAllDisclosures() {
                       title="${d.report_nm}">${d.corp_name}</span>
                 ${countBadge}
                 ${link ? `<a href="${link}" target="_blank"
-                    style="font-size:10px;color:var(--tg);flex-shrink:0;text-decoration:none"
+                    style="font-size:11px;color:var(--tg);flex-shrink:0;text-decoration:none"
                     onclick="event.stopPropagation()" title="${d.report_nm}">DART↗</a>` : ''}
               </div>
               ${badge ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${badge}</div>` : ''}
@@ -211,7 +211,7 @@ async function loadTodayDisclosures() {
         const badge = reprtColor(c.report_nm || '', c.is_amended);
         return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg3);
             border-radius:var(--radius-sm);border:1px solid ${c.is_amended ? 'rgba(245,158,11,.3)' : 'var(--border)'}">
-          <span style="font-size:10px;padding:2px 6px;border-radius:100px;background:${badge.bg};color:${badge.color};font-weight:600;white-space:nowrap">${badge.label}</span>
+          <span style="font-size:11px;padding:2px 6px;border-radius:100px;background:${badge.bg};color:${badge.color};font-weight:600;white-space:nowrap">${badge.label}</span>
           <span style="font-size:13px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.corp_name}</span>
         </div>`;
       }).join('')}

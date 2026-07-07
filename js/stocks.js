@@ -1,4 +1,4 @@
-﻿// stocks.js — 종목 관리 CRUD
+// stocks.js — 종목 관리 CRUD
 // INDUSTRIES는 config.js에서 전역으로 제공됨
 let _stocksTab = 'list'; // 'list' | 'subindustry'
 
@@ -127,7 +127,7 @@ async function loadSubIndustryPanel() {
         ${stocks.map(s => `
         <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:3px 10px;border-radius:100px;background:var(--bg3);border:1px solid var(--border)">
           <span style="color:var(--text)">${s.name}</span>
-          <span style="color:var(--text2);font-size:10px">${s.code||''}</span>
+          <span style="color:var(--text2);font-size:11px">${s.code||''}</span>
           ${canEdit() && sub !== '(미분류)' ? `<button onclick="removeFromSubIndustry(${s.id},'${s.name.replace(/'/g,"\\'")}','${sub.replace(/'/g,"\\'")}')" style="background:none;border:none;color:var(--text2);cursor:pointer;padding:0;font-size:13px;line-height:1;margin-left:2px" title="이 세부분야에서 제외">×</button>` : ''}
         </span>`).join('')}
         ${stocks.length === 0 ? '<span style="font-size:12px;color:var(--text2)">종목 없음</span>' : ''}
@@ -227,13 +227,13 @@ function renderAssignList(q) {
       <span style="flex:1;font-size:13px">${s.name}</span>
       <span style="font-size:11px;font-family:monospace;color:var(--text2)">${s.code||''}</span>
       ${isUnassigned
-        ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:rgba(255,255,255,.06);color:var(--text2)">미분류</span>`
+        ? `<span style="font-size:11px;padding:1px 6px;border-radius:100px;background:rgba(255,255,255,.06);color:var(--text2)">미분류</span>`
         : isDiffIndustry
-        ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:rgba(255,255,255,.06);color:var(--text2)">${s.industry}</span>`
+        ? `<span style="font-size:11px;padding:1px 6px;border-radius:100px;background:rgba(255,255,255,.06);color:var(--text2)">${s.industry}</span>`
         : isOtherSub
-        ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:rgba(251,99,64,.15);color:var(--yellow)">${s.sub_industry}</span>`
+        ? `<span style="font-size:11px;padding:1px 6px;border-radius:100px;background:rgba(251,99,64,.15);color:var(--yellow)">${s.sub_industry}</span>`
         : inSub
-        ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:rgba(42,171,238,.12);color:var(--tg)">현재</span>`
+        ? `<span style="font-size:11px;padding:1px 6px;border-radius:100px;background:rgba(42,171,238,.12);color:var(--tg)">현재</span>`
         : ''}
     </label>`;
   }).join('') || '<div style="padding:1rem;color:var(--text2);font-size:13px;text-align:center">종목 없음</div>';

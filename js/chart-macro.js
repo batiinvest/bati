@@ -1,4 +1,4 @@
-﻿// chart-macro.js — 글로벌 매크로 차트 (흐름 비교 차트, ETF 배너)
+// chart-macro.js — 글로벌 매크로 차트 (흐름 비교 차트, ETF 배너)
 // 의존: config.js, investment.js (INV_ALL_METRICS, INV)
 
 // ── 매크로 위험 신호 임계값 (투자전문가 기준) ──
@@ -109,7 +109,7 @@ function _renderTopbarStrip() {
 
   // 지수값+등락률 한 줄
   const valRow = (item) =>
-    `<span class="market-strip-name" style="font-size:10px;color:var(--text3)">${item.name}</span>` +
+    `<span class="market-strip-name" style="font-size:11px;color:var(--text3)">${item.name}</span>` +
     `<span class="market-strip-val">${Number(item.val).toLocaleString(undefined,{maximumFractionDigits:2})}</span>` +
     `<span class="market-strip-chg" style="color:${chgColor(item.chg)}">${chgStr(item.chg)}</span>`;
 

@@ -56,6 +56,12 @@ const prev = (v, id) => { const el = document.getElementById(id); if (el) el.inn
 const openModal  = id => document.getElementById(id).classList.add('open');
 const closeModal = id => document.getElementById(id).classList.remove('open');
 document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
+// ESC — 열려 있는 공용 모달 닫기 (종목 상세 모달은 financials.js에서 자체 처리)
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const open = document.querySelector('.modal-overlay.open');
+  if (open) open.classList.remove('open');
+});
 function toggleSidebar() {
   const sb = document.getElementById('sidebar');
   const ov = document.getElementById('sidebar-overlay');

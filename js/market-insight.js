@@ -1,4 +1,4 @@
-﻿/**
+/**
  * market-insight.js — 투자포인트 요약 엔진 v2
  *
  * 흐름:
@@ -483,7 +483,7 @@ function _renderInsightCard(data) {
 
   const moodRow = indBadges ? `
   <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
-    <span style="font-size:10px;color:var(--text2);font-weight:600">영향 업종</span>
+    <span style="font-size:11px;color:var(--text2);font-weight:600">영향 업종</span>
     ${indBadges}
   </div>` : '';
 
@@ -509,7 +509,7 @@ function _renderInsightCard(data) {
     const ts = typeStyle[p.type] || typeStyle.flat;
     return `
     <div style="display:flex;gap:7px;align-items:flex-start;margin-bottom:7px">
-      <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${ts.bg};color:${ts.color};font-weight:600;flex-shrink:0;margin-top:1px">${ts.label}</span>
+      <span style="font-size:11px;padding:1px 6px;border-radius:4px;background:${ts.bg};color:${ts.color};font-weight:600;flex-shrink:0;margin-top:1px">${ts.label}</span>
       <span style="font-size:12.5px;color:var(--text1);line-height:1.5">${p.text}</span>
     </div>`;
   }).join('');
@@ -597,7 +597,7 @@ async function loadInsightHistory() {
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
             <span style="font-size:11px;font-weight:700;color:${isFirst ? 'var(--text)' : 'var(--text2)'}">${row.market_date}</span>
             ${flow.market_mood_label
-              ? `<span style="font-size:10px;font-weight:600;color:${moodColor}">${flow.market_mood_label}</span>`
+              ? `<span style="font-size:11px;font-weight:600;color:${moodColor}">${flow.market_mood_label}</span>`
               : ''}
             ${kospiStr}
             ${vixStr}
@@ -608,7 +608,7 @@ async function loadInsightHistory() {
           ${kps.length ? `
           <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px">
             ${kps.slice(0, 3).map(kp =>
-              `<span style="font-size:10px;color:var(--text2);background:rgba(255,255,255,.04);
+              `<span style="font-size:11px;color:var(--text2);background:rgba(255,255,255,.04);
                 border:1px solid rgba(255,255,255,.07);border-radius:3px;padding:1px 6px;
                 white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px">${kp}</span>`
             ).join('')}

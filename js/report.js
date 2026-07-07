@@ -1,4 +1,4 @@
-﻿// report.js — 기업 분석 리포트 페이지 (상태·검색·데이터 로드·메인 렌더·탭 전환)
+// report.js — 기업 분석 리포트 페이지 (상태·검색·데이터 로드·메인 렌더·탭 전환)
 // 20년+ 수석 펀드매니저 관점의 투자 의사결정 중심 구성
 // 분할: report-cards.js(서브 컴포넌트 카드), report-dart.js(DART 분석 탭·MD 파서·업로드)
 // 의존: config.js (sb, fmtCap 등)
@@ -501,22 +501,22 @@ async function rpRenderReport() {
             <!-- 고점 라벨 (가격 + 날짜) -->
             <div style="position:absolute;top:0;left:${maxLabelLeft};right:${maxLabelRight};
               pointer-events:none;white-space:nowrap">
-              <div style="font-size:10px;color:#f87171;font-weight:700;
+              <div style="font-size:11px;color:#f87171;font-weight:700;
                 background:var(--bg2);padding:2px 5px;border-radius:3px;
                 border:1px solid #f8717150;line-height:1.4">
                 ▲ ${fmtNum(maxP)}<br>
-                <span style="font-weight:400;font-size:9px">${maxDate}</span>
+                <span style="font-weight:400;font-size:11px">${maxDate}</span>
               </div>
             </div>
 
             <!-- 저점 라벨 (가격 + 날짜) -->
             <div style="position:absolute;bottom:18px;left:${minLabelLeft};right:${minLabelRight};
               pointer-events:none;white-space:nowrap">
-              <div style="font-size:10px;color:#60a5fa;font-weight:700;
+              <div style="font-size:11px;color:#60a5fa;font-weight:700;
                 background:var(--bg2);padding:2px 5px;border-radius:3px;
                 border:1px solid #60a5fa50;line-height:1.4">
                 ▼ ${fmtNum(minP)}<br>
-                <span style="font-weight:400;font-size:9px">${minDate}</span>
+                <span style="font-weight:400;font-size:11px">${minDate}</span>
               </div>
             </div>
 
@@ -524,7 +524,7 @@ async function rpRenderReport() {
             ${showCurrentLabel ? `
             <div style="position:absolute;right:2px;
               top:calc(${((lastYc/H)*100).toFixed(1)}% - 10px);pointer-events:none">
-              <div style="font-size:10px;color:${lineColor};font-weight:700;
+              <div style="font-size:11px;color:${lineColor};font-weight:700;
                 background:var(--bg2);padding:2px 5px;border-radius:3px;
                 border:1px solid ${lineColor}50;white-space:nowrap">${fmtNum(lastP)}</div>
             </div>` : ''}
@@ -536,7 +536,7 @@ async function rpRenderReport() {
               <div style="position:absolute;left:${t.xPct.toFixed(1)}%;
                 transform:translateX(-50%);text-align:center;white-space:nowrap">
                 <div style="width:1px;height:3px;background:var(--border);margin:0 auto 1px"></div>
-                <div style="font-size:9px;color:var(--text1)">${t.date.slice(0,7)}</div>
+                <div style="font-size:11px;color:var(--text1)">${t.date.slice(0,7)}</div>
               </div>`).join('')}
           </div>
         </div>`;

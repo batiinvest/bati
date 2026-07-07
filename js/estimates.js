@@ -56,7 +56,7 @@ function renderEstimateOutlook(revisions, estimates) {
 
   const sectionHdr = (t, sub) => `
     <div style="padding:6px 12px 4px;font-size:11px;font-weight:700;color:var(--text2);display:flex;gap:6px;align-items:baseline">
-      ${t}<span style="font-weight:400;font-size:10px">${sub}</span>
+      ${t}<span style="font-weight:400;font-size:11px">${sub}</span>
     </div>`;
 
   // ── ① 추정치 상향 — 종목당 최신 갱신 1건 (상향된 것만), 상향폭 큰 순 ──
@@ -81,10 +81,10 @@ function renderEstimateOutlook(revisions, estimates) {
     <div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.stock_name || r.stock_code)}" data-stock-tab="market"
       style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border)">
       <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.stock_name || r.stock_code)}
-        <span style="font-size:9px;color:var(--text2);font-weight:600;margin-left:3px">${_estYearChip(r.fiscal_period)}</span></span>
+        <span style="font-size:11px;color:var(--text2);font-weight:600;margin-left:3px">${_estYearChip(r.fiscal_period)}</span></span>
       <span style="font-size:11px;white-space:nowrap">매출 ${_estPct(r.revenue_change_pct)}</span>
       <span style="font-size:11px;white-space:nowrap">영업익 ${_estPct(r.op_profit_change_pct)}</span>
-      <span style="font-size:9px;color:var(--text2);white-space:nowrap">${String(r.new_est_date).slice(5)}</span>
+      <span style="font-size:11px;color:var(--text2);white-space:nowrap">${String(r.new_est_date).slice(5)}</span>
     </div>`;
   }).join('')
   : `<div style="padding:.8rem 12px;color:var(--text2);font-size:11px">
@@ -110,8 +110,8 @@ function renderEstimateOutlook(revisions, estimates) {
       style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border)">
       <span style="width:16px;font-size:11px;color:var(--text2);font-weight:600;flex-shrink:0">${i + 1}</span>
       <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.stock_name || r.stock_code)}
-        <span style="font-size:9px;color:var(--text2);font-weight:600;margin-left:3px">${_estYearChip(r.fiscal_period)}</span></span>
-      <span style="font-size:10px;color:var(--text2);white-space:nowrap">매출 ${_estWon(r.revenue)}</span>
+        <span style="font-size:11px;color:var(--text2);font-weight:600;margin-left:3px">${_estYearChip(r.fiscal_period)}</span></span>
+      <span style="font-size:11px;color:var(--text2);white-space:nowrap">매출 ${_estWon(r.revenue)}</span>
       <span style="font-size:11px;white-space:nowrap">${_estPct(r.revenue_yoy)}</span>
       <span style="font-size:11px;white-space:nowrap">영업익 ${_estPct(r.op_profit_yoy)}</span>
     </div>`;

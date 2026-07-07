@@ -1,4 +1,4 @@
-﻿// company.js — 모니터링 종목 관리 페이지
+// company.js — 모니터링 종목 관리 페이지
 // DB: companies (code, name, industry, sub_industry, is_monitored)
 
 // ── 변경사항 추적 ──────────────────────────────
@@ -163,9 +163,9 @@ function _collectionScheduleCard() {
             <span style="font-family:monospace;font-size:13px;font-weight:600;color:${s.color}">${s.time}</span>
             <span style="font-size:13px;color:var(--text)">${s.label}</span>
             <div style="display:flex;align-items:center;gap:6px">
-              ${s.badge ? `<span style="font-size:10px;padding:1px 6px;border-radius:3px;
+              ${s.badge ? `<span style="font-size:11px;padding:1px 6px;border-radius:3px;
                 background:rgba(245,54,92,.2);color:#f5365c;font-weight:700">${s.badge}</span>` : ''}
-              <span style="font-size:10px;color:var(--text2);font-family:monospace">${s.job}</span>
+              <span style="font-size:11px;color:var(--text2);font-family:monospace">${s.job}</span>
             </div>
           </div>
         `).join('')}
@@ -344,7 +344,7 @@ function _renderStockChip(s) {
     onmouseleave="this.style.borderColor='var(--border)'">
     <div style="display:flex;flex-direction:column;gap:1px;overflow:hidden;flex:1">
       <span style="font-size:13px;font-weight:600;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</span>
-      <span style="font-size:10px;color:var(--text1)">${code} · ${mkt}</span>
+      <span style="font-size:11px;color:var(--text1)">${code} · ${mkt}</span>
     </div>
     <button onclick="monRemoveStock('${code}','${safeName}')"
       style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:13px;
@@ -436,10 +436,10 @@ async function monSearch(q) {
         background:${mon?'rgba(42,171,238,0.08)':'var(--bg3)'}"
         onclick="monSelectStock('${code}','${c.name.replace(/'/g,"\\'")}','${c.industry||''}','${c.sub_industry||''}')">
       <div>
-        <span style="color:var(--text2);font-size:10px;margin-right:4px">${code}</span>
+        <span style="color:var(--text2);font-size:11px;margin-right:4px">${code}</span>
         <span style="font-weight:600">${c.name}</span>
       </div>
-      <span style="font-size:10px;color:${mon?'var(--tg)':'var(--text3)'}">${mon?'✓모니터링':'+ 추가'}</span>
+      <span style="font-size:11px;color:${mon?'var(--tg)':'var(--text3)'}">${mon?'✓모니터링':'+ 추가'}</span>
     </div>`;
   }).join('');
 }

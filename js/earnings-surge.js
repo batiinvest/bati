@@ -1,4 +1,4 @@
-﻿// earnings-surge.js — 공시 탭: 실적 급등 종목 (등급 카드, 미니차트)
+// earnings-surge.js — 공시 탭: 실적 급등 종목 (등급 카드, 미니차트)
 // 의존: config.js (sb, fmtCap, chgColor, chgStr, fetchAllPages), financials.js (openFinTrend)
 //
 // [v2] 등급 계산 제거 — grade.py → earnings_grade_history DB에서 읽기
@@ -180,13 +180,13 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
     let statusBadge = '', histLine = '';
 
     if (!hist.length) {
-      statusBadge = `<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(45,206,137,.2);color:#2dce89;font-weight:600">신규진입</span>`;
+      statusBadge = `<span style="font-size:11px;padding:1px 6px;border-radius:4px;background:rgba(45,206,137,.2);color:#2dce89;font-weight:600">신규진입</span>`;
     } else if (curRank > prevRank) {
-      statusBadge = `<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(255,214,0,.2);color:#ffd600;font-weight:600">등급향상 ↑</span>`;
+      statusBadge = `<span style="font-size:11px;padding:1px 6px;border-radius:4px;background:rgba(255,214,0,.2);color:#ffd600;font-weight:600">등급향상 ↑</span>`;
     } else if (curRank < prevRank) {
-      statusBadge = `<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(245,54,92,.15);color:#f5365c;font-weight:600">등급하락 ↓</span>`;
+      statusBadge = `<span style="font-size:11px;padding:1px 6px;border-radius:4px;background:rgba(245,54,92,.15);color:#f5365c;font-weight:600">등급하락 ↓</span>`;
     } else if (streak >= 3) {
-      statusBadge = `<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(42,171,238,.15);color:#2AABEE;font-weight:600">${streak}분기 연속</span>`;
+      statusBadge = `<span style="font-size:11px;padding:1px 6px;border-radius:4px;background:rgba(42,171,238,.15);color:#2AABEE;font-weight:600">${streak}분기 연속</span>`;
     }
 
     const recentHist = hist.slice(0, 2).reverse();
@@ -198,11 +198,11 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
           const c = GRADE_COLORS[h.grade] || '#8b90a7';
           const qLabel = h.bsns_year.slice(2) + h.quarter;
           return `${i > 0 ? '<span style="color:var(--text2);font-size:11px;margin:0 1px">→</span>' : ''}
-            <span style="font-size:10px;font-weight:600;padding:0px 5px;border-radius:3px;
+            <span style="font-size:11px;font-weight:600;padding:0px 5px;border-radius:3px;
               background:${h.isCurrent ? c + '30' : 'transparent'};
               color:${h.isCurrent ? c : 'var(--text2)'};
               border:1px solid ${h.isCurrent ? c + '60' : 'var(--border)'}">
-            ${h.grade}급<span style="font-size:9px;color:${h.isCurrent ? c + 'bb' : 'var(--text3)'};margin-left:2px">${qLabel}</span></span>`;
+            ${h.grade}급<span style="font-size:11px;color:${h.isCurrent ? c + 'bb' : 'var(--text3)'};margin-left:2px">${qLabel}</span></span>`;
         }).join('')}
       </div>`;
     }
@@ -274,9 +274,9 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
         const gradeMeta = getGradeMeta(r);
         const trendFlags = (SURGE.trendFlagMap || {})[r.stock_code] || {};
         const trendBadges = [
-          trendFlags.rev_slowdown     && `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(245,158,11,.15);color:#f59e0b;font-weight:600" title="매출 성장 둔화 3분기 연속">⚠️성장둔화</span>`,
-          trendFlags.op_leverage_fail && `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(245,54,92,.12);color:#f5365c;font-weight:600" title="매출↑ 영업이익↓ (레버리지 역전)">🔴레버리지역전</span>`,
-          trendFlags.debt_surge       && `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(139,144,167,.15);color:#8b90a7;font-weight:600" title="부채비율 급증 (+30%p↑)">📛부채급증</span>`,
+          trendFlags.rev_slowdown     && `<span style="font-size:11px;padding:1px 5px;border-radius:3px;background:rgba(245,158,11,.15);color:#f59e0b;font-weight:600" title="매출 성장 둔화 3분기 연속">⚠️성장둔화</span>`,
+          trendFlags.op_leverage_fail && `<span style="font-size:11px;padding:1px 5px;border-radius:3px;background:rgba(245,54,92,.12);color:#f5365c;font-weight:600" title="매출↑ 영업이익↓ (레버리지 역전)">🔴레버리지역전</span>`,
+          trendFlags.debt_surge       && `<span style="font-size:11px;padding:1px 5px;border-radius:3px;background:rgba(139,144,167,.15);color:#8b90a7;font-weight:600" title="부채비율 급증 (+30%p↑)">📛부채급증</span>`,
         ].filter(Boolean).join('');
 
         return `<div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||'')}" data-stock-tab="financial"
@@ -289,7 +289,7 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
               ${gradeMeta.statusBadge}
             </div>
             ${trendBadges ? `<div style="display:flex;gap:3px;flex-wrap:wrap">${trendBadges}</div>` : ''}
-            <div style="font-size:10px;color:var(--text2)">${r.bsns_year} ${r.quarter}</div>
+            <div style="font-size:11px;color:var(--text2)">${r.bsns_year} ${r.quarter}</div>
             ${gradeMeta.histLine}
             <div style="display:flex;flex-direction:column;gap:2px;margin-top:2px">
               <div style="font-size:11px">
@@ -301,20 +301,20 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
                 <span style="color:var(--text2)">영업익</span>
                 <b style="color:${(r.operating_profit || 0) >= 0 ? 'var(--green)' : 'var(--red)'}">${fmtCap(r.operating_profit)}</b>
                 ${r.op_yoy != null ? `<span style="color:${r.op_yoy > 0 ? 'var(--red)' : 'var(--blue)'}"> ${r.op_yoy > 0 ? '▲' : '▼'}${Math.abs(r.op_yoy).toFixed(1)}%</span>` : ''}
-                <span style="color:var(--text2);font-size:10px">${r.operating_margin != null ? r.operating_margin.toFixed(1) + '%' : ''}</span>
+                <span style="color:var(--text2);font-size:11px">${r.operating_margin != null ? r.operating_margin.toFixed(1) + '%' : ''}</span>
               </div>
             </div>
           </div>
 
           <div style="padding:4px 10px;border-right:1px solid var(--border)">
-            <div style="font-size:9px;color:var(--text2);margin-bottom:3px">매출액</div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:3px">매출액</div>
             <div style="display:flex;gap:2px;align-items:flex-end;height:42px">
               ${renderMiniBar(revVals, revMax, '#2AABEE')}
             </div>
           </div>
 
           <div style="padding:4px 10px">
-            <div style="font-size:9px;color:var(--text2);margin-bottom:3px">영업이익</div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:3px">영업이익</div>
             <div style="display:flex;gap:2px;align-items:flex-end;height:42px">
               ${renderMiniBar(opVals, opMax, '#2dce89')}
             </div>

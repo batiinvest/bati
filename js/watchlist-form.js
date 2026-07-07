@@ -133,8 +133,8 @@ async function searchWatchlistStock(query) {
       onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
       <span style="font-weight:500">${escapeHtml(c.name)}</span>
       <span style="font-size:11px;color:var(--text2)">${code}</span>
-      ${c.industry ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:var(--bg3);color:var(--text2)">${escapeHtml(c.industry)}</span>` : ''}
-      <span style="font-size:10px;color:var(--text2);margin-left:auto">${escapeHtml(c.market||'')}</span>
+      ${c.industry ? `<span style="font-size:11px;padding:1px 6px;border-radius:100px;background:var(--bg3);color:var(--text2)">${escapeHtml(c.industry)}</span>` : ''}
+      <span style="font-size:11px;color:var(--text2);margin-left:auto">${escapeHtml(c.market||'')}</span>
     </div>`;
     }).join('');
   }, 200);
@@ -313,10 +313,10 @@ async function renderWatchlistForm(id) {
       <!-- 시장 데이터 자동입력 -->
       <div style="background:var(--bg2);border-radius:8px;padding:10px 14px">
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
-          <div><div style="font-size:10px;color:var(--text2)">현재가</div><div id="wl-auto-price" style="font-size:13px;font-weight:600">—</div></div>
-          <div><div style="font-size:10px;color:var(--text2)">등락률</div><div id="wl-auto-chg"  style="font-size:13px;font-weight:600">—</div></div>
-          <div><div style="font-size:10px;color:var(--text2)">시총</div>  <div id="wl-auto-cap"  style="font-size:13px;font-weight:600">—</div></div>
-          <div><div style="font-size:10px;color:var(--text2)">PER</div>   <div id="wl-auto-per"  style="font-size:13px;font-weight:600">—</div></div>
+          <div><div style="font-size:11px;color:var(--text2)">현재가</div><div id="wl-auto-price" style="font-size:13px;font-weight:600">—</div></div>
+          <div><div style="font-size:11px;color:var(--text2)">등락률</div><div id="wl-auto-chg"  style="font-size:13px;font-weight:600">—</div></div>
+          <div><div style="font-size:11px;color:var(--text2)">시총</div>  <div id="wl-auto-cap"  style="font-size:13px;font-weight:600">—</div></div>
+          <div><div style="font-size:11px;color:var(--text2)">PER</div>   <div id="wl-auto-per"  style="font-size:13px;font-weight:600">—</div></div>
         </div>
         <div id="wl-shares-hint" style="font-size:11px;color:var(--text2);margin-top:6px"></div>
       </div>
@@ -327,14 +327,14 @@ async function renderWatchlistForm(id) {
           <div style="font-size:11px;color:var(--tg);font-weight:600;margin-bottom:8px">매수 목표 시총</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div>
-              <div style="font-size:10px;color:var(--text2);margin-bottom:3px">주가 (원)</div>
+              <div style="font-size:11px;color:var(--text2);margin-bottom:3px">주가 (원)</div>
               <input type="number" class="form-input" id="wl-watch_price" value="${w.watch_price||''}"
                 placeholder="예: 60,000" oninput="syncWlWatchPrice('price',this.value)"
                 style="width:100%;box-sizing:border-box;font-size:12px">
-              <div id="wl-watch-cap-hint" style="font-size:10px;color:var(--tg);margin-top:3px"></div>
+              <div id="wl-watch-cap-hint" style="font-size:11px;color:var(--tg);margin-top:3px"></div>
             </div>
             <div>
-              <div style="font-size:10px;color:var(--text2);margin-bottom:3px">시총 (억원)</div>
+              <div style="font-size:11px;color:var(--text2);margin-bottom:3px">시총 (억원)</div>
               <input type="number" class="form-input" id="wl-watch_cap"
                 placeholder="억원" oninput="syncWlWatchPrice('cap',this.value);_showCapUnit('wl-watch-cap-unit',this.value)"
                 style="width:100%;box-sizing:border-box;font-size:12px">
@@ -346,14 +346,14 @@ async function renderWatchlistForm(id) {
           <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:8px">업사이드 목표 시총</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div>
-              <div style="font-size:10px;color:var(--text2);margin-bottom:3px">주가 (원)</div>
+              <div style="font-size:11px;color:var(--text2);margin-bottom:3px">주가 (원)</div>
               <input type="number" class="form-input" id="wl-target_price" value="${w.target_price||''}"
                 placeholder="예: 100,000" oninput="syncWlPrice('price',this.value);syncRRTarget(this.value)"
                 style="width:100%;box-sizing:border-box;font-size:12px">
-              <div id="wl-target-cap-hint" style="font-size:10px;color:var(--text2);margin-top:3px"></div>
+              <div id="wl-target-cap-hint" style="font-size:11px;color:var(--text2);margin-top:3px"></div>
             </div>
             <div>
-              <div style="font-size:10px;color:var(--text2);margin-bottom:3px">시총 (억원)</div>
+              <div style="font-size:11px;color:var(--text2);margin-bottom:3px">시총 (억원)</div>
               <input type="number" class="form-input" id="wl-target_cap"
                 placeholder="억원" oninput="syncWlPrice('cap',this.value);_showCapUnit('wl-target-cap-unit',this.value)"
                 style="width:100%;box-sizing:border-box;font-size:12px">
@@ -386,30 +386,30 @@ async function renderWatchlistForm(id) {
         <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:10px">📐 손익비 · 포지션 크기 계산기</div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px">
           <div>
-            <div style="font-size:10px;color:var(--text2);margin-bottom:3px">현재가 (원)</div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:3px">현재가 (원)</div>
             <input type="number" class="form-input" id="wl-rr-cur" placeholder="자동 입력"
               oninput="_calcRR()" style="width:100%;box-sizing:border-box;font-size:12px">
           </div>
           <div>
-            <div style="font-size:10px;color:var(--text2);margin-bottom:3px">목표가 (원)</div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:3px">목표가 (원)</div>
             <input type="number" class="form-input" id="wl-rr-tgt"
               value="${w.target_price||''}" placeholder="업사이드와 연동"
               oninput="_calcRR()" style="width:100%;box-sizing:border-box;font-size:12px">
           </div>
           <div>
-            <div style="font-size:10px;color:var(--text2);margin-bottom:3px">손절가 (원)</div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:3px">손절가 (원)</div>
             <input type="number" class="form-input" id="wl-rr-stop" placeholder="예: 45,000"
               oninput="_calcRR()" style="width:100%;box-sizing:border-box;font-size:12px">
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
           <div>
-            <div style="font-size:10px;color:var(--text2);margin-bottom:3px">계좌 총액 (만원)</div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:3px">계좌 총액 (만원)</div>
             <input type="number" class="form-input" id="wl-rr-account" placeholder="예: 5000"
               oninput="_calcRR()" style="width:100%;box-sizing:border-box;font-size:12px">
           </div>
           <div>
-            <div style="font-size:10px;color:var(--text2);margin-bottom:3px">리스크 허용 비율 (%)</div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:3px">리스크 허용 비율 (%)</div>
             <input type="number" class="form-input" id="wl-rr-risk" placeholder="예: 1" step="0.5" min="0.1" max="10"
               oninput="_calcRR()" style="width:100%;box-sizing:border-box;font-size:12px">
           </div>

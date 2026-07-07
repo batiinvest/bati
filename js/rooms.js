@@ -1,4 +1,4 @@
-﻿// rooms.js — 채팅방 CRUD, 공지 발송, 팀원 관리
+// rooms.js — 채팅방 CRUD, 공지 발송, 팀원 관리
 
 // 산업별 이모지 — autoGenIntro / autoGenNotice 공용
 const IND_EMOJI_MAP = {
@@ -587,7 +587,7 @@ async function loadTeam() {
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px">
           ${u.name || '—'}
-          ${isMe ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:rgba(42,171,238,.15);color:var(--tg)">나</span>` : ''}
+          ${isMe ? `<span style="font-size:11px;padding:1px 6px;border-radius:100px;background:rgba(42,171,238,.15);color:var(--tg)">나</span>` : ''}
         </div>
         <div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.email}</div>
       </div>

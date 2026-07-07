@@ -108,13 +108,13 @@ function _rpAnalystGrid(analysts, currentPrice) {
           const dt  = a.opinion_date ? a.opinion_date.slice(2,10).replace(/-/g,'.') : '';
           return `<div style="padding:8px 6px;border-radius:var(--radius-sm);background:var(--bg3);
             border:1px solid ${col}30;text-align:center">
-            <div style="font-size:10px;color:var(--text1);overflow:hidden;text-overflow:ellipsis;
+            <div style="font-size:11px;color:var(--text1);overflow:hidden;text-overflow:ellipsis;
               white-space:nowrap;margin-bottom:4px">${a.firm_name||''}</div>
             <div style="font-size:11px;font-weight:800;color:${col};margin-bottom:3px">${op}</div>
             <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:2px">${tp}</div>
-            ${tp !== '—' ? `<div style="font-size:10px;color:var(--text1);margin-bottom:1px">원</div>` : ''}
+            ${tp !== '—' ? `<div style="font-size:11px;color:var(--text1);margin-bottom:1px">원</div>` : ''}
             ${gStr ? `<div style="font-size:11px;font-weight:700;color:${gCol}">${gStr}</div>` : ''}
-            <div style="font-size:9px;color:var(--text1);margin-top:3px;opacity:.7">${dt}</div>
+            <div style="font-size:11px;color:var(--text1);margin-top:3px;opacity:.7">${dt}</div>
           </div>`;
         }).join('')}
       </div>
@@ -477,7 +477,7 @@ function _rpSegInner(cache, selected) {
           const barH = max > 0 ? Math.max(4, Math.round(v / max * CHART_H)) : 4;
           const isLatest = pi === periods.length - 1;
           return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;height:${CHART_H}px">
-            <div style="font-size:10px;font-weight:600;color:${color};text-align:center;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmtCap(v*1e6)}</div>
+            <div style="font-size:11px;font-weight:600;color:${color};text-align:center;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmtCap(v*1e6)}</div>
             <div style="height:${barH}px;border-radius:3px 3px 0 0;background:${color};opacity:${isLatest?1:.7};
               ${isLatest?'box-shadow:0 0 0 2px '+color+'60':''}"></div>
           </div>`;
@@ -499,7 +499,7 @@ function _rpSegInner(cache, selected) {
             return { name, rev, ratio, color: COLORS[si % COLORS.length] };
           }).filter(s => s.rev > 0).reverse();
           return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;height:${CHART_H}px">
-            <div style="font-size:10px;font-weight:600;color:var(--text1);text-align:center;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmtCap(total*1e6)}</div>
+            <div style="font-size:11px;font-weight:600;color:var(--text1);text-align:center;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmtCap(total*1e6)}</div>
             <div style="height:${barH}px;border-radius:3px 3px 0 0;overflow:hidden;display:flex;flex-direction:column;
               ${isLatest?'box-shadow:0 0 0 2px rgba(255,255,255,.22)':''}">
               ${segs.map(s => `<div style="flex:${s.ratio};background:${s.color};min-height:2px"
@@ -515,9 +515,9 @@ function _rpSegInner(cache, selected) {
     <div style="display:flex;gap:5px;margin-top:5px">
       ${periods.map((p, pi) => `
         <div style="flex:1;min-width:0;text-align:center">
-          <div style="font-size:10px;font-weight:${pi===periods.length-1?700:500};
+          <div style="font-size:11px;font-weight:${pi===periods.length-1?700:500};
             color:${pi===periods.length-1?'var(--text1)':'var(--text2)'}">${p.bsns_year}</div>
-          <div style="font-size:10px;color:${pi===periods.length-1?'var(--tg)':'var(--text2)'}">${p.quarter}</div>
+          <div style="font-size:11px;color:${pi===periods.length-1?'var(--tg)':'var(--text2)'}">${p.quarter}</div>
         </div>`).join('')}
     </div>`;
 
@@ -542,7 +542,7 @@ function _rpSegInner(cache, selected) {
         cursor:pointer;transition:opacity .2s;${opacity}user-select:none"
       onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity=''">
       <div style="display:flex;align-items:center;gap:7px">
-        <span style="font-size:10px;font-weight:800;color:${color};min-width:18px;text-align:center;
+        <span style="font-size:11px;font-weight:800;color:${color};min-width:18px;text-align:center;
           background:${color}22;border-radius:3px;padding:1px 4px">${si+1}</span>
         <span style="font-size:${isTop?'13px':'12px'};font-weight:${isTop||isSel?700:500};color:var(--text1);
           flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
@@ -560,7 +560,7 @@ function _rpSegInner(cache, selected) {
   const headerRight = selected
     ? `<button onclick="rpSegFilter(null)" style="font-size:11px;padding:2px 10px;border:1px solid var(--border);
         border-radius:100px;background:var(--bg3);color:var(--text1);cursor:pointer">전체 보기</button>`
-    : `<span style="font-size:10px;color:var(--text1)">스파크라인 · QoQ</span>`;
+    : `<span style="font-size:11px;color:var(--text1)">스파크라인 · QoQ</span>`;
 
   return `
     <div>${chartHTML}</div>
@@ -592,10 +592,10 @@ function _rpValuationCard(latestF, latest) {
   const trend = (cur, old) => {
     if (cur == null || old == null) return '';
     const d = cur - old;
-    if (Math.abs(d) < 0.1) return `<span style="font-size:10px;color:var(--text1)"> →</span>`;
+    if (Math.abs(d) < 0.1) return `<span style="font-size:11px;color:var(--text1)"> →</span>`;
     return d > 0
-      ? `<span style="font-size:10px;color:#f87171"> ▲${d.toFixed(1)}</span>`
-      : `<span style="font-size:10px;color:#60a5fa"> ▼${Math.abs(d).toFixed(1)}</span>`;
+      ? `<span style="font-size:11px;color:#f87171"> ▲${d.toFixed(1)}</span>`
+      : `<span style="font-size:11px;color:#60a5fa"> ▼${Math.abs(d).toFixed(1)}</span>`;
   };
 
   // PER/PBR 역사적 추세 (시장 데이터 기준)
@@ -636,7 +636,7 @@ function _rpValuationCard(latestF, latest) {
       return `<div style="margin-bottom:10px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
           <span style="font-size:11px;font-weight:700;color:var(--text1)">PER 히스토리 (최근 ${pts.length}거래일)</span>
-          <div style="display:flex;gap:10px;font-size:10px;color:var(--text1)">
+          <div style="display:flex;gap:10px;font-size:11px;color:var(--text1)">
             <span>최저 <b style="color:#4ade80">${mn.toFixed(1)}x</b></span>
             <span>평균 <b style="color:#f59e0b">${avg.toFixed(1)}x</b></span>
             <span>최고 <b style="color:#f87171">${mx.toFixed(1)}x</b></span>
@@ -647,7 +647,7 @@ function _rpValuationCard(latestF, latest) {
           <path d="${path}" fill="none" stroke="var(--border)" stroke-width="1.2" opacity="0.7"/>
           <circle cx="${xs[xs.length-1].toFixed(1)}" cy="${curY}" r="3" fill="${bandColor}" stroke="var(--bg3)" stroke-width="1.5"/>
         </svg>
-        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text1);margin-top:3px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text1);margin-top:3px">
           <span>← ${pts.length}거래일 전</span>
           <span style="color:${bandColor};font-weight:700">현재 ${curPer.toFixed(1)}x (하위 ${pctPos}%)</span>
           <span>현재 →</span>
@@ -702,7 +702,7 @@ function _rpValuationCard(latestF, latest) {
       <div style="margin-bottom:8px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px">
           <span style="font-size:11px;font-weight:700;color:var(--text1)">${label} 분기별 밴드 (${n}분기)</span>
-          <div style="display:flex;gap:10px;font-size:10px;color:var(--text1)">
+          <div style="display:flex;gap:10px;font-size:11px;color:var(--text1)">
             <span>최저 <b style="color:#4ade80">${mn.toFixed(unit==='x'?1:2)}${unit}</b></span>
             <span>평균 <b style="color:#f59e0b">${avg.toFixed(unit==='x'?1:2)}${unit}</b></span>
             <span>최고 <b style="color:#f87171">${mx.toFixed(unit==='x'?1:2)}${unit}</b></span>
@@ -727,7 +727,7 @@ function _rpValuationCard(latestF, latest) {
           ${xLabels}
         </svg>
         ${curVal != null ? `
-        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text1);margin-top:2px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text1);margin-top:2px">
           <span>← ${n}분기 이전</span>
           <span style="color:${curColor};font-weight:700">
             현재 ${curVal.toFixed(unit==='x'?1:2)}${unit}
@@ -779,7 +779,7 @@ function _rpValuationCard(latestF, latest) {
     <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px;
       padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);
       border-left:3px solid var(--tg)">
-      <div style="font-size:10px;font-weight:700;color:var(--tg);letter-spacing:.6px;margin-bottom:2px">
+      <div style="font-size:11px;font-weight:700;color:var(--tg);letter-spacing:.6px;margin-bottom:2px">
         펀드매니저 종합 판단
       </div>
       ${synthesis.map(s => {
@@ -812,7 +812,7 @@ function _rpValuationCard(latestF, latest) {
             ${m.peer != null ? `
               <span style="font-size:12px;color:var(--text1)">vs</span>
               <div>
-                <div style="font-size:10px;color:var(--text1)">업종 중앙</div>
+                <div style="font-size:11px;color:var(--text1)">업종 중앙</div>
                 <div style="font-size:15px;font-weight:700;color:var(--text1)">${m.fmt(m.peer)}${m.unit}</div>
               </div>
               ${judge ? `
@@ -843,7 +843,7 @@ function _rpValuationCard(latestF, latest) {
               border-radius:50%;background:${jColor};
               border:2px solid var(--bg3)"></div>
           </div>
-          <div style="display:flex;justify-content:space-between;font-size:10px;
+          <div style="display:flex;justify-content:space-between;font-size:11px;
             color:var(--text1);margin-top:3px">
             <span>${m.lowerBetter ? '◀ 저평가' : '◀ 저수익'}</span>
             <span style="opacity:.6">│ 업종 중앙</span>
@@ -865,8 +865,8 @@ function _rpFinHealthCard(f) {
     const d = cur - old;
     if (Math.abs(d) < 0.1) return '';
     return d > 0
-      ? `<span style="font-size:10px;color:#f87171">▲${d.toFixed(1)}</span>`
-      : `<span style="font-size:10px;color:#60a5fa">▼${Math.abs(d).toFixed(1)}</span>`;
+      ? `<span style="font-size:11px;color:#f87171">▲${d.toFixed(1)}</span>`
+      : `<span style="font-size:11px;color:#60a5fa">▼${Math.abs(d).toFixed(1)}</span>`;
   };
 
   // 이자보상배율 근사 (영업이익 / 금융비용 — 금융비용 없으면 skip)
@@ -914,7 +914,7 @@ function _rpFinHealthCard(f) {
     return `<div style="display:flex;flex-direction:column;gap:4px;margin-top:10px;
       padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);
       border-left:3px solid var(--border)">
-      <div style="font-size:10px;font-weight:700;color:var(--text1);letter-spacing:.5px;margin-bottom:2px">투자 연결 시사점</div>
+      <div style="font-size:11px;font-weight:700;color:var(--text1);letter-spacing:.5px;margin-bottom:2px">투자 연결 시사점</div>
       ${stories.map(s => `<div style="font-size:11px;color:${s.color};line-height:1.5">${s.icon} ${s.text}</div>`).join('')}
     </div>`;
   };
@@ -932,11 +932,11 @@ function _rpFinHealthCard(f) {
             <div style="font-size:12px;color:var(--text1)">${k.label}</div>
           </div>
           <div style="flex:1;min-width:0">
-            ${k.hint ? `<div style="font-size:10px;color:${sig?.color||'var(--text2)'}">${k.hint}</div>` : ''}
+            ${k.hint ? `<div style="font-size:11px;color:${sig?.color||'var(--text2)'}">${k.hint}</div>` : ''}
           </div>
           <div style="display:flex;align-items:center;gap:6px;white-space:nowrap">
             ${trend(k.val, k.prev)}
-            ${sig ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;
+            ${sig ? `<span style="font-size:11px;padding:1px 6px;border-radius:100px;
               background:${sig.color}20;color:${sig.color};font-weight:700">${sig.label}</span>` : ''}
             <span style="font-size:15px;font-weight:800;color:var(--text1)">${disp}</span>
           </div>
@@ -992,10 +992,10 @@ function _rpCatalystCard() {
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
       ${catalysts.map(c => `
       <div style="padding:10px;border-radius:var(--radius-sm);border:1px solid ${c.color}30;background:${c.color}08">
-        <div style="font-size:10px;font-weight:700;color:${c.color};margin-bottom:8px">${c.horizon}</div>
+        <div style="font-size:11px;font-weight:700;color:${c.color};margin-bottom:8px">${c.horizon}</div>
         ${c.items.map(item => `
         <div style="display:flex;align-items:flex-start;gap:5px;margin-bottom:5px">
-          <span style="color:${c.color};font-size:10px;margin-top:2px">◦</span>
+          <span style="color:${c.color};font-size:11px;margin-top:2px">◦</span>
           <span style="font-size:12px;color:var(--text1)">${item}</span>
         </div>`).join('')}
       </div>`).join('')}

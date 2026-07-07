@@ -1,4 +1,4 @@
-﻿// config.js — Supabase 연결, 전역 상수, 앱 상태
+// config.js — Supabase 연결, 전역 상수, 앱 상태
 // ══════════════════════════════════════════
 //  Supabase 연결 설정
 //  SB_URL, SB_KEY 두 줄만 본인 값으로 교체하세요
@@ -54,6 +54,36 @@ function indCumReturn(dayChgMap, dates) {
   }
   return parseFloat((cum - 100).toFixed(2));
 }
+
+// ══════════════════════════════════════════
+//  카드 SVG 아이콘 맵 — 전 페이지 공용 (이모지 대신 사용: OS별 렌더링 편차 제거)
+//  (구 investment.js 정의를 이동 — 상세 모달·리포트 등에서도 참조)
+// ══════════════════════════════════════════
+const _ICO = (() => {
+  const s = (d, w=14, mr=5) =>
+    `<svg style="width:${w}px;height:${w}px;vertical-align:-2px;margin-right:${mr}px;flex-shrink:0" viewBox="0 0 16 16" fill="none">${d}</svg>`;
+  return {
+    bar:      s('<rect x="2" y="8" width="3" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="6.5" y="5" width="3" height="9" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="3" width="3" height="11" rx="1" stroke="currentColor" stroke-width="1.5"/>'),
+    chart:    s('<path d="M2 12l3-4 3 2 3-5 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'),
+    bulb:     s('<path d="M8 2a4 4 0 0 1 2.5 7.1V11a.5.5 0 0 1-.5.5h-4A.5.5 0 0 1 5.5 11V9.1A4 4 0 0 1 8 2z" stroke="currentColor" stroke-width="1.4"/><path d="M6.5 13h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>'),
+    flag:     s('<path d="M4 2v12M4 2l8 3-8 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'),
+    flow:     s('<path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>'),
+    arrowUp:  s('<path d="M8 13V3M4 7l4-4 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>', 12, 4),
+    arrowDn:  s('<path d="M8 3v10M4 9l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>', 12, 4),
+    shuffle:  s('<path d="M2 5h3l8 6h1M14 5h-1l-2 1.5M2 11h3l2-1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 3l2 2-2 2M13 9l2 2-2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>'),
+    globe:    s('<circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M8 2.5C6.5 4 5.5 5.8 5.5 8s1 4 2.5 5.5M8 2.5C9.5 4 10.5 5.8 10.5 8s-1 4-2.5 5.5M2.5 8h11" stroke="currentColor" stroke-width="1.3"/>'),
+    building: s('<rect x="3" y="2" width="10" height="12" rx="1" stroke="currentColor" stroke-width="1.4"/><path d="M6 6h1M9 6h1M6 9h1M9 9h1M7 14v-3h2v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>'),
+    grid:     s('<rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/>'),
+    doc:      s('<rect x="3" y="1.5" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>'),
+    rocket:   s('<path d="M8 2c2.5 0 5 2.2 5 5.5C13 10.5 10.5 12.5 8 14 5.5 12.5 3 10.5 3 7.5 3 4.2 5.5 2 8 2z" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="7.5" r="1.5" stroke="currentColor" stroke-width="1.3"/>'),
+    refresh:  s('<path d="M13.5 8A5.5 5.5 0 112.5 5M2.5 2v3h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>', 12, 3),
+    temp:     s('<path d="M10 9.2V3a2 2 0 0 0-4 0v6.2A4 4 0 1 0 10 9.2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>'),
+    coin:     s('<ellipse cx="8" cy="5" rx="5.5" ry="2.2" stroke="currentColor" stroke-width="1.4"/><path d="M2.5 5v6c0 1.2 2.5 2.2 5.5 2.2s5.5-1 5.5-2.2V5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M2.5 8c0 1.2 2.5 2.2 5.5 2.2S13.5 9.2 13.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>'),
+    history:  s('<circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M8 5v3.5l2.5 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>'),
+    bank:     s('<path d="M2 6l6-3.5L14 6M3 7v5M6.5 7v5M9.5 7v5M13 7v5M2 13.5h12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>'),
+    target:   s('<circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r=".5" fill="currentColor"/>'),
+  };
+})();
 
 // ══════════════════════════════════════════
 //  Chart.js 테마 헬퍼 — canvas는 CSS 변수를 해석하지 못하므로
@@ -246,9 +276,9 @@ async function loadWatchlistCodes(force = false) {
 function wlBadge(code) {
   const c = _normCode(code);
   if (_wlHeldCodes.has(c))
-    return `<span title="보유 중" style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:100px;background:rgba(42,171,238,.18);color:var(--tg);white-space:nowrap;flex-shrink:0">보유</span>`;
+    return `<span title="보유 중" style="font-size:11px;font-weight:700;padding:1px 5px;border-radius:100px;background:rgba(42,171,238,.18);color:var(--tg);white-space:nowrap;flex-shrink:0">보유</span>`;
   if (_wlWatchCodes.has(c))
-    return `<span title="투자노트 관심" style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:100px;background:rgba(74,158,255,.16);color:#4a9eff;white-space:nowrap;flex-shrink:0">관심</span>`;
+    return `<span title="투자노트 관심" style="font-size:11px;font-weight:700;padding:1px 5px;border-radius:100px;background:rgba(74,158,255,.16);color:#4a9eff;white-space:nowrap;flex-shrink:0">관심</span>`;
   return '';
 }
 

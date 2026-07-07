@@ -77,7 +77,7 @@ function wlRenderDrawer(code) {
   const roe = C.roeMap?.[code], opm = C.opmMap?.[code], rev = C.revMap?.[code], op = C.opMap?.[code];
   const metric = (label, val, color) =>
     `<div style="background:var(--bg2);border-radius:6px;padding:7px 9px">
-       <div style="font-size:10px;color:var(--text2)">${label}</div>
+       <div style="font-size:11px;color:var(--text2)">${label}</div>
        <div style="font-size:13px;font-weight:700;color:${color||'var(--text)'};font-variant-numeric:tabular-nums">${val}</div></div>`;
   const metricsGrid = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
     ${metric('시총', cap ? fmtEok(cap/1e8) : '—')}

@@ -247,7 +247,7 @@ function _srQuadrant(rows, pk, mkt) {
   if (pts.length < 2)
     return `<div style="padding:2.5rem 1rem;text-align:center;color:var(--text2);font-size:12px">
       로테이션 맵 — 수급 추세 데이터 집계 대기<br>
-      <span style="font-size:10px;color:var(--text3)">장 마감 후 자동 집계됩니다</span></div>`;
+      <span style="font-size:11px;color:var(--text3)">장 마감 후 자동 집계됩니다</span></div>`;
 
   const W = 420, H = 320, ML = 64, MR = 64, MT = 18, MB = 22;
   const pw = W - ML - MR, ph = H - MT - MB;
@@ -334,7 +334,7 @@ function _srQuadrant(rows, pk, mkt) {
   }).join('');
 
   return `<div style="font-size:11px;font-weight:600;color:var(--text1);padding:2px 2px 6px">
-      로테이션 맵 <span style="font-weight:400;color:var(--text2);font-size:10px">세로=시장대비 · 가로=수급순위 · 버블=거래대금 · 클릭→표 강조</span>
+      로테이션 맵 <span style="font-weight:400;color:var(--text2);font-size:11px">세로=시장대비 · 가로=수급순위 · 버블=거래대금 · 클릭→표 강조</span>
     </div>
     <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:560px;display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg">
       ${bg}${cross}${corners}${axes}${bubbles}
@@ -405,7 +405,7 @@ function _srTable(rows, pk, mkt) {
     const dnPct = tot ? (t.fall / tot * 100) : 0;
     const breadthCell = tot
       ? `<div>
-           <div style="font-size:10px;text-align:center;margin-bottom:2px">
+           <div style="font-size:11px;text-align:center;margin-bottom:2px">
              <span style="color:var(--red);font-weight:600">▲${t.rise}</span>
              <span style="color:var(--text3);margin:0 2px">·</span>
              <span style="color:var(--blue);font-weight:600">▼${t.fall}</span>
@@ -468,14 +468,14 @@ function _srTable(rows, pk, mkt) {
 
     // 국면 배지
     const phaseCell = `<div style="text-align:center" title="${ph.tip}">
-        <span style="font-size:10px;font-weight:700;color:${ph.color};background:${ph.bg};border-radius:4px;padding:1px 6px;white-space:nowrap">${ph.label}</span>
+        <span style="font-size:11px;font-weight:700;color:${ph.color};background:${ph.bg};border-radius:4px;padding:1px 6px;white-space:nowrap">${ph.label}</span>
       </div>`;
 
     return `<div id="sr-row-${r.ind}" style="display:grid;grid-template-columns:${COLS};gap:6px;align-items:center;padding:9px 12px;background:${i % 2 ? 'rgba(255,255,255,.03)' : 'transparent'};transition:background .25s">
         <div style="display:flex;align-items:center;gap:4px;min-width:0">
           <span style="width:6px;height:6px;border-radius:50%;background:${r.color};flex-shrink:0"></span>
           <span style="font-size:12px;font-weight:600;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.ind}</span>
-          <span style="font-size:9px;color:var(--text3);flex-shrink:0">${r.n}</span>
+          <span style="font-size:11px;color:var(--text3);flex-shrink:0">${r.n}</span>
         </div>
         ${retCell}
         ${breadthCell}

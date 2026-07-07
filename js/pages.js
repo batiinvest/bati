@@ -1,4 +1,4 @@
-﻿// pages.js — 텔레그램 채널 관련 페이지 (overview, rooms, notice, logs)
+// pages.js — 텔레그램 채널 관련 페이지 (overview, rooms, notice, logs)
 // 투자현황 → investment.js / 스크리너 → screener.js
 
 /**
@@ -115,12 +115,12 @@ function _renderRoomRow(r) {
     <td><div style="display:flex;align-items:center;gap:6px">
       <span class="cat-dot" style="background:${CATS[r.cat]||'#888'}"></span>
       <span style="font-weight:500">${escapeHtml(r.name)}</span>
-      ${r.code ? `<span style="font-size:10px;color:var(--text2)">${escapeHtml(r.code)}</span>` : ''}
+      ${r.code ? `<span style="font-size:11px;color:var(--text2)">${escapeHtml(r.code)}</span>` : ''}
     </div></td>
     <td>
       <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
         <span class="badge badge-cat">${r.cat}</span>
-        ${r.room_type==='industry' ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:rgba(74,158,255,.15);color:#4a9eff">산업방</span>` : ''}
+        ${r.room_type==='industry' ? `<span style="font-size:11px;padding:1px 6px;border-radius:100px;background:rgba(74,158,255,.15);color:#4a9eff">산업방</span>` : ''}
       </div>
       ${r.sub_cat && r.sub_cat !== '산업전체' ? `<div style="font-size:11px;color:var(--text2);margin-top:2px">${r.sub_cat}</div>` : ''}
     </td>
@@ -135,7 +135,7 @@ function _renderRoomRow(r) {
     <td><div style="display:flex;gap:5px">
       <button class="btn btn-sm" onclick="openDetail(${r.id})">상세</button>
       ${canEdit() ? `<button class="btn btn-sm" onclick="syncOne(${r.id})" title="동기화">↻</button>
-        <button class="btn btn-sm" onclick="toggleStatus(${r.id})" style="font-size:10px">${r.status==='full'?'→ 일반':r.status==='paid'?'→ 마감':'→ 유료'}</button>` : ''}
+        <button class="btn btn-sm" onclick="toggleStatus(${r.id})" style="font-size:11px">${r.status==='full'?'→ 일반':r.status==='paid'?'→ 마감':'→ 유료'}</button>` : ''}
     </div></td>
   </tr>`;
 }
@@ -268,7 +268,7 @@ function pNotice() {
         </button>
         <button class="btn btn-sm" onclick="autoGenIntro(true)" title="수정본 무시하고 채팅방 데이터로 새로 생성">🔄 새로 생성</button>
         <button class="btn btn-sm" onclick="clearNoticeContent()">🗑 지우기</button>
-        <span style="font-size:10px;color:var(--text2);align-self:center"><code>---</code> 줄 기준으로 분할 발송</span>
+        <span style="font-size:11px;color:var(--text2);align-self:center"><code>---</code> 줄 기준으로 분할 발송</span>
       </div>
       <textarea class="form-input" id="i-content" rows="12" style="font-size:12px;font-family:monospace"
         placeholder="직접 입력하거나 소개 글 생성 버튼을 누르세요"

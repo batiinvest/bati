@@ -163,7 +163,7 @@ async function openJournalModal(stockCode, corpName) {
   const reasons = ['목표 달성','손절 룰','펀더멘털 훼손','더 좋은 기회','패닉·감정','자금 필요','기타'];
   const auto = (label, val, color = 'var(--text1)') =>
     `<div style="flex:1;min-width:90px;background:var(--bg2);border-radius:8px;padding:8px 10px">
-       <div style="font-size:10px;color:var(--text2)">${label}</div>
+       <div style="font-size:11px;color:var(--text2)">${label}</div>
        <div style="font-size:14px;font-weight:700;color:${color}">${val}</div></div>`;
 
   const overlay = document.createElement('div');
@@ -432,7 +432,7 @@ async function openTradeHistory(stockCode, corpName) {
     const amt = Number(t.price) * Number(t.quantity) + (Number(t.fee) || 0);
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 8px;font-size:12px">${t.trade_date}</td>
-      <td style="padding:7px 8px;font-size:12px;font-weight:700;color:${isBuy?'var(--buy)':'var(--sell)'}">${isBuy?'매수':'매도'}${t.trade_method==='credit'?` <span style="font-size:9px;padding:1px 4px;border-radius:3px;background:var(--accent);color:#1b1300;font-weight:700">신용</span>`:''}</td>
+      <td style="padding:7px 8px;font-size:12px;font-weight:700;color:${isBuy?'var(--buy)':'var(--sell)'}">${isBuy?'매수':'매도'}${t.trade_method==='credit'?` <span style="font-size:11px;padding:1px 4px;border-radius:3px;background:var(--accent);color:#1b1300;font-weight:700">신용</span>`:''}</td>
       <td style="padding:7px 8px;font-size:12px;text-align:right">${Number(t.price).toLocaleString()}원</td>
       <td style="padding:7px 8px;font-size:12px;text-align:right">${Number(t.quantity).toLocaleString()}주</td>
       <td style="padding:7px 8px;font-size:12px;text-align:right">${Math.round(amt).toLocaleString()}원</td>
@@ -445,7 +445,7 @@ async function openTradeHistory(stockCode, corpName) {
 
   const card = (label, val, color='var(--text)') =>
     `<div style="flex:1;min-width:120px;background:var(--bg2);border-radius:8px;padding:10px 12px">
-       <div style="font-size:10px;color:var(--text2)">${label}</div>
+       <div style="font-size:11px;color:var(--text2)">${label}</div>
        <div style="font-size:15px;font-weight:700;color:${color}">${val}</div>
      </div>`;
   body.innerHTML = `

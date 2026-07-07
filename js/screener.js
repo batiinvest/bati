@@ -1,4 +1,4 @@
-﻿// screener.js — 종목 스크리너 페이지
+// screener.js — 종목 스크리너 페이지
 // 의존: config.js (INDUSTRIES, fetchAllPages, fmtCap, loadingHTML, emptyHTML)
 //
 // [v2] JS 풀스캔 제거 — Supabase 쿼리 레벨 필터로 이전
@@ -21,6 +21,17 @@ function pScreener() {
       <div class="card-header"><span class="card-title">필터 조건</span></div>
       <div style="padding:.75rem 1rem;display:flex;flex-direction:column;gap:1rem">
         <div>
+          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:.75rem">프리셋 — 한 번에 조건 채우기</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <button class="btn btn-sm" onclick="applyPreset('value')">가치주</button>
+            <button class="btn btn-sm" onclick="applyPreset('growth')">성장주</button>
+            <button class="btn btn-sm" onclick="applyPreset('quality')">우량주</button>
+            <button class="btn btn-sm" onclick="applyPreset('peg')">성장주(PEG)</button>
+            <button class="btn btn-sm" onclick="applyPreset('deepvalue')">딥밸류</button>
+            <button class="btn btn-sm" onclick="applyPreset('reset')">초기화</button>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:.75rem">
           <div style="font-size:12px;color:var(--text1);margin-bottom:6px">산업</div>
           <select class="form-select" id="sc-industry" style="width:100%">
             <option value="">전체</option>
@@ -92,17 +103,6 @@ function pScreener() {
             <input type="number" class="form-input" id="sc-cap-min" placeholder="최소(억)" style="width:90px;padding:4px 8px;font-size:12px">
             <span style="color:var(--text2);font-size:12px">~</span>
             <input type="number" class="form-input" id="sc-cap-max" placeholder="최대(억)" style="width:90px;padding:4px 8px;font-size:12px">
-          </div>
-        </div>
-        <div style="border-top:1px solid var(--border);padding-top:.75rem">
-          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:.75rem">프리셋</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">
-            <button class="btn btn-sm" onclick="applyPreset('value')">가치주</button>
-            <button class="btn btn-sm" onclick="applyPreset('growth')">성장주</button>
-            <button class="btn btn-sm" onclick="applyPreset('quality')">우량주</button>
-            <button class="btn btn-sm" onclick="applyPreset('peg')">성장주(PEG)</button>
-            <button class="btn btn-sm" onclick="applyPreset('deepvalue')">딥밸류</button>
-            <button class="btn btn-sm" onclick="applyPreset('reset')">초기화</button>
           </div>
         </div>
         <button class="btn btn-primary" onclick="runScreener()" style="width:100%">검색</button>
@@ -370,7 +370,7 @@ async function runScreener() {
         <td>${_sig(r)}</td>
         <td style="padding:4px 6px">
           <button onclick="scAddToWatchlist('${r.stock_code}','${escJsStr(r.corp_name)}');event.stopPropagation()"
-            style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(45,206,137,.15);color:#2dce89;border:1px solid rgba(45,206,137,.3);cursor:pointer;white-space:nowrap">+WL</button>
+            style="font-size:11px;padding:2px 6px;border-radius:4px;background:rgba(45,206,137,.15);color:#2dce89;border:1px solid rgba(45,206,137,.3);cursor:pointer;white-space:nowrap">+WL</button>
         </td>
       </tr>`).join('')}</tbody>
     </table></div>`;

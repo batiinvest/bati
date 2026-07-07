@@ -1,4 +1,4 @@
-﻿/**
+/**
  * market-temperature.js — 시장 온도계 (v3)
  *
  * 기존 로드된 데이터만으로 0~100점 시장 온도를 계산해 렌더링한다.
@@ -244,10 +244,10 @@ function _tempReasonLine(parts, score, color) {
   }
   if (!picks.length) return '';
   const chips = picks.map(p =>
-    `<span style="font-size:10px;color:${color};background:${color}1a;border-radius:3px;padding:1px 6px;white-space:nowrap">${p.label}</span>`
+    `<span style="font-size:11px;color:${color};background:${color}1a;border-radius:3px;padding:1px 6px;white-space:nowrap">${p.label}</span>`
   ).join(' ');
   return `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:6px">
-    <span style="font-size:10px;color:var(--text2);font-weight:600">${word}</span>${chips}</div>`;
+    <span style="font-size:11px;color:var(--text2);font-weight:600">${word}</span>${chips}</div>`;
 }
 
 
@@ -356,17 +356,17 @@ async function renderMarketTemperature() {
     const diffStr  = diff === 0 ? '전일 동일' : `전일比 ${diffSign} ${diffAbs}`;
     diffBadge = `<span style="font-size:11px;font-weight:600;color:${diffColor};
       margin-left:6px">${diffStr}</span>
-      <span style="font-size:10px;color:var(--text2);margin-left:4px">(전일 ${prev.score}점)</span>`;
+      <span style="font-size:11px;color:var(--text2);margin-left:4px">(전일 ${prev.score}점)</span>`;
   }
 
   // 국면 지속일수 / 국면 전환 뱃지 — 상태의 '나이'가 상태 자체만큼 중요
   const streak = _tempStreak(hist, t.score, today);
   let streakBadge = '';
   if (streak >= 2) {
-    streakBadge = `<span style="font-size:10px;font-weight:600;color:var(--text2);
+    streakBadge = `<span style="font-size:11px;font-weight:600;color:var(--text2);
       background:rgba(255,255,255,.07);border-radius:3px;padding:1px 6px">${streak}일째</span>`;
   } else if (hist[0] && _tempBand(hist[0].score) !== _tempBand(t.score)) {
-    streakBadge = `<span style="font-size:10px;font-weight:700;color:${t.gradeColor};
+    streakBadge = `<span style="font-size:11px;font-weight:700;color:${t.gradeColor};
       background:${t.gradeColor}22;border-radius:3px;padding:1px 6px">국면 전환
       ${_TEMP_BAND_NAMES[_tempBand(hist[0].score)]}→${_TEMP_BAND_NAMES[_tempBand(t.score)]}</span>`;
   }
@@ -379,7 +379,7 @@ async function renderMarketTemperature() {
     <div style="text-align:center;min-width:54px;flex-shrink:0">
       <div style="font-size:36px;font-weight:800;line-height:1;color:${t.gradeColor};
         font-variant-numeric:tabular-nums">${t.score}</div>
-      <div style="font-size:10px;color:var(--text2);margin-top:2px">/ 100</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:2px">/ 100</div>
     </div>
 
     <!-- 게이지 + 등급 -->
@@ -389,7 +389,7 @@ async function renderMarketTemperature() {
         ${t.gradeEmoji} ${t.gradeTxt}
         ${streakBadge}
         ${diffBadge}
-        ${t.crashNote ? `<span style="font-size:10px;font-weight:600;color:#f5365c;
+        ${t.crashNote ? `<span style="font-size:11px;font-weight:600;color:#f5365c;
           background:rgba(245,54,92,.12);border-radius:3px;padding:1px 6px">⚡ ${t.crashNote}</span>` : ''}
       </div>
       <!-- 포인터 마커 -->
@@ -409,7 +409,7 @@ async function renderMarketTemperature() {
         ).join('')}
       </div>
       <div style="display:flex;justify-content:space-between;
-        font-size:9px;color:var(--text2);margin-top:3px;padding:0 1px">
+        font-size:11px;color:var(--text2);margin-top:3px;padding:0 1px">
         <span>위험</span><span>경계</span><span>중립</span><span>우호</span><span>과열</span>
       </div>
     </div>
@@ -432,7 +432,7 @@ async function renderMarketTemperature() {
       const barColor = pct >= 70 ? '#2AABEE' : pct >= 40 ? '#f59e0b' : '#64748b';
       return `
       <div class="temp-detail-row">
-        <span style="min-width:140px;color:var(--text1);font-size:11px">${p.label}${p.hint ? ` <span style="color:var(--text2);font-size:10px">${p.hint}</span>` : ''}</span>
+        <span style="min-width:140px;color:var(--text1);font-size:11px">${p.label}${p.hint ? ` <span style="color:var(--text2);font-size:11px">${p.hint}</span>` : ''}</span>
         <div class="temp-detail-bar">
           <div class="temp-detail-fill" style="width:${pct}%;background:${barColor}"></div>
         </div>
@@ -443,8 +443,8 @@ async function renderMarketTemperature() {
       <div onclick="toggleMjEvidence()" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 1rem;font-size:11px;color:var(--text2)"
         onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background=''">
         <span style="font-weight:600">판단 근거</span>
-        <span style="font-size:10px">S&amp;P·환율·5일추세·상승종목·수급·VIX·금리 7지표 (점수 산출 기준)</span>
-        <span id="mj-ev-toggle" style="margin-left:auto;font-size:10px">펼치기 ▾</span>
+        <span style="font-size:11px">S&amp;P·환율·5일추세·상승종목·수급·VIX·금리 7지표 (점수 산출 기준)</span>
+        <span id="mj-ev-toggle" style="margin-left:auto;font-size:11px">펼치기 ▾</span>
       </div>
       <div id="mj-ev-body" style="display:none;padding:2px 1rem 10px">
         <div style="display:flex;flex-direction:column;gap:5px">${factors}</div>

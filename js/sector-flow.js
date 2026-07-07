@@ -1,4 +1,4 @@
-﻿/**
+/**
  * sector-flow.js — 종목별 수급 순위 (10거래일 누적 외국인/기관 순매수)
  *
  * Zone C(심화 분석)의 '종목별 수급 순위' 카드 전용.
@@ -111,7 +111,7 @@ function renderStockFlow() {
       style="display:flex;align-items:center;gap:8px;padding:5px 12px;border-bottom:1px solid var(--border)">
       <div style="min-width:90px">
         <div style="font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px">${e.corp_name}${typeof wlBadge==='function'?wlBadge(e.code):''}</div>
-        <div style="font-size:10px;color:var(--text2)">${e.industry}</div>
+        <div style="font-size:11px;color:var(--text2)">${e.industry}</div>
       </div>
       <div style="flex:1;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden">
         <div style="width:${barPct}%;height:100%;background:${color};border-radius:3px"></div>
