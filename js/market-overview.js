@@ -780,7 +780,7 @@ function renderHgprTab(tab) {
         <div style="padding:7px 10px;background:${g.hdrBg};border-bottom:1px solid var(--border);
           display:flex;align-items:center;justify-content:space-between">
           <span style="font-size:11px;font-weight:700;color:${g.textColor}">${g.icon}${g.icon?' ':''}${g.title}</span>
-          <span style="font-size:11px;font-weight:400;color:var(--text2)">${g.members.length}개</span>
+          <span class="card-sub">${g.members.length}개</span>
         </div>
         <div style="display:grid;grid-template-columns:1fr auto auto;gap:6px;
           padding:3px 10px;background:var(--bg2);border-bottom:1px solid var(--border)">

@@ -233,7 +233,7 @@ function pBotConfig() {
   <div id="botcfg-news" style="display:none">
     <div class="card" style="margin-bottom:1rem">
       <div class="card-header">
-        <span class="card-title">스팸 패턴 <span style="font-size:11px;font-weight:400;color:var(--text2)">— 제목에 포함 시 발송 차단</span></span>
+        <span class="card-title">스팸 패턴 <span class="card-sub">— 제목에 포함 시 발송 차단</span></span>
       </div>
       <div class="card-body">
         <div class="form-group">
@@ -247,7 +247,7 @@ function pBotConfig() {
 
     <div class="card" style="margin-bottom:1rem">
       <div class="card-header">
-        <span class="card-title">실질 보도 키워드 <span style="font-size:11px;font-weight:400;color:var(--text2)">— 하나도 없으면 발송 안 함</span></span>
+        <span class="card-title">실질 보도 키워드 <span class="card-sub">— 하나도 없으면 발송 안 함</span></span>
       </div>
       <div class="card-body">
         <div class="form-group">
@@ -514,7 +514,7 @@ function pBotConfig() {
             <div class="form-hint">이 이상 상승 시 강세 알림</div>
           </div>
           <div class="form-group" style="margin:0">
-            <label class="form-label">📉 약세 기준 (%) <span style="font-size:11px;font-weight:400;color:var(--text2)">음수 입력</span></label>
+            <label class="form-label">📉 약세 기준 (%) <span class="card-sub">음수 입력</span></label>
             <input class="form-input" id="cfg-alert-down" type="number" step="0.5" min="-30" max="-1" placeholder="-5">
             <div class="form-hint">이 이하 하락 시 약세 알림</div>
           </div>
@@ -552,7 +552,7 @@ function pBotConfig() {
 
     <div class="card">
       <div class="card-header">
-        <span class="card-title">🔍 신뢰도 낮은 출처 <span style="font-size:11px;font-weight:400;color:var(--text2)">— URL에 포함 시 낮은 우선순위</span></span>
+        <span class="card-title">🔍 신뢰도 낮은 출처 <span class="card-sub">— URL에 포함 시 낮은 우선순위</span></span>
       </div>
       <div class="card-body">
         <div class="form-group">

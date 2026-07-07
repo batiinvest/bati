@@ -17,9 +17,13 @@ function pScreener() {
     <button class="chip" onclick="go('financials')">${_ICO.bar}기업 분석</button>
   </div>
   <div class="screener-layout" style="display:grid;grid-template-columns:280px 1fr;gap:1rem;align-items:start">
-    <div class="card screener-filter" style="position:sticky;top:1rem">
-      <div class="card-header"><span class="card-title">필터 조건</span></div>
-      <div style="padding:.75rem 1rem;display:flex;flex-direction:column;gap:1rem">
+    <div class="card screener-filter collapsed" style="position:sticky;top:1rem">
+      <!-- 모바일: 헤더 탭으로 접기/펼치기 (기본 접힘 → 결과 우선). 데스크톱: 항상 펼침 -->
+      <div class="card-header sc-filter-toggle" onclick="scToggleFilter()">
+        <span class="card-title">${_ICO.search}필터 조건</span>
+        <span class="sc-filter-chev">▾</span>
+      </div>
+      <div id="sc-filter-body" style="padding:.75rem 1rem;display:flex;flex-direction:column;gap:1rem">
         <div>
           <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:.75rem">프리셋 — 한 번에 조건 채우기</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px">
@@ -129,9 +133,21 @@ function applyPreset(type) {
   else if (type === 'deepvalue') { set('sc-pbr-max','0.5'); set('sc-per-max','8'); }
 }
 
+// 모바일 전용 필터 접기/펼치기 (데스크톱은 CSS가 항상 펼침 유지)
+function scToggleFilter() {
+  if (window.matchMedia('(min-width:901px)').matches) return;
+  document.querySelector('.screener-filter')?.classList.toggle('collapsed');
+}
+
 async function runScreener() {
   const el = document.getElementById('sc-result');
   el.innerHTML = loadingHTML('검색 중...');
+
+  // 모바일: 검색 즉시 필터를 접고 결과 영역으로 스크롤 — 결과 우선
+  if (window.matchMedia('(max-width:900px)').matches) {
+    document.querySelector('.screener-filter')?.classList.add('collapsed');
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   const g = id => { const v = document.getElementById(id)?.value; return v !== '' && v != null ? parseFloat(v) : null; };
   const industry = document.getElementById('sc-industry')?.value || '';

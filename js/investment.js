@@ -85,12 +85,16 @@ function pInvestment() {
       <span class="card-sub">지금 들어가도 되나 → 무엇을 할까</span>
       <span id="mj-source" style="font-size:11px;color:var(--text2);margin-left:auto"></span>
       <span style="font-size:11px;color:var(--text2)" id="market-temp-date"></span>
-      <div style="display:flex;gap:5px;align-items:center">
-        <button class="chip chip-sm" id="btn-insight-hist" style="display:none"
-          onclick="toggleInsightHistory()">${_ICO.history}히스토리</button>
-        <button class="chip chip-sm"
-          onclick="loadMarketInsight(true)">${_ICO.refresh}재분석</button>
-        <span id="mj-admin-btns" style="display:flex;gap:5px;align-items:center"></span>
+      <!-- 보조 작업(히스토리·재분석·관리자)은 케밥 메뉴로 — 헤더 요소 과밀 방지 -->
+      <div class="kebab-wrap">
+        <button class="chip chip-sm" onclick="toggleMjMenu(event)" title="작업 메뉴" aria-label="작업 메뉴">⋯</button>
+        <div class="kebab-menu" id="mj-menu">
+          <button class="kebab-item" id="btn-insight-hist" style="display:none"
+            onclick="toggleInsightHistory()">${_ICO.history}히스토리</button>
+          <button class="kebab-item"
+            onclick="loadMarketInsight(true)">${_ICO.refresh}재분석</button>
+          <span id="mj-admin-btns" style="display:flex;flex-direction:column;gap:2px"></span>
+        </div>
       </div>
     </div>
 
@@ -901,6 +905,18 @@ function toggleInsightHistory() {
   const btn  = document.getElementById('btn-insight-hist');
   if (btn && open != null) btn.classList.toggle('active', open);
 }
+
+// ── 판단 카드 케밥(⋯) 메뉴 — 히스토리·재분석·관리자 버튼 수납 ──
+function toggleMjMenu(e) {
+  e.stopPropagation();
+  document.getElementById('mj-menu')?.classList.toggle('open');
+}
+// 메뉴 밖 클릭·항목 클릭 시 닫기 (위임 — 페이지 재렌더에도 유지)
+document.addEventListener('click', e => {
+  const menu = document.getElementById('mj-menu');
+  if (!menu?.classList.contains('open')) return;
+  if (!e.target.closest('.kebab-wrap') || e.target.closest('.kebab-item')) menu.classList.remove('open');
+});
 
 
 // (정리됨) 섹터수급↔산업강도 2열 그리드/높이동기화 헬퍼(switchSfImTab·_initSfImLayout·

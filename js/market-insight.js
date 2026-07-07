@@ -529,7 +529,7 @@ function _renderInsightCard(data) {
   const admEl = document.getElementById('mj-admin-btns');
   if (admEl) {
     admEl.innerHTML = (_isAdm && data.generated_by === 'live')
-      ? `<button id="insight-save-btn" class="chip chip-sm" onclick="INV.insightSaveDB()">DB 저장</button>`
+      ? `<button id="insight-save-btn" class="kebab-item" onclick="INV.insightSaveDB()">DB 저장</button>`
       : '';
   }
 

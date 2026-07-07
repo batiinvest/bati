@@ -259,7 +259,7 @@ async function onCmpSearch(q) {
           onclick="addCmpStockFromEl(this)"
           style="padding:8px 12px;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;
           border-bottom:1px solid var(--border);${already?'opacity:.4;pointer-events:none':''}">
-          <span style="font-weight:500">${r.name} <span style="font-size:11px;color:var(--text2);font-weight:400">${code}</span></span>
+          <span style="font-weight:500">${r.name} <span class="card-sub">${code}</span></span>
           <span style="font-size:11px;color:${CATS[r.industry]||'var(--text3)'}">
             ${already?'추가됨':r.industry||''}
           </span>

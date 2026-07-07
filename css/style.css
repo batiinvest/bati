@@ -143,6 +143,36 @@ tr:hover td { background:rgba(255,255,255,.04); }
 .chip.chip-sm { font-size:11px; padding:3px 9px; }
 /* 카드 제목 옆 부제 — 인라인 지정 대체 */
 .card-sub { font-size:11px; color:var(--text2); font-weight:400; }
+/* 모바일: 카드 헤더의 설명성 부제는 노이즈 — 숨김 (헤더 밖 card-sub는 유지) */
+@media(max-width:600px){
+  .card-header .card-sub { display:none; }
+}
+
+/* ── 케밥(⋯) 드롭다운 — 카드 헤더의 보조 작업 메뉴 ── */
+.kebab-wrap { position:relative; }
+.kebab-menu {
+  display:none; position:absolute; right:0; top:calc(100% + 4px);
+  background:var(--bg2); border:1px solid var(--border2); border-radius:8px;
+  padding:5px; z-index:60; box-shadow:0 8px 24px rgba(0,0,0,.45);
+  min-width:130px; flex-direction:column; gap:2px;
+}
+.kebab-menu.open { display:flex; }
+.kebab-item {
+  background:none; border:none; color:var(--text1); font-size:12px;
+  text-align:left; padding:7px 10px; border-radius:6px; cursor:pointer;
+  font-family:inherit; display:flex; align-items:center; white-space:nowrap;
+}
+.kebab-item:hover { background:var(--bg3); color:var(--text); }
+
+/* ── 스크리너 필터 접기 토글 ── */
+.sc-filter-chev { margin-left:auto; font-size:11px; color:var(--text2); transition:transform .2s; }
+@media(max-width:900px){
+  .sc-filter-toggle { cursor:pointer; user-select:none; }
+}
+@media(min-width:901px){
+  /* 데스크톱: collapsed여도 항상 펼침, 토글 UI 숨김 */
+  .sc-filter-chev { display:none; }
+}
 .search-box { padding:6px 12px; font-size:13px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg2); color:var(--text); font-family:inherit; flex:1; max-width:220px; }
 .search-box:focus { outline:none; border-color:var(--tg); }
 .search-box::placeholder { color:var(--text3); }
@@ -246,9 +276,11 @@ textarea.form-input { resize:vertical; min-height:100px; }
 
   /* (시황 상단 2-col은 '오늘의 시장 판단' 단일 카드로 통합 — .inv-top-grid 제거됨) */
 
-  /* ── 스크리너: 필터 사이드바 → 상단 접이식 ── */
+  /* ── 스크리너: 필터 사이드바 → 상단 접이식 (기본 접힘 → 결과 우선) ── */
   .screener-layout  { grid-template-columns:1fr !important; }
   .screener-filter  { position:static !important; }
+  .screener-filter.collapsed #sc-filter-body { display:none !important; }
+  .screener-filter.collapsed .sc-filter-chev { transform:rotate(-90deg); }
 
   /* ── 필터바 칩/검색 ── */
   .filter-bar { gap:5px; }
@@ -472,10 +504,10 @@ td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
 @media(max-width:900px) { .surge-drop-grid { grid-template-columns:repeat(2,1fr); gap:8px; } }
 @media(max-width:400px) { .surge-drop-grid { gap:6px; } }
 
-/* ── 투자포인트 카드 강조 ── */
+/* ── 투자포인트 카드 강조 — 브랜드색(tg)이 아닌 분석 강조색(accent 금색)으로 구분 ── */
 .insight-card {
-  border-top:2px solid var(--tg) !important;
-  background:linear-gradient(135deg,rgba(42,171,238,.04) 0%,var(--bg2) 50%) !important;
+  border-top:2px solid var(--accent) !important;
+  background:linear-gradient(135deg,rgba(240,165,0,.04) 0%,var(--bg2) 50%) !important;
 }
 
 /* ── 수급 컬럼 헤더 ── */
@@ -555,15 +587,15 @@ td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
 .insight-point-row { display:flex; align-items:baseline; gap:9px; padding:5px 6px; border-radius:5px; margin-bottom:2px; }
 .insight-point-num {
   min-width:19px; height:19px; line-height:19px; border-radius:50%;
-  background:rgba(52,211,153,.15); color:#34d399;
+  background:rgba(255,255,255,.08); color:var(--text1);
   font-size:11px; font-weight:700; text-align:center; flex-shrink:0;
 }
 .insight-point-text { font-size:13px; color:var(--text); line-height:1.5; }
 .insight-risk-row, .insight-event-row { display:flex; align-items:baseline; gap:9px; padding:4px 2px; }
 .insight-risk-icon { font-size:13px; flex-shrink:0; width:19px; text-align:center; line-height:1.6; }
 .insight-oneliner {
-  background:rgba(42,171,238,.05); border:1px solid rgba(42,171,238,.15);
-  border-left:3px solid var(--tg); border-radius:6px; padding:11px 13px; margin-top:2px;
+  background:rgba(240,165,0,.05); border:1px solid rgba(240,165,0,.18);
+  border-left:3px solid var(--accent); border-radius:6px; padding:11px 13px; margin-top:2px;
 }
 
 /* ── 시장 온도계 게이지 ── */
