@@ -103,8 +103,13 @@ function _renderTopbarStrip() {
     { name: '달러',    val: m.usd_krw, chg: m.usd_krw_chg },
   ].filter(i => i.val != null);
 
+  const mstrip = document.getElementById('mobile-market-strip');
   if (!strip) return;
-  if (!items.length) { strip.style.display = 'none'; return; }
+  if (!items.length) {
+    strip.style.display = 'none';
+    if (mstrip) mstrip.classList.add('hidden');
+    return;
+  }
   strip.style.display = 'flex';
 
   // 지수값+등락률 한 줄
@@ -133,6 +138,12 @@ function _renderTopbarStrip() {
     : '';
 
   strip.innerHTML = body + tail;
+
+  // 모바일 지수 스트립 — 동일 항목 재사용(서브행은 CSS로 숨김, 단일 라인 가로 스크롤)
+  if (mstrip) {
+    mstrip.innerHTML = body;
+    mstrip.classList.remove('hidden');
+  }
 }
 
 // ── US ETF 배너: us_market 테이블에서 최신 산업별 평균 등락률 조회 ──

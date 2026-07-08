@@ -16,7 +16,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
   <!-- ── 스타일 ── -->
-  <link rel="stylesheet" href="css/style.css?v=7">
+  <link rel="stylesheet" href="css/style.css?v=8">
 
   <!-- (구 인라인 스타일 — --blue·#sidebar-overlay는 style.css로 이동) -->
 </head>
@@ -234,6 +234,9 @@
       </div>
     </div>
 
+    <!-- 모바일 지수 스트립 (탑바 스트립을 모바일에서 재노출 — _renderTopbarStrip가 채움) -->
+    <div id="mobile-market-strip" class="mobile-market-strip hidden"></div>
+
     <!-- 콘텐츠 -->
     <div class="content" id="content">
       <!-- draw()가 여기에 페이지 HTML을 주입합니다 -->
@@ -444,7 +447,7 @@
 <script src="js/report.js?v=9"></script>
 <script src="js/comparison.js?v=6"></script>
 <script src="js/financials.js?v=10"></script>
-<script src="js/chart-macro.js?v=5"></script>
+<script src="js/chart-macro.js?v=6"></script>
 <script src="js/chart-industry.js?v=8"></script>
 <script src="js/chart-uskr.js?v=9"></script>
 <script src="js/market-overview.js?v=8"></script>

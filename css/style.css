@@ -2,7 +2,7 @@
 :root {
   --bg:#0f1117; --bg2:#1a1d27; --bg3:#222535;
   --border:rgba(255,255,255,0.08); --border2:rgba(255,255,255,0.14);
-  --text:#f0f2f8; --text1:#cfd4e4; --text2:#a8adc4; --text3:#6b7694;
+  --text:#f0f2f8; --text1:#cfd4e4; --text2:#a8adc4; --text3:#8590ad;
   --tg:#2AABEE; --tg2:#1e96d3; --green:#2dce89; --red:#f5365c; --yellow:#fb6340;
   --radius:10px; --radius-sm:6px;
 
@@ -163,6 +163,11 @@ tr:hover td { background:rgba(255,255,255,.04); }
   font-family:inherit; display:flex; align-items:center; white-space:nowrap;
 }
 .kebab-item:hover { background:var(--bg3); color:var(--text); }
+/* 케밥(⋯) 트리거 — 시각 크기는 작지만 최소 터치 타깃 32×32 확보(가로 확장은 ::after가 못 해줌) */
+.kebab-wrap > .chip-sm {
+  min-width:32px; min-height:32px;
+  display:inline-flex; align-items:center; justify-content:center;
+}
 
 /* ── 스크리너 필터 접기 토글 ── */
 .sc-filter-chev { margin-left:auto; font-size:11px; color:var(--text2); transition:transform .2s; }
@@ -684,4 +689,25 @@ td { padding:7px 10px; font-size:var(--fs-data); }
     height:96dvh !important; max-height:96dvh !important;
     border-radius:16px 16px 0 0 !important;
   }
+}
+
+/* ── 모바일 지수 스트립 ──
+   탑바 지수 스트립은 모바일(≤900)에서 숨겨져 코스피·코스닥·환율 등
+   핵심 지수를 첫 화면에서 볼 수 없었음. 콘텐츠 상단에 동일 데이터를
+   가로 스크롤 단일 라인으로 재노출(_renderTopbarStrip가 함께 채움).
+   데이터 없으면 .hidden으로 접힘(초기값 hidden). */
+.mobile-market-strip { display:none; }
+@media(max-width:900px){
+  .mobile-market-strip {
+    display:flex; align-items:center; gap:10px;
+    overflow-x:auto; overflow-y:hidden; white-space:nowrap;
+    padding:8px 12px;
+    background:var(--bg2); border-bottom:1px solid var(--border);
+    scrollbar-width:none; -ms-overflow-style:none;
+  }
+  .mobile-market-strip::-webkit-scrollbar { display:none; }
+  .mobile-market-strip .market-strip-item { flex:0 0 auto; }
+  /* 2줄 stacked 서브행(breadth 바·선물 등락률)은 단일 라인 유지 위해 숨김 */
+  .mobile-market-strip .market-strip-item--stacked { flex-direction:row; align-items:baseline; }
+  .mobile-market-strip .market-strip-sub { display:none; }
 }
