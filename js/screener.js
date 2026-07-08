@@ -133,6 +133,47 @@ function applyPreset(type) {
   else if (type === 'deepvalue') { set('sc-pbr-max','0.5'); set('sc-per-max','8'); }
 }
 
+// ── 활성 필터 요약 칩 ──
+// 검색에 실제 적용된 조건을 결과 상단에 제거 가능한 칩으로 노출 → 현재 조건이 한눈에.
+function _scRangeLabel(name, min, max, unit) {
+  if (min != null && max != null) return `${name} ${min}~${max}${unit}`;
+  if (min != null) return `${name} ≥ ${min}${unit}`;
+  return `${name} ≤ ${max}${unit}`;
+}
+function _scActiveChips(f, industry, market) {
+  const chip = (label, ids) =>
+    `<button class="chip chip-sm" onclick="scClearFilter('${ids}')" title="이 조건 제거">` +
+    `${escapeHtml(label)} <span style="opacity:.55;font-weight:700">×</span></button>`;
+  const chips = [];
+  if (industry) chips.push(chip(`산업: ${industry}`, 'sc-industry'));
+  if (market)   chips.push(chip(`시장: ${market === 'KOSPI' ? '코스피' : '코스닥'}`, 'sc-market'));
+  [
+    ['PER','sc-per-min','sc-per-max',f.perMin,f.perMax,''],
+    ['PBR','sc-pbr-min','sc-pbr-max',f.pbrMin,f.pbrMax,''],
+    ['PEG','sc-peg-min','sc-peg-max',f.pegMin,f.pegMax,''],
+    ['EV/EBITDA','sc-eveb-min','sc-eveb-max',f.ebebMin,f.ebebMax,'배'],
+    ['영업이익률','sc-margin-min','sc-margin-max',f.marginMin,f.marginMax,'%'],
+    ['ROE','sc-roe-min','sc-roe-max',f.roeMin,f.roeMax,'%'],
+    ['ROA','sc-roa-min','sc-roa-max',f.roaMin,f.roaMax,'%'],
+    ['부채비율','sc-debt-min','sc-debt-max',f.debtMin,f.debtMax,'%'],
+    ['유동비율','sc-cr-min','sc-cr-max',f.crMin,f.crMax,'%'],
+    ['시총','sc-cap-min','sc-cap-max',f.capMin,f.capMax,'억'],
+  ].forEach(([name, minId, maxId, min, max, unit]) => {
+    if (min != null || max != null) chips.push(chip(_scRangeLabel(name, min, max, unit), `${minId},${maxId}`));
+  });
+  if (!chips.length) return '';
+  return `<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:.75rem">` +
+    `<span style="font-size:11px;color:var(--text2);margin-right:2px">적용 조건</span>` +
+    chips.join('') +
+    `<button class="chip chip-sm" onclick="applyPreset('reset');runScreener()" ` +
+    `style="color:var(--text3)" title="모든 조건 초기화">전체 해제</button></div>`;
+}
+// 칩 클릭 → 해당 입력 비우고 재검색
+function scClearFilter(ids) {
+  String(ids).split(',').forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  runScreener();
+}
+
 // 모바일 전용 필터 접기/펼치기 (데스크톱은 CSS가 항상 펼침 유지)
 function scToggleFilter() {
   if (window.matchMedia('(min-width:901px)').matches) return;
@@ -352,6 +393,7 @@ async function runScreener() {
       </div>
       <button class="btn btn-sm" onclick="exportScreener()">CSV 다운로드</button>
     </div>
+    ${_scActiveChips(f, industry, market)}
     <div class="table-wrap"><table class="screener-result-table">
       <thead><tr>
         <th style="width:28px">#</th>
