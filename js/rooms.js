@@ -167,34 +167,77 @@ async function doNotice(content, target, btnId, progId) {
   }
 }
 
-// 대상 변경 시 발송 개수 표시
-function onNoticeTargetChange() {
-  const target = document.getElementById('i-target')?.value;
-  const info   = document.getElementById('i-target-info');
-  if (!info) return;
-  if (!target) { info.textContent = ''; return; }
+// ── 대상 라벨 텍스트 ("전체 79개" 등) — 칩·요약바 공용 ─────────────────────
+function _ntTargetText(target) {
+  if (!target) return '';
   if (target.startsWith('room:')) {
-    const id = parseInt(target.replace('room:', ''));
-    const r = A.rooms.find(x => x.id === id);
-    info.textContent = r ? `→ ${r.name} 1개` : '';
-  } else if (target === 'admin_direct') {
-    const adminCid = (A.config?.admin_chat_id || '').trim();
-    info.textContent = adminCid ? `→ ${adminCid} 1개` : '→ admin_chat_id 미설정';
-  } else if (target === 'bati_direct') {
-    info.textContent = '→ @BatiInvestChat 1개';
-  } else if (target === 'all') {
-    info.textContent = `→ 전체 ${A.rooms.length}개`;
-  } else if (target === 'open') {
-    info.textContent = `→ ${A.rooms.filter(r=>r.status==='open').length}개`;
-  } else {
-    info.textContent = `→ ${A.rooms.filter(r=>r.cat===target).length}개`;
+    const r = A.rooms.find(x => x.id === parseInt(target.slice(5)));
+    return r ? `${r.name} 1개` : '';
   }
+  if (target === 'admin_direct') {
+    const cid = (A.config?.admin_chat_id || '').trim();
+    return cid ? `${cid} 1개` : 'admin_chat_id 미설정';
+  }
+  if (target === 'bati_direct') return '@BatiInvestChat 1개';
+  if (target === 'all')  return `전체 ${A.rooms.length}개`;
+  if (target === 'open') return `입장 가능 ${A.rooms.filter(r=>r.status==='open').length}개`;
+  return `${target} ${A.rooms.filter(r=>r.cat===target).length}개`;
+}
+
+// 대상 변경 시 발송 개수 표시 (카드 헤더)
+function onNoticeTargetChange() {
+  const info = document.getElementById('i-target-info');
+  if (!info) return;
+  const t = _ntTargetText(document.getElementById('i-target')?.value);
+  info.textContent = t ? `→ ${t}` : '';
+}
+
+// ── 대상 칩 선택 — hidden #i-target 갱신 + 칩/셀렉트 활성 표시 ───────────────
+function ntPickTarget(val, btn) {
+  const hidden = document.getElementById('i-target');
+  if (hidden) hidden.value = val;
+  document.querySelectorAll('#nt-chips .chip').forEach(c => c.classList.toggle('active', c === btn));
+  const sel = document.getElementById('nt-room-select');
+  if (sel) {
+    if (btn) sel.value = '';                       // 칩 클릭 → 개별 선택 해제
+    sel.classList.toggle('active', !btn && !!sel.value);
+  }
+  onNoticeTargetChange();
+  ntUpdateSummary();
+}
+
+// ── 텔레그램풍 미리보기 — 분할(---/4096자) 단위 말풍선 렌더 ──────────────────
+function ntPreview(text) {
+  const box = document.getElementById('i-prev');
+  const cnt = document.getElementById('nt-count');
+  const t = (text || '').trim();
+  const manual = t.split(/\r?\n---\r?\n/).map(s => s.trim()).filter(Boolean);
+  const parts = manual.length > 1 ? manual : (t ? splitMessage(t) : []);
+  if (box) {
+    box.innerHTML = !parts.length
+      ? '<div class="nt-tg-empty">내용을 입력하면 실제 발송 모양으로<br>여기에 표시됩니다</div>'
+      : parts.map((p, i) => `<div class="nt-bubble">${parts.length > 1 ? `<div class="nt-bubble-idx">메시지 ${i+1}/${parts.length}</div>` : ''}${p}</div>`).join('');
+  }
+  if (cnt) cnt.textContent = `${t.length.toLocaleString()}자${parts.length > 1 ? ` · ${parts.length}개 메시지로 분할 발송` : ''}`;
+  ntUpdateSummary();
+}
+
+// ── 발송 요약바 — 대상 · 메시지 수 · 형식 ───────────────────────────────────
+function ntUpdateSummary() {
+  const el = document.getElementById('nt-summary');
+  if (!el) return;
+  const label = _ntTargetText(document.getElementById('i-target')?.value || 'all');
+  const t = (document.getElementById('i-content')?.value || '').trim();
+  const manual = t.split(/\r?\n---\r?\n/).map(s => s.trim()).filter(Boolean);
+  const nParts = manual.length > 1 ? manual.length : (t ? splitMessage(t).length : 0);
+  const mode = document.getElementById('i-parse-mode')?.value || 'HTML';
+  el.innerHTML = `<b>${escapeHtml(label)}</b> · 메시지 ${nParts}개 · ${mode}`;
 }
 
 // ── 내용 지우기 ───────────────────────────────────────────────────────────────
 function clearNoticeContent() {
   const ta = document.getElementById('i-content');
-  if (ta) { ta.value = ''; if (typeof prev === 'function') prev('', 'i-prev'); }
+  if (ta) { ta.value = ''; ntPreview(''); }
 }
 
 // ── 소개 글 전체 포맷 생성 (원본 소개 글 포맷) ──────────────────────────────
@@ -205,7 +248,7 @@ function autoGenIntro(forceNew = false) {
     const ta = document.getElementById('i-content');
     if (ta) {
       ta.value = draft;
-      if (typeof prev === 'function') prev(draft, 'i-prev');
+      ntPreview(draft);
       toast(`수정본 불러옴 ✨ (${draft.length}자)`, 'info');
     }
     return;
@@ -348,7 +391,7 @@ function autoGenIntro(forceNew = false) {
   const ta = document.getElementById('i-content');
   if (ta) {
     ta.value = text;
-    if (typeof prev === 'function') prev(text, 'i-prev');
+    ntPreview(text);
     toast(`소개 글 생성 완료 ✨ (메시지1: ${msg1.length}자 / 메시지2: ${msg2.length}자)`, 'success');
   }
 }

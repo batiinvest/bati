@@ -207,104 +207,130 @@ function pRooms() {
 function pNotice() {
   if (!canEdit()) return `<div style="padding:2rem;text-align:center;color:var(--text2);font-size:13px">발송 권한이 없습니다 (viewer)</div>`;
 
-  const roomOptions = [...A.rooms]
-    .sort((a,b) => a.name.localeCompare(b.name, 'ko'))
-    .map(r => `<option value="room:${r.id}">[${r.cat||r.room_type}] ${r.name}</option>`)
-    .join('');
+  const rooms = A.rooms;
+  const openCount    = rooms.filter(r => r.status === 'open').length;
+  const companyCount = rooms.filter(r => r.room_type === 'company').length;
 
   // 어드민 채널: app_config.admin_chat_id (@batiinvest)
   const adminChatId = (A.config?.admin_chat_id || '').trim();
   const adminRoom   = adminChatId
-    ? A.rooms.find(r => (r.chat_id || '').trim() === adminChatId)
+    ? rooms.find(r => (r.chat_id || '').trim() === adminChatId)
     : null;
-  const adminOption = adminRoom
-    ? `<option value="room:${adminRoom.id}">${adminRoom.name} (어드민)</option>`
-    : (adminChatId
-        ? `<option value="admin_direct">@${adminChatId.replace('@','')} (어드민)</option>`
-        : '');
+  const adminTarget = adminRoom ? `room:${adminRoom.id}` : (adminChatId ? 'admin_direct' : '');
 
-  // 바티인베스트 채팅방 (@BatiInvestChat) — DEFAULT_CHAT_ID
-  const batiChatRoom = A.rooms.find(r =>
+  // 바티인베스트 채팅방 (@BatiInvestChat)
+  const batiChatRoom = rooms.find(r =>
     (r.chat_id || '').toLowerCase().includes('batiinvestchat') ||
     (r.link   || '').toLowerCase().includes('batiinvestchat')
   );
-  const batiChatOption = batiChatRoom
-    ? `<option value="room:${batiChatRoom.id}">${batiChatRoom.name}</option>`
-    : `<option value="bati_direct">바티인베스트 채팅방</option>`;
+  const batiTarget = batiChatRoom ? `room:${batiChatRoom.id}` : 'bati_direct';
 
-  const companyCount = A.rooms.filter(r => r.room_type === 'company').length;
+  const indChips = INDUSTRIES.map(i => {
+    const n = rooms.filter(r => r.cat === i).length;
+    return n ? `<button class="chip chip-sm" data-nt onclick="ntPickTarget('${i}',this)">${IND_EMOJI_MAP[i]||'📌'} ${i} <b>${n}</b></button>` : '';
+  }).join('');
+
+  const roomOptions = [...rooms]
+    .sort((a,b) => a.name.localeCompare(b.name, 'ko'))
+    .map(r => `<option value="room:${r.id}">[${r.cat||r.room_type}] ${escapeHtml(r.name)}</option>`)
+    .join('');
 
   return `
-  <div class="card" style="margin-bottom:1rem"><div class="card-header">
-    <span class="card-title">📌 종목방 소개글(설명) 일괄 적용 <span class="card-sub">— 그룹 Description 표준 양식 교체</span></span>
-  </div><div class="card-body">
-    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:.75rem">
-      종목 채팅방(<b style="color:var(--text1)">${companyCount}</b>개)의 그룹 <b>설명</b>을 표준 소개글로 일괄 교체합니다.
-      방 이름은 각 종목명으로 자동 치환되며, 기존 설명은 덮어써집니다. (봇 위임 처리)
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">✉️ 새 공지 작성</span>
+      <span class="card-sub" id="i-target-info">→ 전체 ${rooms.length}개</span>
     </div>
-    <button class="btn btn-primary btn-sm" id="desc-sync-btn" onclick="syncDescriptions()">📌 설명 일괄 적용</button>
-  </div></div>
-  <div class="card" style="margin-bottom:1rem"><div class="card-header"><span class="card-title">새 공지 작성</span></div><div class="card-body">
-    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:1rem">
-      <div class="form-group" style="margin:0;min-width:220px">
-        <label class="form-label">발송 대상</label>
-        <select class="form-select" id="i-target" onchange="onNoticeTargetChange()">
-          <optgroup label="── 어드민 ──">
-            ${adminOption}
-            ${batiChatOption}
-          </optgroup>
-          <optgroup label="── 그룹 발송 ──">
-            <option value="all">전체 (${A.rooms.length}개)</option>
-            <option value="open">입장 가능</option>
-            ${INDUSTRIES.map(i=>`<option value="${i}">${i}</option>`).join('')}
-          </optgroup>
-          <optgroup label="── 개별 채팅방 ──">
+    <div class="card-body">
+      <input type="hidden" id="i-target" value="all">
+
+      <div class="nt-step">
+        <div class="nt-step-label"><span class="nt-step-num">1</span>발송 대상</div>
+        <div class="nt-chips" id="nt-chips">
+          <button class="chip active" data-nt onclick="ntPickTarget('all',this)">📢 전체 <b>${rooms.length}</b></button>
+          <button class="chip" data-nt onclick="ntPickTarget('open',this)">🟢 입장 가능 <b>${openCount}</b></button>
+          <button class="chip" data-nt onclick="ntPickTarget('${batiTarget}',this)">📊 바티인베스트</button>
+          ${adminTarget ? `<button class="chip" data-nt onclick="ntPickTarget('${adminTarget}',this)">👤 어드민</button>` : ''}
+          <span class="nt-chip-div"></span>
+          ${indChips}
+          <select class="form-select nt-room-select" id="nt-room-select" onchange="ntPickTarget(this.value||'all',null)">
+            <option value="">개별 채팅방…</option>
             ${roomOptions}
-          </optgroup>
-        </select>
+          </select>
+        </div>
       </div>
-      <div class="form-group" style="margin:0">
-        <label class="form-label">발송 형식</label>
-        <select class="form-select" id="i-parse-mode">
-          <option value="HTML">HTML</option>
-          <option value="Markdown">Markdown (URL 자동 링크)</option>
-        </select>
+
+      <div class="nt-step">
+        <div class="nt-step-label"><span class="nt-step-num">2</span>내용 작성
+          <span class="nt-toolbar">
+            <button class="btn btn-sm" onclick="autoGenIntro()" style="background:rgba(42,171,238,.12);border-color:rgba(42,171,238,.3);color:var(--tg)">📋 소개 글 생성</button>
+            <button class="btn btn-sm" onclick="autoGenIntro(true)" title="수정본 무시하고 채팅방 데이터로 새로 생성">🔄 새로 생성</button>
+            <button class="btn btn-sm" onclick="clearNoticeContent()">🗑 지우기</button>
+            <select class="form-select" id="i-parse-mode" onchange="ntUpdateSummary()" title="발송 형식">
+              <option value="HTML">HTML</option>
+              <option value="Markdown">Markdown</option>
+            </select>
+          </span>
+        </div>
+        <div class="nt-editor-grid">
+          <div>
+            <textarea class="form-input nt-textarea" id="i-content"
+              placeholder="직접 입력하거나 [소개 글 생성] 버튼을 누르세요&#10;&#10;--- 단독 줄을 넣으면 그 지점에서 메시지가 나뉘어 발송됩니다"
+              oninput="ntPreview(this.value)"></textarea>
+            <div class="nt-count" id="nt-count">0자</div>
+          </div>
+          <div class="nt-tg">
+            <div class="nt-tg-head">
+              <span class="nt-tg-avatar">B</span>
+              <span>
+                <span class="nt-tg-name">바티인베스트</span>
+                <span class="nt-tg-sub">발송 미리보기</span>
+              </span>
+            </div>
+            <div class="nt-tg-body" id="i-prev"></div>
+          </div>
+        </div>
       </div>
-      <div style="align-self:flex-end;font-size:12px;color:var(--text2)" id="i-target-info"></div>
-    </div>
-    <div class="form-group"><label class="form-label">내용</label>
-      <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-sm" onclick="autoGenIntro()" style="background:rgba(42,171,238,.12);border-color:rgba(42,171,238,.3);color:var(--tg)">
-          📋 소개 글 생성
+
+      <div class="nt-sendbar">
+        <div id="i-prog" class="hidden"></div>
+        <span class="nt-summary" id="nt-summary"></span>
+        <button class="btn btn-primary" id="i-btn" onclick="sendInline()">
+          <svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px" viewBox="0 0 16 16" fill="none"><path d="M14.5 1.5 7 9M14.5 1.5l-4.5 13-2.5-5.5L2 6.5l12.5-5Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>발송
         </button>
-        <button class="btn btn-sm" onclick="autoGenIntro(true)" title="수정본 무시하고 채팅방 데이터로 새로 생성">🔄 새로 생성</button>
-        <button class="btn btn-sm" onclick="clearNoticeContent()">🗑 지우기</button>
-        <span style="font-size:11px;color:var(--text2);align-self:center"><code>---</code> 줄 기준으로 분할 발송</span>
       </div>
-      <textarea class="form-input" id="i-content" rows="12" style="font-size:12px;font-family:monospace"
-        placeholder="직접 입력하거나 소개 글 생성 버튼을 누르세요"
-        oninput="prev(this.value,'i-prev')"></textarea>
     </div>
-    <div class="form-group"><label class="form-label">미리보기</label><div id="i-prev" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;min-height:36px;color:var(--text1);white-space:pre-wrap"></div></div>
-    <div id="i-prog" class="hidden" style="font-size:12px;padding:8px;background:var(--bg3);border-radius:var(--radius-sm);color:var(--text1);margin-bottom:.75rem"></div>
-    <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary" id="i-btn" onclick="sendInline()">발송 + DB 저장</button></div>
-  </div></div>
-  <div class="section-header"><span class="section-title">발송 기록</span></div>
+  </div>
+
+  <div class="card nt-util">
+    <span class="nt-util-txt">📌 <b>종목방 소개글(그룹 설명) 일괄 적용</b> — 종목 채팅방 ${companyCount}개의 설명을 표준 양식으로 교체합니다. 방 이름은 종목명으로 자동 치환, 기존 설명은 덮어써집니다.</span>
+    <button class="btn btn-sm" id="desc-sync-btn" onclick="syncDescriptions()">📌 설명 일괄 적용</button>
+  </div>
+
+  <div class="section-header"><span class="section-title">발송 기록</span><button class="btn btn-sm" onclick="loadNotices()">새로고침</button></div>
   <div class="card" id="notice-list"><div style="padding:1.5rem;text-align:center;color:var(--text2)"><span class="loading"></span></div></div>`;
 }
 
 async function loadNotices() {
+  // 작성 위젯 초기화 (첫 draw 시 미리보기·요약바 세팅)
+  if (document.getElementById('nt-summary') && typeof ntPreview === 'function')
+    ntPreview(document.getElementById('i-content')?.value || '');
+
   const el = document.getElementById('notice-list'); if (!el) return;
   const { data, error } = await DB('notice_history').select('*').order('created_at',{ascending:false}).limit(30);
   if (error) { el.innerHTML = errorHTML(error.message); return; }
-  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>시각</th><th>발송자</th><th>대상</th><th>내용</th><th>발송</th><th>성공</th></tr></thead><tbody>
-    ${!data.length?'<tr><td colspan="6" class="empty-row">발송 기록이 없습니다. 공지를 작성하고 발송하면 여기에 기록됩니다.</td></tr>':data.map(h=>`<tr>
-      <td style="font-size:12px;color:var(--text1)">${new Date(h.created_at).toLocaleString('ko-KR')}</td>
-      <td style="font-size:12px;color:var(--text1)">봇/대시보드</td>
-      <td><span class="badge badge-cat">${h.target}</span></td>
-      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.content.replace(/<[^>]+>/g,'').slice(0,35)}...</td>
-      <td>${h.sent_count}</td><td style="color:var(--green)">${h.ok_count}</td>
-    </tr>`).join('')}
+  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>시각</th><th>대상</th><th>내용</th><th style="text-align:right">결과</th></tr></thead><tbody>
+    ${!data.length?'<tr><td colspan="4" class="empty-row">발송 기록이 없습니다. 공지를 작성하고 발송하면 여기에 기록됩니다.</td></tr>':data.map(h=>{
+      const sent = h.sent_count || 0, ok = h.ok_count || 0;
+      const resColor = ok >= sent && sent > 0 ? 'var(--green)' : ok > 0 ? 'var(--yellow)' : 'var(--red)';
+      const emoji = IND_EMOJI_MAP[h.target] || '';
+      const txt = (h.content||'').replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim();
+      return `<tr>
+      <td style="font-size:12px;color:var(--text1);white-space:nowrap">${new Date(h.created_at).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
+      <td><span class="badge badge-cat">${emoji ? emoji+' ' : ''}${escapeHtml(h.target||'—')}</span></td>
+      <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text1)" title="${escAttr(txt.slice(0,300))}">${escapeHtml(txt.slice(0,50))}${txt.length>50?'…':''}</td>
+      <td style="text-align:right;font-weight:600;color:${resColor}">${ok}/${sent}</td>
+    </tr>`;}).join('')}
   </tbody></table></div>`;
 }
 
