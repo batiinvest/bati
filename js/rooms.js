@@ -141,7 +141,10 @@ async function doNotice(content, target, btnId, progId) {
   try {
     const reqId = await enqueueBotRequest('notice', { target, content, parse_mode: parseMode });
     localStorage.setItem('bati-intro-draft', content);
+    // 타임아웃: 대기 틱(최대 60초) + 방당 약 3초 × 파트 수 — 전체 발송(79방×2파트 ≈ 4분+)도 여유 있게
+    const timeoutMs = Math.max(240000, 90000 + count * parts.length * 3500);
     const res = await waitBotRequest(reqId, {
+      timeoutMs,
       onTick: (row, sec) => {
         const p = document.getElementById(progId);
         if (p) p.innerHTML = `<span class="loading"></span>${row?.status === 'processing' ? '발송 중' : '봇 처리 대기'}... ${sec}초 (최대 1분 내 시작)`;
