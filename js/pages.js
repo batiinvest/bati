@@ -232,7 +232,18 @@ function pNotice() {
     ? `<option value="room:${batiChatRoom.id}">${batiChatRoom.name}</option>`
     : `<option value="bati_direct">바티인베스트 채팅방</option>`;
 
+  const companyCount = A.rooms.filter(r => r.room_type === 'company').length;
+
   return `
+  <div class="card" style="margin-bottom:1rem"><div class="card-header">
+    <span class="card-title">📌 종목방 소개글(설명) 일괄 적용 <span class="card-sub">— 그룹 Description 표준 양식 교체</span></span>
+  </div><div class="card-body">
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:.75rem">
+      종목 채팅방(<b style="color:var(--text1)">${companyCount}</b>개)의 그룹 <b>설명</b>을 표준 소개글로 일괄 교체합니다.
+      방 이름은 각 종목명으로 자동 치환되며, 기존 설명은 덮어써집니다. (봇 위임 처리)
+    </div>
+    <button class="btn btn-primary btn-sm" id="desc-sync-btn" onclick="syncDescriptions()">📌 설명 일괄 적용</button>
+  </div></div>
   <div class="card" style="margin-bottom:1rem"><div class="card-header"><span class="card-title">새 공지 작성</span></div><div class="card-body">
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:1rem">
       <div class="form-group" style="margin:0;min-width:220px">

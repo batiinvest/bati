@@ -63,6 +63,38 @@ async function syncAll() {
   }
 }
 
+// ══════════════════════════════════════════
+//  SYNC DESC — 종목방 그룹 설명(소개글) 일괄 교체 (백엔드 위임)
+// ══════════════════════════════════════════
+const _DESC_BTN_LABEL = '📌 설명 일괄 적용';
+
+async function syncDescriptions() {
+  if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
+  const count = A.rooms.filter(r => r.room_type === 'company').length;
+  if (!confirm(`종목 채팅방 ${count}개의 그룹 설명(소개글)을 표준 양식으로 일괄 교체합니다.\n각 방 이름은 종목명으로 자동 치환되며, 기존 설명은 덮어써집니다.\n\n진행할까요?`)) return;
+  const btn = document.getElementById('desc-sync-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="loading"></span>요청 중...'; }
+  try {
+    const reqId = await enqueueBotRequest('sync_desc');
+    toast('📡 설명 일괄 교체 요청 전송 — 봇이 처리합니다', 'info');
+    const res = await waitBotRequest(reqId, {
+      timeoutMs: 300000,
+      onTick: (row, sec) => {
+        const b = document.getElementById('desc-sync-btn');
+        if (b) b.innerHTML = `<span class="loading"></span>${row?.status === 'processing' ? '교체 중' : '대기 중'}... ${sec}초`;
+      },
+    });
+    const msg = `✓ 설명 교체 완료 — 적용 ${res.ok ?? 0} · 동일 ${res.skip ?? 0} · 실패 ${res.fail ?? 0} (총 ${res.total ?? 0})`;
+    toast(msg, res.fail ? 'info' : 'success');
+    if (res.fail && res.fails?.length) console.warn('[sync_desc] 실패 목록:', res.fails);
+  } catch (e) {
+    toast('설명 교체 실패: ' + e.message, 'error');
+  } finally {
+    const b = document.getElementById('desc-sync-btn');
+    if (b) { b.disabled = false; b.innerHTML = _DESC_BTN_LABEL; }
+  }
+}
+
 async function syncOne(id) {
   if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
   const r = A.rooms.find(x => x.id === id); if (!r) return;
