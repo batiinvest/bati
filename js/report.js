@@ -341,17 +341,17 @@ async function rpRenderReport() {
 
         <!-- Bull case -->
         <div>
-          <div style="font-size:13px;font-weight:700;color:#4ade80;margin-bottom:8px;display:flex;align-items:center;gap:6px">
-            <span style="width:6px;height:6px;border-radius:50%;background:#4ade80;display:inline-block"></span>
+          <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:10px;display:flex;align-items:center;gap:7px">
+            <span style="width:3px;height:13px;border-radius:2px;background:#4ade80;display:inline-block"></span>
             핵심 투자포인트 (Bull Case)
           </div>
           ${bullHTML}
         </div>
 
         <!-- Bear case -->
-        <div style="border-top:1px solid var(--border);padding-top:10px">
-          <div style="font-size:13px;font-weight:700;color:#f87171;margin-bottom:8px;display:flex;align-items:center;gap:6px">
-            <span style="width:6px;height:6px;border-radius:50%;background:#f87171;display:inline-block"></span>
+        <div style="border-left:1px solid var(--border);padding-left:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:10px;display:flex;align-items:center;gap:7px">
+            <span style="width:3px;height:13px;border-radius:2px;background:#f87171;display:inline-block"></span>
             주요 리스크 (Bear Case)
           </div>
           ${bearHTML}
@@ -500,24 +500,28 @@ async function rpSetTab(idx) {
 }
 
 function _rpTabFlow(prices) {
-  if (!prices?.length) return `<div style="padding:20px;text-align:center;color:var(--text2);font-size:12px">수급 데이터 없음</div>`;
+  if (!prices?.length) return `<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">수급 데이터 없음</div>`;
   const recent = prices.slice(0, 20).reverse();
   const maxTV  = Math.max(...recent.map(r => r.trading_value || 0));
   return `
-  <div style="font-size:12px;color:var(--text1);margin-bottom:8px">최근 20일 거래대금</div>
-  <div style="display:flex;gap:2px;align-items:flex-end;height:60px">
-    ${recent.map(r => {
-      const tv  = r.trading_value || 0;
-      const h   = maxTV > 0 ? Math.round(tv / maxTV * 54) + 4 : 4;
-      const chg = r.price_change_rate ?? 0;
-      const c   = chg > 0 ? 'var(--red)' : chg < 0 ? 'var(--blue)' : 'var(--text3)';
-      return `<div style="flex:1;background:${c};opacity:.7;border-radius:1px 1px 0 0;
-        height:${h}px" title="${r.base_date||''} ${fmtCap(tv)}"></div>`;
-    }).join('')}
-  </div>
-  <div style="margin-top:12px;padding:10px;background:var(--bg3);border-radius:var(--radius-sm);
-    font-size:12px;color:var(--text2);text-align:center">
-    외국인/기관 상세 수급은 수급 분석 기능 연동 예정
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
+    ${_rpSecT('거래대금 추이', '* 최근 20거래일 · 색상=등락 방향')}
+    <div style="display:flex;gap:2px;align-items:flex-end;height:60px">
+      ${recent.map(r => {
+        const tv  = r.trading_value || 0;
+        const h   = maxTV > 0 ? Math.round(tv / maxTV * 54) + 4 : 4;
+        const chg = r.price_change_rate ?? 0;
+        const c   = chg > 0 ? 'var(--red)' : chg < 0 ? 'var(--blue)' : 'var(--text3)';
+        return `<div style="flex:1;background:${c};opacity:.7;border-radius:1px 1px 0 0;
+          height:${h}px" title="${r.base_date||''} ${fmtCap(tv)}"></div>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:4px">
+      <span>${(recent[0]?.base_date || '').slice(2)}</span>
+      <span>${(recent[recent.length-1]?.base_date || '').slice(2)}</span>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px">
+      * 외국인/기관 상세 수급은 수급 분석 기능 연동 예정</div>
   </div>`;
 }
 

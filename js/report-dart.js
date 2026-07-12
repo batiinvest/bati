@@ -37,7 +37,7 @@ async function _rpLoadAndRenderDart(body) {
       <div style="font-size:12px;color:var(--text1);margin-bottom:3px;white-space:nowrap">${k}</div>
       <div style="font-size:13px;font-weight:700;color:${c||'var(--text1)'}; word-break:break-all">${esc(v)}</div>
     </div>` : '';
-  const sectionTitle = t => `
+  const sectionTitle = t => typeof _rpSecT === 'function' ? _rpSecT(t) : `
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
       color:var(--text2);margin-bottom:10px">${t}</div>`;
   const bullet = (text, color) => `

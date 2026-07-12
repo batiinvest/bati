@@ -151,8 +151,8 @@ function _rpFormatNote(note) {
 function _rpEarningsCard(fin) {
   if (!fin?.length) return `
     <div class="card" style="padding:16px">
-      <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text1)">${_ICO.bar}실적 트렌드</div>
-      <div style="padding:20px;text-align:center;color:var(--text2);font-size:12px">재무 데이터 없음</div>
+      ${_rpSecT('분기 실적 트렌드')}
+      <div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">재무 데이터 없음</div>
     </div>`;
 
   // 최신순으로 정렬된 fin → 오래된 것부터 표시
@@ -179,8 +179,8 @@ function _rpEarningsCard(fin) {
   return `<div class="card" style="padding:16px">
 
     <!-- ① 타이틀 + KPI chips -->
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-      <span style="font-size:14px;font-weight:700;color:var(--text1);white-space:nowrap">${_ICO.bar}실적 트렌드</span>
+    ${_rpSecT('분기 실적 트렌드', '* 단위: 억원, %')}
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:14px">
       ${chip('매출 YoY', yoy != null ? (yoy>=0?'+':'')+yoy.toFixed(1)+'%' : null, yoy>=0?'var(--red)':'var(--blue)')}
       ${chip('영업이익 YoY', opYoy != null ? (opYoy>=0?'+':'')+opYoy.toFixed(1)+'%' : null, opYoy>=0?'var(--red)':'var(--blue)')}
       ${chip('영업이익률', opMargin != null ? opMargin.toFixed(1)+'%' : null, opMargin >= 15 ? '#4ade80' : opMargin >= 5 ? 'var(--text2)' : 'var(--red)')}
@@ -396,8 +396,8 @@ function _rpSegmentCard(rows) {
   _rpSegSel = null; // 카드 재생성 시 선택 초기화
   if (!rows?.length) return `
     <div class="card" style="padding:16px">
-      <div style="font-size:14px;font-weight:700;color:var(--text1)">📦 제품·사업부별 매출</div>
-      <div style="color:var(--text1);font-size:12px;padding:20px;text-align:center">
+      ${_rpSecT('제품·사업부별 매출')}
+      <div style="color:var(--text3);font-size:12px;padding:20px;text-align:center">
         DART 파일을 업로드하면 제품별 매출 데이터가 표시됩니다
       </div>
     </div>`;
@@ -432,8 +432,8 @@ function _rpSegmentCard(rows) {
   // 캐시 저장
   _rpSegCache = { periods, dataMap, segNames, COLORS, latestKey, latestData, latestTotal, prevKey };
 
-  return `<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">
-    <div style="font-size:14px;font-weight:700;color:var(--text1)">📦 제품·사업부별 매출</div>
+  return `<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:8px">
+    ${_rpSecT('제품·사업부별 매출', '* 단위: 백만원, %')}
     <div id="rp-seg-inner">${_rpSegInner(_rpSegCache, null)}</div>
   </div>`;
 }
@@ -762,16 +762,21 @@ function _rpValuationCard(latestF, latest) {
   };
 
   const peerHeader = ps
-    ? `<div style="font-size:11px;color:var(--text1)">
+    ? `<div style="font-size:11px;color:var(--text3)">
         ${ps.industry} 동종 ${ps.count}개사 중앙값 비교
-        <span style="color:var(--text1);margin-left:4px">|</span>
-        <span style="color:var(--text1);margin-left:4px">🟢 유리 🟡 중립 🔴 불리</span>
+        <span style="margin-left:4px">|</span>
+        <span style="margin-left:4px"><span style="color:#4ade80">●</span> 유리
+        <span style="color:#f59e0b">●</span> 중립
+        <span style="color:#f87171">●</span> 불리</span>
       </div>`
-    : `<div style="font-size:11px;color:var(--text1);opacity:.6">업종 비교 로딩 중...</div>`;
+    : `<div style="font-size:11px;color:var(--text3)">업종 비교 로딩 중...</div>`;
 
   return `<div id="rp-val-card" class="card" style="padding:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
-      <span style="font-size:14px;font-weight:700;color:var(--text1)">💎 밸류에이션 & 수익성</span>
+      <span style="display:inline-flex;align-items:center;gap:7px">
+        <span style="width:3px;height:13px;background:var(--tg);border-radius:2px"></span>
+        <span style="font-size:13px;font-weight:700;color:var(--text1)">밸류에이션 & 수익성</span>
+      </span>
       ${peerHeader}
     </div>
 
@@ -784,7 +789,8 @@ function _rpValuationCard(latestF, latest) {
       </div>
       ${synthesis.map(s => {
         const col = s.type==='good'?'#4ade80' : s.type==='bad'?'#f87171' : s.type==='warn'?'#f59e0b' : 'var(--text2)';
-        return `<div style="font-size:12px;color:${col};line-height:1.5">${s.icon} ${s.msg}</div>`;
+        return `<div style="font-size:12px;color:var(--text1);line-height:1.5">
+          <span style="color:${col};font-weight:700">●</span> ${s.msg}</div>`;
       }).join('')}
     </div>
 
@@ -893,8 +899,8 @@ function _rpFinHealthCard(f) {
   ].filter(k => k.val != null);
 
   if (!rows.length) return `<div class="card" style="padding:16px">
-    <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text1)">🏦 재무 건전성</div>
-    <div style="color:var(--text1);font-size:12px;text-align:center;padding:12px">재무 데이터 없음</div>
+    ${_rpSecT('재무 건전성')}
+    <div style="color:var(--text3);font-size:12px;text-align:center;padding:12px">재무 데이터 없음</div>
   </div>`;
 
   // 재무 → 투자 연결 스토리
@@ -915,12 +921,13 @@ function _rpFinHealthCard(f) {
       padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);
       border-left:3px solid var(--border)">
       <div style="font-size:11px;font-weight:700;color:var(--text1);letter-spacing:.5px;margin-bottom:2px">투자 연결 시사점</div>
-      ${stories.map(s => `<div style="font-size:11px;color:${s.color};line-height:1.5">${s.icon} ${s.text}</div>`).join('')}
+      ${stories.map(s => `<div style="font-size:11px;color:var(--text1);line-height:1.5">
+        <span style="color:${s.color};font-weight:700">●</span> ${s.text}</div>`).join('')}
     </div>`;
   };
 
   return `<div class="card" style="padding:16px">
-    <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text1)">🏦 재무 건전성</div>
+    ${_rpSecT('재무 건전성', '* 단위: %, 원')}
     <div style="display:flex;flex-direction:column;gap:6px">
       ${rows.map(k => {
         const sig  = _rpSignal(k.key, k.val);
@@ -947,41 +954,18 @@ function _rpFinHealthCard(f) {
   </div>`;
 }
 
-function _rpFlowCard(latest) {
-  const fr   = latest.foreign_hold_rate;
-  const vol  = latest.volume;
-  const tv   = latest.trading_value;
+// ═══ FnGuide 기업현황 스타일 카드 (2026-07 재구성) ═══════════════════════════
 
-  return `<div class="card" style="padding:16px">
-    <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text1)">🔄 수급 현황</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">
-      ${fr != null ? `
-      <div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm)">
-        <div style="font-size:12px;color:var(--text1);margin-bottom:4px">외국인 보유율</div>
-        <div style="font-size:16px;font-weight:700">${fr.toFixed(1)}%</div>
-        <div style="margin-top:5px;height:4px;border-radius:2px;background:var(--border);overflow:hidden">
-          <div style="height:100%;width:${Math.min(100,fr)}%;background:var(--tg);border-radius:2px"></div>
-        </div>
-      </div>` : ''}
-      ${vol ? `
-      <div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm)">
-        <div style="font-size:12px;color:var(--text1);margin-bottom:4px">당일 거래량</div>
-        <div style="font-size:16px;font-weight:700">${fmtNum(vol)}</div>
-      </div>` : ''}
-      ${tv ? `
-      <div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm)">
-        <div style="font-size:12px;color:var(--text1);margin-bottom:4px">당일 거래대금</div>
-        <div style="font-size:16px;font-weight:700">${fmtCap(tv)}</div>
-      </div>` : ''}
-      <div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm)">
-        <div style="font-size:12px;color:var(--text1);margin-bottom:4px">기관 누적</div>
-        <div style="font-size:13px;color:var(--text2)">별도 데이터 필요</div>
-      </div>
-    </div>
+// 공통 섹션 타이틀 (FnGuide 스타일 — 악센트 바 + 타이틀 + 우측 보조텍스트)
+function _rpSecT(title, right = '', color = 'var(--tg)') {
+  return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+    <span style="display:inline-flex;align-items:center;gap:7px">
+      <span style="width:3px;height:13px;background:${color};border-radius:2px;flex-shrink:0"></span>
+      <span style="font-size:13px;font-weight:700;color:var(--text1)">${title}</span>
+    </span>
+    ${right ? `<span style="font-size:11px;color:var(--text3)">${right}</span>` : ''}
   </div>`;
 }
-
-// ═══ FnGuide 기업현황 스타일 카드 (2026-07 재구성) ═══════════════════════════
 
 // 발행주식수 추정 (시총 ÷ 주가 — 동일 base_date 행이라 정합)
 function _rpShares(latest) {
@@ -1067,10 +1051,7 @@ function _rpQuoteCard(latest, prices) {
   ];
 
   return `<div class="card" style="padding:16px">
-    <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:12px">
-      <span class="card-title">${_ICO.chart}시세 및 주주현황</span>
-      ${latest?.base_date ? `<span class="card-sub">[기준: ${latest.base_date}]</span>` : ''}
-    </div>
+    ${_rpSecT('시세 및 주주현황', latest?.base_date ? `[기준: ${latest.base_date}]` : '')}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start">
 
       <!-- 좌: 시세 표 -->
@@ -1296,7 +1277,7 @@ function _rpConsensusCard(analysts, currentPrice, watch) {
         등록된 증권사 의견이 없습니다</div>`;
 
   return `<div class="card" style="padding:16px">
-    <div class="card-title" style="margin-bottom:12px">${_ICO.target}투자의견 컨센서스</div>
+    ${_rpSecT('투자의견 컨센서스')}
     <div style="display:grid;grid-template-columns:190px 1fr;gap:14px">
       ${summaryCol}
       ${tableCol}
@@ -1319,10 +1300,7 @@ function _rpAnnualTable(annual, latest) {
   const num = (v, digits = 2) => v == null ? '—' : v.toFixed(digits);
 
   return `<div class="card" style="padding:16px">
-    <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:12px">
-      <span class="card-title">${_ICO.doc}연간 실적 요약</span>
-      <span class="card-sub">단위: 억원, %, 배 · IFRS 연결</span>
-    </div>
+    ${_rpSecT('연간 실적 요약', '* 단위: 억원, %, 배 · IFRS 연결')}
     <div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
         <thead><tr style="background:var(--bg3)">
@@ -2482,7 +2460,7 @@ async function _rpLoadAndRenderReports(body) {
                 border-bottom:1px solid var(--border)">${(r.opinion_date || '').slice(2).replace(/-/g, '/')}</td>
               <td style="padding:7px 10px;color:var(--text1);font-weight:600;border-bottom:1px solid var(--border)">${esc(r.firm_name || '')}</td>
               <td style="padding:7px 10px;text-align:right;font-weight:800;color:${col};
-                border-bottom:1px solid var(--border)">${esc(r.opinion || '—')}${changed ? ' <span title="의견 변경">🔄</span>' : ''}</td>
+                border-bottom:1px solid var(--border)">${esc(r.opinion || '—')}${changed ? ' <span style="color:#f59e0b;font-weight:700" title="직전 의견에서 변경">●</span>' : ''}</td>
               <td style="padding:7px 10px;text-align:right;color:var(--text3);border-bottom:1px solid var(--border)">${esc(r.prev_opinion || '—')}</td>
               <td style="padding:7px 10px;text-align:right;font-weight:700;color:var(--text1);
                 font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border)">${r.target_price ? fmtNum(r.target_price) : '—'}</td>
@@ -2591,7 +2569,7 @@ function _rpCatalystCard() {
     { horizon: '장기 (12M)', color: '#60a5fa', items: ['시장 점유율 확대', '해외 매출 성장'] },
   ];
   return `<div class="card" style="padding:16px">
-    <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text1)">⚡ 카탈리스트</div>
+    ${_rpSecT('카탈리스트')}
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
       ${catalysts.map(c => `
       <div style="padding:10px;border-radius:var(--radius-sm);border:1px solid ${c.color}30;background:${c.color}08">
@@ -2603,8 +2581,7 @@ function _rpCatalystCard() {
         </div>`).join('')}
       </div>`).join('')}
     </div>
-    <div style="margin-top:8px;font-size:12px;color:var(--text1);text-align:center">
-      투자노트에 카탈리스트를 직접 입력하면 여기에 반영됩니다
-    </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--text3)">
+      * 투자노트에 카탈리스트를 직접 입력하면 여기에 반영됩니다</div>
   </div>`;
 }
