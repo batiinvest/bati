@@ -302,9 +302,33 @@ function pNotice() {
     </div>
   </div>
 
-  <div class="card nt-util">
-    <span class="nt-util-txt">📌 <b>종목방 소개글(그룹 설명) 일괄 적용</b> — 종목 채팅방 ${companyCount}개의 설명을 표준 양식으로 교체합니다. 방 이름은 종목명으로 자동 치환, 기존 설명은 덮어써집니다.</span>
-    <button class="btn btn-sm" id="desc-sync-btn" onclick="syncDescriptions()">📌 설명 일괄 적용</button>
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">📌 종목방 소개글 <span class="card-sub">— 그룹 설명(Description) · <code>{name}</code> 자리에 종목명 자동 치환 · 텔레그램 255자 제한</span></span>
+    </div>
+    <div class="card-body">
+      <div class="nt-editor-grid">
+        <div>
+          <textarea class="form-input nt-textarea nt-textarea-sm" id="desc-template" oninput="descPreview()" placeholder="불러오는 중…"></textarea>
+          <div class="nt-count" id="desc-count">—</div>
+        </div>
+        <div class="nt-tg nt-tg-sm">
+          <div class="nt-tg-head">
+            <span class="nt-tg-avatar">B</span>
+            <span>
+              <span class="nt-tg-name">그룹 설명 미리보기</span>
+              <span class="nt-tg-sub">예시 종목: 펩트론</span>
+            </span>
+          </div>
+          <div class="nt-tg-body" id="desc-prev"></div>
+        </div>
+      </div>
+      <div class="nt-sendbar">
+        <span class="nt-summary">종목 채팅방 <b>${companyCount}</b>개 · 기존 설명 덮어쓰기</span>
+        <button class="btn btn-sm" onclick="saveDescTemplate()">💾 저장만</button>
+        <button class="btn btn-primary btn-sm" id="desc-sync-btn" onclick="syncDescriptions()">📌 저장 + 일괄 적용</button>
+      </div>
+    </div>
   </div>
 
   <div class="section-header"><span class="section-title">발송 기록</span><button class="btn btn-sm" onclick="loadNotices()">새로고침</button></div>
@@ -315,6 +339,7 @@ async function loadNotices() {
   // 작성 위젯 초기화 (첫 draw 시 미리보기·요약바 세팅)
   if (document.getElementById('nt-summary') && typeof ntPreview === 'function')
     ntPreview(document.getElementById('i-content')?.value || '');
+  if (typeof loadDescTemplate === 'function') loadDescTemplate();
 
   const el = document.getElementById('notice-list'); if (!el) return;
   const { data, error } = await DB('notice_history').select('*').order('created_at',{ascending:false}).limit(30);

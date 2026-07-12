@@ -750,3 +750,5 @@ textarea.nt-textarea { min-height:340px; height:100%; resize:vertical; font-fami
   .nt-tg-body { max-height:300px; }
   .nt-toolbar { margin-left:0; }
 }
+.nt-tg-sm { min-height:0; }
+textarea.nt-textarea-sm { min-height:240px; }
