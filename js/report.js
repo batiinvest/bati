@@ -384,7 +384,7 @@ async function rpRenderReport() {
   <!-- ⑨ 탭 (Financial Summary·수급·공시·DART) ─────────────────────── -->
   <div class="card" style="padding:0;overflow:hidden">
     <div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg2)">
-      ${['기업개요','재무제표','수급흐름','공시/뉴스','DART 분석'].map((t,i) => `
+      ${['기업개요','재무분석','재무제표','수급흐름','공시/뉴스','DART 분석'].map((t,i) => `
         <button onclick="rpSetTab(${i})" id="rp-tab-${i}"
           style="flex:1;padding:10px 4px;font-size:14px;font-weight:600;border:none;
             background:none;cursor:pointer;border-bottom:2px solid ${i===0?'var(--tg)':'transparent'};
@@ -443,20 +443,28 @@ async function rpSetTab(idx) {
     return;
   }
 
-  // 재무제표(1) → financials.js의 _renderFinancialTab 재활용
+  // 재무분석(1) — FnGuide c1030001 스타일 (report-cards.js)
   if (idx === 1) {
+    body.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px"><span class="loading"></span> 재무분석 로딩 중...</div>';
+    await _rpLoadAndRenderFinAnalysis(body);
+    return;
+  }
+
+  // 재무제표(2) → financials.js의 _renderFinancialTab 재활용
+  if (idx === 2) {
     body.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px"><span class="loading"></span></div>';
     await _renderFinancialTab(body, _rpStock.code, _rpStock.name);
     return;
   }
 
-  if (idx === 4) {
+  if (idx === 5) {
     body.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px"><span class="loading"></span> DART 리포트 로딩 중...</div>';
     await _rpLoadAndRenderDart(body);
     return;
   }
 
   const fns = [
+    null,
     null,
     null,
     () => _rpTabFlow(_rpData.price),
