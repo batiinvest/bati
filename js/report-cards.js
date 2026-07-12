@@ -1361,6 +1361,279 @@ function _rpAnnualTable(annual, latest) {
   </div>`;
 }
 
+// ═══ 기업개요 탭 (FnGuide c1020001 스타일) ═══════════════════════════════════
+
+// 탭 진입 시 데이터 로드 + 렌더 (DART raw_md 파싱·지역세그먼트·생산·최근공시)
+async function _rpLoadAndRenderProfile(body) {
+  if (!_rpStock || !body) return;
+  try {
+    const [compRes, dartRes, regionRes, prodRes] = await Promise.all([
+      sb.from('companies').select('corp_code,market,sector,product,industry,sub_industry')
+        .eq('code', _rpStock.code).maybeSingle(),
+      sb.from('dart_reports').select('report_type,receive_date,raw_md,summary')
+        .eq('stock_code', _rpStock.code).order('receive_date', { ascending: false }).limit(1).maybeSingle(),
+      sb.from('dart_segment_revenue').select('bsns_year,quarter,category,subcategory,revenue')
+        .eq('stock_code', _rpStock.code).eq('segment_type','region')
+        .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
+      sb.from('dart_production').select('bsns_year,quarter,factory_name,capacity,actual,utilization_rate')
+        .eq('stock_code', _rpStock.code)
+        .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
+    ]);
+
+    // 최근 공시 (corp_code 기준)
+    let discs = [];
+    if (compRes.data?.corp_code) {
+      const { data } = await sb.from('daily_disclosures')
+        .select('base_date,report_nm,category,rcept_no')
+        .eq('corp_code', compRes.data.corp_code)
+        .order('base_date', { ascending: false }).limit(8);
+      discs = data || [];
+    }
+
+    const dart = dartRes.data || null;
+    const dp   = dart?.raw_md && typeof _mdDeepParse === 'function' ? _mdDeepParse(dart.raw_md) : {};
+
+    body.innerHTML = _rpProfileTab({
+      comp: compRes.data || {}, dart, dp, discs,
+      region: regionRes.data || [], prod: prodRes.data || [],
+      latest: _rpData.price?.[0] || {}, segment: _rpData.segment || [],
+    });
+  } catch (e) {
+    body.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:12px">기업개요 로드 실패: ${e.message}</div>`;
+  }
+}
+
+// 기업개요 탭 렌더 — 기본정보·최근공시(연혁)·매출구성·내수/수출·생산·계열사
+function _rpProfileTab({ comp, dart, dp, discs, region, prod, latest, segment }) {
+  const esc = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
+  const secT = t => `<div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
+    <span style="width:3px;height:13px;background:var(--tg);border-radius:2px"></span>
+    <span style="font-size:13px;font-weight:700;color:var(--text1)">${t}</span></div>`;
+  const box = inner => `<div style="background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius-sm);padding:14px">${inner}</div>`;
+  const empty = msg => `<div style="font-size:12px;color:var(--text3);padding:10px 0;text-align:center">${msg}</div>`;
+
+  // ── ① 기업 기본정보 표 ─────────────────────────────────────────────────
+  const shares = _rpShares(latest);
+  const infoRows = [
+    ['설립일 / 상장일', [dp.established, dp.listedDate].filter(Boolean).map(esc).join(' / ') || null],
+    ['본사 소재지', dp.location ? esc(dp.location) : null],
+    ['시장 / 업종', [comp.market, comp.sector].filter(Boolean).map(esc).join(' / ') || null],
+    ['분석 산업', [comp.industry, comp.sub_industry].filter(Boolean).map(esc).join(' · ') || null],
+    ['주력 제품', comp.product ? esc(comp.product) : null],
+    ['주요 사업', dp.mainBusiness ? esc(dp.mainBusiness) : null],
+    ['발행주식수 <span style="opacity:.6">(추정)</span>', shares ? fmtNum(shares) + '주' : null],
+    ['최대주주', dp.majorShareholder
+      ? esc(dp.majorShareholder) + (dp.majorShareholderRatio ? ` <b style="color:var(--tg)">${esc(dp.majorShareholderRatio)}</b>` : '') : null],
+  ].filter(([, v]) => v != null);
+
+  const infoHTML = box(`
+    ${secT('기업 기본정보')}
+    ${infoRows.length ? `
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      ${infoRows.map(([k, v]) => `<tr>
+        <td style="padding:7px 10px;background:var(--bg3);color:var(--text2);white-space:nowrap;
+          border-bottom:1px solid var(--border);width:130px">${k}</td>
+        <td style="padding:7px 10px;color:var(--text1);border-bottom:1px solid var(--border);line-height:1.5">${v}</td>
+      </tr>`).join('')}
+    </table>
+    ${dart?.receive_date ? `<div style="font-size:11px;color:var(--text3);margin-top:6px">
+      * DART ${esc(dart.report_type || '')} 기준 [접수: ${esc(dart.receive_date)}]</div>` : ''}`
+    : empty('DART 리포트(.md)를 업로드하면 기본정보가 표시됩니다')}`);
+
+  // ── ② 최근 공시 (연혁 타임라인) ────────────────────────────────────────
+  const discHTML = box(`
+    ${secT('최근 공시 이력')}
+    ${discs.length ? `
+    <div style="display:flex;flex-direction:column">
+      ${discs.map(d => `
+      <div style="display:flex;align-items:baseline;gap:10px;padding:6px 2px;
+        border-bottom:1px solid var(--border)">
+        <span style="font-size:11px;color:var(--text3);font-variant-numeric:tabular-nums;
+          white-space:nowrap;width:72px">${(d.base_date || '').slice(2)}</span>
+        ${d.category ? `<span class="chip chip-sm" style="cursor:default;flex-shrink:0">${esc(d.category)}</span>` : ''}
+        <a href="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${encodeURIComponent(d.rcept_no || '')}"
+          target="_blank" rel="noopener"
+          style="font-size:12px;color:var(--text1);min-width:0;overflow:hidden;
+            text-overflow:ellipsis;white-space:nowrap;text-decoration:none">${esc(d.report_nm || '')}</a>
+      </div>`).join('')}
+    </div>`
+    : empty('최근 공시 데이터 없음')}`);
+
+  // ── ③ 주요제품 매출구성 (최신 기간, %) ─────────────────────────────────
+  let segHTML = '';
+  {
+    const rows = (segment || []).filter(r => r.category !== '합계');
+    const periods = [...new Set(rows.map(r => `${r.bsns_year}.${r.quarter}`))];
+    const lastKey = periods[periods.length - 1];
+    const lastRows = rows.filter(r => `${r.bsns_year}.${r.quarter}` === lastKey);
+    const total = lastRows.reduce((s, r) => s + (r.revenue || 0), 0);
+    const COLORS = ['#2AABEE','#4ade80','#fb923c','#a78bfa','#f59e0b','#34d399','#f87171','#60a5fa'];
+    const items = lastRows.map(r => ({
+      name: r.category,
+      pct: r.revenue_ratio ?? (total > 0 ? r.revenue / total * 100 : 0),
+    })).sort((a, b) => b.pct - a.pct);
+
+    segHTML = box(`
+      <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px">
+        ${secT('주요제품 매출구성')}
+        ${lastKey ? `<span style="font-size:11px;color:var(--text3)">* 단위: % [기준: ${lastKey.replace('.', ' ')}]</span>` : ''}
+      </div>
+      ${items.length ? `
+      <!-- 100% 스택 바 -->
+      <div style="display:flex;height:14px;border-radius:4px;overflow:hidden;margin-bottom:12px;background:var(--border)">
+        ${items.map((it, i) => `<div style="flex:${Math.max(it.pct, 0.5)};background:${COLORS[i % COLORS.length]}"
+          title="${esc(it.name)} ${it.pct.toFixed(2)}%"></div>`).join('')}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:7px">
+        ${items.map((it, i) => `
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="width:9px;height:9px;border-radius:2px;background:${COLORS[i % COLORS.length]};flex-shrink:0"></span>
+          <span style="font-size:12px;color:var(--text1);flex:1;min-width:0;overflow:hidden;
+            text-overflow:ellipsis;white-space:nowrap">${esc(it.name)}</span>
+          <div style="flex:2;height:5px;border-radius:3px;background:var(--border);overflow:hidden">
+            <div style="height:100%;width:${Math.min(it.pct, 100)}%;background:${COLORS[i % COLORS.length]};border-radius:3px"></div>
+          </div>
+          <span style="font-size:12px;font-weight:700;color:var(--text1);width:52px;text-align:right;
+            font-variant-numeric:tabular-nums">${it.pct.toFixed(2)}</span>
+        </div>`).join('')}
+      </div>`
+      : empty('DART 업로드 시 제품별 매출구성이 표시됩니다')}`);
+  }
+
+  // ── ④ 내수 및 수출구성 ─────────────────────────────────────────────────
+  let regionHTML = '';
+  {
+    const isDom = s => /내수|국내/.test(s || '');
+    const isExp = s => /수출|해외/.test(s || '');
+    // category/subcategory 중 내수·수출 축 자동 감지
+    const axisInSub = (region || []).some(r => isDom(r.subcategory) || isExp(r.subcategory));
+    const rows = (region || []).map(r => axisInSub
+      ? { prod: r.category, axis: r.subcategory, ...r }
+      : { prod: r.subcategory || r.category, axis: r.category, ...r })
+      .filter(r => (isDom(r.axis) || isExp(r.axis)) && r.prod && r.prod !== '합계');
+
+    const periods = [...new Set(rows.map(r => `${r.bsns_year}.${r.quarter}`))].slice(-3);
+    const prods = [...new Set(rows.filter(r => periods.includes(`${r.bsns_year}.${r.quarter}`)).map(r => r.prod))];
+
+    regionHTML = box(`
+      <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px">
+        ${secT('내수 및 수출구성')}
+        <span style="font-size:11px;color:var(--text3)">* 단위: %</span>
+      </div>
+      ${prods.length ? `
+      <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
+        <thead>
+          <tr style="background:var(--bg3)">
+            <th style="padding:6px 10px;text-align:left;color:var(--text2);font-weight:600;border-bottom:1px solid var(--border)">제품명</th>
+            ${periods.map(p => `<th colspan="2" style="padding:6px 10px;text-align:center;color:var(--text2);
+              font-weight:600;border-bottom:1px solid var(--border)">${p.replace('.', ' ')}</th>`).join('')}
+          </tr>
+          <tr style="background:var(--bg3)">
+            <th style="border-bottom:1px solid var(--border)"></th>
+            ${periods.map(() => `
+              <th style="padding:4px 10px;text-align:right;color:var(--text3);font-weight:500;border-bottom:1px solid var(--border)">내수</th>
+              <th style="padding:4px 10px;text-align:right;color:var(--text3);font-weight:500;border-bottom:1px solid var(--border)">수출</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${prods.map(pn => `<tr>
+            <td style="padding:7px 10px;color:var(--text1);font-weight:600;border-bottom:1px solid var(--border)">${esc(pn)}</td>
+            ${periods.map(p => {
+              const pr = rows.filter(r => `${r.bsns_year}.${r.quarter}` === p && r.prod === pn);
+              const dom = pr.filter(r => isDom(r.axis)).reduce((s, r) => s + (r.revenue || 0), 0);
+              const exp = pr.filter(r => isExp(r.axis)).reduce((s, r) => s + (r.revenue || 0), 0);
+              const tot = dom + exp;
+              const cell = v => tot > 0 ? (v / tot * 100).toFixed(2) : '—';
+              return `
+                <td style="padding:7px 10px;text-align:right;color:var(--text1);
+                  font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border)">${cell(dom)}</td>
+                <td style="padding:7px 10px;text-align:right;color:var(--tg);font-weight:600;
+                  font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border)">${cell(exp)}</td>`;
+            }).join('')}
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      </div>`
+      : empty('DART 업로드 시 내수/수출 구성이 표시됩니다')}`);
+  }
+
+  // ── ⑤ 생산실적 및 가동률 ───────────────────────────────────────────────
+  let prodHTML = '';
+  {
+    const periods = [...new Set((prod || []).map(r => `${r.bsns_year}.${r.quarter}`))];
+    const lastKey = periods[periods.length - 1];
+    const lastRows = (prod || []).filter(r => `${r.bsns_year}.${r.quarter}` === lastKey);
+
+    prodHTML = box(`
+      <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px">
+        ${secT('생산능력 및 가동률')}
+        ${lastKey ? `<span style="font-size:11px;color:var(--text3)">[기준: ${lastKey.replace('.', ' ')}]</span>` : ''}
+      </div>
+      ${lastRows.length ? `
+      <div style="display:flex;flex-direction:column;gap:7px">
+        ${lastRows.map(r => {
+          const u = r.utilization_rate;
+          const uCol = u == null ? 'var(--text3)' : u >= 90 ? '#f87171' : u >= 70 ? '#4ade80' : '#f59e0b';
+          return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;
+            background:var(--bg3);border-radius:var(--radius-sm);flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:700;color:var(--text1);min-width:90px">${esc(r.factory_name)}</span>
+            <span style="font-size:12px;color:var(--text2)">생산능력 <b style="color:var(--text1)">${r.capacity != null ? fmtNum(r.capacity) : '—'}</b></span>
+            <span style="font-size:12px;color:var(--text2)">생산실적 <b style="color:var(--text1)">${r.actual != null ? fmtNum(r.actual) : '—'}</b></span>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:8px;min-width:150px">
+              <div style="flex:1;height:5px;border-radius:3px;background:var(--border);overflow:hidden">
+                <div style="height:100%;width:${Math.min(u || 0, 100)}%;background:${uCol};border-radius:3px"></div>
+              </div>
+              <span style="font-size:12px;font-weight:700;color:${uCol};width:50px;text-align:right">
+                ${u != null ? u.toFixed(1) + '%' : '—'}</span>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`
+      : empty('DART 업로드 시 생산실적·가동률이 표시됩니다')}`);
+  }
+
+  // ── ⑥ 계열사 현황 ──────────────────────────────────────────────────────
+  const subs = dp.subsidiaries || [];
+  const fmtB = typeof _fmtBillions === 'function' ? _fmtBillions : (v => v != null ? fmtNum(v) : '—');
+  const subsHTML = box(`
+    ${secT('계열사 현황')}
+    ${subs.length ? `
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:7px">
+      ${subs.map(s => {
+        const isLoss = s.netIncome != null && s.netIncome < 0;
+        return `<div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm)">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:12px;font-weight:700;color:var(--text1);min-width:0;overflow:hidden;
+              text-overflow:ellipsis;white-space:nowrap;flex:1">${esc(s.name)}</span>
+            ${s.note ? `<span style="font-size:11px;padding:1px 6px;border-radius:100px;
+              background:#ef444420;color:#ef4444;font-weight:700;flex-shrink:0">${esc(s.note)}</span>` : ''}
+          </div>
+          <div style="display:flex;gap:12px;margin-top:3px;font-size:11px;color:var(--text2);flex-wrap:wrap">
+            ${s.role ? `<span>${esc(s.role)}</span>` : ''}
+            ${s.revenue != null ? `<span>매출 <b style="color:var(--text1)">${fmtB(s.revenue)}</b></span>` : ''}
+            ${s.netIncome != null ? `<span>순손익 <b style="color:${isLoss ? 'var(--blue)' : 'var(--red)'}">${fmtB(s.netIncome)}</b></span>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`
+    : empty('DART 업로드 시 계열사 현황이 표시됩니다')}`);
+
+  return `<div style="display:flex;flex-direction:column;gap:12px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px">
+      ${infoHTML}
+      ${discHTML}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px">
+      ${segHTML}
+      ${regionHTML}
+    </div>
+    ${prodHTML}
+    ${subsHTML}
+  </div>`;
+}
+
 function _rpCatalystCard() {
   const catalysts = [
     { horizon: '단기 (1M)',  color: '#f59e0b', items: ['분기 실적 발표', '주요 수주 발표'] },
