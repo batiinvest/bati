@@ -1693,8 +1693,12 @@ function _rpfPrevRow(r, mode) {
 }
 
 // ── 이중축 그룹바+라인 SVG 차트 ──────────────────────────────────────────────
-// bars: [{name,color,vals[](억원)}] / lines: [{name,color,vals[](%)}]
-function _rpfChart(title, labels, bars, lines) {
+// bars: [{name,color,vals[]}] (좌축) / lines: [{name,color,vals[]}] (우축)
+// opts: { barUnit:'억', lineUnit:'%', lineDec:1 }
+function _rpfChart(title, labels, bars, lines, opts = {}) {
+  const barUnit  = opts.barUnit  ?? '억';
+  const lineUnit = opts.lineUnit ?? '%';
+  const lineDec  = opts.lineDec  ?? 1;
   const n = labels.length;
   if (!n) return '';
   const W = 640, H = 170, TOP = 10, BOT = 20, PAD = 10;
@@ -1720,7 +1724,7 @@ function _rpfChart(title, labels, bars, lines) {
     const y1 = yB(Math.max(v, 0)), y2 = yB(Math.min(v, 0));
     return `<rect x="${x.toFixed(1)}" y="${y1.toFixed(1)}" width="${(bw - 1.5).toFixed(1)}"
       height="${Math.max(y2 - y1, 1).toFixed(1)}" rx="1.5" fill="${b.color}" opacity=".85">
-      <title>${b.name} ${labels[i]}: ${v.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}억</title></rect>`;
+      <title>${b.name} ${labels[i]}: ${v.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}${barUnit}</title></rect>`;
   }).join('')).join('');
 
   const linePaths = (lines || []).map(l => {
@@ -1730,7 +1734,7 @@ function _rpfChart(title, labels, bars, lines) {
         stroke-linejoin="round" stroke-linecap="round"/>` +
       l.vals.map((v, i) => v != null && isFinite(v)
         ? `<circle cx="${x0(i).toFixed(1)}" cy="${yL(v).toFixed(1)}" r="2.8" fill="${l.color}">
-            <title>${l.name} ${labels[i]}: ${v.toFixed(1)}%</title></circle>` : '').join('');
+            <title>${l.name} ${labels[i]}: ${v.toLocaleString('ko-KR', { maximumFractionDigits: lineDec })}${lineUnit}</title></circle>` : '').join('');
   }).join('');
 
   const legend = [...bars.map(b => ({ ...b, shape: 'rect' })), ...(lines || []).map(l => ({ ...l, shape: 'line' }))]
@@ -1923,6 +1927,251 @@ function rpfRender() {
     * 연간=Q4 누적 기준 (분기 뷰의 Q4 행도 연간 누적치 — QoQ 해석 주의) · 법인세비용은 세전이익-순이익 계산치 · 강조열은 최근 기간</div>`;
 
   el.innerHTML = charts + table;
+}
+
+// ═══ 투자지표 탭 (FnGuide c1040001 스타일) ═══════════════════════════════════
+// 재무비율(수익성/성장성/안정성/활동성 서브탭) + 가치지표(주당·배수) — 연간/분기 토글
+
+const RPI = { cat: 'profit', view: 'annual', rows: [], shares: null };
+
+async function _rpLoadAndRenderInvMetrics(body) {
+  if (!_rpStock || !body) return;
+  try {
+    const { data } = await sb.from('financials')
+      .select('bsns_year,quarter,revenue,cogs,gross_profit,operating_profit,net_income,total_assets,total_equity,capital_stock,retained_earnings,operating_cashflow,ebitda,operating_margin,net_margin,gross_margin,roe,roa,debt_ratio,current_ratio,per,pbr')
+      .eq('stock_code', _rpStock.code).eq('fs_div', 'CFS')
+      .order('bsns_year', { ascending: true }).order('quarter', { ascending: true });
+    RPI.rows = data || [];
+    RPI.shares = _rpShares(_rpData.price?.[0]);
+    RPI.cat = 'profit'; RPI.view = 'annual';
+    if (!RPI.rows.length) {
+      body.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center;font-size:12px">재무 데이터 없음</div>';
+      return;
+    }
+    body.innerHTML = `
+      <div style="display:flex;gap:6px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:13px;font-weight:700;color:var(--text1)">재무비율</span>
+        <button id="rpi-cat-profit"    class="chip active" onclick="rpiSet('cat','profit')">수익성</button>
+        <button id="rpi-cat-growth"    class="chip"        onclick="rpiSet('cat','growth')">성장성</button>
+        <button id="rpi-cat-stability" class="chip"        onclick="rpiSet('cat','stability')">안정성</button>
+        <button id="rpi-cat-activity"  class="chip"        onclick="rpiSet('cat','activity')">활동성</button>
+        <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+          <button id="rpi-vw-annual"  class="chip chip-sm active" onclick="rpiSet('view','annual')">연간</button>
+          <button id="rpi-vw-quarter" class="chip chip-sm"        onclick="rpiSet('view','quarter')">분기</button>
+          <span style="font-size:11px;color:var(--text3);margin-left:6px">* 단위: %, %p, 원, 배 · IFRS연결</span>
+        </div>
+      </div>
+      <div id="rpi-ratio-body"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin:18px 0 12px">
+        <span style="font-size:13px;font-weight:700;color:var(--text1)">가치지표</span>
+        <span style="font-size:11px;color:var(--text3)">주당지표는 현재 발행주식수(시총÷주가) 기준 추정 · PER/PBR은 기말 저장값, PSR/PCR은 파생 계산</span>
+      </div>
+      <div id="rpi-value-body"></div>`;
+    rpiRender();
+  } catch (e) {
+    body.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:12px">투자지표 로드 실패: ${e.message}</div>`;
+  }
+}
+
+function rpiSet(key, val) {
+  RPI[key] = val;
+  ['profit','growth','stability','activity'].forEach(c =>
+    document.getElementById('rpi-cat-' + c)?.classList.toggle('active', RPI.cat === c));
+  ['annual','quarter'].forEach(v =>
+    document.getElementById('rpi-vw-' + v)?.classList.toggle('active', RPI.view === v));
+  rpiRender();
+}
+
+function _rpiPeriods() {
+  const rows = RPI.view === 'annual' ? RPI.rows.filter(r => r.quarter === 'Q4') : RPI.rows;
+  return rows.slice(RPI.view === 'annual' ? -5 : -6);
+}
+function _rpiPrev(r, mode) {
+  if (RPI.view === 'annual' || mode === 'yoy') {
+    return RPI.rows.find(x => String(x.bsns_year) === String(Number(r.bsns_year) - 1) && x.quarter === r.quarter) || null;
+  }
+  const idx = RPI.rows.indexOf(r);
+  return idx > 0 ? RPI.rows[idx - 1] : null;
+}
+
+// ── 지표 정의 ────────────────────────────────────────────────────────────────
+// fmt: pct(%·소수2) | won(원) | x(배) — grow: pp(%p차) | pct(증감률%)
+function _rpiDefs() {
+  const S = RPI.shares;
+  const gm  = r => r.gross_margin ?? (r.revenue > 0 && r.cogs != null ? (r.revenue - r.cogs) / r.revenue * 100 : null);
+  const em  = r => r.revenue > 0 && r.ebitda != null ? r.ebitda / r.revenue * 100 : null;
+  const eqR = r => r.total_assets > 0 && r.total_equity != null ? r.total_equity / r.total_assets * 100 : null;
+  const rsv = r => r.capital_stock > 0 && r.retained_earnings != null ? r.retained_earnings / r.capital_stock * 100 : null;
+  const grow = key => r => {
+    const p = _rpiPrev(r, 'yoy');
+    return r[key] != null && p?.[key] != null && p[key] !== 0
+      ? (r[key] - p[key]) / Math.abs(p[key]) * 100 : null;
+  };
+  const turn = key => r => {
+    const p = _rpiPrev(r, RPI.view === 'annual' ? 'yoy' : 'qoq');
+    const avg = r[key] != null ? (p?.[key] != null ? (r[key] + p[key]) / 2 : r[key]) : null;
+    return avg > 0 && r.revenue != null ? r.revenue / avg : null;
+  };
+  const per_ = r => (r.per != null && r.per > 0 && r.per < 9999) ? r.per : null;
+  const defs = {
+    profit: [
+      { label: '매출총이익률',  v: gm,               fmt: 'pct', grow: 'pp' },
+      { label: '영업이익률',    v: r => r.operating_margin, fmt: 'pct', grow: 'pp', bold: 1 },
+      { label: '순이익률',      v: r => r.net_margin, fmt: 'pct', grow: 'pp' },
+      { label: 'EBITDA마진율',  v: em,               fmt: 'pct', grow: 'pp' },
+      { label: 'ROE',           v: r => r.roe,        fmt: 'pct', grow: 'pp', bold: 1 },
+      { label: 'ROA',           v: r => r.roa,        fmt: 'pct', grow: 'pp' },
+    ],
+    growth: [
+      { label: '매출액증가율',    v: grow('revenue'),          fmt: 'pct', grow: 'pp', bold: 1 },
+      { label: '영업이익증가율',  v: grow('operating_profit'), fmt: 'pct', grow: 'pp' },
+      { label: '순이익증가율',    v: grow('net_income'),       fmt: 'pct', grow: 'pp' },
+      { label: '총자산증가율',    v: grow('total_assets'),     fmt: 'pct', grow: 'pp' },
+      { label: '자기자본증가율',  v: grow('total_equity'),     fmt: 'pct', grow: 'pp' },
+    ],
+    stability: [
+      { label: '부채비율',        v: r => r.debt_ratio,    fmt: 'pct', grow: 'pp', bold: 1 },
+      { label: '유동비율',        v: r => r.current_ratio, fmt: 'pct', grow: 'pp' },
+      { label: '자기자본비율',    v: eqR,                  fmt: 'pct', grow: 'pp' },
+      { label: '유보율(근사)',    v: rsv,                  fmt: 'pct', grow: 'pp' },
+    ],
+    activity: [
+      { label: '총자산회전율',    v: turn('total_assets'), fmt: 'x', grow: 'pp', unit: '회', bold: 1 },
+      { label: '자기자본회전율',  v: turn('total_equity'), fmt: 'x', grow: 'pp', unit: '회' },
+    ],
+    value: [
+      { label: 'EPS', v: r => S && r.net_income != null ? r.net_income / S : null,         fmt: 'won', grow: 'pct', bold: 1 },
+      { label: 'BPS', v: r => S && r.total_equity != null ? r.total_equity / S : null,      fmt: 'won', grow: 'pct' },
+      { label: 'CPS', v: r => S && r.operating_cashflow != null ? r.operating_cashflow / S : null, fmt: 'won', grow: 'pct' },
+      { label: 'SPS', v: r => S && r.revenue != null ? r.revenue / S : null,                fmt: 'won', grow: 'pct' },
+      { label: 'PER', v: per_,             fmt: 'x', grow: 'pct', bold: 1 },
+      { label: 'PBR', v: r => r.pbr,       fmt: 'x', grow: 'pct' },
+      { label: 'PSR', v: r => per_(r) != null && r.net_margin != null ? per_(r) * r.net_margin / 100 : null, fmt: 'x', grow: 'pct' },
+      { label: 'PCR', v: r => per_(r) != null && r.net_income != null && r.operating_cashflow > 0
+          ? per_(r) * r.net_income / r.operating_cashflow : null, fmt: 'x', grow: 'pct' },
+    ],
+  };
+  return defs;
+}
+
+// ── 지표 표 빌더 (기간 컬럼 + YoY/QoQ 증감) ─────────────────────────────────
+function _rpiTable(defs, periods, labels) {
+  const fmtV = (d, v) => {
+    if (v == null || !isFinite(v)) return '—';
+    if (d.fmt === 'won') return fmtNum(v);
+    return v.toFixed(2);
+  };
+  const growCell = (d, cur, old) => {
+    if (cur == null || old == null || !isFinite(cur) || !isFinite(old)) return '<span style="color:var(--text3)">—</span>';
+    let g, suffix = '';
+    if (d.grow === 'pp') { g = cur - old; suffix = 'p'; }
+    else { if (old === 0) return '<span style="color:var(--text3)">—</span>'; g = (cur - old) / Math.abs(old) * 100; }
+    const c = g > 0 ? 'var(--red)' : g < 0 ? 'var(--blue)' : 'var(--text3)';
+    return `<span style="color:${c}">${g >= 0 ? '+' : ''}${g.toFixed(d.grow === 'pp' ? 2 : 1)}${suffix}</span>`;
+  };
+  const lastR = periods[periods.length - 1];
+  const growCols = RPI.view === 'annual'
+    ? [{ label: '전년대비<br>(YoY)', prev: _rpiPrev(lastR, 'yoy') }]
+    : [{ label: '전분기대비<br>(QoQ)', prev: _rpiPrev(lastR, 'qoq') },
+       { label: '전년동기대비<br>(YoY)', prev: _rpiPrev(lastR, 'yoy') }];
+
+  return `<div style="overflow-x:auto;margin-top:12px">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
+      <thead><tr style="background:var(--bg3)">
+        <th style="padding:7px 10px;text-align:left;color:var(--text2);font-weight:600;
+          border-bottom:1px solid var(--border);position:sticky;left:0;background:var(--bg3)">항목</th>
+        ${labels.map((lb, i) => `<th style="padding:7px 10px;text-align:right;color:var(--text2);font-weight:600;
+          border-bottom:1px solid var(--border);${i === labels.length - 1 ? 'color:var(--tg)' : ''}">${lb}</th>`).join('')}
+        ${growCols.map(g => `<th style="padding:7px 10px;text-align:right;color:var(--text2);font-weight:600;
+          border-bottom:1px solid var(--border);font-size:11px;line-height:1.3">${g.label}</th>`).join('')}
+      </tr></thead>
+      <tbody>
+        ${defs.map(d => {
+          const unit = d.unit ?? (d.fmt === 'pct' ? '%' : d.fmt === 'won' ? '원' : '배');
+          const cells = periods.map((r, i) => {
+            const v = d.v(r);
+            const col = v != null && v < 0 ? 'var(--blue)' : 'var(--text1)';
+            return `<td style="padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums;
+              border-bottom:1px solid var(--border);color:${col};${d.bold ? 'font-weight:700' : ''};
+              ${i === periods.length - 1 ? 'background:var(--tg)0d' : ''}">${fmtV(d, v)}</td>`;
+          }).join('');
+          const gCells = growCols.map(g => `<td style="padding:6px 10px;text-align:right;font-weight:600;
+            font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border)">
+            ${growCell(d, d.v(lastR), g.prev ? d.v(g.prev) : null)}</td>`).join('');
+          return `<tr>
+            <td style="padding:6px 10px;color:var(--text1);border-bottom:1px solid var(--border);
+              position:sticky;left:0;background:var(--bg2);${d.bold ? 'font-weight:700' : ''}">
+              ${d.label} <span style="color:var(--text3);font-size:11px">(${unit})</span></td>
+            ${cells}${gCells}
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function rpiRender() {
+  const ratioEl = document.getElementById('rpi-ratio-body');
+  const valueEl = document.getElementById('rpi-value-body');
+  if (!ratioEl || !valueEl) return;
+  const periods = _rpiPeriods();
+  if (!periods.length) {
+    ratioEl.innerHTML = '<div style="color:var(--text2);padding:30px;text-align:center;font-size:12px">해당 뷰의 데이터 없음</div>';
+    valueEl.innerHTML = '';
+    return;
+  }
+  const labels = periods.map(r => RPI.view === 'annual'
+    ? String(r.bsns_year) : `${String(r.bsns_year).slice(2)} ${r.quarter}`);
+  const defs = _rpiDefs();
+  const eokV = v => v != null ? v / 1e8 : null;
+  const seriesOf = d => periods.map(r => d.v(r));
+  const byLabel = (cat, lb) => defs[cat].find(d => d.label === lb);
+
+  // ── 재무비율 차트 ──
+  let charts = '';
+  if (RPI.cat === 'profit') {
+    charts = _rpfChart('수익성지표', labels,
+      [{ name: '매출액', color: '#4a9eff', vals: periods.map(r => eokV(r.revenue)) }],
+      [
+        { name: '영업이익률', color: '#f59e0b', vals: seriesOf(byLabel('profit','영업이익률')) },
+        { name: '순이익률',   color: '#4ade80', vals: seriesOf(byLabel('profit','순이익률')) },
+      ]);
+    charts += '<div style="height:10px"></div>' + _rpfChart('투자수익률', labels,
+      [{ name: '당기순이익', color: '#a78bfa', vals: periods.map(r => eokV(r.net_income)) }],
+      [
+        { name: 'ROE', color: '#f59e0b', vals: seriesOf(byLabel('profit','ROE')) },
+        { name: 'ROA', color: '#2AABEE', vals: seriesOf(byLabel('profit','ROA')) },
+      ]);
+  } else if (RPI.cat === 'growth') {
+    charts = _rpfChart('성장성지표 (YoY)', labels, [],
+      ['매출액증가율','영업이익증가율','순이익증가율'].map((lb, i) => ({
+        name: lb, color: ['#4a9eff','#f59e0b','#a78bfa'][i], vals: seriesOf(byLabel('growth', lb)) })));
+  } else if (RPI.cat === 'stability') {
+    charts = _rpfChart('안정성지표', labels, [],
+      ['부채비율','유동비율','자기자본비율'].map((lb, i) => ({
+        name: lb, color: ['#f87171','#4ade80','#2AABEE'][i], vals: seriesOf(byLabel('stability', lb)) })));
+  } else {
+    charts = _rpfChart('활동성지표', labels, [],
+      ['총자산회전율','자기자본회전율'].map((lb, i) => ({
+        name: lb, color: ['#4a9eff','#f59e0b'][i], vals: seriesOf(byLabel('activity', lb)) })),
+      { lineUnit: '회', lineDec: 2 });
+  }
+  ratioEl.innerHTML = charts + _rpiTable(defs[RPI.cat], periods, labels);
+
+  // ── 가치지표 (차트 2 + 표) ──
+  let vCharts = _rpfChart('주당지표', labels, [],
+    ['EPS','BPS','SPS'].map((lb, i) => ({
+      name: lb, color: ['#2AABEE','#4ade80','#f59e0b'][i], vals: seriesOf(byLabel('value', lb)) })),
+    { lineUnit: '원', lineDec: 0 });
+  vCharts += '<div style="height:10px"></div>' + _rpfChart('가치지표', labels,
+    [{ name: 'PER', color: '#4a9eff', vals: seriesOf(byLabel('value','PER')) }],
+    [
+      { name: 'PBR', color: '#f59e0b', vals: seriesOf(byLabel('value','PBR')) },
+      { name: 'PSR', color: '#a78bfa', vals: seriesOf(byLabel('value','PSR')) },
+    ], { barUnit: '배', lineUnit: '배', lineDec: 2 });
+  valueEl.innerHTML = vCharts + _rpiTable(defs.value, periods, labels)
+    + `<div style="font-size:11px;color:var(--text3);margin-top:6px">
+      * 주당지표(EPS/BPS/CPS/SPS)는 현재 발행주식수 고정 가정 · PSR=PER×순이익률, PCR=PER×순이익/영업CF 파생 계산 · DPS/배당지표는 데이터 수집 예정</div>`;
 }
 
 function _rpCatalystCard() {
