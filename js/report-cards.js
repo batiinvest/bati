@@ -981,6 +981,386 @@ function _rpFlowCard(latest) {
   </div>`;
 }
 
+// ═══ FnGuide 기업현황 스타일 카드 (2026-07 재구성) ═══════════════════════════
+
+// 발행주식수 추정 (시총 ÷ 주가 — 동일 base_date 행이라 정합)
+function _rpShares(latest) {
+  return latest?.market_cap > 0 && latest?.price > 0
+    ? Math.round(latest.market_cap / latest.price) : null;
+}
+
+// ① 스냅샷 밴드 — EPS·BPS·PER·업종PER·PBR·현재가 (FnGuide 상단 지표 밴드)
+function _rpSnapshotBand(latest, annual, company) {
+  const shares = _rpShares(latest);
+  const a   = annual?.[0] || {};
+  const eps = shares && a.net_income   != null ? a.net_income   / shares : null;
+  const bps = shares && a.total_equity != null ? a.total_equity / shares : null;
+  const chg = latest?.price_change_rate ?? 0;
+  const chgCol = chg > 0 ? 'var(--red)' : chg < 0 ? 'var(--blue)' : 'var(--text3)';
+  const yearHint = a.bsns_year ? `${a.bsns_year}/12` : '';
+
+  const cell = (label, val, opt = {}) => `
+    <div style="flex:1;min-width:88px;padding:10px 8px;text-align:center;
+      border-right:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:3px">${label}
+        ${opt.hint ? `<span style="opacity:.65">(${opt.hint})</span>` : ''}</div>
+      <div ${opt.id ? `id="${opt.id}"` : ''} style="font-size:16px;font-weight:800;
+        font-variant-numeric:tabular-nums;color:${opt.color || 'var(--text1)'}">${val}</div>
+      ${opt.sub ? `<div style="font-size:11px;font-weight:600;color:${opt.color || 'var(--text2)'}">${opt.sub}</div>` : ''}
+    </div>`;
+
+  // 시장·업종 태그 라인
+  const esc  = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
+  const tags = [company?.market, company?.industry, company?.sub_industry,
+    a.bsns_year ? '12월 결산' : null].filter(Boolean);
+
+  return `<div class="card" style="padding:0;overflow:hidden">
+    <div style="display:flex;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+      ${cell('EPS', eps != null ? fmtNum(eps) : '—', { hint: yearHint })}
+      ${cell('BPS', bps != null ? fmtNum(bps) : '—', { hint: yearHint })}
+      ${cell('PER', latest?.per ? latest.per.toFixed(2) : '—')}
+      ${cell('업종PER', '—', { id: 'rp-snap-indper' })}
+      ${cell('PBR', latest?.pbr ? latest.pbr.toFixed(2) : '—')}
+      ${cell('현재가', latest?.price ? fmtNum(latest.price) : '—',
+        { color: chgCol, sub: (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' })}
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 14px;background:var(--bg2)">
+      ${tags.map(t => `<span class="chip chip-sm" style="cursor:default">${esc(t)}</span>`).join('')}
+      ${company?.product ? `<span style="font-size:11px;color:var(--text2);min-width:0;
+        overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(company.product)}</span>` : ''}
+      ${latest?.base_date ? `<span style="margin-left:auto;font-size:11px;color:var(--text3)">[기준: ${latest.base_date}]</span>` : ''}
+    </div>
+  </div>`;
+}
+
+// ② 시세 및 주주현황 (좌: 시세 표 · 우: 주가/거래량 차트)
+function _rpQuoteCard(latest, prices) {
+  const price = latest?.price || 0;
+  const chg   = latest?.price_change_rate ?? 0;
+  const pc    = latest?.price_change;
+  const chgCol = chg > 0 ? 'var(--red)' : chg < 0 ? 'var(--blue)' : 'var(--text3)';
+  const shares = _rpShares(latest);
+  const high52 = latest?.w52_high || 0;
+  const low52  = latest?.w52_low  || 0;
+  const pos52  = high52 > low52 ? Math.round((price - low52) / (high52 - low52) * 100) : null;
+
+  const retCell = v => {
+    if (v == null) return '<span style="color:var(--text3)">—</span>';
+    const c = v > 0 ? 'var(--red)' : v < 0 ? 'var(--blue)' : 'var(--text3)';
+    return `<span style="color:${c};font-weight:700">${v >= 0 ? '+' : ''}${v.toFixed(2)}%</span>`;
+  };
+
+  const rows = [
+    ['주가 / 전일대비 / 등락률',
+      price ? `${fmtNum(price)}원 / ${pc != null ? (pc >= 0 ? '+' : '') + fmtNum(pc) + '원' : '—'} /
+        <span style="color:${chgCol};font-weight:700">${(chg >= 0 ? '+' : '') + chg.toFixed(2)}%</span>` : '—'],
+    ['52주 최고 / 최저',
+      high52 ? `${fmtNum(high52)}원 / ${fmtNum(low52)}원` : '—'],
+    ['거래량 / 거래대금',
+      latest?.volume ? `${fmtNum(latest.volume)}주 / ${fmtCap(latest.trading_value || 0)}` : '—'],
+    ['시가총액', latest?.market_cap ? fmtCap(latest.market_cap) : '—'],
+    ['발행주식수 <span style="opacity:.6">(추정)</span>', shares ? fmtNum(shares) + '주' : '—'],
+    ['외국인 지분율', latest?.foreign_hold_rate != null ? latest.foreign_hold_rate.toFixed(2) + '%' : '—'],
+    ['수익률 (1W / 1M / 3M / 1Y)',
+      [latest?.week_return, latest?.month_return, latest?.quarter_return, latest?.year_return]
+        .map(retCell).join(' / ')],
+  ];
+
+  return `<div class="card" style="padding:16px">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+      <span class="card-title">${_ICO.chart}시세 및 주주현황</span>
+      ${latest?.base_date ? `<span class="card-sub">[기준: ${latest.base_date}]</span>` : ''}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start">
+
+      <!-- 좌: 시세 표 -->
+      <div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          ${rows.map(([k, v]) => `
+          <tr>
+            <td style="padding:7px 10px;background:var(--bg3);color:var(--text2);
+              border-bottom:1px solid var(--border);white-space:nowrap;width:44%">${k}</td>
+            <td style="padding:7px 10px;text-align:right;color:var(--text1);font-weight:600;
+              font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border)">${v}</td>
+          </tr>`).join('')}
+        </table>
+        ${pos52 != null ? `
+        <div style="margin-top:12px;padding:0 2px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:5px">
+            <span>52주 가격 위치</span>
+            <span style="font-weight:700;color:var(--tg)">${pos52}%</span>
+          </div>
+          <div style="height:5px;border-radius:3px;background:var(--border);position:relative">
+            <div style="position:absolute;left:0;top:0;height:100%;width:${pos52}%;
+              background:linear-gradient(90deg,var(--blue),var(--tg));border-radius:3px"></div>
+            <div style="position:absolute;top:-4px;left:calc(${pos52}% - 6px);width:12px;height:12px;
+              border-radius:50%;background:white;border:2px solid var(--tg);box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--text3)">
+            <span>저 ${fmtNum(low52)}</span><span>고 ${fmtNum(high52)}</span>
+          </div>
+        </div>` : ''}
+      </div>
+
+      <!-- 우: 주가/거래량 차트 -->
+      ${_rpPriceVolChart(prices)}
+    </div>
+  </div>`;
+}
+
+// ②-보조: 주가 라인 + 거래량 바 차트 (SVG)
+function _rpPriceVolChart(prices) {
+  const pts = [...(prices || [])].reverse().filter(r => r.price > 0);
+  if (pts.length < 2) return `<div style="display:flex;align-items:center;justify-content:center;
+    min-height:180px;color:var(--text3);font-size:12px">주가 데이터 없음</div>`;
+
+  const n = pts.length;
+  const W = 640, PH = 150, GAP = 6, VH = 36;
+  const vals  = pts.map(r => r.price);
+  const minP  = Math.min(...vals), maxP = Math.max(...vals);
+  const range = maxP - minP || 1;
+  const X = i => n > 1 ? (i / (n - 1)) * W : W / 2;
+  const Y = v => 8 + (1 - (v - minP) / range) * (PH - 16);
+
+  const line = vals.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+  const fill = `M0,${PH} L${line.split(' ').join(' L')} L${W},${PH} Z`;
+  const lastP = vals[n - 1];
+  const lineColor = lastP >= vals[0] ? '#f87171' : '#60a5fa';
+
+  // 거래량 바
+  const maxV = Math.max(...pts.map(r => r.volume || 0), 1);
+  const barW = Math.max(0.8, W / n - 0.4);
+  const volBars = pts.map((r, i) => {
+    const h = Math.max(0.5, (r.volume || 0) / maxV * VH);
+    const c = (r.price_change_rate ?? 0) >= 0 ? '#f87171' : '#60a5fa';
+    return `<rect x="${(X(i) - barW / 2).toFixed(1)}" y="${(PH + GAP + VH - h).toFixed(1)}"
+      width="${barW.toFixed(1)}" height="${h.toFixed(1)}" fill="${c}" opacity=".4"/>`;
+  }).join('');
+
+  // 고/저/현재 라벨 (HTML 오버레이 — % 좌표)
+  const minIdx = vals.indexOf(minP), maxIdx = vals.indexOf(maxP);
+  const H = PH + GAP + VH;
+  const pctX = i => n > 1 ? (i / (n - 1)) * 100 : 50;
+  const pctY = v => Y(v) / H * 100;
+  const lblPos = xp => xp > 72 ? `right:${Math.max(100 - xp, 1).toFixed(1)}%` : `left:${Math.max(xp, 1).toFixed(1)}%`;
+  const minDate = pts[minIdx]?.base_date?.slice(2, 10) || '';
+  const maxDate = pts[maxIdx]?.base_date?.slice(2, 10) || '';
+  const showCur = Math.abs(100 - pctX(maxIdx)) > 12;
+
+  // X축 눈금 (5개)
+  const tickN  = Math.min(5, n);
+  const ticks  = Array.from({ length: tickN }, (_, i) => {
+    const idx = Math.round(i / (tickN - 1) * (n - 1));
+    return { xPct: pctX(idx), date: (pts[idx]?.base_date || '').slice(0, 7) };
+  });
+
+  const periodRet = minP > 0 ? (lastP - minP) / minP * 100 : null;
+
+  return `<div style="display:flex;flex-direction:column;min-width:0">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <span style="font-size:11px;font-weight:700;color:var(--text2)">주가 / 거래량 (최근 ${n}거래일)</span>
+      ${periodRet != null ? `<span style="font-size:11px;font-weight:700;
+        color:${periodRet >= 0 ? '#f87171' : '#60a5fa'}">저점 대비 ${periodRet >= 0 ? '+' : ''}${periodRet.toFixed(1)}%</span>` : ''}
+    </div>
+    <div style="position:relative">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:190px;display:block">
+        <defs>
+          <linearGradient id="rp-pv-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.28"/>
+            <stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d="${fill}" fill="url(#rp-pv-fill)"/>
+        <polyline points="${line}" fill="none" stroke="${lineColor}" stroke-width="1.8"
+          stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+        <line x1="0" y1="${PH + GAP / 2}" x2="${W}" y2="${PH + GAP / 2}" stroke="var(--border)" stroke-width="0.6"/>
+        ${volBars}
+        <circle cx="${X(minIdx).toFixed(1)}" cy="${Y(minP).toFixed(1)}" r="3.5" fill="#60a5fa" vector-effect="non-scaling-stroke"/>
+        <circle cx="${X(maxIdx).toFixed(1)}" cy="${Y(maxP).toFixed(1)}" r="3.5" fill="#f87171" vector-effect="non-scaling-stroke"/>
+        <circle cx="${X(n - 1).toFixed(1)}" cy="${Y(lastP).toFixed(1)}" r="4" fill="white"
+          stroke="${lineColor}" stroke-width="2" vector-effect="non-scaling-stroke"/>
+      </svg>
+      <div style="position:absolute;top:0;${lblPos(pctX(maxIdx))};pointer-events:none;white-space:nowrap">
+        <div style="font-size:11px;color:#f87171;font-weight:700;background:var(--bg2);
+          padding:1px 5px;border-radius:3px;border:1px solid #f8717150;line-height:1.4">
+          ▲ ${fmtNum(maxP)} <span style="font-weight:400">${maxDate}</span></div>
+      </div>
+      <div style="position:absolute;top:calc(${pctY(minP).toFixed(1)}% + 6px);${lblPos(pctX(minIdx))};pointer-events:none;white-space:nowrap">
+        <div style="font-size:11px;color:#60a5fa;font-weight:700;background:var(--bg2);
+          padding:1px 5px;border-radius:3px;border:1px solid #60a5fa50;line-height:1.4">
+          ▼ ${fmtNum(minP)} <span style="font-weight:400">${minDate}</span></div>
+      </div>
+      ${showCur ? `
+      <div style="position:absolute;right:2px;top:calc(${pctY(lastP).toFixed(1)}% - 22px);pointer-events:none">
+        <div style="font-size:11px;color:${lineColor};font-weight:700;background:var(--bg2);
+          padding:1px 5px;border-radius:3px;border:1px solid ${lineColor}50;white-space:nowrap">${fmtNum(lastP)}</div>
+      </div>` : ''}
+    </div>
+    <div style="position:relative;height:15px;margin-top:2px">
+      ${ticks.map(t => `
+        <div style="position:absolute;left:${t.xPct.toFixed(1)}%;transform:translateX(-50%);
+          font-size:11px;color:var(--text3);white-space:nowrap">${t.date}</div>`).join('')}
+    </div>
+  </div>`;
+}
+
+// ③ 투자의견 컨센서스 — 평균 목표주가·의견 분포·증권사 테이블 + 내 의견
+function _rpConsensusCard(analysts, currentPrice, watch) {
+  const esc   = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
+  const opMap = { '매수': 'BUY', '적극매수': 'BUY', 'buy': 'BUY', '중립': 'HOLD', '보유': 'HOLD', 'hold': 'HOLD', '매도': 'SELL', 'sell': 'SELL' };
+  const colMap = { BUY: '#22c55e', HOLD: '#f59e0b', SELL: '#ef4444' };
+
+  // 증권사별 최신 1건
+  const seen = new Set();
+  const items = (analysts || []).filter(a => {
+    if (seen.has(a.firm_name)) return false; seen.add(a.firm_name); return true;
+  });
+  const tps    = items.filter(a => a.target_price > 0).map(a => a.target_price);
+  const avgTp  = tps.length ? Math.round(tps.reduce((s, v) => s + v, 0) / tps.length) : null;
+  const avgGap = avgTp && currentPrice ? (avgTp - currentPrice) / currentPrice * 100 : null;
+
+  // 의견 분포
+  const dist = { BUY: 0, HOLD: 0, SELL: 0 };
+  items.forEach(a => { const k = opMap[a.opinion?.toLowerCase?.() ? a.opinion.toLowerCase() : a.opinion] || opMap[a.opinion]; if (dist[k] != null) dist[k]++; });
+  const distTotal = dist.BUY + dist.HOLD + dist.SELL;
+
+  // 내 의견
+  const myTp  = watch?.target_price || 0;
+  const myUp  = myTp && currentPrice ? (myTp - currentPrice) / currentPrice * 100 : null;
+
+  const summaryCol = `
+    <div style="display:flex;flex-direction:column;gap:10px;padding-right:14px;border-right:1px solid var(--border)">
+      <div>
+        <div style="font-size:11px;color:var(--text2)">평균 목표주가 <span style="opacity:.65">(${items.length}개사)</span></div>
+        <div style="font-size:24px;font-weight:800;font-variant-numeric:tabular-nums">
+          ${avgTp ? fmtNum(avgTp) + '<span style="font-size:13px;font-weight:600">원</span>' : '—'}</div>
+        ${avgGap != null ? `<div style="font-size:13px;font-weight:700;
+          color:${avgGap > 0 ? 'var(--red)' : 'var(--blue)'}">
+          ${avgGap > 0 ? '▲' : '▼'} ${Math.abs(avgGap).toFixed(1)}% ${avgGap > 0 ? '상승여력' : '하락위험'}</div>` : ''}
+      </div>
+      ${distTotal ? `
+      <div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:5px">투자의견 분포</div>
+        <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--border)">
+          ${['BUY', 'HOLD', 'SELL'].filter(k => dist[k]).map(k =>
+            `<div style="flex:${dist[k]};background:${colMap[k]}" title="${k} ${dist[k]}"></div>`).join('')}
+        </div>
+        <div style="display:flex;gap:10px;margin-top:5px;flex-wrap:wrap">
+          ${['BUY', 'HOLD', 'SELL'].map(k => `<span style="font-size:11px;color:${colMap[k]};font-weight:700">
+            ${k} ${dist[k]}</span>`).join('')}
+        </div>
+      </div>` : ''}
+      <div style="border-top:1px solid var(--border);padding-top:8px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:11px;color:var(--text2)">내 의견</span>
+          ${_rpOpinionBadgeInline(watch?.opinion)}
+        </div>
+        ${myTp ? `<div style="font-size:12px;color:var(--text1);margin-top:5px">
+          목표가 <b>${fmtNum(myTp)}원</b>
+          ${myUp != null ? `<span style="font-weight:700;color:${myUp > 0 ? 'var(--red)' : 'var(--blue)'}">
+            (${myUp > 0 ? '+' : ''}${myUp.toFixed(1)}%)</span>` : ''}</div>`
+          : `<div style="font-size:11px;color:var(--text3);margin-top:5px">투자노트에서 목표주가 설정</div>`}
+        <a onclick="go('watchlist')" style="font-size:11px;color:var(--tg);cursor:pointer">투자노트 편집 →</a>
+      </div>
+    </div>`;
+
+  const tableCol = items.length ? `
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
+        <thead><tr style="background:var(--bg3)">
+          ${['제공처', '최종일자', '투자의견', '목표주가', '괴리율'].map((h, i) => `
+            <th style="padding:6px 10px;text-align:${i === 0 ? 'left' : 'right'};color:var(--text2);
+              font-weight:600;border-bottom:1px solid var(--border)">${h}</th>`).join('')}
+        </tr></thead>
+        <tbody>
+          ${items.map(a => {
+            const op  = opMap[a.opinion] || a.opinion || '—';
+            const col = colMap[op] || 'var(--text2)';
+            const gap = a.gap_rate;
+            const gCol = gap > 0 ? 'var(--red)' : gap < 0 ? 'var(--blue)' : 'var(--text3)';
+            return `<tr>
+              <td style="padding:7px 10px;color:var(--text1);font-weight:600;border-bottom:1px solid var(--border)">${esc(a.firm_name || '')}</td>
+              <td style="padding:7px 10px;text-align:right;color:var(--text3);border-bottom:1px solid var(--border)">${(a.opinion_date || '').slice(2, 10).replace(/-/g, '/')}</td>
+              <td style="padding:7px 10px;text-align:right;font-weight:800;color:${col};border-bottom:1px solid var(--border)">${op}</td>
+              <td style="padding:7px 10px;text-align:right;font-weight:700;color:var(--text1);
+                font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border)">${a.target_price ? fmtNum(a.target_price) : '—'}</td>
+              <td style="padding:7px 10px;text-align:right;font-weight:700;color:${gCol};
+                font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border)">${gap != null ? (gap >= 0 ? '+' : '') + gap.toFixed(1) + '%' : '—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px">* 증권사별 최근 발표 기준</div>
+    </div>`
+    : `<div style="display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:12px">
+        등록된 증권사 의견이 없습니다</div>`;
+
+  return `<div class="card" style="padding:16px">
+    <div class="card-title" style="margin-bottom:12px">${_ICO.target}투자의견 컨센서스</div>
+    <div style="display:grid;grid-template-columns:190px 1fr;gap:14px">
+      ${summaryCol}
+      ${tableCol}
+    </div>
+  </div>`;
+}
+
+// ④ 연간 실적 요약 표 (FnGuide 추정실적 컨센서스 자리 — 실적(A) 기준)
+function _rpAnnualTable(annual, latest) {
+  if (!annual?.length) return '';
+  const rows = [...annual].sort((a, b) => String(a.bsns_year).localeCompare(String(b.bsns_year)));
+  const shares = _rpShares(latest);
+  const eok = v => v == null ? '—' : fmtNum(v / 1e8);
+  const yoy = (cur, prev) => {
+    if (cur == null || prev == null || prev === 0) return '—';
+    const r = (cur - prev) / Math.abs(prev) * 100;
+    const c = r > 0 ? 'var(--red)' : r < 0 ? 'var(--blue)' : 'var(--text3)';
+    return `<span style="color:${c}">${r >= 0 ? '+' : ''}${r.toFixed(1)}</span>`;
+  };
+  const num = (v, digits = 2) => v == null ? '—' : v.toFixed(digits);
+
+  return `<div class="card" style="padding:16px">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+      <span class="card-title">${_ICO.doc}연간 실적 요약</span>
+      <span class="card-sub">단위: 억원, %, 배 · IFRS 연결</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
+        <thead><tr style="background:var(--bg3)">
+          ${['재무연월', '매출액', '전년대비', '영업이익', '전년대비', '당기순이익', 'EPS(원)', 'PER(배)', 'PBR(배)', 'ROE(%)', '부채비율(%)'].map((h, i) => `
+            <th style="padding:6px 10px;text-align:${i === 0 ? 'left' : 'right'};color:var(--text2);
+              font-weight:600;border-bottom:1px solid var(--border)">${h}</th>`).join('')}
+        </tr></thead>
+        <tbody>
+          ${rows.map((r, i) => {
+            const prev = rows[i - 1];
+            const eps  = shares && r.net_income != null ? Math.round(r.net_income / shares) : null;
+            const isLast = i === rows.length - 1;
+            const td = (v, extra = '') => `<td style="padding:7px 10px;text-align:right;
+              font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border);
+              ${isLast ? 'font-weight:700;color:var(--text1);background:var(--tg)0d' : 'color:var(--text1)'};${extra}">${v}</td>`;
+            return `<tr>
+              <td style="padding:7px 10px;font-weight:${isLast ? 700 : 600};color:var(--text1);
+                border-bottom:1px solid var(--border);${isLast ? 'background:var(--tg)0d' : ''}">${r.bsns_year}(A)</td>
+              ${td(eok(r.revenue))}
+              ${td(yoy(r.revenue, prev?.revenue))}
+              ${td(eok(r.operating_profit))}
+              ${td(yoy(r.operating_profit, prev?.operating_profit))}
+              ${td(eok(r.net_income))}
+              ${td(eps != null ? fmtNum(eps) : '—')}
+              ${td(num(r.per))}
+              ${td(num(r.pbr))}
+              ${td(num(r.roe, 1))}
+              ${td(num(r.debt_ratio, 1))}
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:6px">
+      * (A)=실적 · EPS는 현재 발행주식수 기준 추정 · 컨센서스(E) 데이터 수집 예정</div>
+  </div>`;
+}
+
 function _rpCatalystCard() {
   const catalysts = [
     { horizon: '단기 (1M)',  color: '#f59e0b', items: ['분기 실적 발표', '주요 수주 발표'] },

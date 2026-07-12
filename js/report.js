@@ -1,5 +1,5 @@
 // report.js — 기업 분석 리포트 페이지 (상태·검색·데이터 로드·메인 렌더·탭 전환)
-// 20년+ 수석 펀드매니저 관점의 투자 의사결정 중심 구성
+// FnGuide 기업현황 스타일 구성: 지표밴드 → 시세/차트 → 투자논거 → 컨센서스 → 연간실적 → 밸류에이션 → 실적트렌드 → 탭
 // 분할: report-cards.js(서브 컴포넌트 카드), report-dart.js(DART 분석 탭·MD 파서·업로드)
 // 의존: config.js (sb, fmtCap 등)
 
@@ -86,7 +86,7 @@ function _rpLanding() {
       <div style="font-size:18px;font-weight:700;margin-bottom:6px">기업 분석 리포트</div>
       <div style="font-size:13px;color:var(--text2);line-height:1.6">
         20년+ 수석 펀드매니저 관점의 투자 분석<br>
-        밸류에이션 · 실적 · 재무 · 수급 · 리스크를 한 화면에
+        시세 · 컨센서스 · 실적 · 밸류에이션 · 재무를 한 화면에
       </div>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:400px">
@@ -174,8 +174,8 @@ async function rpLoadReport() {
 
   // 병렬 데이터 로드
   try {
-    const [priceRes, finRes, watchRes, dartRes, analystRes, segRes] = await Promise.all([
-      sb.from('market_data').select('price,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low,per,pbr,base_date')
+    const [priceRes, finRes, watchRes, dartRes, analystRes, segRes, annualRes, compRes] = await Promise.all([
+      sb.from('market_data').select('price,price_change,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low,per,pbr,base_date,week_return,month_return,quarter_return,year_return')
         .eq('stock_code', _rpStock.code).order('base_date', { ascending: false }).limit(500),
       sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,debt_ratio,roe,roa,operating_margin,net_margin,ebitda,fcf,da,per,pbr')
         .eq('stock_code', _rpStock.code).eq('fs_div','CFS').order('bsns_year', { ascending: false }).order('quarter', { ascending: false }).limit(12),
@@ -190,6 +190,11 @@ async function rpLoadReport() {
         .select('bsns_year,quarter,segment_type,category,revenue,revenue_ratio')
         .eq('stock_code', _rpStock.code).eq('segment_type','product')
         .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
+      sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_equity,roe,debt_ratio,per,pbr')
+        .eq('stock_code', _rpStock.code).eq('fs_div','CFS').eq('quarter','Q4')
+        .order('bsns_year', { ascending: false }).limit(6),
+      sb.from('companies').select('market,sector,product,industry,sub_industry')
+        .eq('code', _rpStock.code).maybeSingle(),
     ]);
 
     _rpData = {
@@ -199,6 +204,8 @@ async function rpLoadReport() {
       dart:     dartRes.data    || null,
       analyst:  analystRes.data || [],
       segment:  segRes.data     || [],
+      annual:   annualRes.data  || [],
+      company:  compRes.data    || null,
     };
     rpRenderReport();
     // peer 비교 데이터 비동기 로드 (렌더 후)
@@ -260,7 +267,9 @@ async function _rpLoadPeerStats() {
     opm: median(Object.values(latestFin).map(r => r.operating_margin)),
   };
 
-  // 6. 밸류에이션 카드만 재렌더
+  // 6. 스냅샷 밴드 업종PER + 밸류에이션 카드 재렌더
+  const ip = document.getElementById('rp-snap-indper');
+  if (ip && _rpData.peerStats.per != null) ip.textContent = _rpData.peerStats.per.toFixed(2);
   const el = document.getElementById('rp-val-card');
   if (el) el.outerHTML = _rpValuationCard(_rpData.fin?.[0] || {}, _rpData.price?.[0] || {});
 }
@@ -277,20 +286,8 @@ async function rpRenderReport() {
 
   const price   = latest.price   || 0;
   const chg     = latest.price_change_rate ?? 0;
-  const mktCap  = latest.market_cap || 0;
-  const fr      = latest.foreign_hold_rate;
   const chgCol = chg > 0 ? 'var(--red)' : chg < 0 ? 'var(--blue)' : 'var(--text3)';
   const chgTxt   = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
-
-  // 52주 고/저 — DB w52_high/w52_low 컬럼 사용 (최신 기준)
-  const high52 = latest.w52_high || 0;
-  const low52  = latest.w52_low  || 0;
-  const pos52  = high52 > low52 ? Math.round((price - low52) / (high52 - low52) * 100) : 50;
-
-  // 목표주가 (투자노트에서)
-  const targetP = watch?.target_price || 0;
-  const upside  = targetP && price ? ((targetP - price) / price * 100) : null;
-  const opinion = watch?.opinion || null;
 
   // Bull / Bear HTML — 템플릿 리터럴 밖에서 미리 계산
   const dartPts  = _rpData.dart?.summary?.investment_points || [];
@@ -332,219 +329,13 @@ async function rpRenderReport() {
   try {
   body.innerHTML = `
 
-  <!-- ① 종목 헤더 ──────────────────────────────────────────────────── -->
-  <div class="card" style="padding:16px 20px">
-    <div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap">
+  <!-- ① 지표 스냅샷 밴드 (EPS·BPS·PER·업종PER·PBR·현재가) ─────────── -->
+  ${_rpSnapshotBand(latest, _rpData.annual, _rpData.company)}
 
-      <!-- 좌: 종목 기본 정보 -->
-      <div style="min-width:0;flex-shrink:0">
-        <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px">
-          <span style="font-size:26px;font-weight:800">${_rpStock.name}</span>
-          <span style="font-size:15px;color:var(--text1)">${_rpStock.code}</span>
-          ${latest.per  ? `<span style="font-size:13px;padding:2px 9px;border-radius:100px;background:var(--bg3);color:var(--text1)">PER ${latest.per?.toFixed(1)}x</span>` : ''}
-          ${latest.pbr  ? `<span style="font-size:13px;padding:2px 9px;border-radius:100px;background:var(--bg3);color:var(--text1)">PBR ${latest.pbr?.toFixed(2)}x</span>` : ''}
-        </div>
-        <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
-          <span style="font-size:34px;font-weight:700">${price ? fmtNum(price) + '원' : '—'}</span>
-          <span style="font-size:20px;font-weight:600;color:${chgCol}">${chgTxt}</span>
-        </div>
-        <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap">
-          ${mktCap ? `<span style="font-size:14px;color:var(--text1)">시총 <b style="color:var(--text1)">${fmtCap(mktCap)}</b></span>` : ''}
-          ${fr != null ? `<span style="font-size:14px;color:var(--text1)">외국인 <b style="color:var(--text1)">${fr.toFixed(1)}%</b></span>` : ''}
-          ${latestF.roe ? `<span style="font-size:14px;color:var(--text1)">ROE <b style="color:var(--text1)">${latestF.roe?.toFixed(1)}%</b></span>` : ''}
-          ${latest.trading_value ? `<span style="font-size:14px;color:var(--text1)">거래대금 <b style="color:var(--text1)">${fmtCap(latest.trading_value)}</b></span>` : ''}
-          ${latest.volume ? `<span style="font-size:14px;color:var(--text1)">거래량 <b style="color:var(--text1)">${fmtNum(latest.volume)}</b></span>` : ''}
-        </div>
-        <!-- 52주 가격 위치 (시총 아래) -->
-        ${high52 > 0 ? `
-        <div style="margin-top:10px;width:200px">
-          <div style="font-size:11px;color:var(--text1);margin-bottom:5px">52주 가격 위치</div>
-          <div style="height:5px;border-radius:3px;background:var(--border);position:relative;margin:0 2px">
-            <div style="position:absolute;left:0;top:0;height:100%;width:${pos52}%;
-              background:linear-gradient(90deg,var(--blue),var(--tg));border-radius:3px"></div>
-            <div style="position:absolute;top:-4px;left:calc(${pos52}% - 6px);width:12px;height:12px;
-              border-radius:50%;background:white;border:2px solid var(--tg);box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--text1)">
-            <span>저 ${fmtNum(low52)}</span>
-            <span style="font-weight:700;color:var(--tg)">${pos52}%</span>
-            <span>고 ${fmtNum(high52)}</span>
-          </div>
-        </div>` : ''}
-      </div>
+  <!-- ② 시세 및 주주현황 + 주가/거래량 차트 ──────────────────────── -->
+  ${_rpQuoteCard(latest, prices)}
 
-      <!-- 중: 내 투자의견 + 증권사 목록 -->
-      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;min-width:460px;
-        padding:0 16px;border-left:1px solid var(--border);border-right:1px solid var(--border)">
-
-        <!-- 내 의견 -->
-        <div style="display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--border);padding-right:12px">
-          <div style="font-size:11px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:.8px">내 투자 의견</div>
-          ${_rpOpinionBadge(opinion)}
-          ${targetP ? `
-            <div style="text-align:center">
-              <div style="font-size:11px;color:var(--text1)">목표주가</div>
-              <div style="font-size:17px;font-weight:800;margin:2px 0">${fmtNum(targetP)}<span style="font-size:11px">원</span></div>
-              ${upside != null ? `
-              <div style="font-size:13px;font-weight:700;color:${upside>0?'var(--red)':'var(--blue)'}">
-                ${upside>0?'▲':'▼'} ${Math.abs(upside).toFixed(1)}% ${upside>0?'상승여력':'하락위험'}
-              </div>` : ''}
-            </div>` :
-            `<div style="text-align:center;padding:6px;border-radius:var(--radius-sm);background:var(--bg3);
-              color:var(--text1);font-size:11px;line-height:1.5">
-              투자노트에서<br>목표주가 설정
-            </div>`}
-          <a onclick="go('watchlist')" style="font-size:11px;text-align:center;color:var(--tg);
-            cursor:pointer;margin-top:auto">투자노트 편집 →</a>
-        </div>
-
-        <!-- 증권사 목록 -->
-        ${_rpAnalystList(_rpData.analyst || [], price)}
-
-      </div>
-
-      <!-- 우: 주가 미니 차트 -->
-      ${(() => {
-        const pts = [...prices].reverse().filter(r => r.price > 0);
-        if (!pts.length) return '';
-        const W = 220, H = 70;
-        const pxVals = pts.map(r => r.price);
-        const minP = Math.min(...pxVals);
-        const maxP = Math.max(...pxVals);
-        const range = maxP - minP || 1;
-        const coords = pxVals.map((v, i) => {
-          const x = (i / (pxVals.length - 1)) * W;
-          const y = H - 4 - Math.round((v - minP) / range * (H - 8));
-          return `${x.toFixed(1)},${y}`;
-        }).join(' ');
-        const firstP = pxVals[0], lastP = pxVals[pxVals.length - 1];
-        const lineColor = lastP >= firstP ? '#f87171' : '#60a5fa';
-        const n = pxVals.length;
-        // 차트 내부 상하 패딩 (라벨 공간 확보)
-        const PAD = 22;
-        const getY = v => PAD + Math.round((1 - (v - minP) / range) * (H - PAD*2));
-
-        // 좌표 재계산 (패딩 적용)
-        const coordsPad = pxVals.map((v, i) => {
-          const x = n > 1 ? (i / (n-1)) * W : W/2;
-          return `${x.toFixed(1)},${getY(v)}`;
-        }).join(' ');
-        const fillPathPad = `M0,${H} L${coordsPad.split(' ').join(' L')} L${W},${H} Z`;
-
-        const minIdx = pxVals.indexOf(minP);
-        const maxIdx = pxVals.indexOf(maxP);
-        const minX  = n > 1 ? (minIdx / (n-1)) * W : W/2;
-        const maxX  = n > 1 ? (maxIdx / (n-1)) * W : W/2;
-        const lastXc = n > 1 ? W : W/2;
-        const minYc = getY(minP);
-        const maxYc = getY(maxP);
-        const lastYc = getY(lastP);
-
-        // 오버레이 라벨 X% (가장자리 보정)
-        const minXPct = n > 1 ? (minIdx / (n-1)) * 100 : 50;
-        const maxXPct = n > 1 ? (maxIdx / (n-1)) * 100 : 50;
-        // 고점 라벨: 우측 치우치면 왼쪽 정렬
-        const maxLabelAlign = maxXPct > 70 ? 'right' : maxXPct < 30 ? 'left' : 'center';
-        const maxLabelLeft  = maxLabelAlign === 'right'  ? 'auto' : `${Math.max(maxXPct,3)}%`;
-        const maxLabelRight = maxLabelAlign === 'right'  ? `${Math.max(100-maxXPct,3)}%` : 'auto';
-        // 저점 라벨: 우측 치우치면 왼쪽 정렬
-        const minLabelAlign = minXPct > 70 ? 'right' : minXPct < 30 ? 'left' : 'center';
-        const minLabelLeft  = minLabelAlign === 'right'  ? 'auto' : `${Math.max(minXPct,3)}%`;
-        const minLabelRight = minLabelAlign === 'right'  ? `${Math.max(100-minXPct,3)}%` : 'auto';
-
-        // 현재가가 고점과 X상 가까우면(15% 이내) 현재가 라벨 숨김 (겹침 방지)
-        const showCurrentLabel = Math.abs(100 - maxXPct) > 12;
-
-        // 저점 대비 현재가 수익률
-        const periodRet = minP > 0 ? ((lastP - minP) / minP * 100) : null;
-        const retCol = periodRet == null ? 'var(--text2)' : periodRet >= 0 ? '#f87171' : '#60a5fa';
-        const retStr = periodRet != null ? '저점 대비 '+(periodRet>=0?'+':'')+periodRet.toFixed(1)+'%' : '';
-
-        // X축 날짜 눈금 (최대 5개 균등 분배)
-        const tickCount = Math.min(5, n);
-        const ticks = Array.from({ length: tickCount }, (_, i) => {
-          const idx = Math.round(i / (tickCount - 1) * (n - 1));
-          return { idx, xPct: (idx / (n - 1)) * 100, date: pts[idx]?.base_date || '' };
-        });
-
-        // 저점/고점 날짜
-        const minDate = pts[minIdx]?.base_date?.slice(2, 10) || '';
-        const maxDate = pts[maxIdx]?.base_date?.slice(2, 10) || '';
-
-        return `<div style="flex:1;min-width:160px;display:flex;flex-direction:column;gap:0">
-          <!-- 헤더: 타이틀 + 저점대비 등락률 -->
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-            <span style="font-size:12px;font-weight:700;color:var(--text1)">주가 추이</span>
-            ${retStr ? `<span style="font-size:12px;font-weight:700;color:${retCol}">${retStr}</span>` : ''}
-          </div>
-
-          <!-- SVG 차트 -->
-          <div style="position:relative;flex:1;min-height:90px">
-            <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
-              style="width:100%;height:100%;display:block">
-              <defs>
-                <linearGradient id="hdr-fill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.3"/>
-                  <stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/>
-                </linearGradient>
-              </defs>
-              <path d="${fillPathPad}" fill="url(#hdr-fill)"/>
-              <polyline points="${coordsPad}" fill="none" stroke="${lineColor}"
-                stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
-                vector-effect="non-scaling-stroke"/>
-              <circle cx="${minX}" cy="${minYc}" r="4" fill="#60a5fa" vector-effect="non-scaling-stroke"/>
-              <circle cx="${maxX}" cy="${maxYc}" r="4" fill="#f87171" vector-effect="non-scaling-stroke"/>
-              <circle cx="${lastXc}" cy="${lastYc}" r="5" fill="white"
-                stroke="${lineColor}" stroke-width="2" vector-effect="non-scaling-stroke"/>
-            </svg>
-
-            <!-- 고점 라벨 (가격 + 날짜) -->
-            <div style="position:absolute;top:0;left:${maxLabelLeft};right:${maxLabelRight};
-              pointer-events:none;white-space:nowrap">
-              <div style="font-size:11px;color:#f87171;font-weight:700;
-                background:var(--bg2);padding:2px 5px;border-radius:3px;
-                border:1px solid #f8717150;line-height:1.4">
-                ▲ ${fmtNum(maxP)}<br>
-                <span style="font-weight:400;font-size:11px">${maxDate}</span>
-              </div>
-            </div>
-
-            <!-- 저점 라벨 (가격 + 날짜) -->
-            <div style="position:absolute;bottom:18px;left:${minLabelLeft};right:${minLabelRight};
-              pointer-events:none;white-space:nowrap">
-              <div style="font-size:11px;color:#60a5fa;font-weight:700;
-                background:var(--bg2);padding:2px 5px;border-radius:3px;
-                border:1px solid #60a5fa50;line-height:1.4">
-                ▼ ${fmtNum(minP)}<br>
-                <span style="font-weight:400;font-size:11px">${minDate}</span>
-              </div>
-            </div>
-
-            <!-- 현재가 라벨 -->
-            ${showCurrentLabel ? `
-            <div style="position:absolute;right:2px;
-              top:calc(${((lastYc/H)*100).toFixed(1)}% - 10px);pointer-events:none">
-              <div style="font-size:11px;color:${lineColor};font-weight:700;
-                background:var(--bg2);padding:2px 5px;border-radius:3px;
-                border:1px solid ${lineColor}50;white-space:nowrap">${fmtNum(lastP)}</div>
-            </div>` : ''}
-          </div>
-
-          <!-- X축 날짜 눈금 -->
-          <div style="position:relative;height:16px;margin-top:2px">
-            ${ticks.map(t => `
-              <div style="position:absolute;left:${t.xPct.toFixed(1)}%;
-                transform:translateX(-50%);text-align:center;white-space:nowrap">
-                <div style="width:1px;height:3px;background:var(--border);margin:0 auto 1px"></div>
-                <div style="font-size:11px;color:var(--text1)">${t.date.slice(0,7)}</div>
-              </div>`).join('')}
-          </div>
-        </div>`;
-      })()}
-    </div>
-  </div>
-
-  <!-- ② 핵심 투자 논거 (전체 너비) ──────────────────────────────── -->
+  <!-- ③ 핵심 투자 논거 (Bull/Bear — 기업실적코멘트 위치) ──────────── -->
   <div class="card" style="padding:16px">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
 
@@ -569,23 +360,28 @@ async function rpRenderReport() {
     </div>
   </div>
 
-  <!-- ③ 실적 트렌드 (좌: 전체, 우: 제품별) ──────────────────────── -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-    ${_rpEarningsCard(_rpData.fin)}
-    ${_rpSegmentCard(_rpData.segment)}
-  </div>
+  <!-- ④ 투자의견 컨센서스 ─────────────────────────────────────────── -->
+  ${_rpConsensusCard(_rpData.analyst || [], price, watch)}
 
-  <!-- ④ 밸류에이션 + 재무 건전성 (같은 행) ──────────────────────── -->
+  <!-- ⑤ 연간 실적 요약 (추정실적 컨센서스 자리) ──────────────────── -->
+  ${_rpAnnualTable(_rpData.annual, latest)}
+
+  <!-- ⑥ 밸류에이션(밴드차트 포함) + 재무 건전성 ──────────────────── -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
     ${_rpValuationCard(latestF, latest)}
     ${_rpFinHealthCard(latestF)}
   </div>
 
+  <!-- ⑦ 분기 실적 트렌드 + 제품별 매출 ────────────────────────────── -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    ${_rpEarningsCard(_rpData.fin)}
+    ${_rpSegmentCard(_rpData.segment)}
+  </div>
 
-  <!-- ⑥ 카탈리스트 타임라인 ──────────────────────────────────────── -->
+  <!-- ⑧ 카탈리스트 타임라인 ──────────────────────────────────────── -->
   ${_rpCatalystCard()}
 
-  <!-- ⑦ 탭 (상세 데이터) ──────────────────────────────────────────── -->
+  <!-- ⑨ 탭 (Financial Summary·수급·공시·DART) ─────────────────────── -->
   <div class="card" style="padding:0;overflow:hidden">
     <div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg2)">
       ${['재무제표','수급흐름','공시/뉴스','DART 분석'].map((t,i) => `
@@ -618,34 +414,16 @@ async function rpRenderReport() {
   if (priceBadge && price) priceBadge.textContent = fmtNum(price) + '원';
   if (chgBadge) chgBadge.innerHTML = `<span style="color:${chgCol}">${chgTxt}</span>`;
 
-  // 헤더 바 추가 정보 (시총, PER, PBR, ROE, 산업, 시장)
+  // 헤더 바 추가 정보 (시총, PER, PBR, ROE, 산업, 시장) — 이미 로드된 데이터 재사용
   try {
-    const { data: mkt } = await sb.from('market_data')
-      .select('market_cap,per,pbr,market')
-      .eq('stock_code', _rpStock.code)
-      .order('base_date', { ascending: false }).limit(1);
-    if (mkt?.[0]) {
-      const m = mkt[0];
-      const _set = (id, txt) => { const el = document.getElementById(id); if(el) el.textContent = txt; };
-      _set('rp-cap-val', m.market_cap ? fmtCap(m.market_cap) : '—');
-      _set('rp-per-val', m.per ? m.per.toFixed(1)+'x' : '—');
-      _set('rp-pbr-val', m.pbr ? m.pbr.toFixed(2) : '—');
-      const mktBadge = document.getElementById('rp-market-badge');
-      if (mktBadge && m.market) mktBadge.textContent = m.market;
-    }
-    const { data: fin } = await sb.from('financials')
-      .select('roe').eq('stock_code', _rpStock.code)
-      .order('bsns_year', { ascending: false }).order('quarter', { ascending: false }).limit(1);
-    if (fin?.[0]?.roe != null) {
-      const el = document.getElementById('rp-roe-val');
-      if (el) el.textContent = fin[0].roe.toFixed(1) + '%';
-    }
-    const { data: comp } = await sb.from('companies')
-      .select('industry').eq('code', _rpStock.code).limit(1);
-    if (comp?.[0]?.industry) {
-      const el = document.getElementById('rp-industry-badge');
-      if (el) el.textContent = comp[0].industry;
-    }
+    const _set = (id, txt) => { const el = document.getElementById(id); if(el) el.textContent = txt; };
+    _set('rp-cap-val', latest.market_cap ? fmtCap(latest.market_cap) : '—');
+    _set('rp-per-val', latest.per ? latest.per.toFixed(1)+'x' : '—');
+    _set('rp-pbr-val', latest.pbr ? latest.pbr.toFixed(2) : '—');
+    if (latestF.roe != null) _set('rp-roe-val', latestF.roe.toFixed(1) + '%');
+    const comp = _rpData.company;
+    if (comp?.market)   _set('rp-market-badge', comp.market);
+    if (comp?.industry) _set('rp-industry-badge', comp.industry);
   } catch(e) {}
 }
 
