@@ -662,7 +662,7 @@ async function rpUploadDart(input) {
     // 같은 종목 선택 중 → 데이터 갱신 후 DART 탭으로 이동
     _rpData.dart = dartPayload;
     rpRenderReport();
-    setTimeout(() => rpSetTab(3), 50);
+    setTimeout(() => rpSetTab(RP_TABS.indexOf('DART 분석')), 50);
   } else {
     // 종목 미선택이거나 다른 종목 → 해당 종목 리포트 로드 후 DART 탭
     _rpStock = { code: parsed.stock_code, name: parsed.stock_name };
@@ -681,12 +681,12 @@ async function rpUploadDart(input) {
       ]);
       _rpData = { price: priceRes.data || [], fin: finRes.data || [], watch: watchRes.data || null, dart: dartPayload };
       rpRenderReport();
-      setTimeout(() => rpSetTab(3), 50);
+      setTimeout(() => rpSetTab(RP_TABS.indexOf('DART 분석')), 50);
     } catch(e) {
       // DB 데이터 없어도 DART는 보여주기
       _rpData = { price: [], fin: [], watch: null, dart: dartPayload };
       rpRenderReport();
-      setTimeout(() => rpSetTab(3), 50);
+      setTimeout(() => rpSetTab(RP_TABS.indexOf('DART 분석')), 50);
     }
   }
 }

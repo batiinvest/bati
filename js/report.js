@@ -4,6 +4,8 @@
 // 의존: config.js (sb, fmtCap 등)
 
 // ── 상태 ──────────────────────────────────────────────────────────────────────
+// FnGuide식 메인 탭 (인덱스 하드코딩 금지 — RP_TABS.indexOf('...')로 참조)
+const RP_TABS = ['기업현황','기업개요','재무분석','투자지표','재무제표','지분현황','최근리포트','금감원공시','수급흐름','DART 분석'];
 let _rpStock     = null;   // 선택된 종목 { code, name }
 let _rpTab       = 'overview';  // 현재 탭
 let _rpData      = {};     // 로드된 데이터 캐시
@@ -289,6 +291,66 @@ async function rpRenderReport() {
   const chgCol = chg > 0 ? 'var(--red)' : chg < 0 ? 'var(--blue)' : 'var(--text3)';
   const chgTxt   = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
 
+  try {
+  body.innerHTML = `
+
+  <!-- ① 지표 스냅샷 밴드 (EPS·BPS·PER·업종PER·PBR·현재가) ─────────── -->
+  ${_rpSnapshotBand(latest, _rpData.annual, _rpData.company)}
+
+  <!-- ② FnGuide식 메인 탭 네비게이션 (지표밴드 바로 아래·sticky) ──── -->
+  <div class="card" style="padding:0;overflow:hidden;position:sticky;top:0;z-index:var(--z-sticky)">
+    <div style="display:flex;background:var(--bg2);overflow-x:auto;scrollbar-width:none">
+      ${RP_TABS.map((t,i) => `
+        <button onclick="rpSetTab(${i})" id="rp-tabbtn-${i}"
+          style="flex:1 0 auto;padding:11px 14px;font-size:14px;font-weight:600;border:none;white-space:nowrap;
+            background:none;cursor:pointer;border-bottom:2px solid ${i===0?'var(--tg)':'transparent'};
+            color:${i===0?'var(--tg)':'var(--text3)'};transition:all .2s">${t}</button>`).join('')}
+    </div>
+  </div>
+
+  <!-- ③ 탭 컨텐츠 ─────────────────────────────────────────────────── -->
+  <div id="rp-tab-body" style="display:flex;flex-direction:column;gap:14px"></div>
+
+  `;
+  } catch(err) {
+    console.error('[rpRenderReport] 렌더 에러:', err);
+    body.innerHTML = `<div style="padding:20px;color:var(--red);font-size:13px">
+      렌더 오류: ${err.message}<br>
+      <small style="color:var(--text2)">콘솔에서 상세 확인</small>
+    </div>`;
+    return;
+  }
+
+  // 기업현황 탭 자동 로드
+  rpSetTab(0);
+
+  // 종목 헤더 바 업데이트
+  const priceBadge = document.getElementById('rp-price-badge');
+  const chgBadge   = document.getElementById('rp-chg-badge');
+  if (priceBadge && price) priceBadge.textContent = fmtNum(price) + '원';
+  if (chgBadge) chgBadge.innerHTML = `<span style="color:${chgCol}">${chgTxt}</span>`;
+
+  // 헤더 바 추가 정보 (시총, PER, PBR, ROE, 산업, 시장) — 이미 로드된 데이터 재사용
+  try {
+    const _set = (id, txt) => { const el = document.getElementById(id); if(el) el.textContent = txt; };
+    _set('rp-cap-val', latest.market_cap ? fmtCap(latest.market_cap) : '—');
+    _set('rp-per-val', latest.per ? latest.per.toFixed(1)+'x' : '—');
+    _set('rp-pbr-val', latest.pbr ? latest.pbr.toFixed(2) : '—');
+    if (latestF.roe != null) _set('rp-roe-val', latestF.roe.toFixed(1) + '%');
+    const comp = _rpData.company;
+    if (comp?.market)   _set('rp-market-badge', comp.market);
+    if (comp?.industry) _set('rp-industry-badge', comp.industry);
+  } catch(e) {}
+}
+
+// ── 기업현황 탭 (FnGuide c1010001 — 시세·논거·컨센서스·연간실적·밸류·트렌드) ──
+function _rpTabOverview() {
+  const latest  = _rpData.price?.[0]  || {};
+  const latestF = _rpData.fin?.[0]    || {};
+  const watch   = _rpData.watch;
+  const prices  = _rpData.price       || [];
+  const price   = latest.price   || 0;
+
   // Bull / Bear HTML — 템플릿 리터럴 밖에서 미리 계산
   const dartPts  = _rpData.dart?.summary?.investment_points || [];
   const dartRisks = _rpData.dart?.summary?.risk_points || [];
@@ -301,7 +363,7 @@ async function rpRenderReport() {
             <span style="color:#4ade80;font-weight:700;font-size:14px;margin-top:1px">•</span>
             <span style="font-size:13px;color:var(--text1);line-height:1.5">${t}</span>
           </div>`).join('')}
-          <div style="font-size:12px;color:var(--text1);margin-top:2px">DART 분석 기반 자동 추출</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">* DART 분석 기반 자동 추출</div>
         </div>`
       : `<div style="display:flex;flex-direction:column;gap:6px" id="rp-bull-points">
           ${['핵심 투자포인트를 투자노트에 작성해주세요','예) HBM 수주 확대로 데이터센터 모멘텀 강화','예) 하반기 ASP 상승 + 원가 하락 → 마진 개선']
@@ -326,20 +388,13 @@ async function rpRenderReport() {
           </div>`).join('')}
       </div>`;
 
-  try {
-  body.innerHTML = `
-
-  <!-- ① 지표 스냅샷 밴드 (EPS·BPS·PER·업종PER·PBR·현재가) ─────────── -->
-  ${_rpSnapshotBand(latest, _rpData.annual, _rpData.company)}
-
-  <!-- ② 시세 및 주주현황 + 주가/거래량 차트 ──────────────────────── -->
+  return `
+  <!-- 시세 및 주주현황 + 주가/거래량 차트 -->
   ${_rpQuoteCard(latest, prices)}
 
-  <!-- ③ 핵심 투자 논거 (Bull/Bear — 기업실적코멘트 위치) ──────────── -->
+  <!-- 핵심 투자 논거 (Bull/Bear) -->
   <div class="card" style="padding:16px">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-
-        <!-- Bull case -->
         <div>
           <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:10px;display:flex;align-items:center;gap:7px">
             <span style="width:3px;height:13px;border-radius:2px;background:#4ade80;display:inline-block"></span>
@@ -347,8 +402,6 @@ async function rpRenderReport() {
           </div>
           ${bullHTML}
         </div>
-
-        <!-- Bear case -->
         <div style="border-left:1px solid var(--border);padding-left:16px">
           <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:10px;display:flex;align-items:center;gap:7px">
             <span style="width:3px;height:13px;border-radius:2px;background:#f87171;display:inline-block"></span>
@@ -356,147 +409,64 @@ async function rpRenderReport() {
           </div>
           ${bearHTML}
         </div>
-
     </div>
   </div>
 
-  <!-- ④ 투자의견 컨센서스 ─────────────────────────────────────────── -->
+  <!-- 투자의견 컨센서스 -->
   ${_rpConsensusCard(_rpData.analyst || [], price, watch)}
 
-  <!-- ⑤ 연간 실적 요약 (추정실적 컨센서스 자리) ──────────────────── -->
+  <!-- 연간 실적 요약 -->
   ${_rpAnnualTable(_rpData.annual, latest)}
 
-  <!-- ⑥ 밸류에이션(밴드차트 포함) + 재무 건전성 ──────────────────── -->
+  <!-- 밸류에이션(밴드차트 포함) + 재무 건전성 -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
     ${_rpValuationCard(latestF, latest)}
     ${_rpFinHealthCard(latestF)}
   </div>
 
-  <!-- ⑦ 분기 실적 트렌드 + 제품별 매출 ────────────────────────────── -->
+  <!-- 분기 실적 트렌드 + 제품별 매출 -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
     ${_rpEarningsCard(_rpData.fin)}
     ${_rpSegmentCard(_rpData.segment)}
   </div>
 
-  <!-- ⑧ 카탈리스트 타임라인 ──────────────────────────────────────── -->
-  ${_rpCatalystCard()}
-
-  <!-- ⑨ 탭 (Financial Summary·수급·공시·DART) ─────────────────────── -->
-  <div class="card" style="padding:0;overflow:hidden">
-    <div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg2);
-      overflow-x:auto;scrollbar-width:none">
-      ${['기업개요','재무분석','투자지표','재무제표','지분현황','최근리포트','금감원공시','수급흐름','DART 분석'].map((t,i) => `
-        <button onclick="rpSetTab(${i})" id="rp-tab-${i}"
-          style="flex:1 0 auto;padding:10px 12px;font-size:14px;font-weight:600;border:none;white-space:nowrap;
-            background:none;cursor:pointer;border-bottom:2px solid ${i===0?'var(--tg)':'transparent'};
-            color:${i===0?'var(--tg)':'var(--text3)'};transition:all .2s">${t}</button>`).join('')}
-    </div>
-    <div id="rp-tab-body" style="padding:14px">
-      <div style="text-align:center;color:var(--text2);padding:40px"><span class="loading"></span></div>
-    </div>
-  </div>
-
-  `;
-  } catch(err) {
-    console.error('[rpRenderReport] 렌더 에러:', err);
-    body.innerHTML = `<div style="padding:20px;color:var(--red);font-size:13px">
-      렌더 오류: ${err.message}<br>
-      <small style="color:var(--text2)">콘솔에서 상세 확인</small>
-    </div>`;
-    return;
-  }
-
-  // 기업개요 탭 자동 로드
-  rpSetTab(0);
-
-  // 종목 헤더 바 업데이트
-  const priceBadge = document.getElementById('rp-price-badge');
-  const chgBadge   = document.getElementById('rp-chg-badge');
-  if (priceBadge && price) priceBadge.textContent = fmtNum(price) + '원';
-  if (chgBadge) chgBadge.innerHTML = `<span style="color:${chgCol}">${chgTxt}</span>`;
-
-  // 헤더 바 추가 정보 (시총, PER, PBR, ROE, 산업, 시장) — 이미 로드된 데이터 재사용
-  try {
-    const _set = (id, txt) => { const el = document.getElementById(id); if(el) el.textContent = txt; };
-    _set('rp-cap-val', latest.market_cap ? fmtCap(latest.market_cap) : '—');
-    _set('rp-per-val', latest.per ? latest.per.toFixed(1)+'x' : '—');
-    _set('rp-pbr-val', latest.pbr ? latest.pbr.toFixed(2) : '—');
-    if (latestF.roe != null) _set('rp-roe-val', latestF.roe.toFixed(1) + '%');
-    const comp = _rpData.company;
-    if (comp?.market)   _set('rp-market-badge', comp.market);
-    if (comp?.industry) _set('rp-industry-badge', comp.industry);
-  } catch(e) {}
+  <!-- 카탈리스트 -->
+  ${_rpCatalystCard()}`;
 }
 
-// ── 탭 전환 ───────────────────────────────────────────────────────────────────
+// ── 탭 전환 (RP_TABS 순서 기준) ───────────────────────────────────────────────
 async function rpSetTab(idx) {
-  document.querySelectorAll('[id^="rp-tab-"]').forEach((b, i) => {
+  document.querySelectorAll('[id^="rp-tabbtn-"]').forEach((b, i) => {
     b.style.borderBottomColor = i === idx ? 'var(--tg)' : 'transparent';
     b.style.color = i === idx ? 'var(--tg)' : 'var(--text3)';
   });
   const body = document.getElementById('rp-tab-body');
-  if (!body) return;
+  if (!body || !_rpStock) return;
 
-  // 기업개요(0) — FnGuide c1020001 스타일 (report-cards.js)
+  // 기업현황(0) — 이미 로드된 _rpData로 즉시 렌더 (카드 나열, 래퍼 없음)
   if (idx === 0) {
-    body.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px"><span class="loading"></span> 기업개요 로딩 중...</div>';
-    await _rpLoadAndRenderProfile(body);
+    body.innerHTML = _rpTabOverview();
     return;
   }
 
-  // 재무분석(1) — FnGuide c1030001 스타일 (report-cards.js)
-  if (idx === 1) {
-    body.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px"><span class="loading"></span> 재무분석 로딩 중...</div>';
-    await _rpLoadAndRenderFinAnalysis(body);
-    return;
-  }
+  // 나머지 탭 — 카드 래퍼 안에 로딩 후 각 로더가 채움
+  const name = RP_TABS[idx] || '';
+  body.innerHTML = `<div class="card" style="padding:14px" id="rp-tab-card">
+    <div style="text-align:center;color:var(--text2);padding:40px">
+      <span class="loading"></span> ${name} 로딩 중...</div></div>`;
+  const card = document.getElementById('rp-tab-card');
 
-  // 투자지표(2) — FnGuide c1040001 스타일 (report-cards.js)
-  if (idx === 2) {
-    body.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px"><span class="loading"></span> 투자지표 로딩 중...</div>';
-    await _rpLoadAndRenderInvMetrics(body);
-    return;
+  switch (name) {
+    case '기업개요':   await _rpLoadAndRenderProfile(card); return;      // FnGuide c1020001
+    case '재무분석':   await _rpLoadAndRenderFinAnalysis(card); return;  // FnGuide c1030001
+    case '투자지표':   await _rpLoadAndRenderInvMetrics(card); return;   // FnGuide c1040001
+    case '재무제표':   await _renderFinancialTab(card, _rpStock.code, _rpStock.name); return;
+    case '지분현황':   await _rpLoadAndRenderOwnership(card); return;    // FnGuide c1070001
+    case '최근리포트': await _rpLoadAndRenderReports(card); return;      // FnGuide c1080001
+    case '금감원공시': await _rpLoadAndRenderFss(card); return;
+    case '수급흐름':   card.innerHTML = _rpTabFlow(_rpData.price); return;
+    case 'DART 분석':  await _rpLoadAndRenderDart(card); return;
   }
-
-  // 재무제표(3) → financials.js의 _renderFinancialTab 재활용
-  if (idx === 3) {
-    body.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px"><span class="loading"></span></div>';
-    await _renderFinancialTab(body, _rpStock.code, _rpStock.name);
-    return;
-  }
-
-  // 지분현황(4) — FnGuide c1070001 스타일 (report-cards.js)
-  if (idx === 4) {
-    body.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px"><span class="loading"></span> 지분현황 로딩 중...</div>';
-    await _rpLoadAndRenderOwnership(body);
-    return;
-  }
-
-  // 최근리포트(5) — FnGuide c1080001 스타일 (report-cards.js)
-  if (idx === 5) {
-    body.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px"><span class="loading"></span> 리포트 이력 로딩 중...</div>';
-    await _rpLoadAndRenderReports(body);
-    return;
-  }
-
-  // 금감원공시(6) — DART 공시 전체 목록 + 카테고리 필터 (report-cards.js)
-  if (idx === 6) {
-    body.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px"><span class="loading"></span> 공시 로딩 중...</div>';
-    await _rpLoadAndRenderFss(body);
-    return;
-  }
-
-  if (idx === 8) {
-    body.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px"><span class="loading"></span> DART 리포트 로딩 중...</div>';
-    await _rpLoadAndRenderDart(body);
-    return;
-  }
-
-  const fns = [
-    null, null, null, null, null, null, null,
-    () => _rpTabFlow(_rpData.price),
-  ];
-  body.innerHTML = fns[idx]?.() || '';
 }
 
 function _rpTabFlow(prices) {
