@@ -2410,6 +2410,180 @@ function _rpOwnershipTab({ discs, dp, s, dart, prices, latest }) {
   </div>`;
 }
 
+// ═══ 최근리포트 탭 (FnGuide c1080001 스타일) ═════════════════════════════════
+// 증권사 투자의견 이력 — 일자/제공처/의견(직전 대비)/목표가(직전 대비 ▲▼N=)/괴리율
+
+async function _rpLoadAndRenderReports(body) {
+  if (!_rpStock || !body) return;
+  try {
+    const { data } = await sb.from('analyst_opinions')
+      .select('firm_name,opinion,prev_opinion,target_price,gap_rate,opinion_date,opinion_code')
+      .eq('stock_code', _rpStock.code)
+      .order('opinion_date', { ascending: false }).limit(100);
+    const rows = data || [];
+    if (!rows.length) {
+      body.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center;font-size:12px">수집된 증권사 리포트/투자의견 없음</div>';
+      return;
+    }
+    const esc = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
+    const price = _rpData.price?.[0]?.price || 0;
+
+    // 3개월 컨센서스 요약
+    const recent = rows.filter(o => (Date.now() - new Date(o.opinion_date).getTime()) < 90 * 86400e3);
+    const tps = recent.map(o => o.target_price).filter(v => v > 0);
+    const avgTp = tps.length ? Math.round(tps.reduce((s, v) => s + v, 0) / tps.length) : null;
+    const upside = avgTp && price ? (avgTp - price) / price * 100 : null;
+    const kv = (label, val, sub, subCol) => `
+      <div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);text-align:center">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:3px">${label}</div>
+        <div style="font-size:16px;font-weight:800;font-variant-numeric:tabular-nums">${val}</div>
+        ${sub ? `<div style="font-size:11px;color:${subCol || 'var(--text3)'};margin-top:2px">${sub}</div>` : ''}
+      </div>`;
+
+    // 목표가 변화: 같은 증권사의 직전(더 오래된) 목표가와 비교
+    const tpChange = (r, i) => {
+      const prev = rows.slice(i + 1).find(x => x.firm_name === r.firm_name && x.target_price > 0);
+      if (!r.target_price) return '';
+      if (!prev) return '<span style="color:var(--tg);font-weight:700" title="신규">N</span>';
+      if (r.target_price > prev.target_price)
+        return `<span style="color:var(--red);font-weight:700" title="직전 ${fmtNum(prev.target_price)}원 대비 상향">▲</span>`;
+      if (r.target_price < prev.target_price)
+        return `<span style="color:var(--blue);font-weight:700" title="직전 ${fmtNum(prev.target_price)}원 대비 하향">▼</span>`;
+      return '<span style="color:var(--text3)" title="변동없음">=</span>';
+    };
+    const opCol = o => ['1', '2'].includes(o.opinion_code) || /매수|BUY/i.test(o.opinion || '') ? '#22c55e'
+      : /매도|SELL/i.test(o.opinion || '') ? '#ef4444' : '#f59e0b';
+
+    body.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:14px">
+        ${kv('평균 목표주가 <span style="opacity:.65">(3개월)</span>', avgTp ? fmtNum(avgTp) + '원' : '—',
+          upside != null ? `현재가 대비 ${upside >= 0 ? '+' : ''}${upside.toFixed(1)}%` : '',
+          upside >= 0 ? 'var(--red)' : 'var(--blue)')}
+        ${kv('목표가 범위', tps.length ? `${fmtNum(Math.min(...tps))}~${fmtNum(Math.max(...tps))}` : '—', tps.length ? '원' : '')}
+        ${kv('의견 수 <span style="opacity:.65">(3개월)</span>', recent.length + '건',
+          `매수 ${recent.filter(o => ['1','2'].includes(o.opinion_code)).length} · 기타 ${recent.filter(o => !['1','2'].includes(o.opinion_code)).length}`)}
+        ${kv('전체 이력', rows.length + '건', `${(rows[rows.length-1]?.opinion_date || '').slice(0,7)} ~`)}
+      </div>
+      <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
+        <thead><tr style="background:var(--bg3)">
+          ${['일자', '제공처', '투자의견', '직전의견', '목표가', '변동', '괴리율'].map((h, i) => `
+            <th style="padding:7px 10px;text-align:${i <= 1 ? 'left' : i === 5 ? 'center' : 'right'};color:var(--text2);
+              font-weight:600;border-bottom:1px solid var(--border)">${h}</th>`).join('')}
+        </tr></thead>
+        <tbody>
+          ${rows.map((r, i) => {
+            const col = opCol(r);
+            const changed = r.prev_opinion && r.opinion !== r.prev_opinion;
+            const gap = r.gap_rate;
+            const gCol = gap > 0 ? 'var(--red)' : gap < 0 ? 'var(--blue)' : 'var(--text3)';
+            return `<tr>
+              <td style="padding:7px 10px;color:var(--text3);font-variant-numeric:tabular-nums;
+                border-bottom:1px solid var(--border)">${(r.opinion_date || '').slice(2).replace(/-/g, '/')}</td>
+              <td style="padding:7px 10px;color:var(--text1);font-weight:600;border-bottom:1px solid var(--border)">${esc(r.firm_name || '')}</td>
+              <td style="padding:7px 10px;text-align:right;font-weight:800;color:${col};
+                border-bottom:1px solid var(--border)">${esc(r.opinion || '—')}${changed ? ' <span title="의견 변경">🔄</span>' : ''}</td>
+              <td style="padding:7px 10px;text-align:right;color:var(--text3);border-bottom:1px solid var(--border)">${esc(r.prev_opinion || '—')}</td>
+              <td style="padding:7px 10px;text-align:right;font-weight:700;color:var(--text1);
+                font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border)">${r.target_price ? fmtNum(r.target_price) : '—'}</td>
+              <td style="padding:7px 10px;text-align:center;border-bottom:1px solid var(--border)">${tpChange(r, i)}</td>
+              <td style="padding:7px 10px;text-align:right;font-weight:700;color:${gCol};
+                font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border)">${gap != null ? (gap >= 0 ? '+' : '') + gap.toFixed(1) + '%' : '—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px">
+        * 변동: N=신규 · ▲=직전 대비 상향 · ▼=하향 · ==변동없음 (같은 증권사 직전 목표가 기준) · 리포트 원문/제목은 데이터 미수집</div>`;
+  } catch (e) {
+    body.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:12px">리포트 이력 로드 실패: ${e.message}</div>`;
+  }
+}
+
+// ═══ 금감원공시 탭 (FnGuide 금감원공시 스타일) ═══════════════════════════════
+// daily_disclosures 전체 목록 + 카테고리 필터 칩
+
+const RFD = { rows: [], cat: 'all' };
+
+async function _rpLoadAndRenderFss(body) {
+  if (!_rpStock || !body) return;
+  try {
+    const { data: comp } = await sb.from('companies')
+      .select('corp_code').eq('code', _rpStock.code).maybeSingle();
+    if (!comp?.corp_code) {
+      body.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center;font-size:12px">DART 고유코드(corp_code) 미등록 종목 — 공시 조회 불가</div>';
+      return;
+    }
+    const { data } = await sb.from('daily_disclosures')
+      .select('base_date,report_nm,category,rcept_no,insider_summary')
+      .eq('corp_code', comp.corp_code)
+      .order('base_date', { ascending: false }).limit(150);
+    RFD.rows = data || [];
+    RFD.cat = 'all';
+    if (!RFD.rows.length) {
+      body.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center;font-size:12px">수집된 공시 없음 (매일 18:30 업데이트)</div>';
+      return;
+    }
+    // 카테고리 칩 (건수순)
+    const counts = {};
+    RFD.rows.forEach(r => { const c = r.category || '기타'; counts[c] = (counts[c] || 0) + 1; });
+    const cats = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const esc = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
+    body.innerHTML = `
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+        <button id="rfd-cat-all" class="chip chip-sm active" onclick="rpFssFilter('all')">전체 ${RFD.rows.length}</button>
+        ${cats.map(([c, n]) => `<button id="rfd-cat-${esc(c)}" class="chip chip-sm"
+          onclick="rpFssFilter('${typeof escJsStr === 'function' ? escJsStr(c) : c.replace(/'/g, "\\'")}')">${esc(c)} ${n}</button>`).join('')}
+        <span style="margin-left:auto;font-size:11px;color:var(--text3)">최근 ${RFD.rows.length}건 · 공시명 클릭 시 DART 원문</span>
+      </div>
+      <div id="rfd-list"></div>`;
+    _rpFssRenderList();
+  } catch (e) {
+    body.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:12px">공시 로드 실패: ${e.message}</div>`;
+  }
+}
+
+function rpFssFilter(cat) {
+  RFD.cat = cat;
+  document.querySelectorAll('[id^="rfd-cat-"]').forEach(b =>
+    b.classList.toggle('active', b.id === 'rfd-cat-' + (cat === 'all' ? 'all' : cat)));
+  _rpFssRenderList();
+}
+
+function _rpFssRenderList() {
+  const el = document.getElementById('rfd-list');
+  if (!el) return;
+  const esc = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
+  const rows = RFD.cat === 'all' ? RFD.rows : RFD.rows.filter(r => (r.category || '기타') === RFD.cat);
+  if (!rows.length) {
+    el.innerHTML = '<div style="color:var(--text3);padding:30px;text-align:center;font-size:12px">해당 카테고리 공시 없음</div>';
+    return;
+  }
+  el.innerHTML = `
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
+      <thead><tr style="background:var(--bg3)">
+        ${['공시일', '구분', '공시명', '비고'].map(h => `<th style="padding:6px 10px;text-align:left;
+          color:var(--text2);font-weight:600;border-bottom:1px solid var(--border)">${h}</th>`).join('')}
+      </tr></thead>
+      <tbody>
+        ${rows.map(d => `<tr>
+          <td style="padding:6px 10px;color:var(--text3);font-variant-numeric:tabular-nums;
+            border-bottom:1px solid var(--border)">${(d.base_date || '').slice(2)}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid var(--border)">
+            <span class="chip chip-sm" style="cursor:default">${esc(d.category || '기타')}</span></td>
+          <td style="padding:6px 10px;border-bottom:1px solid var(--border);max-width:420px;
+            overflow:hidden;text-overflow:ellipsis">
+            <a href="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${encodeURIComponent(d.rcept_no || '')}"
+              target="_blank" rel="noopener" style="color:var(--text1);text-decoration:none">${esc(d.report_nm || '')}</a></td>
+          <td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:11px">${_rpInsBadge(d.insider_summary)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    </div>`;
+}
+
 function _rpCatalystCard() {
   const catalysts = [
     { horizon: '단기 (1M)',  color: '#f59e0b', items: ['분기 실적 발표', '주요 수주 발표'] },

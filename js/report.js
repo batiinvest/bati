@@ -383,10 +383,11 @@ async function rpRenderReport() {
 
   <!-- ⑨ 탭 (Financial Summary·수급·공시·DART) ─────────────────────── -->
   <div class="card" style="padding:0;overflow:hidden">
-    <div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg2)">
-      ${['기업개요','재무분석','투자지표','재무제표','지분현황','수급흐름','공시/뉴스','DART 분석'].map((t,i) => `
+    <div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg2);
+      overflow-x:auto;scrollbar-width:none">
+      ${['기업개요','재무분석','투자지표','재무제표','지분현황','최근리포트','금감원공시','수급흐름','DART 분석'].map((t,i) => `
         <button onclick="rpSetTab(${i})" id="rp-tab-${i}"
-          style="flex:1;padding:10px 4px;font-size:14px;font-weight:600;border:none;
+          style="flex:1 0 auto;padding:10px 12px;font-size:14px;font-weight:600;border:none;white-space:nowrap;
             background:none;cursor:pointer;border-bottom:2px solid ${i===0?'var(--tg)':'transparent'};
             color:${i===0?'var(--tg)':'var(--text3)'};transition:all .2s">${t}</button>`).join('')}
     </div>
@@ -471,20 +472,29 @@ async function rpSetTab(idx) {
     return;
   }
 
-  if (idx === 7) {
+  // 최근리포트(5) — FnGuide c1080001 스타일 (report-cards.js)
+  if (idx === 5) {
+    body.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px"><span class="loading"></span> 리포트 이력 로딩 중...</div>';
+    await _rpLoadAndRenderReports(body);
+    return;
+  }
+
+  // 금감원공시(6) — DART 공시 전체 목록 + 카테고리 필터 (report-cards.js)
+  if (idx === 6) {
+    body.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px"><span class="loading"></span> 공시 로딩 중...</div>';
+    await _rpLoadAndRenderFss(body);
+    return;
+  }
+
+  if (idx === 8) {
     body.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px"><span class="loading"></span> DART 리포트 로딩 중...</div>';
     await _rpLoadAndRenderDart(body);
     return;
   }
 
   const fns = [
-    null,
-    null,
-    null,
-    null,
-    null,
+    null, null, null, null, null, null, null,
     () => _rpTabFlow(_rpData.price),
-    () => _rpTabNews(),
   ];
   body.innerHTML = fns[idx]?.() || '';
 }
@@ -508,12 +518,6 @@ function _rpTabFlow(prices) {
   <div style="margin-top:12px;padding:10px;background:var(--bg3);border-radius:var(--radius-sm);
     font-size:12px;color:var(--text2);text-align:center">
     외국인/기관 상세 수급은 수급 분석 기능 연동 예정
-  </div>`;
-}
-
-function _rpTabNews() {
-  return `<div style="padding:20px;text-align:center;color:var(--text2);font-size:12px">
-    공시/뉴스 연동 예정 — 공시 탭 또는 기업 분석 페이지에서 확인 가능
   </div>`;
 }
 
