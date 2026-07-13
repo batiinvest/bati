@@ -1254,7 +1254,7 @@ async function _renderFinancialTab(body, code, name) {
     body.innerHTML = `
       <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
         <button id="btn-quarter" class="chip active" onclick="FIN.view='quarter';FIN.render()">분기별</button>
-        <button id="btn-annual"  class="chip"        onclick="FIN.view='annual'; FIN.render()">연간별 <span style="font-size:11px;color:var(--text2)">(Q4 누적)</span></button>
+        <button id="btn-annual"  class="chip"        onclick="FIN.view='annual'; FIN.render()">연간별 <span style="font-size:11px;color:var(--text2)">(4분기 합산)</span></button>
         <button id="btn-qcomp"   class="chip"        onclick="FIN.view='qcomp';  FIN.render()">분기비교</button>
         <div style="display:flex;gap:4px;margin-left:auto;align-items:center">
           <button id="btn-chart-rev"  class="chip active" onclick="FIN.chart='revenue'; FIN.drawChart()">매출·영업이익</button>
@@ -1306,10 +1306,31 @@ async function _renderFinancialTab(body, code, name) {
     FIN.chart = 'revenue';
     FIN.compQ = 'Q1';
     FIN.rows     = fins;
+    FIN._annual  = null;
 
     FIN.getRows = () => {
       if (FIN.view === 'annual') {
-        return FIN.rows.filter(f => f.quarter === 'Q4').map(f => ({...f, label: f.bsns_year+'년'}));
+        // 분기 행은 순액이므로 연간 = 4분기 합산 (_rpAggAnnual: report-cards.js 공용 헬퍼)
+        // 저장된 Q4 마진은 연간 기준 잔재가 많아 마진·ROE·ROA는 합산 금액으로 재계산됨
+        if (!FIN._annual) {
+          const agg = _rpAggAnnual(FIN.rows, {
+            flow:  ['revenue', 'operating_profit', 'net_income', 'operating_cashflow'],
+            stock: ['total_assets', 'total_equity', 'debt_ratio'],
+          });
+          const byYear = {};
+          for (const r of FIN.rows) (byYear[r.bsns_year] = byYear[r.bsns_year] || []).push(r);
+          for (const a of agg) {
+            // 비율 컬럼(GPM·판관비율·매출원가율)은 매출 가중평균으로 연간화
+            const qs = byYear[a.bsns_year] || [];
+            for (const c of ['gross_margin', 'sga_ratio', 'cogs_ratio']) {
+              if (a.revenue > 0 && qs.every(r => r[c] != null && r.revenue != null))
+                a[c] = qs.reduce((s, r) => s + r.revenue * r[c], 0) / a.revenue;
+            }
+            a.label = a.bsns_year + '년';
+          }
+          FIN._annual = agg;
+        }
+        return FIN._annual;
       } else {
         // quarter / qcomp 모두 전체 분기 반환 (qcomp는 render에서 피벗 처리)
         return FIN.rows.map(f => ({...f, label: f.bsns_year+' '+f.quarter}));
