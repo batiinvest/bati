@@ -176,11 +176,11 @@ async function rpLoadReport() {
 
   // 병렬 데이터 로드
   try {
-    const [priceRes, finRes, watchRes, dartRes, analystRes, segRes, annualRes, compRes] = await Promise.all([
+    const [priceRes, finRes, watchRes, dartRes, analystRes, segRes, compRes] = await Promise.all([
       sb.from('market_data').select('price,price_change,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low,per,pbr,base_date,week_return,month_return,quarter_return,year_return')
         .eq('stock_code', _rpStock.code).order('base_date', { ascending: false }).limit(500),
-      sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,debt_ratio,roe,roa,operating_margin,net_margin,ebitda,fcf,da,per,pbr')
-        .eq('stock_code', _rpStock.code).eq('fs_div','CFS').order('bsns_year', { ascending: false }).order('quarter', { ascending: false }).limit(12),
+      sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,debt_ratio,roe,roa,operating_margin,net_margin,ebitda,fcf,da')
+        .eq('stock_code', _rpStock.code).eq('fs_div','CFS').order('bsns_year', { ascending: false }).order('quarter', { ascending: false }).limit(24),
       sb.from('watchlist').select('note,target_price,opinion,buy_price,created_at')
         .eq('stock_code', _rpStock.code).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       sb.from('dart_reports').select('report_type,receive_date,summary')
@@ -192,21 +192,20 @@ async function rpLoadReport() {
         .select('bsns_year,quarter,segment_type,category,revenue,revenue_ratio')
         .eq('stock_code', _rpStock.code).eq('segment_type','product')
         .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
-      sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_equity,roe,debt_ratio,per,pbr')
-        .eq('stock_code', _rpStock.code).eq('fs_div','CFS').eq('quarter','Q4')
-        .order('bsns_year', { ascending: false }).limit(6),
       sb.from('companies').select('market,sector,product,industry,sub_industry')
         .eq('code', _rpStock.code).maybeSingle(),
     ]);
 
+    // financials의 Q4는 분기 순액 — 연간은 4분기 합산(_rpAggAnnual)으로 파생
+    const finRows = finRes.data || [];
     _rpData = {
       price:    priceRes.data   || [],
-      fin:      finRes.data     || [],
+      fin:      finRows.slice(0, 12),
       watch:    watchRes.data   || null,
       dart:     dartRes.data    || null,
       analyst:  analystRes.data || [],
       segment:  segRes.data     || [],
-      annual:   annualRes.data  || [],
+      annual:   _rpAggAnnual(finRows).reverse(), // 최신 연도 먼저
       company:  compRes.data    || null,
     };
     rpRenderReport();
