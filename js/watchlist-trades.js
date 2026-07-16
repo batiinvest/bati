@@ -265,7 +265,7 @@ function openTradeModal(watchlistId, stockCode, corpName, type, curPrice) {
   overlay.innerHTML = `
     <div class="modal" style="width:430px;max-width:94vw">
       <div class="modal-header">
-        <span class="modal-title">${corpName} · <span style="color:${isBuy?'var(--buy)':'var(--sell)'}">${isBuy ? '매수' : '매도'}</span> 기록</span>
+        <span class="modal-title">${escapeHtml(corpName)} · <span style="color:${isBuy?'var(--buy)':'var(--sell)'}">${isBuy ? '매수' : '매도'}</span> 기록</span>
         <button class="modal-close" onclick="document.getElementById('m-trade').remove()">×</button>
       </div>
       <div style="padding:1.25rem;display:flex;flex-direction:column;gap:12px">
@@ -401,14 +401,14 @@ async function syncPositionToWatchlist(watchlistId, stockCode) {
 // 거래 이력 조회 모달
 async function openTradeHistory(stockCode, corpName) {
   document.getElementById('m-tradehist')?.remove();
-  const nm = (corpName || '').replace(/'/g, "\\'");
+  const nm = escJsStr(corpName);
   const overlay = document.createElement('div');
   overlay.id = 'm-tradehist';
   overlay.className = 'modal-overlay open';
   overlay.innerHTML = `
     <div class="modal" style="width:600px;max-width:96vw;max-height:88vh;overflow-y:auto">
       <div class="modal-header">
-        <span class="modal-title">${corpName} · 거래 이력</span>
+        <span class="modal-title">${escapeHtml(corpName)} · 거래 이력</span>
         <button class="modal-close" onclick="document.getElementById('m-tradehist').remove()">×</button>
       </div>
       <div id="tradehist-body" style="padding:1.25rem">
@@ -436,7 +436,7 @@ async function openTradeHistory(stockCode, corpName) {
       <td style="padding:7px 8px;font-size:12px;text-align:right">${Number(t.price).toLocaleString()}원</td>
       <td style="padding:7px 8px;font-size:12px;text-align:right">${Number(t.quantity).toLocaleString()}주</td>
       <td style="padding:7px 8px;font-size:12px;text-align:right">${Math.round(amt).toLocaleString()}원</td>
-      <td style="padding:7px 8px;font-size:11px;color:var(--text2)">${t.memo||''}</td>
+      <td style="padding:7px 8px;font-size:11px;color:var(--text2)">${escapeHtml(t.memo||'')}</td>
       <td style="padding:7px 8px;text-align:right">
         <button class="btn btn-sm" style="color:var(--red)" title="삭제"
           onclick="deleteTrade(${t.id},'${stockCode}','${nm}')">×</button></td>

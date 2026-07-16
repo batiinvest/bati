@@ -42,7 +42,7 @@ function pReport() {
     <!-- 종목 헤더 바 -->
     <div id="rp-stock-header" style="padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg2)">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
-        <span style="font-size:18px;font-weight:700">${_rpStock.name}</span>
+        <span style="font-size:18px;font-weight:700">${escapeHtml(_rpStock.name)}</span>
         <span style="font-size:12px;color:var(--text3);font-family:monospace">${_rpStock.code}</span>
         <span id="rp-industry-badge" style="font-size:11px;padding:2px 8px;border-radius:100px;background:var(--bg3);color:var(--text2)">—</span>
         <span id="rp-market-badge"   style="font-size:11px;padding:2px 8px;border-radius:100px;background:var(--bg3);color:var(--text2)">—</span>
@@ -59,9 +59,9 @@ function pReport() {
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btn-sm btn-primary" onclick="rpLoadReport()">분석 리포트</button>
-        <button class="btn btn-sm" onclick="openFinTrend&&openFinTrend('${_rpStock.code}','${_rpStock.name}')">재무추이</button>
+        <button class="btn btn-sm" onclick="openFinTrend&&openFinTrend('${_rpStock.code}','${escJsStr(_rpStock.name)}')">재무추이</button>
         <button class="btn btn-sm" onclick="go('comparison')">기업비교에 추가</button>
-        <button class="btn btn-sm" onclick="scAddToWatchlist&&scAddToWatchlist('${_rpStock.code}','${_rpStock.name}')">투자노트에 추가</button>
+        <button class="btn btn-sm" onclick="scAddToWatchlist&&scAddToWatchlist('${_rpStock.code}','${escJsStr(_rpStock.name)}')">투자노트에 추가</button>
       </div>
     </div>` : ''}
 
@@ -128,14 +128,14 @@ async function rpSearchInput(q) {
     if (!data?.length) { dd.style.display = 'none'; return; }
 
     dd.innerHTML = data.map(r => `
-      <div onclick="rpSelectStock('${r.code}','${r.name}')"
+      <div onclick="rpSelectStock('${r.code}','${escJsStr(r.name)}')"
         style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);
           display:flex;align-items:center;gap:8px"
         onmouseover="this.style.background='var(--bg3)'"
         onmouseout="this.style.background=''">
-        <span style="font-size:13px;font-weight:500">${r.name}</span>
+        <span style="font-size:13px;font-weight:500">${escapeHtml(r.name)}</span>
         <span style="font-size:12px;color:var(--text1)">${r.code}</span>
-        <span style="font-size:12px;color:var(--text1);margin-left:auto">${r.industry||''}</span>
+        <span style="font-size:12px;color:var(--text1);margin-left:auto">${escapeHtml(r.industry||'')}</span>
       </div>`).join('');
     dd.style.display = 'block';
   }, 200);

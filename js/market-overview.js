@@ -251,7 +251,7 @@ async function loadMarketOverview(maxDate) {
         .sort((a,b) => a.price_change_rate - b.price_change_rate).slice(0,2);
       const mkTag = (st, clr) =>
         '<span style="font-size:11px;padding:2px 7px;border-radius:4px;background:var(--bg3);color:var(--text1);white-space:nowrap">' +
-        st.corp_name + ' <span style="color:' + clr + ';font-weight:600">' + chgStr(st.price_change_rate) + '</span></span>';
+        escapeHtml(st.corp_name) + ' <span style="color:' + clr + ';font-weight:600">' + chgStr(st.price_change_rate) + '</span></span>';
 
       leftHtml +=
         '<div class="sub-sector-row" data-si="' + si + '" style="padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer">' +
@@ -578,7 +578,7 @@ function renderHgprTab(tab) {
       ? `<td style="padding:5px 10px;font-size:11px;color:var(--text2)">${r.industry}</td>`
       : '';
     return `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:5px 12px;font-weight:500;font-size:13px;white-space:nowrap">${r.corp_name||r.stock_code}</td>
+      <td style="padding:5px 12px;font-weight:500;font-size:13px;white-space:nowrap">${escapeHtml(r.corp_name||r.stock_code)}</td>
       <td style="padding:5px 12px;text-align:right;font-weight:500;white-space:nowrap">${fmtPrice(r.price)}</td>
       <td style="padding:5px 12px;text-align:right;color:${chgClr};font-weight:600">${chgTxt}</td>
       <td style="padding:5px 12px;text-align:right;color:var(--text2);font-size:12px">${cap}</td>

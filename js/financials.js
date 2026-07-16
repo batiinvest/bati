@@ -330,7 +330,7 @@ async function loadMarketData(el) {
             </span><span style="color:var(--text2)">${w52pct}%</span></div>` : '';
       return `<tr>
         <td class="stock-row" style="font-weight:500;color:var(--tg);white-space:nowrap"
-          data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||'')}" data-stock-tab="market">${r.corp_name}</td>
+          data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||'')}" data-stock-tab="market">${escapeHtml(r.corp_name||'')}</td>
         <td style="font-size:11px;color:var(--text2);font-family:monospace">${r.stock_code}</td>
         <td style="font-size:11px;color:var(--text2)">${r.market||'—'}</td>
         <td>${fmtCap(r.market_cap)}</td>
@@ -454,7 +454,7 @@ async function loadFinancialData(el) {
       const ebitdaC= _finC(r.ebitda||0);
       return `<tr>
         <td class="stock-row" style="font-weight:500;color:var(--tg);white-space:nowrap"
-          data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||'')}" data-stock-tab="financial">${r.corp_name}</td>
+          data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||'')}" data-stock-tab="financial">${escapeHtml(r.corp_name||'')}</td>
         <td style="font-size:11px;color:var(--text2);font-family:monospace">${r.stock_code}</td>
         <td style="font-size:11px;color:var(--text2)">${r.bsns_year||'—'}</td>
         <td style="font-size:11px;color:var(--text2)">${r.quarter||'—'}</td>

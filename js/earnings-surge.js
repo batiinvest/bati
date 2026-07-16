@@ -285,7 +285,7 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
           <div style="padding-right:12px;border-right:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;gap:3px">
             <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
               <span style="font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:${GRADE_BG[r.grade]};color:${GRADE_COLOR[r.grade]}">${r.grade}급</span>
-              <span style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.corp_name}</span>
+              <span style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.corp_name)}</span>
               ${gradeMeta.statusBadge}
             </div>
             ${trendBadges ? `<div style="display:flex;gap:3px;flex-wrap:wrap">${trendBadges}</div>` : ''}

@@ -175,7 +175,7 @@ function _hlCard(r, isHigh) {
   <div style="background:var(--bg1);border:1px solid ${borderColor};border-radius:8px;padding:10px 12px">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
       <div>
-        <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:5px">${r.corp_name}${typeof wlBadge==='function'?wlBadge(r.stock_code):''}</div>
+        <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:5px">${escapeHtml(r.corp_name)}${typeof wlBadge==='function'?wlBadge(r.stock_code):''}</div>
         <div style="font-size:11px;color:var(--text2);margin-top:1px">${r.stock_code} · ${r.market || ''}</div>
       </div>
       <span style="font-size:11px;padding:2px 7px;border-radius:100px;

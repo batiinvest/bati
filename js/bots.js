@@ -1007,14 +1007,14 @@ async function loadProMembers() {
         : (m.is_active ? '<span class="badge badge-cat">초대 대기</span>' : '<span class="badge" style="background:rgba(var(--red-rgb),.12);color:var(--red)">비활성</span>');
       return `<tr>
         <td style="font-size:12px;color:var(--text1)">${m.telegram_id}</td>
-        <td><b>${m.real_name||'—'}</b><br><span style="font-size:11px;color:var(--text2)">${m.telegram_name||''}</span></td>
+        <td><b>${escapeHtml(m.real_name||'—')}</b><br><span style="font-size:11px;color:var(--text2)">${escapeHtml(m.telegram_name||'')}</span></td>
         <td style="${expStyle};font-size:12px;font-weight:600">${until}${isExp?' <span style="font-size:11px">(만료)</span>':isNear?' <span style="font-size:11px">(D-'+Math.ceil((new Date(until)-new Date(today))/86400000)+')</span>':''}</td>
         <td>${status}</td>
         <td>
           <div style="display:flex;gap:4px;flex-wrap:wrap">
             <button class="btn btn-sm btn-primary" style="padding:2px 8px;font-size:11px" onclick="proSendInvite(${m.telegram_id})">초대</button>
             <button class="btn btn-sm" style="padding:2px 8px;font-size:11px" onclick="proExtend(${m.telegram_id})">+1개월</button>
-            ${m.in_channel ? `<button class="btn btn-sm" style="padding:2px 8px;font-size:11px;color:var(--red)" onclick="proKick(${m.telegram_id}, '${(m.real_name||m.telegram_id+'').replace(/'/g,"\\'")}')">퇴장</button>` : ''}
+            ${m.in_channel ? `<button class="btn btn-sm" style="padding:2px 8px;font-size:11px;color:var(--red)" onclick="proKick(${m.telegram_id}, '${escJsStr(m.real_name||m.telegram_id)}')">퇴장</button>` : ''}
           </div>
         </td>
       </tr>`;

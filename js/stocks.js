@@ -113,22 +113,22 @@ async function loadSubIndustryPanel() {
     .map(([sub, stocks]) => `
     <div class="card" style="margin-bottom:.75rem">
       <div class="card-header" style="gap:8px">
-        <span class="card-title" style="flex:1">${sub}
+        <span class="card-title" style="flex:1">${escapeHtml(sub)}
           <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">${stocks.length}개</span>
         </span>
         ${sub !== '(미분류)' && canEdit() ? `
-        <button class="btn btn-sm" onclick="openRenameSubIndustry('${industry}','${sub.replace(/'/g,"\\'")}')">이름 변경</button>
-        <button class="btn btn-sm btn-primary" onclick="openAssignCompanies('${industry}','${sub.replace(/'/g,"\\'")}')">기업 편집</button>
+        <button class="btn btn-sm" onclick="openRenameSubIndustry('${escJsStr(industry)}','${escJsStr(sub)}')">이름 변경</button>
+        <button class="btn btn-sm btn-primary" onclick="openAssignCompanies('${escJsStr(industry)}','${escJsStr(sub)}')">기업 편집</button>
         ` : canEdit() ? `
-        <button class="btn btn-sm btn-primary" onclick="openAssignCompanies('${industry}','')">기업 배정</button>
+        <button class="btn btn-sm btn-primary" onclick="openAssignCompanies('${escJsStr(industry)}','')">기업 배정</button>
         ` : ''}
       </div>
       <div style="padding:.5rem 1rem .75rem;display:flex;flex-wrap:wrap;gap:6px">
         ${stocks.map(s => `
         <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:3px 10px;border-radius:100px;background:var(--bg3);border:1px solid var(--border)">
-          <span style="color:var(--text)">${s.name}</span>
+          <span style="color:var(--text)">${escapeHtml(s.name)}</span>
           <span style="color:var(--text2);font-size:11px">${s.code||''}</span>
-          ${canEdit() && sub !== '(미분류)' ? `<button onclick="removeFromSubIndustry(${s.id},'${s.name.replace(/'/g,"\\'")}','${sub.replace(/'/g,"\\'")}')" style="background:none;border:none;color:var(--text2);cursor:pointer;padding:0;font-size:13px;line-height:1;margin-left:2px" title="이 세부분야에서 제외">×</button>` : ''}
+          ${canEdit() && sub !== '(미분류)' ? `<button onclick="removeFromSubIndustry(${s.id},'${escJsStr(s.name)}','${escJsStr(sub)}')" style="background:none;border:none;color:var(--text2);cursor:pointer;padding:0;font-size:13px;line-height:1;margin-left:2px" title="이 세부분야에서 제외">×</button>` : ''}
         </span>`).join('')}
         ${stocks.length === 0 ? '<span style="font-size:12px;color:var(--text2)">종목 없음</span>' : ''}
       </div>
@@ -224,7 +224,7 @@ function renderAssignList(q) {
     <label style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer">
       <input type="checkbox" value="${s.id}" ${inSub?'checked':''}
         style="width:15px;height:15px;flex-shrink:0">
-      <span style="flex:1;font-size:13px">${s.name}</span>
+      <span style="flex:1;font-size:13px">${escapeHtml(s.name)}</span>
       <span style="font-size:11px;font-family:monospace;color:var(--text2)">${s.code||''}</span>
       ${isUnassigned
         ? `<span style="font-size:11px;padding:1px 6px;border-radius:100px;background:rgba(255,255,255,.06);color:var(--text2)">미분류</span>`
@@ -390,12 +390,12 @@ function renderStocks(list) {
       <th class="stock-col-keyword">키워드</th><th>모니터링</th><th>관리</th>
     </tr></thead>
     <tbody>${list.map(s => `<tr>
-      <td style="font-weight:600;font-size:13px">${s.name}</td>
+      <td style="font-weight:600;font-size:13px">${escapeHtml(s.name)}</td>
       <td style="font-size:12px;font-family:monospace;color:var(--text1)">${s.code||'—'}</td>
       <td><span class="badge badge-cat">${s.industry||'—'}</span></td>
       <td style="font-size:12px;color:var(--text1)">${s.sub_industry||'—'}</td>
-      <td style="font-size:11px;color:var(--text1);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.sector||''}">${s.sector||'—'}</td>
-      <td class="stock-col-keyword" style="font-size:12px;color:var(--text1);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.keywords||'—'}</td>
+      <td style="font-size:11px;color:var(--text1);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escAttr(s.sector||'')}">${escapeHtml(s.sector||'—')}</td>
+      <td class="stock-col-keyword" style="font-size:12px;color:var(--text1);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(s.keywords||'—')}</td>
       <td>
         <span style="font-size:11px;font-weight:500;padding:3px 8px;border-radius:100px;background:${
           s.monitoring_level==='full'?'rgba(42,171,238,.15)':
@@ -409,7 +409,7 @@ function renderStocks(list) {
       </td>
       <td><div style="display:flex;gap:4px">
         <button class="btn btn-sm" onclick="openStockEdit(${s.id})">수정</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteStock(${s.id},'${s.name.replace(/'/g,"\\'")}')">삭제</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteStock(${s.id},'${escJsStr(s.name)}')">삭제</button>
       </div></td>
     </tr>`).join('')}
     </tbody></table></div>`;

@@ -131,7 +131,7 @@ function renderLeadingStocks() {
       <!-- 종목 정보 + 스코어 바 -->
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:4px;margin-bottom:5px;flex-wrap:wrap">
-          <span style="font-size:13px;font-weight:600">${r.corp_name || r.stock_code}${mktTag}</span>
+          <span style="font-size:13px;font-weight:600">${escapeHtml(r.corp_name || r.stock_code)}${mktTag}</span>
           ${typeof wlBadge==='function'?wlBadge(r.stock_code):''}
           ${chg5dStr}${indTag}${volRatio}${frgnTag}
         </div>
@@ -471,7 +471,7 @@ function _renderBacktest(el, { windowStart, latestDate, results, total, avgRet, 
         border-radius:var(--radius-sm);background:${r.ret > 0 ? 'rgba(245,54,92,.05)' : r.ret < 0 ? 'rgba(74,158,255,.05)' : 'transparent'}">
         <span style="font-size:11px;color:var(--text2);min-width:16px">#${r.rank}</span>
         <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.corp_name}</div>
+          <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.corp_name)}</div>
           <div style="font-size:11px;color:var(--text2)">
             선정일 ${r.entry_date} &nbsp;${r.entry_price?.toLocaleString()}원 → ${r.curr_price?.toLocaleString()}원
           </div>

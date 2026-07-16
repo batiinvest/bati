@@ -282,9 +282,9 @@ function _renderIndustryCard(ind, subs) {
       <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
         <input type="text" placeholder="서브섹터 추가..." class="form-input"
           id="mon-new-sub-${CSS.escape(ind)}" style="font-size:11px;padding:3px 8px;width:130px"
-          onkeydown="if(event.key==='Enter')monAddSub('${ind.replace(/'/g,"\\'")}')">
-        <button class="btn btn-sm" onclick="monAddSub('${ind.replace(/'/g,"\\'")}')">추가</button>
-        <button class="btn btn-sm" onclick="monDeleteIndustry('${ind.replace(/'/g,"\\'")}')}"
+          onkeydown="if(event.key==='Enter')monAddSub('${escJsStr(ind)}')">
+        <button class="btn btn-sm" onclick="monAddSub('${escJsStr(ind)}')">추가</button>
+        <button class="btn btn-sm" onclick="monDeleteIndustry('${escJsStr(ind)}')"
           style="color:var(--text2);background:none;border-color:var(--border)">✕</button>
       </div>
     </div>
@@ -300,15 +300,15 @@ function _renderIndustryCard(ind, subs) {
 }
 
 function _renderSubCard(ind, sub, stocks) {
-  const safeInd = ind.replace(/'/g, "\\'");
-  const safeSub = sub.replace(/'/g, "\\'");
+  const safeInd = escJsStr(ind);
+  const safeSub = escJsStr(sub);
   return `
   <div class="mon-sub-card" data-industry="${ind}" data-sub="${sub}"
     style="background:var(--bg3);border-radius:8px;padding:10px;border:1px solid var(--border)">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:7px;border-bottom:1px solid var(--border)">
       <span class="mon-sub-label" style="font-size:12px;font-weight:700;color:var(--text1);cursor:pointer;flex:1"
         title="더블클릭으로 이름 수정"
-        ondblclick="monEditSub(this,'${safeInd}','${safeSub}')">${sub}</span>
+        ondblclick="monEditSub(this,'${safeInd}','${safeSub}')">${escapeHtml(sub)}</span>
       <div style="display:flex;gap:6px;align-items:center">
         <button onclick="monEditSub(this.closest('.mon-sub-card').querySelector('.mon-sub-label'),'${safeInd}','${safeSub}')"
           style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 2px;color:var(--text2)"
@@ -332,10 +332,10 @@ function _renderSubCard(ind, sub, stocks) {
 function _renderStockChip(s) {
   const code = s.code.replace(/\.(KS|KQ)$/, '');
   const mkt  = s.code.endsWith('.KS') ? 'KOSPI' : 'KOSDAQ';
-  const safeName = s.name.replace(/'/g, "\\'");
+  const safeName = escJsStr(s.name);
   return `
   <div class="mon-stock-chip" draggable="true"
-    data-code="${code}" data-name="${s.name}"
+    data-code="${code}" data-name="${escAttr(s.name)}"
     data-industry="${s.industry||''}" data-sub="${s.sub_industry||''}"
     style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;
       background:var(--bg3);border-radius:4px;cursor:grab;border:1px solid transparent;
@@ -343,7 +343,7 @@ function _renderStockChip(s) {
     onmouseenter="this.style.borderColor='var(--tg)'"
     onmouseleave="this.style.borderColor='var(--border)'">
     <div style="display:flex;flex-direction:column;gap:1px;overflow:hidden;flex:1">
-      <span style="font-size:13px;font-weight:600;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</span>
+      <span style="font-size:13px;font-weight:600;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(s.name)}</span>
       <span style="font-size:11px;color:var(--text1)">${code} · ${mkt}</span>
     </div>
     <button onclick="monRemoveStock('${code}','${safeName}')"
@@ -434,10 +434,10 @@ async function monSearch(q) {
     return `<div style="display:flex;align-items:center;justify-content:space-between;
         padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px;margin-bottom:2px;
         background:${mon?'rgba(42,171,238,0.08)':'var(--bg3)'}"
-        onclick="monSelectStock('${code}','${c.name.replace(/'/g,"\\'")}','${c.industry||''}','${c.sub_industry||''}')">
+        onclick="monSelectStock('${code}','${escJsStr(c.name)}','${escJsStr(c.industry||'')}','${escJsStr(c.sub_industry||'')}')">
       <div>
         <span style="color:var(--text2);font-size:11px;margin-right:4px">${code}</span>
-        <span style="font-weight:600">${c.name}</span>
+        <span style="font-weight:600">${escapeHtml(c.name)}</span>
       </div>
       <span style="font-size:11px;color:${mon?'var(--tg)':'var(--text3)'}">${mon?'✓모니터링':'+ 추가'}</span>
     </div>`;

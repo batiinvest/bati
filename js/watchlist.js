@@ -232,7 +232,7 @@ async function loadWatchlist() {
   // ── '오늘 할 일' — 카운트 칩이 아니라 실행 버튼 달린 행 (전체 포트폴리오 기준) ──
   const todayEl = document.getElementById('wl-today');
   if (todayEl) {
-    const esc    = s => (s || '').replace(/'/g, "\\'");
+    const esc    = escJsStr;  // 약식(작은따옴표만) → 공용 이스케이프: 따옴표·역슬래시·태그까지 처리
     const byCode = {}; portfolioRows.forEach(w => { byCode[w.stock_code] = w; });
     const aBtn   = (label, color, handler) =>
       `<button class="btn btn-sm" style="color:${color};font-weight:700;white-space:nowrap" onclick="event.stopPropagation();${handler}">${label}</button>`;
@@ -241,7 +241,7 @@ async function loadWatchlist() {
       return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-left:3px solid ${accent};border-radius:6px">
         <span style="font-size:15px;line-height:1">${icon}</span>
         <div style="min-width:0;flex:1">
-          <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.corp_name}
+          <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(w.corp_name)}
             <span style="font-size:11px;color:var(--text3);font-weight:400">${(w.stock_code||'').split('.')[0]}</span></div>
           <div style="font-size:11px;color:var(--text2);line-height:1.4">${ctxHtml}</div>
         </div>
@@ -312,7 +312,7 @@ async function loadWatchlist() {
         const w = byCode[code];
         const d = Math.ceil((new Date(w.next_check_date) - _now)/86400000);
         const dLabel = d<0?`${Math.abs(d)}일 초과`:d===0?'오늘':`D-${d}`;
-        const ctx = `${w.next_check_date} · ${dLabel}${w.next_check_memo?` · ${w.next_check_memo}`:''}`;
+        const ctx = `${w.next_check_date} · ${dLabel}${w.next_check_memo?` · ${escapeHtml(w.next_check_memo)}`:''}`;
         return itemRow('var(--accent)','📅',code,ctx,
           aBtn('수정','var(--text1)',`openWatchlistModal(${w.id})`));
       }).join('');
@@ -799,9 +799,9 @@ async function loadWatchlist() {
                   ${w.stop_price ? `<div style="font-size:11px;color:${isStopHit?'var(--down)':'var(--text2)'};font-weight:${isStopHit?'700':'400'}">${isStopHit?'⚠️ ':''}손절 ${w.stop_price.toLocaleString()}원${stopPct!=null?` (${stopPct.toFixed(1)}%)`:''}</div>` : ''}`;
     } else if (e.closed) {
       const jr = _journalAvailable ? journalMap[w.stock_code] : null;
-      const jName = (w.corp_name || '').replace(/'/g, "\\'");
+      const jName = escJsStr(w.corp_name);
       const jLine = !_journalAvailable ? ''
-        : jr ? `<div style="font-size:11px;color:var(--accent);cursor:pointer" title="복기 보기/수정" onclick="event.stopPropagation();openJournalModal('${w.stock_code}','${jName}')">${_ICO.pen}${'★'.repeat(jr.process_score||0)||'기록'}${jr.lesson?` · ${jr.lesson.length>16?jr.lesson.slice(0,16)+'…':jr.lesson}`:''}</div>`
+        : jr ? `<div style="font-size:11px;color:var(--accent);cursor:pointer" title="복기 보기/수정" onclick="event.stopPropagation();openJournalModal('${w.stock_code}','${jName}')">${_ICO.pen}${'★'.repeat(jr.process_score||0)||'기록'}${jr.lesson?` · ${escapeHtml(jr.lesson.length>16?jr.lesson.slice(0,16)+'…':jr.lesson)}`:''}</div>`
              : `<div style="font-size:11px;color:var(--text3);cursor:pointer" title="복기 작성" onclick="event.stopPropagation();openJournalModal('${w.stock_code}','${jName}')">${_ICO.pen}복기 필요</div>`;
       costCell = `<div style="font-size:12px;color:var(--text2);font-weight:600">청산 완료</div>
                   <div style="font-size:12px;font-weight:700;color:${chgColor(e.realized)}">실현 ${fmtWon(e.realized, true)}</div>
@@ -812,8 +812,8 @@ async function loadWatchlist() {
 
     // ── 투자포인트 (1개) ─────────────────────────────────────────────────
     const thesisCell = w.thesis_1
-      ? `<div style="font-size:12px;color:var(--text1);max-width:200px;white-space:normal;line-height:1.4">${w.thesis_1}</div>
-         ${w.thesis_2 ? `<div style="font-size:11px;color:var(--text2);margin-top:2px;max-width:200px;white-space:normal">${w.thesis_2}</div>` : ''}`
+      ? `<div style="font-size:12px;color:var(--text1);max-width:200px;white-space:normal;line-height:1.4">${escapeHtml(w.thesis_1)}</div>
+         ${w.thesis_2 ? `<div style="font-size:11px;color:var(--text2);margin-top:2px;max-width:200px;white-space:normal">${escapeHtml(w.thesis_2)}</div>` : ''}`
       : `<span style="color:var(--text3);font-size:12px">—</span>`;
 
     // ── 다음 점검일 ──────────────────────────────────────────────────────
@@ -828,7 +828,7 @@ async function loadWatchlist() {
     // ── 행 배경: 손절 도달(적색) > 목표 도달(호박색) > 매수 구간(녹색) ─────
     const baseBg = isStopHit ? 'rgba(255,59,92,.08)' : isTargetHit ? 'rgba(240,165,0,.07)' : isAtBuy ? 'rgba(0,192,135,.05)' : '';
     const rowBg = baseBg ? `background:${baseBg}` : '';
-    const nameEsc = (w.corp_name || '').replace(/'/g, "\\'");
+    const nameEsc = escJsStr(w.corp_name);
 
     // 비중 (총자산 대비)
     const wPct = (valMap[w.stock_code] && totalAssets) ? valMap[w.stock_code] / totalAssets * 100 : null;
@@ -858,10 +858,10 @@ async function loadWatchlist() {
     const tdMap = {
       name: `<td style="${tdStyle}">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-          <span style="font-size:15px;font-weight:700">${w.corp_name}</span>
+          <span style="font-size:15px;font-weight:700">${escapeHtml(w.corp_name)}</span>
           <span style="font-size:11px;padding:1px 6px;border-radius:100px;background:${groupColors[cat]||'#888'};color:${groupTextColors[cat]||'#111'};font-weight:700">${cat}</span>
         </div>
-        ${w.catalyst ? `<div style="font-size:11px;color:var(--tg);margin-top:2px">⚡ ${w.catalyst}</div>` : ''}
+        ${w.catalyst ? `<div style="font-size:11px;color:var(--tg);margin-top:2px">⚡ ${escapeHtml(w.catalyst)}</div>` : ''}
       </td>`,
       industry: `<td style="${tdStyle}"><div style="font-size:12px;color:var(--text1)">${industryMap[w.stock_code] || w.industry || '—'}</div></td>`,
       price: `<td style="${tdStyle}">

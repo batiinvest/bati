@@ -48,7 +48,7 @@ function wlRenderDrawer(code) {
   const e   = C.effMap?.[code] || { avg:null, qty:null, realized:0, hasTx:false, closed:false };
   const price = mkt.price, chg = mkt.price_change_rate, cap = mkt.market_cap;
   const shares = (cap && price) ? cap / price : null;
-  const nm = (w.corp_name || '').replace(/'/g, "\\'");
+  const nm = escJsStr(w.corp_name);
   const tw = C.targetWeights?.[code];
 
   const cat = (e.closed && w.group_name === '보유중') ? '청산' : w.group_name;
@@ -60,7 +60,7 @@ function wlRenderDrawer(code) {
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
       <div style="min-width:0">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <span style="font-size:18px;font-weight:800">${w.corp_name}</span>
+          <span style="font-size:18px;font-weight:800">${escapeHtml(w.corp_name)}</span>
           <span style="font-size:11px;padding:1px 7px;border-radius:100px;background:${grpColor};color:${grpText};font-weight:700">${cat}</span>
         </div>
         <div style="font-size:12px;color:var(--text2);margin-top:2px">${(code||'').split('.')[0]} · ${C.industryMap?.[code] || w.industry || '—'}</div>

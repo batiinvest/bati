@@ -537,7 +537,7 @@ function _rpSegInner(cache, selected) {
     const opacity  = selected && !isSel ? 'opacity:.4;' : '';
     const border   = isSel ? `border:1.5px solid ${color}` : `border:1px solid ${isTop ? color+'40' : 'transparent'}`;
     const bg       = isSel ? color+'22' : (isTop ? color+'14' : 'var(--bg3)');
-    return `<div onclick="rpSegFilter('${name.replace(/'/g,"\\'")}',this)"
+    return `<div onclick="rpSegFilter('${escJsStr(name)}',this)"
       style="padding:7px 10px;border-radius:var(--radius-sm);background:${bg};${border};
         cursor:pointer;transition:opacity .2s;${opacity}user-select:none"
       onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity=''">
@@ -545,7 +545,7 @@ function _rpSegInner(cache, selected) {
         <span style="font-size:11px;font-weight:800;color:${color};min-width:18px;text-align:center;
           background:${color}22;border-radius:3px;padding:1px 4px">${si+1}</span>
         <span style="font-size:${isTop?'13px':'12px'};font-weight:${isTop||isSel?700:500};color:var(--text1);
-          flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
+          flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}</span>
         ${sparkline(name, color)}
         <span style="font-size:12px;color:var(--text1);white-space:nowrap">${fmtCap(revenue*1e6)}</span>
         <span style="font-size:${isTop?'13px':'12px'};font-weight:700;color:${color};min-width:38px;text-align:right">${pct.toFixed(1)}%</span>
