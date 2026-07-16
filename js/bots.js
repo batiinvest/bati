@@ -1125,7 +1125,8 @@ async function proExtend(telegramId) {
 
   try {
     // DB 직접 업데이트
-    const { data: m } = await sb.from('pro_members').select('paid_until').eq('telegram_id', telegramId).single();
+    const { data: m } = await sb.from('pro_members').select('paid_until').eq('telegram_id', telegramId).maybeSingle();
+    if (!m) { toast('멤버 정보를 찾을 수 없습니다.', 'error'); return; }
     const current = new Date(m.paid_until);
     const base    = current > new Date() ? current : new Date();
     const newUntil = new Date(base.getTime() + months * 30 * 86400000).toISOString().slice(0,10);

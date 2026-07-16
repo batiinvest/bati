@@ -182,6 +182,15 @@ function scToggleFilter() {
 
 async function runScreener() {
   const el = document.getElementById('sc-result');
+  // Supabase 오류(RLS·네트워크 등) 시 "검색 중..." 스피너가 영원히 남지 않도록 전체 가드
+  try {
+    await _runScreenerInner(el);
+  } catch (e) {
+    el.innerHTML = errorHTML('검색 실패: ' + e.message);
+  }
+}
+
+async function _runScreenerInner(el) {
   el.innerHTML = loadingHTML('검색 중...');
 
   // 모바일: 검색 즉시 필터를 접고 결과 영역으로 스크롤 — 결과 우선

@@ -660,7 +660,7 @@ async function loadInvestment() {
   // '오늘'을 표방하지만 종목 단위 데이터는 갱신 주기가 달라, 기준일을 분리해 정직하게 노출한다.
   try {
     const { data: lastUpdate } = await sb.from('macro_data')
-      .select('base_date,updated_at').order('base_date', { ascending: false }).limit(1).single();
+      .select('base_date,updated_at').order('base_date', { ascending: false }).limit(1).maybeSingle();
     const mktDate = await getLatestMarketDate();
     const el = document.getElementById('inv-date');
     if (el) {
@@ -978,7 +978,12 @@ async function loadMyStocksCard() {
   const { data: wlRows, error: wlErr } = await sb.from('watchlist')
     .select('stock_code,corp_name,group_name');
 
-  if (wlErr || !wlRows?.length) {
+  // 오류와 빈 목록 분리 — RLS/네트워크 오류를 "종목 없음"으로 오인시키지 않는다
+  if (wlErr) {
+    body.innerHTML = errorHTML('내 종목 로드 실패: ' + wlErr.message);
+    return;
+  }
+  if (!wlRows?.length) {
     body.innerHTML = '<div style="padding:1.2rem;text-align:center;color:var(--text2);font-size:12px">보유/관심 종목을 추가하면 현황이 표시됩니다</div>';
     return;
   }

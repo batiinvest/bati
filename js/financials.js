@@ -592,7 +592,7 @@ async function openStockDetail(code, name, initTab = 'overview') {
     const { data: ci } = await sb.from('companies')
       .select('industry,sub_industry,market')
       .or(`code.eq.${code},code.eq.${code}.KS,code.eq.${code}.KQ`)
-      .limit(1).single();
+      .limit(1).maybeSingle();
     if (ci) {
       const ib = document.getElementById('sd-industry-badge');
       const si = document.getElementById('sd-sub-info');
@@ -609,7 +609,7 @@ async function openStockDetail(code, name, initTab = 'overview') {
     const { data: lp } = await sb.from('market_data')
       .select('price,price_change_rate,price_change,base_date')
       .eq('stock_code', code)
-      .order('base_date', { ascending: false }).limit(1).single();
+      .order('base_date', { ascending: false }).limit(1).maybeSingle();
     if (lp) {
       const pb = document.getElementById('sd-price-badge');
       if (pb) {
@@ -807,7 +807,7 @@ async function _sdOverview(body, code, name) {
       { data: hist90 },
     ] = await Promise.all([
       sb.from('market_data').select('*').eq('stock_code', code)
-        .order('base_date', { ascending:false }).limit(1).single(),
+        .order('base_date', { ascending:false }).limit(1).maybeSingle(),
       sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,operating_margin,net_margin,roe,roa,debt_ratio,total_assets,total_equity,operating_cashflow,fcf,fcf_direct,fcf_indirect,capex,capex_intangible,capex_total,depreciation,amortization,da,ebitda')
         .eq('stock_code', code).eq('fs_div','CFS')
         .order('bsns_year',{ascending:false}).order('quarter',{ascending:false}).limit(8),
@@ -914,7 +914,7 @@ async function _sdMarket(body, code, name) {
   try {
     const { data: r } = await sb.from('market_data')
       .select('*').eq('stock_code', code)
-      .order('base_date', { ascending:false }).limit(1).single();
+      .order('base_date', { ascending:false }).limit(1).maybeSingle();
     const { data: hist } = await sb.from('market_data')
       .select('base_date,price,price_change_rate,market_cap,volume,trading_value,per,pbr,foreign_net_buy,foreign_hold_rate,program_net_buy,short_sell_qty')
       .eq('stock_code', code)
@@ -1085,7 +1085,7 @@ async function _sdSupply(body, code, name) {
     const { data: latest } = await sb.from('market_data')
       .select('foreign_hold_rate,foreign_hold_qty,foreign_net_buy,program_net_buy,short_sell_qty,loan_balance_rate,volume,trading_value,listing_shares')
       .eq('stock_code', code)
-      .order('base_date',{ascending:false}).limit(1).single();
+      .order('base_date',{ascending:false}).limit(1).maybeSingle();
 
     const r = latest || {};
     const rows = (hist||[]).slice().reverse();
@@ -1179,7 +1179,7 @@ async function _sdOpinion(body, code, name) {
     // 최신 현재가
     const { data: lp } = await sb.from('market_data')
       .select('price').eq('stock_code',code)
-      .order('base_date',{ascending:false}).limit(1).single();
+      .order('base_date',{ascending:false}).limit(1).maybeSingle();
     const curPrice = lp?.price;
     const upside = avgTarget&&curPrice ? ((avgTarget-curPrice)/curPrice*100).toFixed(1) : null;
 

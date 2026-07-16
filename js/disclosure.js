@@ -181,7 +181,7 @@ async function loadTodayDisclosures() {
   const { data: cfg } = await sb.from('app_config')
     .select('value,description')
     .eq('key', 'today_earnings_corps')
-    .single();
+    .maybeSingle();
 
   if (!cfg?.value) {
     el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text2);font-size:12px">오늘 공시 데이터 없음 (매일 18:30 업데이트)</div>`;

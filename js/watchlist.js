@@ -83,15 +83,22 @@ async function loadWatchlist() {
   const { data: allRows, error } = await sb.from('watchlist').select('*').order('created_at', { ascending: false });
   if (error) { listEl.innerHTML = '<div style="color:var(--red);padding:1rem">로드 실패</div>'; return; }
 
-  // 현재가 일괄 조회
+  // 현재가 일괄 조회 — 최근 3주 범위 + 전량 페이징
+  // (기간 무제한 + 기본 limit 1000은 종목 수가 늘면 뒤쪽 종목 현재가가 조용히 잘림)
   const codes = (allRows || []).map(r => r.stock_code);
   let priceMap = {};
   if (codes.length) {
-    const { data: mkt } = await sb.from('market_data')
-      .select('stock_code,price,price_change_rate,per,pbr,market_cap,market,week_return,month_return,quarter_return')
-      .in('stock_code', codes)
-      .order('base_date', { ascending: false });
-    (mkt || []).forEach(r => { if (!priceMap[r.stock_code]) priceMap[r.stock_code] = r; });
+    try {
+      const mkt = await fetchAllPages(
+        sb.from('market_data')
+          .select('stock_code,price,price_change_rate,per,pbr,market_cap,market,week_return,month_return,quarter_return')
+          .in('stock_code', codes)
+          .gte('base_date', offsetDate(-21))
+          .order('base_date', { ascending: false })
+          .order('stock_code')   // 페이지 경계 결정성 확보
+      );
+      (mkt || []).forEach(r => { if (!priceMap[r.stock_code]) priceMap[r.stock_code] = r; });
+    } catch (e) { console.warn('현재가 조회 실패:', e?.message || e); }
   }
 
   // 산업명 조회 (companies 테이블)
