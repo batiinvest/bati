@@ -183,6 +183,28 @@ function pInvestment() {
         </div>
       </div>
 
+      <!-- 신용융자 잔고 추이 — KOFIA 신용공여 잔고 (credit-balance.js) -->
+      <div class="card" style="margin-bottom:0">
+        <div class="card-header" style="flex-wrap:wrap;gap:6px">
+          <span class="card-title">${_ICO.bank}신용융자 잔고</span>
+          <span class="card-sub">빚투 규모 — 레버리지 과열·위축</span>
+          <span id="cb-date" style="font-size:11px;color:var(--text2);margin-left:auto"></span>
+          <div style="display:flex;gap:4px">
+            ${[{d:90,l:'3달'},{d:180,l:'6달'},{d:365,l:'1년'},{d:0,l:'전체'}].map(({d,l})=>`
+              <button class="chip chip-sm ${d===180?'active':''}" data-cb-period="${d}"
+                onclick="setCbPeriod(${d})">${l}</button>
+            `).join('')}
+          </div>
+        </div>
+        <div id="cb-summary" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;border-top:1px solid var(--border)"></div>
+        <div style="padding:.75rem 1rem;position:relative;height:220px;border-top:1px solid var(--border)">
+          <canvas id="cb-chart"></canvas>
+          <div id="cb-empty" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;color:var(--text2);font-size:12px">
+            데이터 수집 중... (매일 10:30 업데이트)
+          </div>
+        </div>
+      </div>
+
       <!-- (산업 강도 매트릭스 → '산업별 수급동향' 보드의 US·KR·선행 컬럼으로 통합) -->
 
     </div>
@@ -632,6 +654,7 @@ async function loadInvestment() {
   // 시황 탭 로드 (market-overview.js) — 배너 채운 후 나머지 실행
   await loadMacroData();
   loadTrendChart();
+  loadCreditBalance();  // 신용융자 잔고 카드 (credit-balance.js) — 독립 쿼리, 병렬
 
   // 마지막 업데이트 시각 표시 — 지수(macro_data, 매일)와 종목데이터(market_data, 주간) 이원 표기
   // '오늘'을 표방하지만 종목 단위 데이터는 갱신 주기가 달라, 기준일을 분리해 정직하게 노출한다.
