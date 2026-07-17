@@ -1,0 +1,25 @@
+#!/bin/sh
+# pre-commit — index.html의 ?v= 캐시버스팅 자동 bump
+#
+# 스테이징된 js/*.js·css/*.css가 index.html에 ?v=N으로 참조되면 N을 +1 하고
+# index.html을 함께 스테이징한다. (수동 bump 누락 → 배포 후 캐시로 미반영 사고 방지)
+#
+# 활성화 (클론마다 1회):
+#   git config core.hooksPath .githooks
+
+changed=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^(js/[^/]+\.js|css/[^/]+\.css)$')
+[ -z "$changed" ] && exit 0
+
+bumped=""
+for f in $changed; do
+  if grep -q "${f}?v=" index.html; then
+    perl -i -pe "s{(\Q$f\E\?v=)(\d+)}{\$1.(\$2+1)}e" index.html
+    bumped="$bumped $f"
+  fi
+done
+
+if [ -n "$bumped" ]; then
+  git add index.html
+  echo "[pre-commit] index.html ?v= 자동 bump:$bumped"
+fi
+exit 0
