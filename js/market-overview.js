@@ -18,6 +18,7 @@ async function loadMarketOverview(maxDate) {
       .select('stock_code,corp_name,price,price_change_rate,volume,trading_value,market,market_cap,foreign_net_buy,foreign_hold_rate')
       .eq('base_date', maxDate)
       .not('price_change_rate', 'is', null)
+      .order('stock_code')   // 페이지 경계 결정성 (무정렬 페이징은 누락/중복 가능)
   );
   // 급등/급락 카드에서 재활용 — investment.js가 INV.allMarketRows 참조
   INV.allMarketRows = all;

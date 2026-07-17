@@ -130,9 +130,13 @@ function _sortRows(rows, defaultCol = 'market_cap') {
 async function _getMonitoredCodes() {
   if (F.scope !== 'monitored') return null;
   const data = await fetchAllPages(
-    sb.from('companies').select('code').eq('is_monitored', true)
+    sb.from('companies').select('code').eq('is_monitored', true).order('code')
   );
-  return new Set(data.map(c => c.code));
+  // companies.code는 일부만 .KS/.KQ 접미사 — market_data/financials의 bare 코드와
+  // 모두 매칭되도록 원본·접미사 제거본을 함께 담는다 (접미사 행이 필터에서 새던 문제)
+  const set = new Set();
+  data.forEach(c => { set.add(c.code); set.add(c.code.replace(/\.(KS|KQ)$/, '')); });
+  return set;
 }
 
 /**
@@ -276,8 +280,16 @@ async function loadMarketData(el) {
       const [monitoredCodes, maxDate] = await Promise.all([
         _getMonitoredCodes(), getLatestMarketDate(),
       ]);
+      // 표가 실제 사용하는 컬럼만 명시 (구 select('*') — 당일 전 종목 × 전 컬럼 다운로드)
+      const COLS = 'stock_code,corp_name,market,market_cap,price,price_change,price_change_rate,'
+        + 'volume_change_rate,high_price,low_price,vwap,volume,trading_value,listing_shares,vol_turnover,'
+        + 'per,pbr,eps,bps,fiscal_month,foreign_hold_rate,foreign_hold_qty,foreign_net_buy,program_net_buy,'
+        + 'loan_balance_rate,short_sell_qty,w52_high,w52_low,w52_high_date,w52_low_date,'
+        + 'price_change_sign,market_warn_code,is_caution,manage_issue_code,is_short_over,is_liquidation,'
+        + 'hgpr_cls,hgpr_cls_code,base_date';
       const all = maxDate ? await fetchAllPages(
-        sb.from('market_data').select('*').eq('base_date', maxDate)
+        sb.from('market_data').select(COLS).eq('base_date', maxDate)
+          .order('stock_code')   // 페이지 경계 결정성 (무정렬 페이징은 누락/중복 가능)
       ) : [];
       const data = monitoredCodes ? all.filter(r => monitoredCodes.has(r.stock_code)) : all;
       const latest = {};
@@ -390,10 +402,14 @@ async function loadFinancialData(el) {
     defaultSort: 'revenue',
     fetchRows: async () => {
       const monitoredCodes = await _getMonitoredCodes();
+      // 탭은 종목별 최신 분기 1건만 사용 — 전 이력 다운로드 대신 최근 4개년으로 제한
+      const minYear = String(new Date().getFullYear() - 3);
       const all = await fetchAllPages(
         sb.from('financials').select('*')
+          .gte('bsns_year', minYear)
           .order('bsns_year', { ascending: false })
           .order('quarter',   { ascending: false })
+          .order('stock_code')   // 페이지 경계 결정성 (동순위 다수 → 누락/중복 방지)
       );
       const data = monitoredCodes ? all.filter(r => monitoredCodes.has(r.stock_code)) : all;
       return Object.values(_pickLatestFin(data));

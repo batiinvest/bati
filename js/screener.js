@@ -223,7 +223,8 @@ async function _runScreenerInner(el) {
   let mktQuery = sb.from('market_data')
     .select('stock_code,corp_name,market_cap,price,price_change_rate,per,pbr,market,foreign_hold_rate')
     .eq('base_date', maxDate)
-    .order('market_cap', { ascending: false });
+    .order('market_cap', { ascending: false })
+    .order('stock_code');   // 시총 동률 시 페이지 경계 결정성
 
   if (market)       mktQuery = mktQuery.eq('market', market);
   if (f.perMin  != null) mktQuery = mktQuery.gte('per', f.perMin);
