@@ -860,7 +860,7 @@ async function loadWatchlist() {
       industry: `<td style="${tdStyle}"><div style="font-size:12px;color:var(--text1)">${industryMap[w.stock_code] || w.industry || '—'}</div></td>`,
       price: `<td style="${tdStyle}">
         <div style="font-size:13px;font-weight:700">${fmtPrice(price)}</div>
-        <div style="font-size:11px;font-weight:600;color:${chgColor(chg)}">${chg!=null?(chg>=0?'+':'')+chg.toFixed(2)+'%':''}</div>
+        <div style="font-size:11px;font-weight:600;color:${chgColor(chg)}">${chg!=null?chgStr(chg):''}</div>
       </td>`,
       ret: `<td style="${tdStyle}">
         ${[['1주',wkRet],['1개월',moRet],['3개월',qtRet]].map(([lbl,v]) =>

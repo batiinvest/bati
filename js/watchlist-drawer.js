@@ -69,7 +69,7 @@ function wlRenderDrawer(code) {
     </div>
     <div style="display:flex;align-items:baseline;gap:8px;margin-top:8px">
       <span style="font-size:22px;font-weight:800;font-variant-numeric:tabular-nums">${fmtPrice(price)}</span>
-      <span style="font-size:13px;font-weight:700;color:${chgColor(chg)}">${chg!=null ? (chg>=0?'+':'')+chg.toFixed(2)+'%' : ''}</span>
+      <span style="font-size:13px;font-weight:700;color:${chgColor(chg)}">${chg!=null ? chgStr(chg) : ''}</span>
     </div>
   </div>`;
 

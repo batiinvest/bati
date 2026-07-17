@@ -463,8 +463,8 @@ function _renderBacktest(el, { windowStart, latestDate, results, total, avgRet, 
   <!-- 종목별 결과 -->
   <div style="display:flex;flex-direction:column;gap:2px">
     ${results.map(r => {
-      const retColor = r.ret >= 0 ? 'var(--red)' : 'var(--blue)';
-      const retStr   = `${r.ret >= 0 ? '+' : ''}${r.ret.toFixed(2)}%`;
+      const retColor = chgColor(r.ret);
+      const retStr   = chgStr(r.ret);
       const barW     = Math.min(Math.abs(r.ret) * 3, 100);
       return `
       <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;

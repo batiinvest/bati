@@ -406,8 +406,11 @@ async function loadMarketOverview(maxDate) {
 
 let _hgprData   = null;   // { w52: [...], yr: [...], hist: [...] }
 let _hgprTab    = 'monitored';
-let _hgprExpanded = false;
-const HGPR_PAGE = 10;
+
+// 신고가 구분 코드 → 좌측 보더 색 (구 renderHgprTab 내 3중 정의 통합)
+const HGPR_CLS_CLR = { '0':'var(--text3)', '1':'var(--tg)', '2':'#fb923c', '3':'#f5a623',
+                       '신고가':'var(--tg)', '52주 신고가':'var(--tg)', '신고가 근접':'var(--text3)',
+                       '연간 신고가':'#fb923c', '역사적 신고가':'#f5a623' };
 
 async function loadNewHighStocks() {
   const body = document.getElementById('hgpr-body');
@@ -531,22 +534,15 @@ async function loadNewHighStocks() {
   // 기준일 표시 (today가 아니라 실제 조회된 거래일)
   setAsOf('hgpr-date', targetDate);
 
-  _hgprExpanded = false;
   renderHgprTab(_hgprTab);
 }
 
 
 function switchHgprTab(tab) {
   _hgprTab = tab;
-  _hgprExpanded = false;
   document.querySelectorAll('[data-hgpr-tab]').forEach(b =>
     b.classList.toggle('active', b.dataset.hgprTab === tab));
   renderHgprTab(tab);
-}
-
-function toggleHgprExpand() {
-  _hgprExpanded = !_hgprExpanded;
-  renderHgprTab(_hgprTab);
 }
 
 function renderHgprTab(tab) {
@@ -560,47 +556,7 @@ function renderHgprTab(tab) {
     return;
   }
 
-  const clsColor = { '0':'var(--text3)', '1':'var(--tg)', '2':'#fb923c', '3':'#f5a623',
-                     '신고가':'var(--tg)', '52주 신고가':'var(--tg)', '신고가 근접':'var(--text3)',
-                     '연간 신고가':'#fb923c', '역사적 신고가':'#f5a623' };
-  const clsLabel = { '0':'근접', '1':'52주', '2':'연간', '3':'역사적',
-                     '신고가':'52주', '52주 신고가':'52주', '신고가 근접':'근접',
-                     '연간 신고가':'연간', '역사적 신고가':'역사적' };
-
-  const rowHtml = (r, showIndustry) => {
-    const chg    = r.price_change_rate;
-    const chgTxt = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
-    const chgClr = chg != null && chg >= 0 ? 'var(--red)' : 'var(--blue)';
-    const cap    = r.market_cap ? fmtCap(r.market_cap) : '—';
-    const badge  = clsLabel[r.hgpr_cls_code] || '';
-    const bClr   = clsColor[r.hgpr_cls_code] || 'var(--tg)';
-    const histBadges = [];
-    if (r.isFirst)   histBadges.push(`<span style="font-size:11px;padding:1px 5px;border-radius:3px;background:rgba(245,54,92,.15);color:var(--red);font-weight:600">🎯첫</span>`);
-    if (r.streak>=2) histBadges.push(`<span style="font-size:11px;padding:1px 5px;border-radius:3px;background:rgba(251,99,64,.15);color:var(--yellow);font-weight:600">🔥${r.streak}일</span>`);
-    else if (r.count7>=3) histBadges.push(`<span style="font-size:11px;padding:1px 5px;border-radius:3px;background:rgba(42,171,238,.15);color:var(--tg);font-weight:600">📈${r.count7}회</span>`);
-    const indCell = showIndustry
-      ? `<td style="padding:5px 10px;font-size:11px;color:var(--text2)">${r.industry}</td>`
-      : '';
-    return `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:5px 12px;font-weight:500;font-size:13px;white-space:nowrap">${escapeHtml(r.corp_name||r.stock_code)}</td>
-      <td style="padding:5px 12px;text-align:right;font-weight:500;white-space:nowrap">${fmtPrice(r.price)}</td>
-      <td style="padding:5px 12px;text-align:right;color:${chgClr};font-weight:600">${chgTxt}</td>
-      <td style="padding:5px 12px;text-align:right;color:var(--text2);font-size:12px">${cap}</td>
-      ${indCell}
-      <td style="padding:5px 12px">
-        <div style="display:flex;align-items:center;gap:3px;flex-wrap:wrap">
-          <span style="font-size:11px;padding:1px 5px;border-radius:3px;background:${bClr}22;color:${bClr};font-weight:600">${badge}</span>
-          ${histBadges.join('')}
-        </div>
-      </td>
-    </tr>`;
-  };
-
-  const theadBase = `<tr style="background:var(--bg3)">
-    <th style="padding:5px 12px;font-size:11px;color:var(--text2);font-weight:500;text-align:left">종목명</th>
-    <th style="padding:5px 12px;font-size:11px;color:var(--text2);font-weight:500;text-align:right;width:110px">현재가</th>
-    <th style="padding:5px 12px;font-size:11px;color:var(--text2);font-weight:500;text-align:right;width:80px">등락률</th>
-    <th style="padding:5px 12px;font-size:11px;color:var(--text2);font-weight:500;text-align:right;width:110px">시총</th>`;
+  // (정리됨) rowHtml·theadBase — 구 테이블 렌더러. 산업별/그룹별 카드 UI로 교체 후 호출처 소멸.
 
   if (tab === 'monitored') {
     // 산업별 그룹핑 (시총 내림차순)
@@ -618,13 +574,6 @@ function renderHgprTab(tab) {
         (byInd[a].reduce((s,r)=>s+(r.market_cap||0),0));
     });
 
-    const clrMap = { '0':'var(--text3)','1':'var(--tg)','2':'#fb923c','3':'#f5a623',
-                     '신고가':'var(--tg)','52주 신고가':'var(--tg)','신고가 근접':'var(--text3)',
-                     '연간 신고가':'#fb923c','역사적 신고가':'#f5a623' };
-    const lbMap  = { '0':'근접','1':'52주','2':'연간','3':'역사적',
-                     '신고가':'52주','52주 신고가':'52주','신고가 근접':'근접',
-                     '연간 신고가':'연간','역사적 신고가':'역사적' };
-
     const streakBadge = r => {
       if (r.streak >= 3)  return `<span style="display:inline-block;min-width:52px;text-align:center;font-size:11px;padding:1px 5px;border-radius:10px;background:rgba(245,54,92,.18);color:var(--red);font-weight:700">🔥${r.streak}일 연속</span>`;
       if (r.streak === 2) return `<span style="display:inline-block;min-width:52px;text-align:center;font-size:11px;padding:1px 5px;border-radius:10px;background:rgba(251,99,64,.15);color:var(--yellow);font-weight:700">🔥2일 연속</span>`;
@@ -634,11 +583,8 @@ function renderHgprTab(tab) {
     };
 
     const makeRow = r => {
-      const bClr  = clrMap[r.hgpr_cls_code] || 'var(--tg)';
-      const clsLb = lbMap[r.hgpr_cls_code]  || '';
-      const chg   = r.price_change_rate;
-      const chgTxt = chg!=null ? (chg>=0?'+':'')+chg.toFixed(2)+'%' : '—';
-      const chgClr = chg>=0 ? 'var(--red)' : 'var(--blue)';
+      const bClr = HGPR_CLS_CLR[r.hgpr_cls_code] || 'var(--tg)';
+      const chg  = r.price_change_rate;
 
       // ── Phase 2: 거래대금 + 외국인 배지 ──────────────────────
       const tvStr = r.tv >= 1e10
@@ -661,7 +607,7 @@ function renderHgprTab(tab) {
         <div style="display:flex;align-items:center;gap:3px;flex-wrap:nowrap">
           ${streakBadge(r)}${tvStr}${frgnBadge}
         </div>
-        <div style="text-align:right;font-size:12px;font-weight:700;color:${chgClr}">${chgTxt}</div>
+        <div style="text-align:right;font-size:12px;font-weight:700;color:${chgColor(chg)}">${chgStr(chg)}</div>
         <div style="text-align:right;font-size:11px;color:var(--text2)">${r.market_cap?fmtCap(r.market_cap):'—'}</div>
       </div>`;
     };
@@ -700,8 +646,6 @@ function renderHgprTab(tab) {
     </div>`;
   } else {
     // 전체 종목 — streak 그룹별 카드 (가로 배치)
-    const clrMap = { '신고가':'var(--tg)','52주 신고가':'var(--tg)','신고가 근접':'var(--text3)',
-                     '연간 신고가':'#fb923c','역사적 신고가':'#f5a623' };
 
     // ─── 그룹 정의 (우선순위 순) ───
     const streakVals = [...new Set(rows.map(r => r.streak||0).filter(s => s >= 2))]
@@ -757,10 +701,8 @@ function renderHgprTab(tab) {
       const extra = g.members.length - CARD_LIMIT;
 
       const itemsHtml = shown.map(r => {
-        const bClr   = clrMap[r.hgpr_cls_code] || 'var(--tg)';
-        const chg    = r.price_change_rate;
-        const chgClr = (chg||0) >= 0 ? 'var(--red)' : 'var(--blue)';
-        const chgTxt = chg != null ? (chg>=0?'+':'')+chg.toFixed(2)+'%' : '—';
+        const bClr = HGPR_CLS_CLR[r.hgpr_cls_code] || 'var(--tg)';
+        const chg  = r.price_change_rate;
         return `<div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||r.stock_code)}"
           style="display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:6px;
             padding:5px 10px;border-bottom:1px solid var(--border);
@@ -769,7 +711,7 @@ function renderHgprTab(tab) {
             <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.corp_name||r.stock_code)}</div>
             <div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.industry||'')}</div>
           </div>
-          <div style="font-size:12px;font-weight:700;color:${chgClr};white-space:nowrap">${chgTxt}</div>
+          <div style="font-size:12px;font-weight:700;color:${chgColor(chg)};white-space:nowrap">${chgStr(chg)}</div>
           <div style="font-size:11px;color:var(--text2);white-space:nowrap;text-align:right">${r.market_cap?fmtCap(r.market_cap):'—'}</div>
         </div>`;
       }).join('');

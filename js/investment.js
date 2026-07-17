@@ -795,8 +795,8 @@ function renderVolumeLeaders() {
     const maxTV = sorted[0].tv;
     const rows = sorted.map((r, i) => {
       const c     = r.price_change_rate ?? 0;
-      const cc    = c > 0 ? 'var(--red)' : c < 0 ? 'var(--blue)' : 'var(--text3)';
-      const cs    = (c >= 0 ? '+' : '') + c.toFixed(1) + '%';
+      const cc    = chgColor(c);   // 공용 색상 — 0은 회색 (인라인 재구현 제거)
+      const cs    = fmtPct(c);
       const tvStr = fmtTV(r.tv);
       const barPct = Math.round(r.tv / maxTV * 100);
       return `
