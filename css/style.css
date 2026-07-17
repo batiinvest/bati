@@ -504,6 +504,22 @@ td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
 /* ── 시황 2단 레이아웃 (좌 컨텍스트 2fr | 우 아이디어·공시 3fr) ── */
 .inv-2col { display:grid; grid-template-columns:2fr 3fr; gap:1rem; align-items:start; margin-bottom:1rem; }
 
+/* ── 산업 동향 상세 그리드 (market-overview) — 구 인라인 그리드 클래스화 ──
+   인라인 grid-template-columns는 미디어쿼리로 못 이겨 모바일에서 차트/표가 짜부됐음.
+   ≤900px: 좌우 병치 → 세로 스택, 종목 표는 가로 스크롤(.ind-stock-panel-inner 최소폭) */
+.ind-detail-grid { display:grid; grid-template-columns:3fr 7fr; min-height:400px; }
+.ind-detail-grid > #ind-left { border-right:1px solid var(--border); max-height:520px; }
+.ind-sub-grid { display:grid; grid-template-columns:3fr 4fr; min-height:300px; }
+.ind-sub-grid > #sub-left { border-right:1px solid var(--border); max-height:480px; }
+#sub-stock-panel { overflow-y:auto; overflow-x:auto; max-height:480px; }
+.ind-stock-panel-inner { min-width:520px; }
+@media(max-width:900px){
+  .ind-detail-grid { grid-template-columns:1fr; min-height:0; }
+  .ind-detail-grid > #ind-left { border-right:none; border-bottom:1px solid var(--border); max-height:340px; }
+  .ind-sub-grid { grid-template-columns:1fr; }
+  .ind-sub-grid > #sub-left { border-right:none; border-bottom:1px solid var(--border); max-height:260px; }
+}
+
 /* ── 급등/급락 4열 그리드 ── */
 .surge-drop-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:12px; }
 @media(max-width:900px) { .surge-drop-grid { grid-template-columns:repeat(2,1fr); gap:8px; } }

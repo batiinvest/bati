@@ -88,8 +88,9 @@ async function loadMarketOverview(maxDate) {
   const bHeight = Math.max(sorted.length * 36 + 60, 300);
 
   indGrid.innerHTML =
-    '<div style="display:grid;grid-template-columns:3fr 7fr;min-height:400px">' +
-      '<div style="border-right:1px solid var(--border);padding:12px 14px;overflow-y:auto;max-height:520px;min-width:0" id="ind-left">' +
+    // 그리드는 클래스로 — 인라인이면 모바일 미디어쿼리가 못 이겨 375px에서 차트가 짜부됨
+    '<div class="ind-detail-grid">' +
+      '<div style="padding:12px 14px;overflow-y:auto;min-width:0" id="ind-left">' +
         '<canvas id="ind-bar-chart" style="width:100%;height:' + bHeight + 'px"></canvas>' +
       '</div>' +
       '<div id="ind-right" style="overflow-y:auto;max-height:520px">' +
@@ -290,7 +291,10 @@ async function loadMarketOverview(maxDate) {
       const f = fall != null ? fall : all.filter(s => s.price_change_rate < 0).length;
       const fl = flat != null ? flat : all.filter(s => s.price_change_rate === 0).length;
       const COLS = '16px 1fr 80px 62px 68px 70px 70px';
-      return '<div style="padding:10px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1;display:flex;justify-content:space-between;align-items:center">' +
+      // 고정폭 컬럼 합계(~370px+종목명)가 좁은 화면에서 잘리지 않도록
+      // 패널(#sub-stock-panel)은 가로 스크롤, 내용은 최소폭 확보 (.ind-stock-panel-inner)
+      return '<div class="ind-stock-panel-inner">' +
+        '<div style="padding:10px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1;display:flex;justify-content:space-between;align-items:center">' +
           '<span style="font-size:13px;font-weight:700">' + title + '</span>' +
           '<div style="display:flex;align-items:center;gap:10px">' +
             '<span style="color:var(--red);font-size:12px;font-weight:600">▲ ' + r + '</span>' +
@@ -324,7 +328,8 @@ async function loadMarketOverview(maxDate) {
             '<span style="font-size:11px;text-align:right;padding-right:4px;color:' + ((st.foreign_net_buy||0)<0?'var(--blue)':'var(--red)') + '">' + (st.foreign_net_buy!=null?st.foreign_net_buy.toLocaleString():'—') + '</span>' +
             '<span style="font-size:11px;text-align:right;color:var(--text1)">' + (st.foreign_hold_rate!=null?st.foreign_hold_rate.toFixed(1)+'%':'—') + '</span>' +
           '</div>'
-        ).join('');
+        ).join('') +
+        '</div>';   // /.ind-stock-panel-inner
     };
 
     INV.moSort = col => {
@@ -346,9 +351,9 @@ async function loadMarketOverview(maxDate) {
     const initStockPanel = renderStockPanel(indName + ' 전체', d.avg, d.stocks, d.rise, d.fall, d.flat);
 
     panel.innerHTML =
-      '<div style="display:grid;grid-template-columns:3fr 4fr;min-height:300px">' +
-        '<div id="sub-left" style="border-right:1px solid var(--border);overflow-y:auto;max-height:480px">' + leftHtml + '</div>' +
-        '<div id="sub-stock-panel" style="overflow-y:auto;max-height:480px">' + initStockPanel + '</div>' +
+      '<div class="ind-sub-grid">' +
+        '<div id="sub-left" style="overflow-y:auto">' + leftHtml + '</div>' +
+        '<div id="sub-stock-panel">' + initStockPanel + '</div>' +
       '</div>';
 
     // 섹터 클릭 이벤트
