@@ -83,55 +83,52 @@ async function loadWatchlist() {
   const { data: allRows, error } = await sb.from('watchlist').select('*').order('created_at', { ascending: false });
   if (error) { listEl.innerHTML = '<div style="color:var(--red);padding:1rem">로드 실패</div>'; return; }
 
-  // 현재가 일괄 조회 — 최근 3주 범위 + 전량 페이징
-  // (기간 무제한 + 기본 limit 1000은 종목 수가 늘면 뒤쪽 종목 현재가가 조용히 잘림)
   const codes = (allRows || []).map(r => r.stock_code);
-  let priceMap = {};
-  if (codes.length) {
-    try {
-      const mkt = await fetchAllPages(
-        sb.from('market_data')
-          .select('stock_code,price,price_change_rate,per,pbr,market_cap,market,week_return,month_return,quarter_return')
-          .in('stock_code', codes)
-          .gte('base_date', offsetDate(-21))
-          .order('base_date', { ascending: false })
-          .order('stock_code')   // 페이지 경계 결정성 확보
-      );
-      (mkt || []).forEach(r => { if (!priceMap[r.stock_code]) priceMap[r.stock_code] = r; });
-    } catch (e) { console.warn('현재가 조회 실패:', e?.message || e); }
-  }
 
-  // 산업명 조회 (companies 테이블)
-  let industryMap = {};
-  if (codes.length) {
-    const { data: comps } = await sb.from('companies')
-      .select('code,industry')
-      .in('code', codes);
-    (comps || []).forEach(r => { industryMap[r.code] = r.industry; });
-  }
-
-  // financials 조회 (bsns_year + quarter DESC = 최신 분기 우선)
-  let roeMap = {}, opmMap = {}, revMap = {}, opMap = {};
-  if (codes.length) {
-    try {
-      const { data: fins, error: finErr } = await sb.from('financials')
-        .select('stock_code,bsns_year,quarter,revenue,operating_profit,roe')
+  // ── 독립 조회 8종 병렬 실행 (구 직렬 await 체인 → 로딩 시간 단축) ──
+  const [mkt, comps, fins, txMap, cash, targetWeights, journalMap, bench] = await Promise.all([
+    // 현재가 — 최근 3주 + 전량 페이징 (기간 무제한+기본 limit 1000은 종목 증가 시 잘림)
+    !codes.length ? [] : fetchAllPages(
+      sb.from('market_data')
+        .select('stock_code,price,price_change_rate,per,pbr,market_cap,market,week_return,month_return,quarter_return')
         .in('stock_code', codes)
-        .order('bsns_year', { ascending: false })
-        .order('quarter',   { ascending: false });
-      if (finErr) throw finErr;
-      (fins || []).forEach(r => {
-        if (!roeMap[r.stock_code] && r.roe != null)          roeMap[r.stock_code] = r.roe;
-        if (!revMap[r.stock_code] && r.revenue)              revMap[r.stock_code] = r.revenue;
-        if (!opMap[r.stock_code]  && r.operating_profit)     opMap[r.stock_code]  = r.operating_profit;
-        if (!opmMap[r.stock_code] && r.revenue && r.operating_profit)
-          opmMap[r.stock_code] = r.operating_profit / r.revenue * 100;
-      });
-    } catch (e) { console.warn('financials 조회 실패:', e?.message || e); }
-  }
+        .gte('base_date', offsetDate(-21))
+        .order('base_date', { ascending: false })
+        .order('stock_code')   // 페이지 경계 결정성 확보
+    ).catch(e => { console.warn('현재가 조회 실패:', e?.message || e); return []; }),
+    // 산업명 (companies)
+    !codes.length ? [] : sb.from('companies').select('code,industry').in('code', codes)
+      .then(r => r.data || []),
+    // 재무 — 최신 분기 우선, 최근 4개년 (전 이력 다운로드 방지)
+    !codes.length ? [] : sb.from('financials')
+      .select('stock_code,bsns_year,quarter,revenue,operating_profit,roe')
+      .in('stock_code', codes)
+      .gte('bsns_year', String(new Date().getFullYear() - 3))
+      .order('bsns_year', { ascending: false })
+      .order('quarter',   { ascending: false })
+      .then(r => { if (r.error) throw r.error; return r.data || []; })
+      .catch(e => { console.warn('financials 조회 실패:', e?.message || e); return []; }),
+    fetchTransactions(codes),      // 거래 내역 → 포지션 자동 계산
+    getPortfolioCash(),
+    getTargetWeights(),
+    fetchJournals(codes),
+    fetchBenchmarkReturns(),
+  ]);
 
-  // 거래 내역 조회 → 포지션(평단/수량/실현손익) 자동 계산
-  const txMap = await fetchTransactions(codes);
+  const priceMap = {};
+  (mkt || []).forEach(r => { if (!priceMap[r.stock_code]) priceMap[r.stock_code] = r; });
+
+  const industryMap = {};
+  (comps || []).forEach(r => { industryMap[r.code] = r.industry; });
+
+  const roeMap = {}, opmMap = {}, revMap = {}, opMap = {};
+  (fins || []).forEach(r => {
+    if (!roeMap[r.stock_code] && r.roe != null)          roeMap[r.stock_code] = r.roe;
+    if (!revMap[r.stock_code] && r.revenue)              revMap[r.stock_code] = r.revenue;
+    if (!opMap[r.stock_code]  && r.operating_profit)     opMap[r.stock_code]  = r.operating_profit;
+    if (!opmMap[r.stock_code] && r.revenue && r.operating_profit)
+      opmMap[r.stock_code] = r.operating_profit / r.revenue * 100;
+  });
   const positionMap = {};
   Object.keys(txMap).forEach(code => { positionMap[code] = computePosition(txMap[code]); });
 
@@ -186,10 +183,7 @@ async function loadWatchlist() {
   const totalPnl      = totalVal - totalCost;
   const totalPnlPct   = totalCost > 0 ? totalPnl / totalCost * 100 : null;
   const totalRealized = portfolioRows.reduce((s, w) => s + effPos(w).realized, 0);
-  const cash          = await getPortfolioCash();
-  const targetWeights = await getTargetWeights();
-  const journalMap    = await fetchJournals(codes);
-  const bench         = await fetchBenchmarkReturns();
+  // cash·targetWeights·journalMap·bench는 상단 Promise.all에서 병렬 로드 완료
   const totalAssets   = totalVal + cash;
   const cashRatio     = totalAssets > 0 ? cash / totalAssets * 100 : 0;
   // 신용융자: 잔고 합계, 순자산(=총자산−융자), 레버리지(=융자/순자산)
