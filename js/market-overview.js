@@ -390,14 +390,12 @@ async function loadMarketOverview(maxDate) {
   loadUsEtfBanner();
   loadUskrChart();
 
-  // 투자포인트 요약 (다른 데이터 로드 완료 후)
-  // 신고가 종목
+  // 신고가 종목 / 기관·외국인 수급
   loadNewHighStocks();
-
   loadFlowData();
-  // 기관/외국인 수급
 
-  setTimeout(loadMarketInsight, 1500);
+  // (투자포인트 요약 loadMarketInsight — 구 setTimeout 1500ms 제거,
+  //  loadInvestment가 매크로·본 함수 완료를 await한 뒤 직접 호출)
 }
 
 

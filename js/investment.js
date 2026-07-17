@@ -645,63 +645,66 @@ async function refreshInvestment() {
   }
 }
 
+// ── 기준일 라벨 — 지수(macro_data, 매일)와 종목데이터(market_data, 주간) 이원 표기 ──
+// '오늘'을 표방하지만 종목 단위 데이터는 갱신 주기가 달라, 기준일을 분리해 정직하게 노출한다.
+// loadInvestment 본문에서 분리 — 메인 로드를 블로킹하지 않고 병렬 렌더.
+async function _renderInvAsOf(mktDate) {
+  try {
+    const { data: lastUpdate } = await sb.from('macro_data')
+      .select('base_date,updated_at').order('base_date', { ascending: false }).limit(1).maybeSingle();
+    const el = document.getElementById('inv-date');
+    if (!el) return;
+    if (!lastUpdate && !mktDate) { _updateInvTimestamp(); return; }
+
+    // ① 지수/매크로 기준
+    let idxStr = '';
+    if (lastUpdate) {
+      if (lastUpdate.updated_at) {
+        const kst = new Date(new Date(lastUpdate.updated_at).getTime() + 9 * 60 * 60 * 1000);
+        const t = `${String(kst.getUTCHours()).padStart(2,'0')}:${String(kst.getUTCMinutes()).padStart(2,'0')}`;
+        idxStr = `지수 ${lastUpdate.base_date} ${t}`;
+      } else {
+        idxStr = `지수 ${lastUpdate.base_date}`;
+      }
+    }
+    // ② 종목 데이터(breadth·수급·급등락·거래대금·신고가 공통 기준) — 신선도 경고
+    let mktStr = '';
+    if (mktDate) {
+      const todayKst = kstToday();
+      const diffDays = Math.round((new Date(todayKst) - new Date(mktDate)) / 86400000);
+      const stale = diffDays >= 5; // 정상 주간 사이클(주말 포함)을 넘어선 경우만 경고
+      mktStr = `<span title="breadth·수급·급등락·거래대금·신고가 공통 기준일" style="${stale ? 'color:var(--yellow);font-weight:600' : 'color:var(--text2)'}">`
+        + `종목 ${mktDate}${stale ? ` ⚠ ${diffDays}일 전` : ''}</span>`;
+    }
+    const parts = [idxStr ? `<span style="color:var(--text2)">${idxStr}</span>` : '', mktStr].filter(Boolean);
+    if (parts.length) el.innerHTML = parts.join('<span style="color:var(--border);margin:0 6px">·</span>');
+    else _updateInvTimestamp();
+  } catch(e) {
+    _updateInvTimestamp();
+  }
+}
+
 // ── 메인 로드 ──
 async function loadInvestment() {
   // 보유/관심 종목 교차표시용 코드 로드 (각 진입 시 최신화) — 목록 렌더 전 준비
   loadWatchlistCodes(true);
   loadMyStocksCard(); // 내 종목 현황 — 공시·보고서 먼저 비동기 로드
 
-  // 시황 탭 로드 (market-overview.js) — 배너 채운 후 나머지 실행
-  await loadMacroData();
-  loadTrendChart();
-  loadCreditBalance();  // 신용융자 잔고 카드 (credit-balance.js) — 독립 쿼리, 병렬
-
-  // 마지막 업데이트 시각 표시 — 지수(macro_data, 매일)와 종목데이터(market_data, 주간) 이원 표기
-  // '오늘'을 표방하지만 종목 단위 데이터는 갱신 주기가 달라, 기준일을 분리해 정직하게 노출한다.
-  try {
-    const { data: lastUpdate } = await sb.from('macro_data')
-      .select('base_date,updated_at').order('base_date', { ascending: false }).limit(1).maybeSingle();
-    const mktDate = await getLatestMarketDate();
-    const el = document.getElementById('inv-date');
-    if (el) {
-      // ① 지수/매크로 기준
-      let idxStr = '';
-      if (lastUpdate) {
-        if (lastUpdate.updated_at) {
-          const kst = new Date(new Date(lastUpdate.updated_at).getTime() + 9 * 60 * 60 * 1000);
-          const t = `${String(kst.getUTCHours()).padStart(2,'0')}:${String(kst.getUTCMinutes()).padStart(2,'0')}`;
-          idxStr = `지수 ${lastUpdate.base_date} ${t}`;
-        } else {
-          idxStr = `지수 ${lastUpdate.base_date}`;
-        }
-      }
-      // ② 종목 데이터(breadth·수급·급등락·거래대금·신고가 공통 기준) — 신선도 경고
-      let mktStr = '';
-      if (mktDate) {
-        const todayKst = kstToday();
-        const diffDays = Math.round((new Date(todayKst) - new Date(mktDate)) / 86400000);
-        const stale = diffDays >= 5; // 정상 주간 사이클(주말 포함)을 넘어선 경우만 경고
-        mktStr = `<span title="breadth·수급·급등락·거래대금·신고가 공통 기준일" style="${stale ? 'color:var(--yellow);font-weight:600' : 'color:var(--text2)'}">`
-          + `종목 ${mktDate}${stale ? ` ⚠ ${diffDays}일 전` : ''}</span>`;
-      }
-      const parts = [idxStr ? `<span style="color:var(--text2)">${idxStr}</span>` : '', mktStr].filter(Boolean);
-      if (parts.length) el.innerHTML = parts.join('<span style="color:var(--border);margin:0 6px">·</span>');
-      else _updateInvTimestamp();
-    } else {
-      _updateInvTimestamp();
-    }
-  } catch(e) {
-    _updateInvTimestamp();
-  }
-
-  // 공시/실적 항상 로드 (2단 레이아웃 우 패널)
+  // ── 독립 위젯 즉시 병렬 발사 — 매크로/종목 데이터 완료를 기다리지 않는다 ──
+  loadCreditBalance();   // 신용융자 잔고 카드 (credit-balance.js) — 독립 쿼리
+  loadTrendChart();      // 흐름 비교 차트 — macro_data 자체 조회 (loadMacroData와 독립)
   _allDiscLoaded = false;
   loadTodayDisclosures();
   loadEarningsSurge();
-  loadEstimateOutlook();  // '오늘의 아이디어' 전망 탭 (추정치 상향+고성장, estimates.js)
+  loadEstimateOutlook(); // '오늘의 아이디어' 전망 탭 (추정치 상향+고성장, estimates.js)
+
+  // 매크로(탑바 스트립·온도계·투자포인트 의존)는 병렬 시작 — 완료는 하단에서 대기
+  const macroP = loadMacroData().catch(e => console.warn('[loadInvestment] macro', e));
 
   const maxDate = await getLatestMarketDate();
-  if (!maxDate) return;
+  _renderInvAsOf(maxDate);   // 기준일 라벨 — 블로킹 없이 별도 렌더
+
+  if (!maxDate) { await macroP; return; }
 
   // 전체 종목 + 산업별 동향 (내부에서 INV.allMarketRows 세팅)
   await loadMarketOverview(maxDate);
@@ -709,16 +712,20 @@ async function loadInvestment() {
   // INV.allMarketRows 확보 후 내 종목 현황 행(등락률) 갱신
   if (_myStocksWlRows) _renderMyStocks();
 
-  // Phase 1 — 온도계 + 거래대금 상위 (INV.allMarketRows / INV.macroData 재활용)
-  renderMarketTemperature();
+  // 종목 데이터만 필요한 위젯 (INV.allMarketRows 재활용)
   renderVolumeLeaders();
   renderIdeaSurge(); // '오늘의 아이디어' 급등 탭
-
-  // Phase 2 — 주도주 탐색기 + 백테스트 + 산업별 수급동향(산업 강도 매트릭스 통합)
   loadLeadingStocks();
   loadLeadingBacktest();
   loadSectorRotation();  // 산업별 수급동향(로테이션 맵+보드, US·KR·선행 컬럼 통합) — INV.indMapData(신선)+sector_daily_summary
   loadStockFlow();
+
+  // 매크로 의존 위젯 — 병렬 로드 완료 후 실행 (구: 직렬 await + setTimeout 1500ms 지연 호출)
+  // loadMarketInsight 의존(INV.macroData·IND.krDates·USKR_MAP)은 위 loadMarketOverview가
+  // 내부에서 await하는 것들 + macroP — 여기서 모두 충족된다.
+  await macroP;
+  renderMarketTemperature();
+  loadMarketInsight();
 
   // 모니터링 종목 목록 — getIndustryMap() 캐시 재활용 (companies 중복 조회 방지)
   const industryMap = await getIndustryMap();
