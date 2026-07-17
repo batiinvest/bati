@@ -51,23 +51,8 @@ function _skelCards(n=4) {
     ).join('') + `</div>`;
 }
 
-// ── 매크로 카드 ──
-function _macroCard(label, value, chg, color) {
-  const up = chg >= 0;
-  return `
-  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;
-              border-left:3px solid ${color};cursor:pointer" title="${label}">
-    <div style="font-size:11px;color:var(--text3);margin-bottom:4px">${label}</div>
-    <div style="font-size:15px;font-weight:700;font-variant-numeric:tabular-nums">${value}</div>
-    <div style="font-size:11px;color:${up?'var(--up)':'var(--down)'};margin-top:2px">
-      ${up?'▲':'▼'} ${Math.abs(chg).toFixed(2)}%
-    </div>
-  </div>`;
-}
-
 // ── 페이지 HTML ──
 function pInvestment() {
-  INV.tab = INV.tab || 'market';
   return `
   <!-- 페이지 헤더 -->
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:8px">
@@ -509,22 +494,14 @@ function pInvestment() {
 
     </div><!-- /inv-zonec (심화 분석) -->
 
-  </div>
-
-  <!-- 숨김 호환 div (setInvTab 참조용) -->
-  <div id="inv-tab-disclosure" style="display:none"></div>`;
+  </div>`;
 }
 
 
 
 
-// (정리됨) mkIndexCard — 매크로 카드 그리드 전용 헬퍼였으나 그리드 제거로 호출처 소멸.
+// (정리됨) mkIndexCard·_macroCard·setInvTab — 매크로 카드 그리드/공시 탭 제거로 호출처 소멸.
 //   매크로 지수는 전역 탑바 스트립·시장 온도계 6세부요소·Zone A 브리핑 위험배지가 담당.
-
-// ── 탭 전환 (2단 레이아웃으로 전환 후 no-op, 호환성 유지) ──
-function setInvTab(tab) {
-  INV.tab = tab;
-}
 
 // ── 날짜/시간 업데이트 ────────────────────────────────────────
 function _updateInvTimestamp() {
@@ -552,97 +529,81 @@ function unloadInvestment() {
 }
 
 async function refreshInvestment() {
-  _clearInvRefreshTimers();  // 연타 시 이전 카운트다운/재로드 취소
+  _clearInvRefreshTimers();  // 연타 시 이전 폴링 취소
   _latestMarketDate = null;
   const btn = document.getElementById('inv-refresh-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+  const restoreBtn = () => {
+    const b = document.getElementById('inv-refresh-btn');
+    if (b) { b.disabled = false; b.innerHTML = _ICO.refresh + '새로고침'; }
+  };
 
+  // ── 서버 수집 트리거 ──
+  const isWeekend = [0, 6].includes(new Date().getDay()); // 0=일, 6=토
   try {
-    if (INV.tab === 'disclosure') {
-      _allDiscLoaded = false;
-      loadTodayDisclosures();
-      loadEarningsSurge();
-      const panel = document.getElementById('inv-all-disclosure');
-      if (panel && panel.style.display !== 'none') loadAllDisclosures();
-      try {
-        await sb.from('app_config').upsert({
-          key: 'run_disclosure_flag', value: String(Date.now()),
-          description: '대시보드 공시수집 수동 트리거'
-        }, { onConflict: 'key' });
-        toast('📡 DART 공시 수집 요청 — 봇이 1분 내 업데이트합니다', 'info');
-      } catch(e) { toast('트리거 전송 실패: ' + e.message, 'error'); }
-    } else {
-      // 시황 탭 — 서버 트리거 → 수집 완료 후 재로드
-      const isWeekend = [0, 6].includes(new Date().getDay()); // 0=일, 6=토
-      try {
-        const upserts = [
-          sb.from('app_config').upsert({
-            key: 'run_macro_flag', value: String(Date.now()),
-            description: '대시보드 매크로 수동 수집 트리거'
-          }, { onConflict: 'key' }),
-          sb.from('app_config').upsert({
-            key: 'run_leading_stocks_flag', value: String(Date.now()),
-            description: '주도주 탐색기 수동 생성 트리거'
-          }, { onConflict: 'key' }),
-          sb.from('app_config').upsert({
-            key: 'run_sector_summary_flag', value: String(Date.now()),
-            description: '산업별 요약·신호탐지 수동 집계 트리거'
-          }, { onConflict: 'key' }),
-        ];
-        if (!isWeekend) {
-          upserts.push(sb.from('app_config').upsert({
-            key: 'run_market_all_flag', value: String(Date.now()),
-            description: '대시보드 전체 종목 시장 데이터 수집 트리거'
-          }, { onConflict: 'key' }));
-          // 종목별 외국인·기관 순매수 확정(inquire-investor) 즉시 수집
-          upserts.push(sb.from('app_config').upsert({
-            key: 'run_flow_flag', value: String(Date.now()),
-            description: '기관/외국인 수급(랭킹+종목별 투자자) 수동 수집 트리거'
-          }, { onConflict: 'key' }));
-        }
-        await Promise.all(upserts);
-        if (isWeekend) {
-          toast('📡 매크로(환율·지수) 수집 요청 — 주말은 주식 시장 데이터 수집 제외', 'info');
-        } else {
-          toast('📡 서버 수집 요청 완료 — 약 1분 후 자동 반영됩니다', 'info');
-        }
-      } catch(e) {
-        toast('트리거 전송 실패: ' + e.message, 'error');
-        return;
-      }
-
-      // 버튼 로딩 상태 + 카운트다운
-      let remaining = 70;
-      const timer = setInterval(() => {
-        remaining--;
-        // 페이지 이탈로 버튼이 사라졌으면 카운트다운 중단
-        const b = document.getElementById('inv-refresh-btn');
-        if (!b) { clearInterval(timer); return; }
-        b.textContent = `⏳ ${remaining}초`;
-        if (remaining <= 0) clearInterval(timer);
-      }, 1000);
-      _invRefreshTimers.push(timer);
-
-      // 70초 후 재로드 + 버튼 복구 — 시황 페이지에 머물러 있을 때만
-      const reload = setTimeout(async () => {
-        clearInterval(timer);
-        if (A.page !== 'investment') return;  // 이탈했으면 유령 재로드 방지
-        _latestMarketDate = null;
-        await loadInvestment();
-        const b = document.getElementById('inv-refresh-btn');
-        if (b) { b.disabled = false; b.innerHTML = _ICO.refresh + '새로고침'; }
-        toast('✅ 최신 데이터로 업데이트됐습니다', 'success');
-      }, 70000);
-      _invRefreshTimers.push(reload);
-
-      return; // finally에서 버튼 복구 안 되도록
+    const upserts = [
+      sb.from('app_config').upsert({
+        key: 'run_macro_flag', value: String(Date.now()),
+        description: '대시보드 매크로 수동 수집 트리거'
+      }, { onConflict: 'key' }),
+      sb.from('app_config').upsert({
+        key: 'run_leading_stocks_flag', value: String(Date.now()),
+        description: '주도주 탐색기 수동 생성 트리거'
+      }, { onConflict: 'key' }),
+      sb.from('app_config').upsert({
+        key: 'run_sector_summary_flag', value: String(Date.now()),
+        description: '산업별 요약·신호탐지 수동 집계 트리거'
+      }, { onConflict: 'key' }),
+    ];
+    if (!isWeekend) {
+      upserts.push(sb.from('app_config').upsert({
+        key: 'run_market_all_flag', value: String(Date.now()),
+        description: '대시보드 전체 종목 시장 데이터 수집 트리거'
+      }, { onConflict: 'key' }));
+      // 종목별 외국인·기관 순매수 확정(inquire-investor) 즉시 수집
+      upserts.push(sb.from('app_config').upsert({
+        key: 'run_flow_flag', value: String(Date.now()),
+        description: '기관/외국인 수급(랭킹+종목별 투자자) 수동 수집 트리거'
+      }, { onConflict: 'key' }));
     }
-  } finally {
-    // 시황 탭은 70초 후 자동 복구, 공시 탭만 즉시 복구
-    if (INV.tab === 'disclosure') {
-      if (btn) { btn.disabled = false; btn.innerHTML = _ICO.refresh + '새로고침'; }
-    }
+    await Promise.all(upserts);
+    toast(isWeekend
+      ? '📡 매크로(환율·지수) 수집 요청 — 주말은 주식 시장 데이터 수집 제외'
+      : '📡 서버 수집 요청 완료 — 수집 완료 확인 후 자동 반영됩니다', 'info');
+  } catch(e) {
+    toast('트리거 전송 실패: ' + e.message, 'error');
+    restoreBtn();   // 구 코드: 실패 시 버튼이 ⏳로 잠긴 채 방치되던 버그 수정
+    return;
   }
+
+  // ── 수집 완료 폴링 — macro_data.updated_at이 트리거 시각 이후로 갱신되면 재로드 ──
+  // (구 70초 고정 대기: 일찍 끝나면 낭비, 늦게 끝나면 미완료 데이터 재로드 → 실제 완료 신호로 교체)
+  const t0 = new Date();
+  let tries = 0;
+  const MAX_TRIES = 15;   // 10초 간격 · 최대 150초
+  const finish = async (done) => {
+    _clearInvRefreshTimers();
+    if (A.page !== 'investment') return;   // 페이지 이탈 — 유령 재로드 방지
+    _latestMarketDate = null;
+    await loadInvestment();
+    restoreBtn();
+    toast(done ? '✅ 최신 데이터로 업데이트됐습니다'
+               : '⏱ 완료 확인 시간 초과 — 현재 시점 데이터로 갱신했습니다', done ? 'success' : 'info');
+  };
+  const poll = setInterval(async () => {
+    tries++;
+    const b = document.getElementById('inv-refresh-btn');
+    if (!b || A.page !== 'investment') { _clearInvRefreshTimers(); return; }
+    b.textContent = `⏳ 수집 확인 ${tries * 10}초`;
+    let done = false;
+    try {
+      const { data } = await sb.from('macro_data')
+        .select('updated_at').order('base_date', { ascending: false }).limit(1).maybeSingle();
+      done = !!(data?.updated_at && new Date(data.updated_at) > t0);
+    } catch (e) { /* 일시 오류 — 다음 폴링에서 재확인 */ }
+    if (done || tries >= MAX_TRIES) finish(done);
+  }, 10000);
+  _invRefreshTimers.push(poll);
 }
 
 // ── 기준일 라벨 — 지수(macro_data, 매일)와 종목데이터(market_data, 주간) 이원 표기 ──
