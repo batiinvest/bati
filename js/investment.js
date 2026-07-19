@@ -168,6 +168,32 @@ function pInvestment() {
         </div>
       </div>
 
+      <!-- 투자자별 매매동향 — 시장 전체 개인·외국인·기관 순매수 (market-investor.js) -->
+      <div class="card" style="margin-bottom:0">
+        <div class="card-header" style="flex-wrap:wrap;gap:6px">
+          <span class="card-title">${_ICO.bar}투자자별 매매동향</span>
+          <span class="card-sub">누가 사고 파나 — 개인·외국인·기관</span>
+          <span id="mif-date" style="font-size:11px;color:var(--text2);margin-left:auto"></span>
+          <div style="display:flex;gap:4px">
+            <button class="chip chip-sm active" data-mif-market="kospi"  onclick="setMifMarket('kospi')" >코스피</button>
+            <button class="chip chip-sm"        data-mif-market="kosdaq" onclick="setMifMarket('kosdaq')">코스닥</button>
+          </div>
+          <div style="display:flex;gap:4px">
+            ${[{d:90,l:'3달'},{d:180,l:'6달'},{d:365,l:'1년'},{d:0,l:'전체'}].map(({d,l})=>`
+              <button class="chip chip-sm ${d===90?'active':''}" data-mif-period="${d}"
+                onclick="setMifPeriod(${d})">${l}</button>
+            `).join('')}
+          </div>
+        </div>
+        <div id="mif-summary" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border-top:1px solid var(--border)"></div>
+        <div style="padding:.75rem 1rem;position:relative;height:220px;border-top:1px solid var(--border)">
+          <canvas id="mif-chart"></canvas>
+          <div id="mif-empty" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;color:var(--text2);font-size:12px">
+            데이터 수집 중... (매일 18:20 업데이트)
+          </div>
+        </div>
+      </div>
+
       <!-- 신용융자 잔고 추이 — KOFIA 신용공여 잔고 (credit-balance.js) -->
       <div class="card" style="margin-bottom:0">
         <div class="card-header" style="flex-wrap:wrap;gap:6px">
@@ -653,6 +679,7 @@ async function loadInvestment() {
 
   // ── 독립 위젯 즉시 병렬 발사 — 매크로/종목 데이터 완료를 기다리지 않는다 ──
   loadCreditBalance();   // 신용융자 잔고 카드 (credit-balance.js) — 독립 쿼리
+  loadMarketInvestor();  // 투자자별 매매동향 카드 (market-investor.js) — 독립 쿼리
   loadTrendChart();      // 흐름 비교 차트 — macro_data 자체 조회 (loadMacroData와 독립)
   _allDiscLoaded = false;
   loadTodayDisclosures();
