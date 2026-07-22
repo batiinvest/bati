@@ -211,7 +211,7 @@ function pInvestment() {
         <div style="padding:.75rem 1rem;position:relative;height:220px;border-top:1px solid var(--border)">
           <canvas id="cb-chart"></canvas>
           <div id="cb-empty" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;color:var(--text2);font-size:12px">
-            데이터 수집 중... (매일 10:30 업데이트)
+            데이터 수집 중... (매일 19:00 업데이트)
           </div>
         </div>
       </div>

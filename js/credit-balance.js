@@ -1,6 +1,6 @@
 // credit-balance.js — 오늘의 시황: 신용융자 잔고 추이 카드 (코스피·코스닥)
-// 데이터: credit_balance_history (KOFIA 신용공여 잔고, 백만원 단위, 백엔드가 매일 10:30 수집)
-//   전 영업일분이 다음날 오전 발표 — 기준일은 최신 행의 base_date로 표기.
+// 데이터: credit_balance_history (KOFIA 신용공여 잔고, 백만원 단위, 백엔드가 매일 19:00 수집)
+//   직전 영업일분이 당일 오후 발표(2026-07-22 실측) — 기준일은 최신 행의 base_date로 표기.
 // 의존: config.js (sb, chartTheme, fmtTV, fmtNet, chgColor, setAsOf), Chart.js
 
 const CB = {
