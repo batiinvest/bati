@@ -56,6 +56,10 @@ async function buildInsightData() {
   const krR     = IND.krFinalReturn || {};
   const indDates = IND.krDates      || {};
 
+  // KR 거래일 목록 (해외 창 시차 정렬 기준) — 산업별 날짜 합집합의 최근 5거래일
+  const krLast5 = [...new Set(INDUSTRIES.flatMap(ind => Object.keys(indDates[ind] || {})))]
+    .sort().slice(-5);
+
   // US ETF 산업별 평균 등락률
   const usIndAvg = {};
   try {
@@ -66,7 +70,16 @@ async function buildInsightData() {
 
     if (usRows?.length) {
       const dates = [...new Set(usRows.map(r => r.base_date))].sort();   // 오름차순(오래된→최신)
-      const last5 = dates.slice(-5);
+      // 시차 정렬: 한국 D일 장은 직전 해외 세션에 반응한다 → 해외 창을
+      // [한국 창 첫날 직전 세션 ~ 한국 창 마지막날 직전 세션]으로 맞춰 같은 정보 구간을 비교.
+      // 구: 양쪽 다 "최근 5거래일"을 겹쳐 비교 → 한국 창에만 당일이 들어가 한 세션 어긋났다.
+      let last5;
+      if (krLast5.length) {
+        const prior = dates.filter(d => d < krLast5[0]);
+        const start = prior.length ? prior[prior.length - 1] : dates[0];
+        last5 = dates.filter(d => d >= start && d < krLast5[krLast5.length - 1]);
+      }
+      if (!last5?.length) last5 = dates.slice(-5);
       const uskrMap = window.USKR_MAP || {};
       INDUSTRIES.forEach(ind => {
         const tickers = uskrMap[ind] || [];
@@ -98,7 +111,9 @@ async function buildInsightData() {
       if (!slice.length) return null;
       return indCumReturn(indDates[ind], slice);  // config.js 공용 헬퍼
     };
-    krPeriod[ind] = { d1: calcReturn(1), d5: calcReturn(5), d20: calcReturn(20) };
+    // d5x = 최신일을 뺀 누적 — 5일 성과가 사실상 하루에서 나왔는지 판별용
+    const d5x = dates.length > 1 ? indCumReturn(indDates[ind], dates.slice(-5, -1)) : null;
+    krPeriod[ind] = { d1: calcReturn(1), d5: calcReturn(5), d20: calcReturn(20), d5x };
   });
 
   return { m, krR, krPeriod, usIndAvg };
@@ -167,22 +182,34 @@ function analyzeMarket({ m, krR, krPeriod, usIndAvg }) {
     if (diff <= -THR.RANK_CHG) krFalling.push({ ind, diff: Math.abs(diff) });
   });
 
-  // US→KR 선행/후행은 5일 추세로 분류(단일일 노이즈 제거). 표시는 5일 + US 당일(선행 신호).
-  const S5 = 1.5;   // 5일 누적 강세/약세 임계 (d1 ±0.5의 약 3배)
+  // 해외→KR 선행/후행은 5일 추세로 분류(단일일 노이즈 제거). 창은 시차 정렬됨.
+  const S5 = 1.5;    // 5일 누적 강세/약세 임계 (d1 ±0.5의 약 3배)
+  const TURN = 1.0;  // 한국이 이미 반응한 직전 해외 세션이 같은 방향이면 '엇갈림' → '전환 관찰'
   const crossSignals = [];
   INDUSTRIES.forEach(ind => {
     const usD1  = usIndAvg[ind]?.d1 ?? null;
-    const usChg = usIndAvg[ind]?.d5 ?? null;   // usChg = US 5일 (분류·문구 기준)
+    const usChg = usIndAvg[ind]?.d5 ?? null;   // usChg = 해외 5일 (분류·문구 기준)
     const krChg = krPeriod[ind]?.d5 ?? null;   // krChg = KR 5일
+    const krD1  = krPeriod[ind]?.d1 ?? null;
+    const kr5x  = krPeriod[ind]?.d5x ?? null;
     if (usChg == null || krChg == null) return;
+    const sig = { ind, usChg, krChg, usD1, krD1, kr5x };
+    const turnUp   = usD1 != null && krD1 != null && usD1 >=  TURN && krD1 > 0;
+    const turnDown = usD1 != null && krD1 != null && usD1 <= -TURN && krD1 < 0;
     if (usChg >= S5 && krChg <= -S5)
-      crossSignals.push({ type: 'lag',           ind, usChg, krChg, usD1 });
+      crossSignals.push({ ...sig, type: turnDown ? 'turn-down' : 'lag' });
     else if (usChg <= -S5 && krChg >= S5)
-      crossSignals.push({ type: 'decouple-risk', ind, usChg, krChg, usD1 });
+      crossSignals.push({ ...sig, type: turnUp ? 'turn-up' : 'decouple-risk' });
     else if (usChg >= S5 && krChg >= S5)
-      crossSignals.push({ type: 'sync-up',       ind, usChg, krChg, usD1 });
+      crossSignals.push({ ...sig, type: 'sync-up' });
     else if (usChg <= -S5 && krChg <= -S5)
-      crossSignals.push({ type: 'sync-down',     ind, usChg, krChg, usD1 });
+      crossSignals.push({ ...sig, type: 'sync-down' });
+    // 해외는 보합권인데 한국만 움직인 구간 — 시차 정렬 후 '동반'에서 빠지는 부분.
+    // 업종별 나열은 소음이라 아래에서 시장 단위 한 줄로 묶는다.
+    else if (krChg <= -S5)
+      crossSignals.push({ ...sig, type: 'kr-only-down' });
+    else if (krChg >= S5)
+      crossSignals.push({ ...sig, type: 'kr-only-up' });
   });
 
   return {
@@ -361,6 +388,9 @@ async function _buildLiveSections() {
   const lagSigs      = a.crossSignals.filter(s => s.type === 'lag');
   const riskSigs     = a.crossSignals.filter(s => s.type === 'decouple-risk');
   const syncDownSigs = a.crossSignals.filter(s => s.type === 'sync-down');
+  const turnUpSigs   = a.crossSignals.filter(s => s.type === 'turn-up');
+  const krOnlyDown   = a.crossSignals.filter(s => s.type === 'kr-only-down');
+  const krOnlyUp     = a.crossSignals.filter(s => s.type === 'kr-only-up');
 
   // ── ② 핵심 포인트 — 기회 1 · 리스크 1 만 선별 (펀드매니저가 보는 요약) ──
   // 후보를 우선순위대로 쌓고 가장 중요한 1개만 채택
@@ -368,11 +398,13 @@ async function _buildLiveSections() {
   if (lagSigs.length) {
     const best = lagSigs[0];
     const etf = USKR_LABELS[best.ind] || '';
-    const d1Str = best.usD1 != null ? `(당일 ${fmtPct(best.usD1)})` : '';
-    opportunity = `${best.ind}${etf ? '('+etf+')' : ''} 후행 선점 — 미국 5일 ${fmtPct(best.usChg)}${d1Str} 선행·국내 5일 ${fmtPct(best.krChg)} 후행, 수급 유입 시 진입`;
+    opportunity = `${best.ind}${etf ? '('+etf+')' : ''}: 해외가 먼저 올랐습니다 — 최근 5일 해외 ${fmtPct(best.usChg)}, 한국 ${fmtPct(best.krChg)}. 국내 수급이 따라붙는지 확인할 구간입니다`;
   } else if (syncUpSigs.length >= 2) {
     const inds = syncUpSigs.slice(0, 2).map(s => s.ind).join('·');
-    opportunity = `${inds} 미·한 동반 강세 — 추세 추종 검토`;
+    opportunity = `${inds}: 해외와 한국이 같이 오르고 있습니다 (최근 5일 동반 상승)`;
+  } else if (krOnlyUp.length >= 3) {
+    const inds = krOnlyUp.slice(0, 3).map(s => s.ind).join(' · ');
+    opportunity = `한국이 해외보다 강합니다 — ${krOnlyUp.length}개 업종에서 해외는 보합권인데 한국만 최근 5일 상승 (${inds} 등)`;
   } else if (a.krRising.length >= 2) {
     const inds = a.krRising.slice(0, 2).map(x => x.ind).join('·');
     opportunity = `${inds} 모멘텀 강화 — 5일 대비 순위 상승, 매집 신호`;
@@ -393,9 +425,19 @@ async function _buildLiveSections() {
     risk = `VIX ${Number(m.vix).toFixed(0)} 공포 구간 — 신규 매수 중단, 헤지 확대`;
   } else if (riskSigs.length) {
     const s = riskSigs[0];
-    risk = `${s.ind} 디커플링 — 한국 5일 ${fmtPct(s.krChg)} 상승 중 미국 5일 ${fmtPct(s.usChg)} 부진, 차익 실현 우선`;
+    // 5일 성과가 사실상 최근 하루에서 나온 경우 — 추세로 오해하지 않도록 명시
+    const oneDay = (s.kr5x != null && s.krD1 != null && s.kr5x <= 0)
+      ? ` 5일 상승분은 대부분 최근 하루(${fmtPct(s.krD1)})에서 나왔습니다.` : '';
+    risk = `${s.ind}: 한국만 올랐습니다 — 최근 5일 한국 ${fmtPct(s.krChg)}, 해외 ${fmtPct(s.usChg)}.${oneDay} 되돌림 위험을 함께 보세요`;
+  } else if (turnUpSigs.length) {
+    // 5일은 엇갈렸지만 한국이 이미 반응한 직전 해외 세션이 같은 방향 → 단정 대신 관찰
+    const s = turnUpSigs[0];
+    risk = `${s.ind}: 최근 5일은 한국 ${fmtPct(s.krChg)} / 해외 ${fmtPct(s.usChg)}로 엇갈렸지만, 직전 해외 세션이 ${fmtPct(s.usD1)}였습니다 — 따라잡기인지 하루 더 확인`;
   } else if (syncDownSigs.length) {
-    risk = `${syncDownSigs.map(s => s.ind).join('·')} 미·한 동반 약세 — 반등 매수 금지`;
+    risk = `${syncDownSigs.map(s => s.ind).join('·')}: 해외와 한국이 같이 밀리고 있습니다 (최근 5일 동반 하락)`;
+  } else if (krOnlyDown.length >= 3) {
+    const inds = krOnlyDown.slice(0, 3).map(s => s.ind).join(' · ');
+    risk = `한국이 해외보다 부진합니다 — ${krOnlyDown.length}개 업종에서 해외는 보합권인데 한국만 최근 5일 하락 (${inds} 등)`;
   } else if (plungeStocks.length >= 2) {
     const names = plungeStocks.slice(0, 2).map(r => `${r.corp_name}(${fmtPct(r.price_change_rate)})`).join(' · ');
     risk = `${names} 급락 — 실적·공시 이슈 확인 필요`;
@@ -423,7 +465,17 @@ async function _buildLiveSections() {
   // 통합 카드에서 레짐 verdict·행동지침은 온도계(Zone A)가 단독 소유한다.
   // 정합성: 여기선 경쟁 verdict·지수 리캡을 만들지 않고, KR 시장 분위기만 한 줄로 남긴다.
   const moodStr   = moodMap[a.krMarketState] || '혼조';
-  const topIndStr = a.krSorted[0] ? ` · ${a.krSorted[0]} 주도` : '';
+  // 주도 업종은 '당일' 기준 — 급락일엔 1등도 마이너스라 '주도'가 오독을 부른다.
+  // 수치를 함께 적어 5일 기준 크로스 신호와 기간이 다름을 드러낸다.
+  let topIndStr = '';
+  if (a.krSorted[0]) {
+    const _ti = a.krSorted[0];
+    const _tc = a.krPeriod[_ti]?.d1;
+    if (_tc != null && _tc > 0)
+      topIndStr = (krAvgToday > -2)
+        ? ` · 오늘은 ${_ti}(${fmtPct(_tc)}) 주도`
+        : ` · ${_ti}(${fmtPct(_tc)})만 버팀`;
+  }
 
   const oneLiner = `코스피 ${fmtPct(a.kospiChg)} ${moodStr}${topIndStr}`;
 
