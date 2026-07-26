@@ -58,8 +58,9 @@ function _rpSummaryCard(s) {
       ${news.map(n => {
         const url  = safeUrl(n.link);
         const t    = esc(n.title || '');
-        const nsrc = Array.isArray(n.sources) ? n.sources.length : 0;
-        const meta = [nsrc > 1 ? `${nsrc}개 매체` : (Array.isArray(n.sources) && n.sources[0] ? esc(n.sources[0]) : ''), esc(n.time || '')].filter(Boolean).join(' · ');
+        // sources = cluster_news가 저장한 매체 수(정수). 배열이 아니라 카운트.
+        const nsrc = (typeof n.sources === 'number') ? n.sources : (Array.isArray(n.sources) ? n.sources.length : 0);
+        const meta = [nsrc > 1 ? `${nsrc}개 매체` : '', esc(n.time || '')].filter(Boolean).join(' · ');
         return `<div style="display:flex;align-items:flex-start;gap:7px;font-size:12px">
           <span style="flex-shrink:0;color:var(--tg);margin-top:1px">📰</span>
           <div style="line-height:1.4">
