@@ -1,5 +1,82 @@
 // 기업 분석 리포트 — 서브 컴포넌트 카드 (의견배지·증권사·실적·종합판단·세그먼트·밸류에이션·재무건전성·수급·카탈리스트) (report.js에서 분할)
 
+// ── 오늘의 공시·뉴스 요약 카드 (daily_summaries — 백엔드 18:55 생성) ───────────
+// items = {disclosures:[{category,report_nm,rcept_no}], news:[{title,link,time,sources}]}
+// + ai_summary(대형/긴급만 Gemini 2줄). 요약 자체가 없으면 카드 생략(개요 상단 공간 절약).
+// 색상은 반드시 hex — 칩 배경이 `${col}22`(JS 문자열 8자리 hex 연결)로 만들어지므로
+// var(--...) 토큰을 쓰면 CSS가 `var(--x)22`를 이어붙이지 못해 배경이 투명해진다.
+const _RP_CAT_COL = {
+  '주요경영사항': '#f59e0b', '지분공시': '#c084fc', '대량보유': '#e879f9',
+  '최대주주변동': '#f59e0b', '임원/주식': '#a78bfa', '기업설명회(IR)': '#22d3ee',
+  '실적': '#4ade80', '잠정실적': '#4ade80', '배당': '#38bdf8', '기타': '#94a3b8',
+};
+
+function _rpSummaryCard(s) {
+  if (!s) return '';
+  const esc = escapeHtml;
+  const dcnt = s.disclosure_cnt || 0, ncnt = s.news_cnt || 0;
+  const items = (typeof s.items === 'string') ? (() => { try { return JSON.parse(s.items); } catch { return {}; } })() : (s.items || {});
+  const discs = items.disclosures || [];
+  const news  = items.news || [];
+  const dateStr = (s.base_date || '').slice(2).replace(/-/g, '/');
+
+  // 최신 요약이 오늘이 아닐 수 있음(주말·무활동) → 기준일 명시
+  const bd = s.base_date ? new Date(s.base_date + 'T00:00:00') : null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const stale = bd ? (today - bd) / 86400000 >= 1 : false;
+  const sub = `공시 ${dcnt} · 뉴스 ${ncnt}${stale ? ` · ${dateStr} 기준` : ''}`;
+
+  if (dcnt === 0 && ncnt === 0) {
+    return `<div class="card" style="padding:14px">
+      ${_rpSecT('오늘의 공시·뉴스 요약', dateStr + ' 기준')}
+      <div style="color:var(--text3);font-size:12px;text-align:center;padding:14px">최근 공시·뉴스 없음</div>
+    </div>`;
+  }
+
+  const aiHTML = s.ai_summary ? `
+    <div style="margin-top:8px;padding:10px 12px;background:var(--bg3);border-left:3px solid var(--tg);
+      border-radius:4px;font-size:13px;color:var(--text1);line-height:1.6;white-space:pre-line">${esc(s.ai_summary)}</div>` : '';
+
+  const discHTML = discs.length ? `
+    <div style="display:flex;flex-direction:column;gap:5px;margin-top:10px">
+      ${discs.map(d => {
+        const cat = d.category || '기타';
+        const col = _RP_CAT_COL[cat] || '#94a3b8';
+        const nm  = esc((d.report_nm || '').trim());
+        const url = safeUrl(`https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${encodeURIComponent(d.rcept_no || '')}`);
+        return `<div style="display:flex;align-items:flex-start;gap:7px;font-size:12px">
+          <span style="flex-shrink:0;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;
+            background:${col}22;color:${col}">${esc(cat)}</span>
+          ${url ? `<a href="${escAttr(url)}" target="_blank" rel="noopener" style="color:var(--text1);text-decoration:none;line-height:1.4">${nm}</a>`
+                : `<span style="color:var(--text1);line-height:1.4">${nm}</span>`}
+        </div>`;
+      }).join('')}
+    </div>` : '';
+
+  const newsHTML = news.length ? `
+    <div style="display:flex;flex-direction:column;gap:5px;margin-top:${discs.length ? '10' : '8'}px">
+      ${news.map(n => {
+        const url  = safeUrl(n.link);
+        const t    = esc(n.title || '');
+        const nsrc = Array.isArray(n.sources) ? n.sources.length : 0;
+        const meta = [nsrc > 1 ? `${nsrc}개 매체` : (Array.isArray(n.sources) && n.sources[0] ? esc(n.sources[0]) : ''), esc(n.time || '')].filter(Boolean).join(' · ');
+        return `<div style="display:flex;align-items:flex-start;gap:7px;font-size:12px">
+          <span style="flex-shrink:0;color:var(--tg);margin-top:1px">📰</span>
+          <div style="line-height:1.4">
+            ${url ? `<a href="${escAttr(url)}" target="_blank" rel="noopener" style="color:var(--text1);text-decoration:none">${t}</a>`
+                  : `<span style="color:var(--text1)">${t}</span>`}
+            ${meta ? `<span style="color:var(--text3);font-size:11px;margin-left:4px">${meta}</span>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : '';
+
+  return `<div class="card" style="padding:14px">
+    ${_rpSecT('오늘의 공시·뉴스 요약', sub)}
+    ${aiHTML}${discHTML}${newsHTML}
+  </div>`;
+}
+
 // ── 서브 컴포넌트 ─────────────────────────────────────────────────────────────
 
 // 인라인 배지 (가로 레이아웃용 — 작고 컴팩트)

@@ -176,7 +176,7 @@ async function rpLoadReport() {
 
   // 병렬 데이터 로드
   try {
-    const [priceRes, finRes, watchRes, dartRes, analystRes, segRes, compRes] = await Promise.all([
+    const [priceRes, finRes, watchRes, dartRes, analystRes, segRes, compRes, summaryRes] = await Promise.all([
       sb.from('market_data').select('price,price_change,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low,per,pbr,base_date,week_return,month_return,quarter_return,year_return')
         .eq('stock_code', _rpStock.code).order('base_date', { ascending: false }).limit(500),
       sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,debt_ratio,roe,roa,operating_margin,net_margin,ebitda,fcf,da')
@@ -194,6 +194,9 @@ async function rpLoadReport() {
         .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
       sb.from('companies').select('market,sector,product,industry,sub_industry')
         .eq('code', _rpStock.code).maybeSingle(),
+      // 오늘의 공시·뉴스 요약 (백엔드 18:55 생성 — 최신 1건)
+      sb.from('daily_summaries').select('base_date,disclosure_cnt,news_cnt,is_major,ai_summary,items')
+        .eq('stock_code', _rpStock.code).order('base_date', { ascending: false }).limit(1).maybeSingle(),
     ]);
 
     // financials의 Q4는 분기 순액 — 연간은 4분기 합산(_rpAggAnnual)으로 파생
@@ -207,6 +210,7 @@ async function rpLoadReport() {
       segment:  segRes.data     || [],
       annual:   _rpAggAnnual(finRows).reverse(), // 최신 연도 먼저
       company:  compRes.data    || null,
+      summary:  summaryRes.data || null,
     };
     rpRenderReport();
     // peer 비교 데이터 비동기 로드 (렌더 후)
@@ -390,6 +394,9 @@ function _rpTabOverview() {
   return `
   <!-- 시세 및 주주현황 + 주가/거래량 차트 -->
   ${_rpQuoteCard(latest, prices)}
+
+  <!-- 오늘의 공시·뉴스 요약 (있을 때만) -->
+  ${_rpSummaryCard(_rpData.summary)}
 
   <!-- 핵심 투자 논거 (Bull/Bear) -->
   <div class="card" style="padding:16px">
