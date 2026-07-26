@@ -394,10 +394,10 @@ function _rpAnnualTable(annual, latest) {
             const isLast = i === rows.length - 1;
             const td = (v, extra = '') => `<td style="padding:7px 10px;text-align:right;
               font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border);
-              ${isLast ? 'font-weight:700;color:var(--text1);background:var(--tg)0d' : 'color:var(--text1)'};${extra}">${v}</td>`;
+              ${isLast ? 'font-weight:700;color:var(--text1);background:color-mix(in srgb, var(--tg) 5%, transparent)' : 'color:var(--text1)'};${extra}">${v}</td>`;
             return `<tr>
               <td style="padding:7px 10px;font-weight:${isLast ? 700 : 600};color:var(--text1);
-                border-bottom:1px solid var(--border);${isLast ? 'background:var(--tg)0d' : ''}">${r.bsns_year}(A)</td>
+                border-bottom:1px solid var(--border);${isLast ? 'background:color-mix(in srgb, var(--tg) 5%, transparent)' : ''}">${r.bsns_year}(A)</td>
               ${td(eok(r.revenue))}
               ${td(yoy(r.revenue, prev?.revenue))}
               ${td(eok(r.operating_profit))}
@@ -980,7 +980,7 @@ function rpfRender() {
             const col = d.sign && v != null && v < 0 ? 'var(--blue)' : 'var(--text1)';
             return `<td style="padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums;
               border-bottom:1px solid var(--border);color:${col};
-              ${d.bold ? 'font-weight:700' : ''};${i === periods.length - 1 ? 'background:var(--tg)0d' : ''}">
+              ${d.bold ? 'font-weight:700' : ''};${i === periods.length - 1 ? 'background:color-mix(in srgb, var(--tg) 5%, transparent)' : ''}">
               ${d.pct ? pctF(v) : eok(v)}</td>`;
           }).join('');
           const gCells = growCols.map(g => `<td style="padding:6px 10px;text-align:right;font-weight:600;
@@ -1176,7 +1176,7 @@ function _rpiTable(defs, periods, labels) {
             const col = v != null && v < 0 ? 'var(--blue)' : 'var(--text1)';
             return `<td style="padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums;
               border-bottom:1px solid var(--border);color:${col};${d.bold ? 'font-weight:700' : ''};
-              ${i === periods.length - 1 ? 'background:var(--tg)0d' : ''}">${fmtV(d, v)}</td>`;
+              ${i === periods.length - 1 ? 'background:color-mix(in srgb, var(--tg) 5%, transparent)' : ''}">${fmtV(d, v)}</td>`;
           }).join('');
           const gCells = growCols.map(g => `<td style="padding:6px 10px;text-align:right;font-weight:600;
             font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border)">

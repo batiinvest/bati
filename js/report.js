@@ -78,7 +78,7 @@ function _rpLanding() {
   return `
   <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
     padding:60px 20px;gap:20px;text-align:center">
-    <div style="width:56px;height:56px;border-radius:50%;background:var(--tg)20;
+    <div style="width:56px;height:56px;border-radius:50%;background:color-mix(in srgb, var(--tg) 12%, transparent);
       display:flex;align-items:center;justify-content:center">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
         <path d="M9 17l3-3-3-3M13 17h3M4 6h16M4 10h8" stroke="var(--tg)" stroke-width="1.8" stroke-linecap="round"/>

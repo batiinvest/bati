@@ -319,19 +319,19 @@ function _rpEarningsCard(fin) {
         <tbody>
           <!-- 매출 -->
           <tr>
-            <td style="padding:6px 8px;color:var(--text1);border-bottom:1px solid var(--border)10;
+            <td style="padding:6px 8px;color:var(--text1);border-bottom:1px solid var(--border);
               display:flex;align-items:center;gap:5px">
               <span style="width:8px;height:8px;border-radius:2px;background:#4a9eff55;flex-shrink:0"></span>매출
             </td>
             ${items.map(f => `
               <td style="padding:6px 8px;text-align:right;color:var(--text1);font-weight:600;
-                border-bottom:1px solid var(--border)10">
+                border-bottom:1px solid var(--border)">
                 ${fmtCap(f.revenue||0)}
               </td>`).join('')}
           </tr>
           <!-- 영업이익 -->
           <tr>
-            <td style="padding:6px 8px;color:var(--text1);border-bottom:1px solid var(--border)10;
+            <td style="padding:6px 8px;color:var(--text1);border-bottom:1px solid var(--border);
               display:flex;align-items:center;gap:5px">
               <span style="width:8px;height:8px;border-radius:2px;background:#2AABEE;flex-shrink:0"></span>영업이익
             </td>
@@ -339,7 +339,7 @@ function _rpEarningsCard(fin) {
               const op = f.operating_profit || 0;
               const col = op >= 0 ? 'var(--text1)' : 'var(--blue)';
               return `<td style="padding:6px 8px;text-align:right;color:${col};font-weight:600;
-                border-bottom:1px solid var(--border)10">
+                border-bottom:1px solid var(--border)">
                 ${op < 0 ? '▼' : ''}${fmtCap(Math.abs(op))}
               </td>`;
             }).join('')}
@@ -347,17 +347,17 @@ function _rpEarningsCard(fin) {
           <!-- 순이익 -->
           ${items.some(f => f.net_income != null) ? `
           <tr>
-            <td style="padding:6px 8px;color:var(--text1);border-bottom:1px solid var(--border)10;
+            <td style="padding:6px 8px;color:var(--text1);border-bottom:1px solid var(--border);
               display:flex;align-items:center;gap:5px">
               <span style="width:8px;height:8px;border-radius:2px;background:#a78bfa;flex-shrink:0"></span>순이익
             </td>
             ${items.map(f => {
               const ni = f.net_income;
               if (ni == null) return `<td style="padding:6px 8px;text-align:right;color:var(--text1);
-                border-bottom:1px solid var(--border)10">—</td>`;
+                border-bottom:1px solid var(--border)">—</td>`;
               const col = ni >= 0 ? 'var(--text1)' : 'var(--blue)';
               return `<td style="padding:6px 8px;text-align:right;color:${col};font-weight:600;
-                border-bottom:1px solid var(--border)10">
+                border-bottom:1px solid var(--border)">
                 ${ni < 0 ? '▼' : ''}${fmtCap(Math.abs(ni))}
               </td>`;
             }).join('')}

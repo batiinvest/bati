@@ -51,13 +51,13 @@ async function _rpLoadAndRenderDart(body) {
 
   <!-- ① 리포트 헤더 ─────────────────────────────── -->
   <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;
-    padding-bottom:14px;border-bottom:2px solid var(--tg)40">
+    padding-bottom:14px;border-bottom:2px solid color-mix(in srgb, var(--tg) 25%, transparent)">
     <div>
       <div style="font-size:20px;font-weight:800;color:var(--text1)">${esc(dp.stockName || _rpStock?.name || '')}</div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap">
         <span style="font-size:12px;color:var(--text2)">${esc(dp.stockCode || _rpStock?.code || '')}</span>
         <span style="font-size:12px;padding:2px 9px;border-radius:100px;
-          background:var(--tg)20;color:var(--tg);font-weight:600">${esc(data.report_type||'')}</span>
+          background:color-mix(in srgb, var(--tg) 12%, transparent);color:var(--tg);font-weight:600">${esc(data.report_type||'')}</span>
         <span style="font-size:12px;color:var(--text2)">접수 ${esc(data.receive_date||'')}</span>
         ${dp.listedDate ? `<span style="font-size:12px;color:var(--text2)">상장 ${esc(dp.listedDate)}</span>` : ''}
       </div>
@@ -149,7 +149,7 @@ async function _rpLoadAndRenderDart(body) {
             return `<div style="margin-top:4px">
               <div style="height:6px;border-radius:3px;background:var(--border);position:relative;overflow:hidden">
                 <div style="position:absolute;left:0;top:0;height:100%;width:${total}%;
-                  background:linear-gradient(90deg,var(--tg),var(--tg)80);border-radius:3px"></div>
+                  background:linear-gradient(90deg,var(--tg),color-mix(in srgb, var(--tg) 50%, transparent));border-radius:3px"></div>
               </div>
               <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:12px;color:var(--text1)">
                 <span>0%</span><span style="color:var(--tg);font-weight:600">${total.toFixed(1)}%</span><span>100%</span>
@@ -478,9 +478,9 @@ function _mdToAccordion(md) {
             border-bottom:1px solid var(--border);white-space:nowrap">${inl(h)}</th>`).join('')}
         </tr></thead>
         <tbody>
-          ${rows.slice(1).map((r,ri)=>`<tr style="background:${ri%2?'var(--bg3)20':''}">
+          ${rows.slice(1).map((r,ri)=>`<tr style="background:${ri%2?'var(--bg3)':''}">
             ${cols(r).map(c=>`<td style="padding:4px 8px;color:var(--text1);
-              border-bottom:1px solid var(--border)10;line-height:1.5;font-size:12px">${inl(c)}</td>`).join('')}
+              border-bottom:1px solid var(--border);line-height:1.5;font-size:12px">${inl(c)}</td>`).join('')}
           </tr>`).join('')}
         </tbody>
       </table></div>`;
@@ -514,7 +514,7 @@ function _mdToAccordion(md) {
 
     if (/^### /.test(line)) {
       html += `<div style="font-size:12px;font-weight:700;color:var(--tg);margin-top:10px;margin-bottom:4px;
-        padding-bottom:3px;border-bottom:1px solid var(--border)30">${esc(line.replace(/^### /,'').trim())}</div>`;
+        padding-bottom:3px;border-bottom:1px solid var(--border2)">${esc(line.replace(/^### /,'').trim())}</div>`;
       i++; continue;
     }
     if (/^#### /.test(line)) {
