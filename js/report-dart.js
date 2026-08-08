@@ -307,49 +307,52 @@ function _rpSubsContent(subs, summary) {
       ${summary.financeCheck ? `<span style="color:#ef4444;flex-basis:100%;line-height:1.5">⚠ ${esc(summary.financeCheck)}</span>` : ''}</div>`;
   }
 
-  const metric = (label, val, col) => val == null ? '' : `
-    <div style="display:flex;flex-direction:column;gap:1px;min-width:0">
-      <span style="font-size:10px;color:var(--text3)">${label}</span>
-      <span style="font-size:12px;font-weight:700;color:${col || 'var(--text1)'};font-variant-numeric:tabular-nums;
-        white-space:nowrap">${val}</span>
-    </div>`;
+  // ── 단일 표 렌더 ──────────────────────────────────────────────────────────
+  const th = (label, align) => `<th style="padding:7px 9px;text-align:${align || 'left'};color:var(--text2);
+    font-weight:600;border-bottom:1px solid var(--border);white-space:nowrap">${label}</th>`;
+  const td = (v, align, col, bold) => `<td style="padding:7px 9px;text-align:${align || 'left'};
+    border-bottom:1px solid var(--border);color:${col || 'var(--text1)'};${bold ? 'font-weight:700;' : ''}
+    font-variant-numeric:tabular-nums">${v}</td>`;
+  const COLS = 11;
 
-  const cards = subs.map(s => {
+  const rows = subs.map(s => {
     const insolvent = (s.note && s.note.includes('자본잠식')) || (s.equity != null && s.equity < 0);
     const isLoss = s.netIncome != null && s.netIncome < 0;
+    const rc = relColor(s.relation);
     const badge = insolvent
-      ? `<span style="font-size:10px;padding:1px 7px;border-radius:100px;background:#ef444420;color:#ef4444;font-weight:700;flex-shrink:0">자본잠식</span>`
+      ? `<span style="font-size:10px;padding:1px 7px;border-radius:100px;background:#ef444420;color:#ef4444;font-weight:700">자본잠식</span>`
       : isLoss
-      ? `<span style="font-size:10px;padding:1px 7px;border-radius:100px;background:#f5a62320;color:#f5a623;font-weight:700;flex-shrink:0">순손실</span>`
-      : `<span style="font-size:10px;padding:1px 7px;border-radius:100px;background:#4ade8020;color:#4ade80;font-weight:700;flex-shrink:0">정상</span>`;
+      ? `<span style="font-size:10px;padding:1px 7px;border-radius:100px;background:#f5a62320;color:#f5a623;font-weight:700">순손실</span>`
+      : `<span style="font-size:10px;padding:1px 7px;border-radius:100px;background:#4ade8020;color:#4ade80;font-weight:700">정상</span>`;
     const debtRatio = (s.equity != null && s.equity > 0 && s.liabilities != null) ? (s.liabilities / s.equity * 100) : null;
-    const meta = [s.ownership ? '지분 ' + esc(s.ownership) : '', s.country ? esc(s.country) : ''].filter(Boolean).join(' · ');
-    return `<div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);
-      border:1px solid ${insolvent ? '#ef444440' : 'var(--border)'};display:flex;flex-direction:column;gap:7px">
-      <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:12px;font-weight:700;color:var(--text1);flex:1;min-width:0;overflow:hidden;
-          text-overflow:ellipsis;white-space:nowrap">${esc(s.name)}</span>
-        ${s.relation ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;
-          background:${relColor(s.relation)}1f;color:${relColor(s.relation)};font-weight:600;flex-shrink:0">${esc(s.relation)}</span>` : ''}
-        ${badge}
-      </div>
-      ${(meta || s.role) ? `<div style="font-size:11px;color:var(--text2);line-height:1.45">
-        ${meta ? `<span style="color:var(--text1);font-weight:600">${meta}</span>` : ''}${meta && s.role ? ' · ' : ''}${s.role ? esc(s.role) : ''}</div>` : ''}
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(58px,1fr));gap:8px;
-        padding-top:7px;border-top:1px solid var(--border)">
-        ${metric('매출', s.revenue != null ? fmtKW(s.revenue) : null)}
-        ${metric('순손익', s.netIncome != null ? fmtKW(s.netIncome) : null, isLoss ? 'var(--blue)' : 'var(--red)')}
-        ${metric('자본', s.equity != null ? fmtKW(s.equity) : null, s.equity != null && s.equity < 0 ? '#ef4444' : 'var(--text1)')}
-        ${metric('자산', s.assets != null ? fmtKW(s.assets) : null)}
-        ${metric('부채', s.liabilities != null ? fmtKW(s.liabilities) : null)}
-        ${metric('부채비율', debtRatio != null ? Math.round(debtRatio).toLocaleString() + '%' : null, debtRatio != null && debtRatio > 200 ? '#f5a623' : 'var(--text1)')}
-      </div>
-      ${s.opinion ? `<div style="font-size:11px;color:var(--text3);line-height:1.55;
-        padding-top:7px;border-top:1px solid var(--border)">${esc(s.opinion)}</div>` : ''}
-    </div>`;
+    const rowBg = insolvent ? 'background:#ef44440a' : '';
+    return `<tr style="${rowBg}">
+      ${td(esc(s.name), 'left', 'var(--text1)', true)}
+      ${td(s.relation ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:${rc}1f;color:${rc};font-weight:600">${esc(s.relation)}</span>` : '—', 'left')}
+      ${td(s.ownership ? esc(s.ownership) : '—', 'right')}
+      ${td(s.country ? esc(s.country) : '—', 'center', 'var(--text2)')}
+      ${td(s.role ? esc(s.role) : '—', 'left', 'var(--text2)')}
+      ${td(s.revenue != null ? fmtKW(s.revenue) : '—', 'right')}
+      ${td(s.netIncome != null ? fmtKW(s.netIncome) : '—', 'right', s.netIncome == null ? 'var(--text3)' : isLoss ? 'var(--blue)' : 'var(--red)', true)}
+      ${td(s.equity != null ? fmtKW(s.equity) : '—', 'right', s.equity != null && s.equity < 0 ? '#ef4444' : 'var(--text1)')}
+      ${td(s.assets != null ? fmtKW(s.assets) : '—', 'right', 'var(--text2)')}
+      ${td(s.liabilities != null ? fmtKW(s.liabilities) : '—', 'right', 'var(--text2)')}
+      ${td(debtRatio != null ? Math.round(debtRatio).toLocaleString() + '%' : '—', 'right', debtRatio != null && debtRatio > 200 ? '#f5a623' : 'var(--text1)')}
+      ${td(badge, 'center')}
+    </tr>${s.opinion ? `<tr style="${rowBg}"><td colspan="${COLS + 1}" style="padding:2px 9px 9px;border-bottom:1px solid var(--border);
+      font-size:11px;color:var(--text3);line-height:1.55;white-space:normal">
+      <span style="color:var(--text2)">검토의견</span> · ${esc(s.opinion)}</td></tr>` : ''}`;
   }).join('');
 
-  return summaryHTML + `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:8px">${cards}</div>`;
+  return summaryHTML + `<div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
+      <thead><tr style="background:var(--bg3)">
+        ${th('계열사')}${th('관계')}${th('지분', 'right')}${th('국가', 'center')}${th('역할')}
+        ${th('매출', 'right')}${th('순손익', 'right')}${th('자본', 'right')}${th('자산', 'right')}${th('부채', 'right')}${th('부채비율', 'right')}${th('상태', 'center')}
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
 }
 
 // ── 사업 섹션 파서 (4-1 ~ 4-5) ───────────────────────────────────────────────
