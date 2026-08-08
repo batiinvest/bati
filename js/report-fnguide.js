@@ -657,31 +657,13 @@ function _rpProfileTab({ comp, dart, dp, discs, region, prod, latest, segment })
       : empty('DART 업로드 시 생산실적·가동률이 표시됩니다')}`);
   }
 
-  // ── ⑥ 계열사 현황 ──────────────────────────────────────────────────────
+  // ── ⑥ 계열사 현황 (상세 — 공용 _rpSubsContent) ────────────────────────
   const subs = dp.subsidiaries || [];
-  const fmtB = typeof _fmtBillions === 'function' ? _fmtBillions : (v => v != null ? fmtNum(v) : '—');
   const subsHTML = box(`
     ${secT('계열사 현황')}
-    ${subs.length ? `
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:7px">
-      ${subs.map(s => {
-        const isLoss = s.netIncome != null && s.netIncome < 0;
-        return `<div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm)">
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:12px;font-weight:700;color:var(--text1);min-width:0;overflow:hidden;
-              text-overflow:ellipsis;white-space:nowrap;flex:1">${esc(s.name)}</span>
-            ${s.note ? `<span style="font-size:11px;padding:1px 6px;border-radius:100px;
-              background:#ef444420;color:#ef4444;font-weight:700;flex-shrink:0">${esc(s.note)}</span>` : ''}
-          </div>
-          <div style="display:flex;gap:12px;margin-top:3px;font-size:11px;color:var(--text2);flex-wrap:wrap">
-            ${s.role ? `<span>${esc(s.role)}</span>` : ''}
-            ${s.revenue != null ? `<span>매출 <b style="color:var(--text1)">${fmtB(s.revenue)}</b></span>` : ''}
-            ${s.netIncome != null ? `<span>순손익 <b style="color:${isLoss ? 'var(--blue)' : 'var(--red)'}">${fmtB(s.netIncome)}</b></span>` : ''}
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`
-    : empty('DART 업로드 시 계열사 현황이 표시됩니다')}`);
+    ${subs.length && typeof _rpSubsContent === 'function'
+      ? _rpSubsContent(subs, dp.subsidiarySummary)
+      : empty('DART 업로드 시 계열사 현황이 표시됩니다')}`);
 
   return `<div style="display:flex;flex-direction:column;gap:12px">
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px">

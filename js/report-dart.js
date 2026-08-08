@@ -164,30 +164,7 @@ async function _rpLoadAndRenderDart(body) {
   ${dp.subsidiaries?.length ? `
   <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
     ${sectionTitle('계열사 현황')}
-    <div style="display:flex;flex-direction:column;gap:6px">
-      ${dp.subsidiaries.map(sub => {
-        const isLoss    = sub.netIncome != null && sub.netIncome < 0;
-        const isInsolvent = sub.note?.includes('자본잠식');
-        const badge = isInsolvent
-          ? `<span style="font-size:11px;padding:2px 6px;border-radius:100px;background:#ef444420;color:#ef4444;font-weight:700">자본잠식</span>`
-          : isLoss
-          ? `<span style="font-size:11px;padding:2px 6px;border-radius:100px;background:#f5a62320;color:#f5a623;font-weight:700">순손실</span>`
-          : `<span style="font-size:11px;padding:2px 6px;border-radius:100px;background:#4ade8020;color:#4ade80;font-weight:700">정상</span>`;
-        return `
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;
-          background:var(--bg3);border-radius:var(--radius-sm);flex-wrap:wrap">
-          <div style="min-width:120px">
-            <div style="font-size:13px;font-weight:700;color:var(--text1)">${esc(sub.name)}</div>
-            ${sub.role ? `<div style="font-size:12px;color:var(--text1)">${esc(sub.role)}</div>` : ''}
-          </div>
-          ${badge}
-          <div style="margin-left:auto;display:flex;gap:16px;font-size:12px;flex-wrap:wrap">
-            ${sub.revenue    != null ? `<span style="color:var(--text2)">매출 <b style="color:var(--text1)">${_fmtBillions(sub.revenue)}</b></span>` : ''}
-            ${sub.netIncome  != null ? `<span style="color:var(--text2)">순손익 <b style="color:${isLoss?'var(--blue)':'var(--red)'}">${_fmtBillions(sub.netIncome)}</b></span>` : ''}
-          </div>
-        </div>`;
-      }).join('')}
-    </div>
+    ${_rpSubsContent(dp.subsidiaries, dp.subsidiarySummary)}
   </div>` : ''}
 
   <!-- ⑥ 섹션별 상세 분석 (아코디언) ─────────── -->
@@ -238,23 +215,50 @@ function _mdDeepParse(md) {
   const mainBusinessRaw = lv('주요사업', basic);
   const mainBusiness = mainBusinessRaw?.slice(0, 120) + (mainBusinessRaw?.length > 120 ? '...' : '');
 
-  // 2-4 계열회사
+  // 2-4 계열회사 (단위: 천원) — 관계·지분율·역할·국가·매출·순손익·자본·자산·부채·검토의견
   const subSec = subLines('2-4', sec2);
   const subsidiaries = [];
+  const num천 = (s, kw) => {  // "kw 1,462천원" / "kw -143,014천원" → 정수(천원 그대로), 없으면 null
+    const m = (s || '').match(new RegExp(kw + '\\s*(-?[\\d,]+)\\s*천원'));
+    return m ? parseInt(m[1].replace(/,/g, ''), 10) : null;
+  };
   let cur = null;
   for (const l of subSec) {
     const h5 = l.match(/^##### (.+)/);
     if (h5) {
       if (cur) subsidiaries.push(cur);
-      cur = { name: h5[1].trim(), role: null, revenue: null, netIncome: null, note: null };
-    } else if (cur) {
-      const rev = l.match(/매출\s+([\d,]+)/);   if (rev) cur.revenue   = parseInt(rev[1].replace(/,/g,''));
-      const net = l.match(/순손[실익]\s*([-]?[\d,]+)/); if (net) cur.netIncome = parseInt(net[1].replace(/,/g,'')) * (l.includes('순손실') ? -1 : 1);
-      const role = l.match(/역할[:：]\s*(.+?)[\s/]/); if (role) cur.role = role[1];
-      if (l.includes('자본잠식')) cur.note = '자본잠식';
+      cur = { name: h5[1].trim(), relation: null, ownership: null, role: null, country: null,
+        revenue: null, netIncome: null, equity: null, assets: null, liabilities: null,
+        opinion: null, note: null };
+      continue;
     }
+    if (!cur) continue;
+    const relM = l.match(/관계\/지분율[:：]\s*(.+)/);        // 종속기업 / 100%
+    if (relM) { const p = relM[1].split('/').map(s => s.trim()); cur.relation = p[0] || null; cur.ownership = p[1] || null; }
+    const roleM = l.match(/역할[:：]\s*(.+)/);               // 반도체장비 제조 및 판매 / 독일
+    if (roleM) {
+      const p = roleM[1].split('/').map(s => s.trim()).filter(Boolean);
+      if (p.length >= 2) { cur.country = p[p.length - 1]; cur.role = p.slice(0, -1).join(' / '); }
+      else cur.role = p[0] || null;
+    }
+    const rev = num천(l, '매출'); if (rev != null) cur.revenue = rev;          // "매출 -"는 null 유지
+    const eq  = num천(l, '자본'); if (eq  != null) cur.equity = eq;
+    const as  = num천(l, '자산'); if (as  != null) cur.assets = as;
+    const li  = num천(l, '부채'); if (li  != null) cur.liabilities = li;
+    const netM = l.match(/순(이익|손실)\s*(-?[\d,]+)\s*천원/);
+    if (netM) cur.netIncome = parseInt(netM[2].replace(/,/g, ''), 10) * (netM[1] === '손실' ? -1 : 1);
+    const opM = l.match(/검토의견[:：]\s*(.+)/); if (opM) cur.opinion = opM[1].trim();
+    if (l.includes('자본잠식')) cur.note = '자본잠식';
   }
   if (cur) subsidiaries.push(cur);
+  for (const s of subsidiaries) if (s.equity != null && s.equity < 0 && !s.note) s.note = '자본잠식';
+
+  const subsidiarySummary = {
+    count:        lv('계열회사 수', subSec),
+    revenueSum:   lv('계열회사 매출 합계', subSec),
+    lossCount:    lv('손실 계열회사', subSec),
+    financeCheck: lv('재무 체크', subSec),
+  };
 
   // 3-1 주주
   const sec3 = secLines('3. 주주');
@@ -271,9 +275,81 @@ function _mdDeepParse(md) {
     listedDate:  lv('상장일', basic),
     location:    lv('소재지', basic),
     subsidiaries,
+    subsidiarySummary,
     majorShareholder,
     majorShareholderRatio,
   };
+}
+
+// ── 계열사 현황 상세 렌더 (2-4 파싱결과 공용 — 기업개요 탭·DART 탭) · 단위 천원 ──
+function _rpSubsContent(subs, summary) {
+  const esc = typeof escapeHtml === 'function' ? escapeHtml : (v => v ?? '');
+  if (!subs || !subs.length) return '';
+  const fmtKW = v => {  // v: 천원 → 억/만/원
+    if (v == null) return '—';
+    const won = v * 1000, abs = Math.abs(won), sg = won < 0 ? '-' : '';
+    if (abs >= 1e12) return sg + (abs / 1e12).toFixed(1) + '조';
+    if (abs >= 1e8)  return sg + (abs / 1e8).toFixed(1) + '억';
+    if (abs >= 1e4)  return sg + Math.round(abs / 1e4).toLocaleString() + '만';
+    if (abs === 0)   return '0';
+    return sg + Math.round(abs).toLocaleString() + '원';
+  };
+  const relColor = r => /종속/.test(r || '') ? '#2AABEE' : /관계|공동/.test(r || '') ? '#a78bfa' : 'var(--text2)';
+
+  // 요약 스트립
+  let summaryHTML = '';
+  if (summary && (summary.count || summary.revenueSum || summary.lossCount || summary.financeCheck)) {
+    const chip = (label, val, col) => val ? `<span style="display:inline-flex;align-items:baseline;gap:4px">
+      <span style="color:var(--text3)">${label}</span><b style="color:${col || 'var(--text1)'}">${esc(val)}</b></span>` : '';
+    summaryHTML = `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:baseline;font-size:11px;margin-bottom:10px;
+      padding:8px 11px;background:var(--bg3);border-radius:var(--radius-sm)">
+      ${chip('계열사', summary.count)}${chip('매출합계', summary.revenueSum)}${chip('손실', summary.lossCount, '#f5a623')}
+      ${summary.financeCheck ? `<span style="color:#ef4444;flex-basis:100%;line-height:1.5">⚠ ${esc(summary.financeCheck)}</span>` : ''}</div>`;
+  }
+
+  const metric = (label, val, col) => val == null ? '' : `
+    <div style="display:flex;flex-direction:column;gap:1px;min-width:0">
+      <span style="font-size:10px;color:var(--text3)">${label}</span>
+      <span style="font-size:12px;font-weight:700;color:${col || 'var(--text1)'};font-variant-numeric:tabular-nums;
+        white-space:nowrap">${val}</span>
+    </div>`;
+
+  const cards = subs.map(s => {
+    const insolvent = (s.note && s.note.includes('자본잠식')) || (s.equity != null && s.equity < 0);
+    const isLoss = s.netIncome != null && s.netIncome < 0;
+    const badge = insolvent
+      ? `<span style="font-size:10px;padding:1px 7px;border-radius:100px;background:#ef444420;color:#ef4444;font-weight:700;flex-shrink:0">자본잠식</span>`
+      : isLoss
+      ? `<span style="font-size:10px;padding:1px 7px;border-radius:100px;background:#f5a62320;color:#f5a623;font-weight:700;flex-shrink:0">순손실</span>`
+      : `<span style="font-size:10px;padding:1px 7px;border-radius:100px;background:#4ade8020;color:#4ade80;font-weight:700;flex-shrink:0">정상</span>`;
+    const debtRatio = (s.equity != null && s.equity > 0 && s.liabilities != null) ? (s.liabilities / s.equity * 100) : null;
+    const meta = [s.ownership ? '지분 ' + esc(s.ownership) : '', s.country ? esc(s.country) : ''].filter(Boolean).join(' · ');
+    return `<div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);
+      border:1px solid ${insolvent ? '#ef444440' : 'var(--border)'};display:flex;flex-direction:column;gap:7px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:12px;font-weight:700;color:var(--text1);flex:1;min-width:0;overflow:hidden;
+          text-overflow:ellipsis;white-space:nowrap">${esc(s.name)}</span>
+        ${s.relation ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;
+          background:${relColor(s.relation)}1f;color:${relColor(s.relation)};font-weight:600;flex-shrink:0">${esc(s.relation)}</span>` : ''}
+        ${badge}
+      </div>
+      ${(meta || s.role) ? `<div style="font-size:11px;color:var(--text2);line-height:1.45">
+        ${meta ? `<span style="color:var(--text1);font-weight:600">${meta}</span>` : ''}${meta && s.role ? ' · ' : ''}${s.role ? esc(s.role) : ''}</div>` : ''}
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(58px,1fr));gap:8px;
+        padding-top:7px;border-top:1px solid var(--border)">
+        ${metric('매출', s.revenue != null ? fmtKW(s.revenue) : null)}
+        ${metric('순손익', s.netIncome != null ? fmtKW(s.netIncome) : null, isLoss ? 'var(--blue)' : 'var(--red)')}
+        ${metric('자본', s.equity != null ? fmtKW(s.equity) : null, s.equity != null && s.equity < 0 ? '#ef4444' : 'var(--text1)')}
+        ${metric('자산', s.assets != null ? fmtKW(s.assets) : null)}
+        ${metric('부채', s.liabilities != null ? fmtKW(s.liabilities) : null)}
+        ${metric('부채비율', debtRatio != null ? Math.round(debtRatio).toLocaleString() + '%' : null, debtRatio != null && debtRatio > 200 ? '#f5a623' : 'var(--text1)')}
+      </div>
+      ${s.opinion ? `<div style="font-size:11px;color:var(--text3);line-height:1.55;
+        padding-top:7px;border-top:1px solid var(--border)">${esc(s.opinion)}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  return summaryHTML + `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:8px">${cards}</div>`;
 }
 
 // ── 사업 섹션 파서 (4-1 ~ 4-5) ───────────────────────────────────────────────
