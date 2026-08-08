@@ -672,37 +672,14 @@ async function rpUploadDart(input) {
   }
   input.value = '';
 
-  const dartPayload = { report_type: parsed.report_type, receive_date: parsed.receive_date, summary: parsed.summary };
-
-  if (_rpStock?.code === parsed.stock_code) {
-    // 같은 종목 선택 중 → 데이터 갱신 후 DART 탭으로 이동
-    _rpData.dart = dartPayload;
-    rpRenderReport();
-    setTimeout(() => rpSetTab(RP_TABS.indexOf('DART 분석')), 50);
-  } else {
-    // 종목 미선택이거나 다른 종목 → 해당 종목 리포트 로드 후 DART 탭
-    _rpStock = { code: parsed.stock_code, name: parsed.stock_name };
-    const el = document.getElementById('content');
-    if (el) el.innerHTML = pReport();
-    const body = document.getElementById('rp-body');
-    if (body) body.innerHTML = _rpSkeleton();
-    try {
-      const [priceRes, finRes, watchRes] = await Promise.all([
-        sb.from('market_data').select('price,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low')
-          .eq('stock_code', parsed.stock_code).order('base_date', { ascending: false }).limit(60),
-        sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,debt_ratio,roe,roa,operating_margin,net_margin')
-          .eq('stock_code', parsed.stock_code).eq('fs_div','CFS').order('bsns_year', { ascending: false }).order('quarter', { ascending: false }).limit(8),
-        sb.from('watchlist').select('note,target_price,opinion,buy_price,created_at')
-          .eq('stock_code', parsed.stock_code).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-      ]);
-      _rpData = { price: priceRes.data || [], fin: finRes.data || [], watch: watchRes.data || null, dart: dartPayload };
-      rpRenderReport();
-      setTimeout(() => rpSetTab(RP_TABS.indexOf('DART 분석')), 50);
-    } catch(e) {
-      // DB 데이터 없어도 DART는 보여주기
-      _rpData = { price: [], fin: [], watch: null, dart: dartPayload };
-      rpRenderReport();
-      setTimeout(() => rpSetTab(RP_TABS.indexOf('DART 분석')), 50);
-    }
+  // 저장 후 전체 리로드 — 방금 저장한 세그먼트(제품별 매출)까지 재조회해야
+  // 기업현황 탭의 '제품·사업부별 매출' 그래프에 즉시 반영된다.
+  // (기존엔 dart만 갱신 → segment 미조회로 재업로드 전까지 그래프 비어 보임)
+  _rpStock = { code: parsed.stock_code, name: parsed.stock_name };
+  try {
+    await rpLoadReport();  // price·fin·watch·dart·analyst·segment·company·summary 전부 재조회 + 렌더
+  } catch (e) {
+    // 데이터 로드 실패해도 DART 탭은 자체 조회로 표시 가능
   }
+  setTimeout(() => rpSetTab(RP_TABS.indexOf('DART 분석')), 50);
 }
