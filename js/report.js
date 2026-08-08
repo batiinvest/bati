@@ -190,7 +190,7 @@ async function rpLoadReport() {
         .eq('stock_code', _rpStock.code).in('opinion_code',['1','2'])
         .order('opinion_date', { ascending: false }).limit(6),
       sb.from('dart_segment_revenue')
-        .select('bsns_year,quarter,segment_type,category,revenue,revenue_ratio')
+        .select('bsns_year,quarter,segment_type,category,subcategory,revenue,revenue_ratio')
         .eq('stock_code', _rpStock.code).eq('segment_type','product')
         .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
       sb.from('companies').select('market,sector,product,industry,sub_industry')
