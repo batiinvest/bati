@@ -398,7 +398,7 @@ function _rpParseBusinessSections(md, stockCode) {
 
   const parseRow = r => r.split('|').slice(1,-1).map(c => c.trim());
 
-  const result = { segmentRevenue: [], rawMaterial: [], production: [] };
+  const result = { segmentRevenue: [], rawMaterial: [], production: [], orderBacklog: [] };
 
   // ── 4-1. 매출(제품별) ─ 차원 컬럼(사업부문·품목) 자동 감지 ──────────────────
   // 헤더에서 기간("25.1Q") 컬럼이 처음 나오는 위치 이전까지를 차원 컬럼으로 본다.
@@ -519,6 +519,33 @@ function _rpParseBusinessSections(md, stockCode) {
     result.production = Object.values(temp).filter(r =>
       r.capacity != null || r.actual != null || r.utilization_rate != null
     );
+  }
+
+  // ── 4-6. 수주현황 — "수주잔고 추이"(품목 | 기간…) 시계열만 파싱 ────────────────
+  // 잔고는 기말 잔액(stock). 매출처럼 합산하지 않음. segment_type='backlog'로 저장.
+  const t46 = getSectionTable('4-6');
+  if (t46.length >= 2) {
+    const header = parseRow(t46[0]);
+    let dimN = header.findIndex(h => parsePeriod(h));
+    const periods = dimN >= 1 ? header.slice(dimN).map(parsePeriod) : [];
+    // 기간 컬럼이 실제로 있을 때만(= 수주잔고 추이 표). 금액/비율 스냅샷 표는 건너뜀.
+    if (periods.some(Boolean)) {
+      for (const row of t46.slice(1)) {
+        const cols = parseRow(row);
+        const category = (cols[0] || '').trim();
+        if (!category || category === '합계') continue;
+        cols.slice(dimN).forEach((v, pi) => {
+          if (!periods[pi]) return;
+          const n = parseInt((v || '').replace(/,/g, '').trim(), 10);
+          if (isNaN(n)) return;
+          result.orderBacklog.push({
+            stock_code: stockCode, ...periods[pi],
+            segment_type: 'backlog', category, subcategory: '',
+            revenue: n, revenue_ratio: null,
+          });
+        });
+      }
+    }
   }
 
   return result;
@@ -730,7 +757,9 @@ async function rpUploadDart(input) {
       for (const r of arr) m.set(keys.map(k => r[k] ?? '').join(''), r);
       return [...m.values()];
     };
-    const segRows  = _dedup(biz.segmentRevenue, ['stock_code','bsns_year','quarter','segment_type','category','subcategory']);
+    // 제품/지역 매출 + 수주잔고는 같은 테이블(dart_segment_revenue), segment_type로 구분 → 한 번에 upsert
+    const segRows  = _dedup([...biz.segmentRevenue, ...biz.orderBacklog],
+      ['stock_code','bsns_year','quarter','segment_type','category','subcategory']);
     const rawRows  = _dedup(biz.rawMaterial,    ['stock_code','bsns_year','quarter','data_type','product_name','material_name','origin']);
     const prodRows = _dedup(biz.production,      ['stock_code','bsns_year','quarter','factory_name']);
     const saves = [];

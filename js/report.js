@@ -12,6 +12,9 @@ let _rpData      = {};     // 로드된 데이터 캐시
 let _rpSegCache  = null;   // 제품별 차트 캐시
 let _rpSegSel    = null;   // 선택된 세그먼트명 (null = 전체)
 let _rpSegMode   = 'year'; // 매출 트렌드 축: 'year'(연간·기본) | 'quarter'(분기)
+let _rpBlCache   = null;   // 수주잔고 차트 캐시
+let _rpBlSel     = null;   // 선택된 수주 품목 (null = 전체)
+let _rpBlMode    = 'year'; // 수주잔고 축: 'year' | 'quarter'
 
 // ── 페이지 진입점 ─────────────────────────────────────────────────────────────
 function pReport() {
@@ -191,7 +194,7 @@ async function rpLoadReport() {
         .order('opinion_date', { ascending: false }).limit(6),
       sb.from('dart_segment_revenue')
         .select('bsns_year,quarter,segment_type,category,subcategory,revenue,revenue_ratio')
-        .eq('stock_code', _rpStock.code).eq('segment_type','product')
+        .eq('stock_code', _rpStock.code).in('segment_type',['product','backlog'])
         .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
       sb.from('companies').select('market,sector,product,industry,sub_industry')
         .eq('code', _rpStock.code).maybeSingle(),
@@ -208,7 +211,8 @@ async function rpLoadReport() {
       watch:    watchRes.data   || null,
       dart:     dartRes.data    || null,
       analyst:  analystRes.data || [],
-      segment:  segRes.data     || [],
+      segment:  (segRes.data || []).filter(r => r.segment_type === 'product'),
+      backlog:  (segRes.data || []).filter(r => r.segment_type === 'backlog'),
       annual:   _rpAggAnnual(finRows).reverse(), // 최신 연도 먼저
       company:  compRes.data    || null,
       summary:  summaryRes.data || null,

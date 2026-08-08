@@ -453,6 +453,7 @@ async function _rpLoadAndRenderProfile(body) {
       comp: compRes.data || {}, dart, dp, discs,
       region: regionRes.data || [], prod: prodRes.data || [],
       latest: _rpData.price?.[0] || {}, segment: _rpData.segment || [],
+      backlog: _rpData.backlog || [],
     });
   } catch (e) {
     body.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:12px">기업개요 로드 실패: ${e.message}</div>`;
@@ -460,7 +461,7 @@ async function _rpLoadAndRenderProfile(body) {
 }
 
 // 기업개요 탭 렌더 — 기본정보·최근공시(연혁)·매출구성·내수/수출·생산·계열사
-function _rpProfileTab({ comp, dart, dp, discs, region, prod, latest, segment }) {
+function _rpProfileTab({ comp, dart, dp, discs, region, prod, latest, segment, backlog }) {
   const esc = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
   const secT = t => `<div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
     <span style="width:3px;height:13px;background:var(--tg);border-radius:2px"></span>
@@ -674,6 +675,7 @@ function _rpProfileTab({ comp, dart, dp, discs, region, prod, latest, segment })
       ${segHTML}
       ${regionHTML}
     </div>
+    ${typeof _rpBacklogCard === 'function' ? _rpBacklogCard(backlog || []) : ''}
     ${prodHTML}
     ${subsHTML}
   </div>`;
