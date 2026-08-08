@@ -396,6 +396,20 @@ function _rpParseBusinessSections(md, stockCode) {
       .filter(l => /^\|/.test(l) && !/^\|[-:\s|]+$/.test(l));
   };
 
+  // 키워드(소제목) 다음의 '첫 번째 연속 표'만 추출 — 한 섹션에 표 여러 개일 때 분리용
+  const firstTableAfter = kw => {
+    let i = lines.findIndex(l => l.includes(kw));
+    if (i < 0) return [];
+    while (i < lines.length && !/^\s*\|/.test(lines[i])) i++;
+    const tbl = [];
+    while (i < lines.length && /^\s*\|/.test(lines[i])) {
+      const t = lines[i].trim();
+      if (!/^\|[-:\s|]+$/.test(t)) tbl.push(t);
+      i++;
+    }
+    return tbl;
+  };
+
   const parseRow = r => r.split('|').slice(1,-1).map(c => c.trim());
 
   const result = { segmentRevenue: [], rawMaterial: [], production: [], orderBacklog: [] };
@@ -493,42 +507,70 @@ function _rpParseBusinessSections(md, stockCode) {
     }
   }
 
-  // ── 4-5. 생산능력 및 생산실적 ─────────────────────────────────────────────
-  const t45 = getSectionTable('4-5');
-  if (t45.length >= 2) {
-    const periods = parseRow(t45[0]).slice(1).map(parsePeriod);
-    const metricMap = { '생산능력':'capacity', '생산실적':'actual', '가동률':'utilization_rate' };
-    const temp = {};
-    for (const row of t45.slice(1)) {
-      const cols = parseRow(row);
-      const [factory, metricKr] = cols[0].split('/').map(s => s.trim());
-      const metricEn = metricMap[metricKr];
-      if (!factory || !metricEn) continue;
-      cols.slice(1).forEach((v, pi) => {
-        if (!periods[pi]) return;
-        const p = periods[pi];
-        const key = `${stockCode}_${p.bsns_year}_${p.quarter}_${factory}`;
-        if (!temp[key]) temp[key] = {
-          stock_code: stockCode, ...p, factory_name: factory,
-          capacity: null, actual: null, utilization_rate: null,
-        };
-        const { value } = parseNumOrPct(v);
-        if (value != null) temp[key][metricEn] = value;
-      });
+  // ── 4-5. 생산능력·생산실적·가동률 ─────────────────────────────────────────
+  //  신형: "생산능력 추이"(품목|기간, 대) · "생산실적 추이"(품목|기간) · "가동률 추이"(항목|기간)
+  //  구형: "공장/지표 | 기간" 단일표
+  {
+    const prodMap = {};
+    const put = (name, p, field, val) => {
+      if (val == null) return;
+      const key = `${p.bsns_year}_${p.quarter}_${name}`;
+      (prodMap[key] ||= { stock_code: stockCode, bsns_year: p.bsns_year, quarter: p.quarter,
+        factory_name: name, capacity: null, actual: null, utilization_rate: null });
+      prodMap[key][field] = val;
+    };
+    const numOnly = v => { const s = (v || '').replace(/,/g, '').replace(/[^\d.\-]/g, '').trim();
+      const n = parseFloat(s); return s === '' || isNaN(n) ? null : Math.round(n); };
+    const pctOnly = v => { const m = (v || '').match(/(-?[\d.]+)\s*%/); return m ? parseFloat(m[1]) : null; };
+    const byItem = (tbl, field, parse) => {
+      if (tbl.length < 2) return;
+      const h = parseRow(tbl[0]); let d = h.findIndex(x => parsePeriod(x)); if (d < 1) d = 1;
+      const P = h.slice(d).map(parsePeriod);
+      for (const row of tbl.slice(1)) {
+        const cols = parseRow(row); const name = (cols[0] || '').trim();
+        if (!name || name === '합계') continue;
+        cols.slice(d).forEach((v, pi) => { if (P[pi]) put(name, P[pi], field, parse(v)); });
+      }
+    };
+    const tCap = firstTableAfter('생산능력 추이');
+    const tAct = firstTableAfter('생산실적 추이');
+    const tUtil = firstTableAfter('가동률 추이');
+    if (tCap.length || tAct.length || tUtil.length) {
+      byItem(tCap, 'capacity', numOnly);
+      byItem(tAct, 'actual', numOnly);
+      if (tUtil.length >= 2) {  // '평균가동률' 행만 utilization_rate로
+        const h = parseRow(tUtil[0]); let d = h.findIndex(x => parsePeriod(x)); if (d < 1) d = 1;
+        const P = h.slice(d).map(parsePeriod);
+        const urow = tUtil.slice(1).find(row => /가동률/.test(parseRow(row)[0] || ''));
+        if (urow) parseRow(urow).slice(d).forEach((v, pi) => { if (P[pi]) put('평균가동률', P[pi], 'utilization_rate', pctOnly(v)); });
+      }
+    } else {
+      const t45 = getSectionTable('4-5');
+      if (t45.length >= 2) {
+        const P = parseRow(t45[0]).slice(1).map(parsePeriod);
+        const mm = { '생산능력': 'capacity', '생산실적': 'actual', '가동률': 'utilization_rate' };
+        for (const row of t45.slice(1)) {
+          const cols = parseRow(row);
+          const [factory, metricKr] = (cols[0] || '').split('/').map(s => s.trim());
+          const field = mm[metricKr];
+          if (!factory || !field) continue;
+          cols.slice(1).forEach((v, pi) => { if (!P[pi]) return; const { value } = parseNumOrPct(v); put(factory, P[pi], field, value); });
+        }
+      }
     }
-    result.production = Object.values(temp).filter(r =>
-      r.capacity != null || r.actual != null || r.utilization_rate != null
-    );
+    result.production = Object.values(prodMap).filter(r =>
+      r.capacity != null || r.actual != null || r.utilization_rate != null);
   }
 
-  // ── 4-6. 수주현황 — "수주잔고 추이"(품목 | 기간…) 시계열만 파싱 ────────────────
+  // ── 4-6. 수주현황 — "수주잔고 추이"(품목 | 기간…) 표만 파싱 ─────────────────────
+  // 같은 4-6 섹션의 스냅샷(수주총액/기납품액…)·판매계약 표가 섞이지 않도록 소제목 기준 첫 표만.
   // 잔고는 기말 잔액(stock). 매출처럼 합산하지 않음. segment_type='backlog'로 저장.
-  const t46 = getSectionTable('4-6');
+  const t46 = firstTableAfter('수주잔고 추이');
   if (t46.length >= 2) {
     const header = parseRow(t46[0]);
     let dimN = header.findIndex(h => parsePeriod(h));
     const periods = dimN >= 1 ? header.slice(dimN).map(parsePeriod) : [];
-    // 기간 컬럼이 실제로 있을 때만(= 수주잔고 추이 표). 금액/비율 스냅샷 표는 건너뜀.
+    // 기간 컬럼이 실제로 있을 때만(= 수주잔고 추이 표).
     if (periods.some(Boolean)) {
       for (const row of t46.slice(1)) {
         const cols = parseRow(row);

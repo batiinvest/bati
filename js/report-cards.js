@@ -733,7 +733,9 @@ function rpSegMode(m) {
 function _rpBacklogCard(rows) {
   _rpBlSel = null;
   _rpBlMode = 'year';
-  const clean = (rows || []).filter(r => (r.category || '').trim() !== '합계');
+  let clean = (rows || []).filter(r => (r.category || '').trim() !== '합계');
+  // 같은 4-6 섹션의 스냅샷/계약 표가 섞여든 잡음 카테고리 제거
+  if (typeof _bizSeriesClean === 'function') clean = _bizSeriesClean(clean, r => (r.category || '').trim());
   if (!clean.length) return '';   // 수주 데이터 없으면 섹션 자체 미표시
 
   _rpBlCache = _rpBuildBacklogCache(clean);
