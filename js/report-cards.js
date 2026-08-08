@@ -469,65 +469,121 @@ function _rpSignal(type, val) {
   return { ...map[grade], grade };
 }
 
-// ── 제품/사업부별 매출 트렌드 카드 ────────────────────────────────────────────
+// ── 세그먼트 라벨: 품목(subcategory) 우선, 없으면 사업부문(category) ──────────
+// 4-1 표는 "사업부문 | 품목" 2단 구조 → 품목이 더 구체적인 대표 라벨
+function _rpSegLabel(r) {
+  const c = (r.category || '').trim();
+  const s = (r.subcategory || '').trim();
+  return s && s !== c ? s : c;
+}
+
+// ── 제품/사업부별 매출 트렌드 카드 (연간/분기 토글 + 그래프) ──────────────────
 function _rpSegmentCard(rows) {
-  _rpSegSel = null; // 카드 재생성 시 선택 초기화
-  if (!rows?.length) return `
+  _rpSegSel  = null;      // 카드 재생성 시 선택 초기화
+  _rpSegMode = 'year';    // 기본: 연간(연도별)
+
+  const clean = (rows || []).filter(r =>
+    (r.category || '').trim() !== '합계' && (r.subcategory || '').trim() !== '합계');
+
+  if (!clean.length) return `
     <div class="card" style="padding:16px">
       ${_rpSecT('제품·사업부별 매출')}
       <div style="color:var(--text3);font-size:12px;padding:20px;text-align:center">
-        DART 파일을 업로드하면 제품별 매출 데이터가 표시됩니다
+        DART 파일을 업로드하면 사업별 매출이 연도별로 표시됩니다
       </div>
     </div>`;
 
-  // ── 기간 / 세그먼트 / 팔레트 ──────────────────────────────────────────────
-  const periodSet = [];
-  const seen = new Set();
-  for (const r of rows) {
-    const key = `${r.bsns_year}.${r.quarter}`;
-    if (!seen.has(key)) { seen.add(key); periodSet.push({ key, bsns_year: r.bsns_year, quarter: r.quarter }); }
-  }
-  const periods = periodSet.slice(-6);
+  _rpSegCache = _rpBuildSegCache(clean);
 
-  const dataMap = {};
-  for (const r of rows) {
-    const key = `${r.bsns_year}.${r.quarter}`;
-    if (!dataMap[key]) dataMap[key] = {};
-    dataMap[key][r.category] = { revenue: r.revenue, ratio: r.revenue_ratio };
-  }
-
-  const latestKey   = periods[periods.length - 1]?.key;
-  const latestData  = latestKey ? (dataMap[latestKey] || {}) : {};
-  const latestTotal = Object.values(latestData).reduce((s, v) => s + (v.revenue || 0), 0);
-  const prevKey     = periods.length >= 2 ? periods[periods.length - 2].key : null;
-
-  const _allSegs = [...new Set(rows.filter(r => r.category !== '합계').map(r => r.category))];
-  const segNames = _allSegs.sort((a, b) =>
-    ((latestData[b]?.revenue) || 0) - ((latestData[a]?.revenue) || 0)
-  );
-  const COLORS = ['#2AABEE','#4ade80','#fb923c','#a78bfa','#f59e0b','#34d399','#f87171','#60a5fa'];
-
-  // 캐시 저장
-  _rpSegCache = { periods, dataMap, segNames, COLORS, latestKey, latestData, latestTotal, prevKey };
+  const modeBtn = (m, label) => `<button onclick="rpSegMode('${m}')" data-seg-mode="${m}"
+    style="padding:3px 13px;font-size:11px;font-weight:600;border:none;cursor:pointer;
+      background:${_rpSegMode === m ? 'var(--tg)' : 'transparent'};
+      color:${_rpSegMode === m ? '#fff' : 'var(--text2)'}">${label}</button>`;
 
   return `<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:8px">
-    ${_rpSecT('제품·사업부별 매출', '* 단위: 백만원, %')}
-    <div id="rp-seg-inner">${_rpSegInner(_rpSegCache, null)}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <span style="display:inline-flex;align-items:center;gap:7px">
+        <span style="width:3px;height:13px;background:var(--tg);border-radius:2px"></span>
+        <span style="font-size:13px;font-weight:700;color:var(--text1)">제품·사업부별 매출</span>
+        <span style="font-size:11px;color:var(--text3)">단위: 매출액(백만원)</span>
+      </span>
+      <div style="display:inline-flex;border:1px solid var(--border);border-radius:100px;overflow:hidden">
+        ${modeBtn('year', '연간')}${modeBtn('quarter', '분기')}
+      </div>
+    </div>
+    <div id="rp-seg-inner">${_rpSegInner(_rpSegCache, null, _rpSegMode)}</div>
   </div>`;
 }
 
-// ── 세그먼트 카드 내부 (필터 적용 가능) ──────────────────────────────────────
-function _rpSegInner(cache, selected) {
+// ── 세그먼트 캐시: 분기/연간 두 축 동시 구성 ──────────────────────────────────
+function _rpBuildSegCache(rows) {
+  const COLORS = ['#2AABEE','#4ade80','#fb923c','#a78bfa','#f59e0b','#34d399','#f87171','#60a5fa','#22d3ee','#e879f9'];
+
+  const norm = rows.map(r => ({
+    seg: _rpSegLabel(r), bsns_year: +r.bsns_year, quarter: r.quarter, revenue: +r.revenue || 0,
+  })).filter(r => r.seg && r.bsns_year);
+
+  // 분기 축
+  const qMap = {}, qSeen = new Set(), qPeriods = [];
+  for (const r of norm) {
+    const key = `${r.bsns_year}.${r.quarter}`;
+    if (!qSeen.has(key)) {
+      qSeen.add(key);
+      qPeriods.push({ key, top: String(r.bsns_year), sub: r.quarter,
+        sort: r.bsns_year * 10 + (parseInt(String(r.quarter).replace(/\D/g, '')) || 0) });
+    }
+    (qMap[key] ||= {}); qMap[key][r.seg] = (qMap[key][r.seg] || 0) + r.revenue;
+  }
+  qPeriods.sort((a, b) => a.sort - b.sort);
+
+  // 연간 축 (분기 합산 + 분기 커버리지 추적)
+  const yMap = {}, yQ = {};
+  for (const r of norm) {
+    const y = String(r.bsns_year);
+    (yMap[y] ||= {}); yMap[y][r.seg] = (yMap[y][r.seg] || 0) + r.revenue;
+    (yQ[y] ||= new Set()).add(r.quarter);
+  }
+  const yPeriods = Object.keys(yMap).map(Number).sort((a, b) => a - b).map(y => {
+    const qn = yQ[String(y)].size, partial = qn < 4;
+    return { key: String(y), top: String(y), sub: partial ? `${qn}Q누적` : '연간', partial };
+  });
+
+  return {
+    COLORS,
+    segNames: [...new Set(norm.map(r => r.seg))],
+    quarter: { periods: qPeriods, dataMap: qMap },
+    year:    { periods: yPeriods, dataMap: yMap },
+  };
+}
+
+// ── 세그먼트 카드 내부 (mode: 'year'|'quarter', 필터 적용 가능) ───────────────
+function _rpSegInner(cache, selected, mode) {
   if (!cache) return '';
-  const { periods, dataMap, segNames, COLORS, latestKey, latestData, latestTotal, prevKey } = cache;
-  const CHART_H = 160;
+  mode = mode || 'year';
+  const axis = cache[mode] || cache.year;
+  const { COLORS } = cache;
+  const CHART_H = 168;
+  const changeLabel = mode === 'year' ? 'YoY' : 'QoQ';
+
+  const periods = axis.periods.slice(mode === 'year' ? -6 : -8);
+  const dataMap = axis.dataMap;
+  if (!periods.length) return `<div style="color:var(--text3);font-size:12px;padding:20px;text-align:center">표시할 매출 데이터 없음</div>`;
+
+  const lastP       = periods[periods.length - 1];
+  const latestKey   = lastP?.key;
+  const latestData  = dataMap[latestKey] || {};
+  const latestPartial = !!lastP?.partial;
+  const prevKey     = periods.length >= 2 ? periods[periods.length - 2].key : null;
+
+  // 세그먼트: 최신 기간 매출 내림차순
+  const segNames = [...cache.segNames].sort((a, b) => (latestData[b] || 0) - (latestData[a] || 0));
+  const latestTotal = segNames.reduce((s, n) => s + (latestData[n] || 0), 0);
 
   // 스파크라인
   const sparkline = (segName, color) => {
-    const vals = periods.map(p => (dataMap[p.key]?.[segName]?.revenue) || 0);
+    const vals = periods.map(p => dataMap[p.key]?.[segName] || 0);
     if (vals.every(v => v === 0)) return '';
-    const max = Math.max(...vals, 1);
-    const W = 52, H = 20;
+    const max = Math.max(...vals, 1), W = 54, H = 20;
     const pts = vals.map((v, i) => {
       const x = vals.length > 1 ? (i / (vals.length - 1)) * W : W / 2;
       const y = H - 2 - Math.round((v / max) * (H - 4));
@@ -540,94 +596,90 @@ function _rpSegInner(cache, selected) {
       + `<circle cx="${lastX}" cy="${lastY}" r="2.5" fill="${color}"/></svg>`;
   };
 
-  // ── 차트 ────────────────────────────────────────────────────────────────
-  let chartHTML = '';
+  // ── 차트 ──
+  let chartHTML;
   if (selected) {
     // 단일 세그먼트 바 차트
     const si    = segNames.indexOf(selected);
     const color = COLORS[si % COLORS.length];
-    const vals  = periods.map(p => (dataMap[p.key]?.[selected]?.revenue) || 0);
+    const vals  = periods.map(p => dataMap[p.key]?.[selected] || 0);
     const max   = Math.max(...vals, 1);
     chartHTML = `
-      <div style="display:flex;align-items:flex-end;gap:5px;height:${CHART_H}px">
+      <div style="display:flex;align-items:flex-end;gap:6px;height:${CHART_H}px">
         ${periods.map((p, pi) => {
-          const v    = vals[pi];
-          const barH = max > 0 ? Math.max(4, Math.round(v / max * CHART_H)) : 4;
+          const v = vals[pi], barH = Math.max(4, Math.round(v / max * CHART_H));
           const isLatest = pi === periods.length - 1;
-          return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;height:${CHART_H}px">
-            <div style="font-size:11px;font-weight:600;color:${color};text-align:center;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmtCap(v*1e6)}</div>
-            <div style="height:${barH}px;border-radius:3px 3px 0 0;background:${color};opacity:${isLatest?1:.7};
-              ${isLatest?'box-shadow:0 0 0 2px '+color+'60':''}"></div>
+          return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;height:${CHART_H}px">
+            <div style="font-size:11px;font-weight:600;color:${color};text-align:center;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v ? fmtCap(v * 1e6) : ''}</div>
+            <div style="height:${barH}px;border-radius:3px 3px 0 0;background:${color};opacity:${isLatest ? 1 : .72};
+              ${isLatest ? 'box-shadow:0 0 0 2px ' + color + '55' : ''}"></div>
           </div>`;
         }).join('')}
       </div>`;
   } else {
-    // 전체 누적 바
-    const periodTotals = periods.map(p => segNames.reduce((s, n) => s + ((dataMap[p.key]?.[n]?.revenue) || 0), 0));
-    const maxTotal = Math.max(...periodTotals, 1);
+    // 전체 누적(스택) 바
+    const totals = periods.map(p => segNames.reduce((s, n) => s + (dataMap[p.key]?.[n] || 0), 0));
+    const maxTotal = Math.max(...totals, 1);
     chartHTML = `
-      <div style="display:flex;align-items:flex-end;gap:5px;height:${CHART_H}px">
+      <div style="display:flex;align-items:flex-end;gap:6px;height:${CHART_H}px">
         ${periods.map((p, pi) => {
-          const total  = periodTotals[pi];
-          const barH   = maxTotal > 0 ? Math.max(4, Math.round(total / maxTotal * CHART_H)) : 4;
+          const total = totals[pi], barH = Math.max(4, Math.round(total / maxTotal * CHART_H));
           const isLatest = pi === periods.length - 1;
-          const segs = segNames.map((name, si) => {
-            const rev   = (dataMap[p.key]?.[name]?.revenue) || 0;
-            const ratio = total > 0 ? (rev / total * 100) : 0;
-            return { name, rev, ratio, color: COLORS[si % COLORS.length] };
-          }).filter(s => s.rev > 0).reverse();
-          return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;height:${CHART_H}px">
-            <div style="font-size:11px;font-weight:600;color:var(--text1);text-align:center;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmtCap(total*1e6)}</div>
+          const segs = segNames.map((name, si) => ({
+            name, rev: dataMap[p.key]?.[name] || 0, color: COLORS[si % COLORS.length],
+          })).filter(s => s.rev > 0).reverse();
+          return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;height:${CHART_H}px">
+            <div style="font-size:11px;font-weight:600;color:var(--text1);text-align:center;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${total ? fmtCap(total * 1e6) : ''}</div>
             <div style="height:${barH}px;border-radius:3px 3px 0 0;overflow:hidden;display:flex;flex-direction:column;
-              ${isLatest?'box-shadow:0 0 0 2px rgba(255,255,255,.22)':''}">
-              ${segs.map(s => `<div style="flex:${s.ratio};background:${s.color};min-height:2px"
-                title="${s.name}: ${fmtCap(s.rev*1e6)} (${s.ratio.toFixed(1)}%)"></div>`).join('')}
+              ${isLatest ? 'box-shadow:0 0 0 2px rgba(255,255,255,.22)' : ''}">
+              ${segs.map(s => `<div style="flex:${s.rev};background:${s.color};min-height:2px"
+                title="${escapeHtml(s.name)}: ${fmtCap(s.rev * 1e6)} (${total > 0 ? (s.rev / total * 100).toFixed(1) : 0}%)"></div>`).join('')}
             </div>
           </div>`;
         }).join('')}
       </div>`;
   }
 
-  // 기간 라벨
+  // 기간 라벨 (상단=연도 / 하단=분기 or 연간·N Q누적)
   const periodLabels = `
-    <div style="display:flex;gap:5px;margin-top:5px">
-      ${periods.map((p, pi) => `
-        <div style="flex:1;min-width:0;text-align:center">
-          <div style="font-size:11px;font-weight:${pi===periods.length-1?700:500};
-            color:${pi===periods.length-1?'var(--text1)':'var(--text2)'}">${p.bsns_year}</div>
-          <div style="font-size:11px;color:${pi===periods.length-1?'var(--tg)':'var(--text2)'}">${p.quarter}</div>
-        </div>`).join('')}
+    <div style="display:flex;gap:6px;margin-top:5px">
+      ${periods.map((p, pi) => {
+        const isLast = pi === periods.length - 1;
+        return `<div style="flex:1;min-width:0;text-align:center">
+          <div style="font-size:11px;font-weight:${isLast ? 700 : 500};color:${isLast ? 'var(--text1)' : 'var(--text2)'}">${p.top}</div>
+          <div style="font-size:10px;color:${isLast ? 'var(--tg)' : 'var(--text3)'}">${p.sub}</div>
+        </div>`;
+      }).join('')}
     </div>`;
 
-  // ── 세그먼트 목록 ────────────────────────────────────────────────────────
-  const listHTML = segNames.filter(n => latestData[n]?.revenue).map((name, si) => {
-    const { revenue, ratio } = latestData[name] || {};
-    const pct      = ratio ?? (latestTotal > 0 ? revenue / latestTotal * 100 : 0);
-    const color    = COLORS[si % COLORS.length];
-    const isTop    = si === 0;
-    const isSel    = selected === name;
-    const prevRev  = prevKey ? (dataMap[prevKey]?.[name]?.revenue ?? null) : null;
-    const qoq      = prevRev != null && prevRev > 0 ? ((revenue - prevRev) / prevRev * 100) : null;
-    const trendIcon  = qoq == null ? '—' : qoq > 3 ? '▲' : qoq < -3 ? '▼' : '→';
-    const trendColor = qoq == null ? 'var(--text2)' : qoq > 0 ? '#f87171' : qoq < 0 ? '#60a5fa' : 'var(--text2)';
-    const qoqStr   = qoq == null ? '' : (qoq >= 0 ? '+' : '') + qoq.toFixed(1) + '%';
-    // 선택됐으면 테두리 강조, 아니면 흐리게
-    const opacity  = selected && !isSel ? 'opacity:.4;' : '';
-    const border   = isSel ? `border:1.5px solid ${color}` : `border:1px solid ${isTop ? color+'40' : 'transparent'}`;
-    const bg       = isSel ? color+'22' : (isTop ? color+'14' : 'var(--bg3)');
-    return `<div onclick="rpSegFilter('${escJsStr(name)}',this)"
+  // ── 세그먼트 목록 ──
+  const listHTML = segNames.filter(n => latestData[n]).map((name, si) => {
+    const revenue = latestData[name] || 0;
+    const pct     = latestTotal > 0 ? revenue / latestTotal * 100 : 0;
+    const color   = COLORS[si % COLORS.length];
+    const isTop   = si === 0, isSel = selected === name;
+    const prevRev = prevKey ? (dataMap[prevKey]?.[name] ?? null) : null;
+    // 최신 연도가 부분(N분기 누적)이면 YoY 비교는 왜곡 → 생략
+    const chg = (!latestPartial && prevRev != null && prevRev > 0) ? (revenue - prevRev) / prevRev * 100 : null;
+    const icon    = chg == null ? '' : chg > 3 ? '▲' : chg < -3 ? '▼' : '→';
+    const chgCol  = chg == null ? 'var(--text3)' : chg > 0 ? '#f87171' : chg < 0 ? '#60a5fa' : 'var(--text2)';
+    const chgStr  = chg == null ? '' : (chg >= 0 ? '+' : '') + chg.toFixed(1) + '%';
+    const opacity = selected && !isSel ? 'opacity:.4;' : '';
+    const border  = isSel ? `border:1.5px solid ${color}` : `border:1px solid ${isTop ? color + '40' : 'transparent'}`;
+    const bg      = isSel ? color + '22' : (isTop ? color + '14' : 'var(--bg3)');
+    return `<div onclick="rpSegFilter('${escJsStr(name)}')"
       style="padding:7px 10px;border-radius:var(--radius-sm);background:${bg};${border};
         cursor:pointer;transition:opacity .2s;${opacity}user-select:none"
       onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity=''">
       <div style="display:flex;align-items:center;gap:7px">
         <span style="font-size:11px;font-weight:800;color:${color};min-width:18px;text-align:center;
-          background:${color}22;border-radius:3px;padding:1px 4px">${si+1}</span>
-        <span style="font-size:${isTop?'13px':'12px'};font-weight:${isTop||isSel?700:500};color:var(--text1);
+          background:${color}22;border-radius:3px;padding:1px 4px">${si + 1}</span>
+        <span style="font-size:${isTop ? '13px' : '12px'};font-weight:${isTop || isSel ? 700 : 500};color:var(--text1);
           flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}</span>
         ${sparkline(name, color)}
-        <span style="font-size:12px;color:var(--text1);white-space:nowrap">${fmtCap(revenue*1e6)}</span>
-        <span style="font-size:${isTop?'13px':'12px'};font-weight:700;color:${color};min-width:38px;text-align:right">${pct.toFixed(1)}%</span>
-        <span style="font-size:12px;font-weight:700;color:${trendColor};min-width:56px;text-align:right;white-space:nowrap">${trendIcon} ${qoqStr}</span>
+        <span style="font-size:12px;color:var(--text1);white-space:nowrap">${fmtCap(revenue * 1e6)}</span>
+        <span style="font-size:${isTop ? '13px' : '12px'};font-weight:700;color:${color};min-width:40px;text-align:right">${pct.toFixed(1)}%</span>
+        <span style="font-size:12px;font-weight:700;color:${chgCol};min-width:58px;text-align:right;white-space:nowrap">${icon} ${chgStr}</span>
       </div>
       <div style="height:3px;border-radius:2px;background:${color}22;overflow:hidden;margin-top:5px">
         <div style="height:100%;width:${pct}%;background:${color};border-radius:2px"></div>
@@ -635,29 +687,45 @@ function _rpSegInner(cache, selected) {
     </div>`;
   }).join('');
 
+  const latestLabel = lastP ? `${lastP.top}${latestPartial ? ' ' + lastP.sub : ''}` : '';
   const headerRight = selected
     ? `<button onclick="rpSegFilter(null)" style="font-size:11px;padding:2px 10px;border:1px solid var(--border);
         border-radius:100px;background:var(--bg3);color:var(--text1);cursor:pointer">전체 보기</button>`
-    : `<span style="font-size:11px;color:var(--text1)">스파크라인 · QoQ</span>`;
+    : `<span style="font-size:11px;color:var(--text3)">사업 클릭 → 단일 추이 · ${changeLabel}</span>`;
 
   return `
     <div>${chartHTML}</div>
     ${periodLabels}
-    <div style="border-top:1px solid var(--border);padding-top:10px">
+    <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:6px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <span style="font-size:11px;color:var(--text1)">최신 (${latestKey?.replace('.',' ')}) 구성</span>
+        <span style="font-size:11px;color:var(--text2)">${latestLabel} 구성 · ${segNames.filter(n => latestData[n]).length}개 사업</span>
         ${headerRight}
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">${listHTML}</div>
+      ${latestPartial ? `<div style="font-size:11px;color:var(--text3);margin-top:8px">* 최신 연도는 분기 누적(연환산 아님) — ${changeLabel} 비교는 생략</div>` : ''}
     </div>`;
 }
 
-// ── 세그먼트 필터 토글 ─────────────────────────────────────────────────────────
+// ── 세그먼트 필터 토글 (특정 세그먼트만 단일 바 차트로) ───────────────────────
 function rpSegFilter(name) {
   if (!_rpSegCache) return;
   _rpSegSel = (_rpSegSel === name || name == null) ? null : name;
   const el = document.getElementById('rp-seg-inner');
-  if (el) el.innerHTML = _rpSegInner(_rpSegCache, _rpSegSel);
+  if (el) el.innerHTML = _rpSegInner(_rpSegCache, _rpSegSel, _rpSegMode);
+}
+
+// ── 연간/분기 축 전환 ─────────────────────────────────────────────────────────
+function rpSegMode(m) {
+  if (!_rpSegCache || (m !== 'year' && m !== 'quarter')) return;
+  _rpSegMode = m;
+  _rpSegSel = null;
+  const el = document.getElementById('rp-seg-inner');
+  if (el) el.innerHTML = _rpSegInner(_rpSegCache, null, m);
+  document.querySelectorAll('[data-seg-mode]').forEach(b => {
+    const on = b.getAttribute('data-seg-mode') === m;
+    b.style.background = on ? 'var(--tg)' : 'transparent';
+    b.style.color = on ? '#fff' : 'var(--text2)';
+  });
 }
 
 function _rpValuationCard(latestF, latest) {

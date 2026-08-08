@@ -321,21 +321,28 @@ function _rpParseBusinessSections(md, stockCode) {
 
   const result = { segmentRevenue: [], rawMaterial: [], production: [] };
 
-  // ── 4-1. 매출(제품별) ────────────────────────────────────────────────────
+  // ── 4-1. 매출(제품별) ─ 차원 컬럼(사업부문·품목) 자동 감지 ──────────────────
+  // 헤더에서 기간("25.1Q") 컬럼이 처음 나오는 위치 이전까지를 차원 컬럼으로 본다.
+  //   "| 사업부문 | 품목 | 23.1Q | ... |" → 차원 2개(category=사업부문, subcategory=품목)
+  //   "| 구분 | 25.1Q | ... |"           → 차원 1개(category=구분)
   const t41 = getSectionTable('4-1');
   if (t41.length >= 2) {
-    const periods = parseRow(t41[0]).slice(1).map(parsePeriod);
+    const header = parseRow(t41[0]);
+    let dimN = header.findIndex(h => parsePeriod(h));  // 첫 기간 컬럼 위치
+    if (dimN < 1) dimN = 1;                             // 기간 미인식 시 차원 1개로 폴백
+    const periods = header.slice(dimN).map(parsePeriod);
     for (const row of t41.slice(1)) {
       const cols = parseRow(row);
-      const seg = cols[0];
-      if (!seg || seg === '합계') continue;
-      cols.slice(1).forEach((v, pi) => {
+      const category    = (cols[0] || '').trim();
+      const subcategory = dimN >= 2 ? (cols[1] || '').trim() : '';
+      if (!category || category === '합계' || subcategory === '합계') continue;
+      cols.slice(dimN).forEach((v, pi) => {
         if (!periods[pi]) return;
         const { amount, ratio } = parseAmtRatio(v);
         if (amount == null) return;
         result.segmentRevenue.push({
           stock_code: stockCode, ...periods[pi],
-          segment_type: 'product', category: seg, subcategory: '',
+          segment_type: 'product', category, subcategory,
           revenue: amount, revenue_ratio: ratio,
         });
       });
@@ -638,18 +645,27 @@ async function rpUploadDart(input) {
   // 4-1 ~ 4-5 사업 섹션 파싱 & 저장
   try {
     const biz = _rpParseBusinessSections(text, parsed.stock_code);
+    // 동일 충돌키 중복 제거 (마지막 값 우선) — Postgres 배치 upsert의 "cannot affect row a second time" 방지
+    const _dedup = (arr, keys) => {
+      const m = new Map();
+      for (const r of arr) m.set(keys.map(k => r[k] ?? '').join(''), r);
+      return [...m.values()];
+    };
+    const segRows  = _dedup(biz.segmentRevenue, ['stock_code','bsns_year','quarter','segment_type','category','subcategory']);
+    const rawRows  = _dedup(biz.rawMaterial,    ['stock_code','bsns_year','quarter','data_type','product_name','material_name','origin']);
+    const prodRows = _dedup(biz.production,      ['stock_code','bsns_year','quarter','factory_name']);
     const saves = [];
-    if (biz.segmentRevenue.length)
-      saves.push(sb.from('dart_segment_revenue').upsert(biz.segmentRevenue,
+    if (segRows.length)
+      saves.push(sb.from('dart_segment_revenue').upsert(segRows,
         { onConflict: 'stock_code,bsns_year,quarter,segment_type,category,subcategory' }));
-    if (biz.rawMaterial.length)
-      saves.push(sb.from('dart_raw_material').upsert(biz.rawMaterial,
+    if (rawRows.length)
+      saves.push(sb.from('dart_raw_material').upsert(rawRows,
         { onConflict: 'stock_code,bsns_year,quarter,data_type,product_name,material_name,origin' }));
-    if (biz.production.length)
-      saves.push(sb.from('dart_production').upsert(biz.production,
+    if (prodRows.length)
+      saves.push(sb.from('dart_production').upsert(prodRows,
         { onConflict: 'stock_code,bsns_year,quarter,factory_name' }));
     await Promise.all(saves);
-    const counts = `세그먼트 ${biz.segmentRevenue.length}건 / 원재료 ${biz.rawMaterial.length}건 / 생산 ${biz.production.length}건`;
+    const counts = `세그먼트 ${segRows.length}건 / 원재료 ${rawRows.length}건 / 생산 ${prodRows.length}건`;
     toast(`${parsed.stock_name} DART 저장 완료 (${counts})`, 'success');
   } catch(e) {
     toast(`DART 기본 저장 완료, 사업 섹션 저장 실패: ${e.message}`, 'warn');

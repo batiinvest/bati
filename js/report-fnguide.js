@@ -519,15 +519,22 @@ function _rpProfileTab({ comp, dart, dp, discs, region, prod, latest, segment })
   // ── ③ 주요제품 매출구성 (최신 기간, %) ─────────────────────────────────
   let segHTML = '';
   {
-    const rows = (segment || []).filter(r => r.category !== '합계');
+    const rows = (segment || []).filter(r =>
+      (r.category || '').trim() !== '합계' && (r.subcategory || '').trim() !== '합계');
     const periods = [...new Set(rows.map(r => `${r.bsns_year}.${r.quarter}`))];
     const lastKey = periods[periods.length - 1];
     const lastRows = rows.filter(r => `${r.bsns_year}.${r.quarter}` === lastKey);
-    const total = lastRows.reduce((s, r) => s + (r.revenue || 0), 0);
-    const COLORS = ['#2AABEE','#4ade80','#fb923c','#a78bfa','#f59e0b','#34d399','#f87171','#60a5fa'];
-    const items = lastRows.map(r => ({
-      name: r.category,
-      pct: r.revenue_ratio ?? (total > 0 ? r.revenue / total * 100 : 0),
+    // 라벨(품목 우선)별 매출 합산 — 4-1 표는 "사업부문 | 품목" 2단 구조
+    const byLabel = {};
+    for (const r of lastRows) {
+      const name = typeof _rpSegLabel === 'function' ? _rpSegLabel(r) : (r.category || '').trim();
+      if (!name) continue;
+      byLabel[name] = (byLabel[name] || 0) + (+r.revenue || 0);
+    }
+    const total = Object.values(byLabel).reduce((s, v) => s + v, 0);
+    const COLORS = ['#2AABEE','#4ade80','#fb923c','#a78bfa','#f59e0b','#34d399','#f87171','#60a5fa','#22d3ee','#e879f9'];
+    const items = Object.entries(byLabel).map(([name, rev]) => ({
+      name, pct: total > 0 ? rev / total * 100 : 0,
     })).sort((a, b) => b.pct - a.pct);
 
     segHTML = box(`

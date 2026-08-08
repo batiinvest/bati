@@ -11,6 +11,7 @@ let _rpTab       = 'overview';  // 현재 탭
 let _rpData      = {};     // 로드된 데이터 캐시
 let _rpSegCache  = null;   // 제품별 차트 캐시
 let _rpSegSel    = null;   // 선택된 세그먼트명 (null = 전체)
+let _rpSegMode   = 'year'; // 매출 트렌드 축: 'year'(연간·기본) | 'quarter'(분기)
 
 // ── 페이지 진입점 ─────────────────────────────────────────────────────────────
 function pReport() {
