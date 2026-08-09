@@ -734,9 +734,9 @@ function _rpfAnnual() {
   return RPF._annual;
 }
 
-// 표시 기간 목록 (연간=4분기 합산 최근 5개, 분기=최근 6개)
+// 표시 기간 목록 (연간=4분기 합산 최근 12개, 분기=최근 20개 — 표는 가로 스크롤)
 function _rpfPeriods() {
-  return RPF.view === 'annual' ? _rpfAnnual().slice(-5) : RPF.rows.slice(-6);
+  return RPF.view === 'annual' ? _rpfAnnual().slice(-12) : RPF.rows.slice(-20);
 }
 
 // 직전 비교 행 (QoQ: 직전 분기 / YoY: 전년 동분기·전년)
@@ -1056,7 +1056,7 @@ function _rpiAnnual() {
   return RPI._annual;
 }
 function _rpiPeriods() {
-  return RPI.view === 'annual' ? _rpiAnnual().slice(-5) : RPI.rows.slice(-6);
+  return RPI.view === 'annual' ? _rpiAnnual().slice(-12) : RPI.rows.slice(-20);
 }
 function _rpiPrev(r, mode) {
   if (RPI.view === 'annual') {
