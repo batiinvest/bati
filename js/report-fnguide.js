@@ -991,7 +991,11 @@ function rpfRender() {
   <div style="font-size:11px;color:var(--text3);margin-top:6px">
     * 연간=분기 순액 4개 합산(완결 연도만, 재무상태표는 Q4 시점) · 이익률은 금액 기준 재계산 · 법인세비용은 세전이익-순이익 계산치 · 강조열은 최근 기간</div>`;
 
-  el.innerHTML = charts + table;
+  // 손익(매출) 뷰 아래에 사업부문별 매출(제품별 세그먼트) 함께 표시 — 한 화면에서 총매출↔구성 확인
+  const segCard = (RPF.stmt === 'is' && typeof _rpSegmentCard === 'function' && (_rpData.segment || []).length)
+    ? `<div style="margin-top:16px">${_rpSegmentCard(_rpData.segment)}</div>`
+    : '';
+  el.innerHTML = charts + table + segCard;
 }
 
 // ═══ 투자지표 탭 (FnGuide c1040001 스타일) ═══════════════════════════════════
