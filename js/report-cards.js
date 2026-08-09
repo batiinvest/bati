@@ -565,7 +565,7 @@ function _rpSegInner(cache, selected, mode) {
   const CHART_H = 168;
   const changeLabel = mode === 'year' ? 'YoY' : 'QoQ';
 
-  const periods = axis.periods.slice(mode === 'year' ? -6 : -8);
+  const periods = axis.periods.slice(mode === 'year' ? -12 : -20);
   const dataMap = axis.dataMap;
   if (!periods.length) return `<div style="color:var(--text3);font-size:12px;padding:20px;text-align:center">표시할 매출 데이터 없음</div>`;
 
@@ -802,7 +802,7 @@ function _rpBacklogInner(cache, selected, mode) {
   const CHART_H = 168;
   const changeLabel = mode === 'year' ? 'YoY' : 'QoQ';
 
-  const periods = axis.periods.slice(mode === 'year' ? -6 : -8);
+  const periods = axis.periods.slice(mode === 'year' ? -12 : -20);
   const dataMap = axis.dataMap;
   if (!periods.length) return `<div style="color:var(--text3);font-size:12px;padding:20px;text-align:center">표시할 수주 데이터 없음</div>`;
 
