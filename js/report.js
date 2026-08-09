@@ -194,7 +194,7 @@ async function rpLoadReport() {
         .order('opinion_date', { ascending: false }).limit(6),
       sb.from('dart_segment_revenue')
         .select('bsns_year,quarter,segment_type,category,subcategory,revenue,revenue_ratio')
-        .eq('stock_code', _rpStock.code).in('segment_type',['product','backlog'])
+        .eq('stock_code', _rpStock.code).in('segment_type',['product','region','backlog'])
         .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
       sb.from('companies').select('market,sector,product,industry,sub_industry')
         .eq('code', _rpStock.code).maybeSingle(),
@@ -212,6 +212,7 @@ async function rpLoadReport() {
       dart:     dartRes.data    || null,
       analyst:  analystRes.data || [],
       segment:  (segRes.data || []).filter(r => r.segment_type === 'product'),
+      region:   (segRes.data || []).filter(r => r.segment_type === 'region'),
       backlog:  (segRes.data || []).filter(r => r.segment_type === 'backlog'),
       annual:   _rpAggAnnual(finRows).reverse(), // 최신 연도 먼저
       company:  compRes.data    || null,

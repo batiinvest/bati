@@ -952,6 +952,39 @@ function rpfRender() {
        { label: '전년동기대비<br>(YoY)', prev: _rpfPrevRow(lastR, 'yoy') }];
 
   const defs = _rpfRowDefs();
+
+  // 손익(매출) 뷰: 매출 국내/해외 품목별 구성을 같은 표에 병합 (같은 기간·억 단위·YoY/QoQ)
+  let segDefs = [];
+  if (RPF.stmt === 'is') {
+    const isDom = s => /내수|국내/.test(s || ''), isExp = s => /수출|해외/.test(s || '');
+    const reg = (_rpData.region || []).filter(r => (r.category || '').trim() !== '합계' && (r.subcategory || '').trim() !== '합계');
+    const rlabel = r => {
+      const subAxis = isDom(r.subcategory) || isExp(r.subcategory);
+      const axis = subAxis ? r.subcategory : r.category;
+      const prod = ((subAxis ? r.category : r.subcategory) || '').trim();
+      const ax = isDom(axis) ? '내수' : isExp(axis) ? '수출' : null;
+      return ax ? (prod ? `${prod} · ${ax}` : ax) : null;
+    };
+    const rmap = {}, rnames = [];
+    for (const r of reg) {
+      const lb = rlabel(r); if (!lb) continue;
+      const key = RPF.view === 'annual' ? String(r.bsns_year) : `${r.bsns_year}.${r.quarter}`;
+      (rmap[key] ||= {}); rmap[key][lb] = (rmap[key][lb] || 0) + (+r.revenue || 0) * 1e6;  // 백만원→원(표 eok와 정합)
+      if (!rnames.includes(lb)) rnames.push(lb);
+    }
+    if (rnames.length) {
+      const pk = p => RPF.view === 'annual' ? String(p.bsns_year) : `${p.bsns_year}.${p.quarter}`;
+      const lastPk = pk(periods[periods.length - 1]);
+      rnames.sort((a, b) => ((rmap[lastPk] || {})[b] || 0) - ((rmap[lastPk] || {})[a] || 0));
+      segDefs = [
+        { divider: '매출 구성 · 국내/해외 (품목별)' },
+        ...rnames.map(n => ({ label: n, ind: 1, calc: r => (rmap[pk(r)] || {})[n] ?? null })),
+        { label: '합계', bold: 1, calc: r => rnames.reduce((s, n) => s + ((rmap[pk(r)] || {})[n] || 0), 0) },
+      ];
+    }
+  }
+  const allDefs = defs.concat(segDefs);
+
   const table = `
   <div style="overflow-x:auto;margin-top:12px">
     <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
@@ -964,7 +997,10 @@ function rpfRender() {
           border-bottom:1px solid var(--border);font-size:11px;line-height:1.3">${g.label}</th>`).join('')}
       </tr></thead>
       <tbody>
-        ${defs.map(d => {
+        ${allDefs.map(d => {
+          if (d.divider) return `<tr><td colspan="${labels.length + growCols.length + 1}"
+            style="padding:9px 10px 4px;font-weight:700;color:var(--tg);font-size:12px;
+              border-top:2px solid var(--border);border-bottom:1px solid var(--border);background:var(--bg3)">${d.divider}</td></tr>`;
           const val = r => d.calc ? d.calc(r) : r[d.k];
           const cells = periods.map((r, i) => {
             const v = val(r);
@@ -991,11 +1027,7 @@ function rpfRender() {
   <div style="font-size:11px;color:var(--text3);margin-top:6px">
     * 연간=분기 순액 4개 합산(완결 연도만, 재무상태표는 Q4 시점) · 이익률은 금액 기준 재계산 · 법인세비용은 세전이익-순이익 계산치 · 강조열은 최근 기간</div>`;
 
-  // 손익(매출) 뷰 아래에 사업부문별 매출(제품별 세그먼트) 함께 표시 — 한 화면에서 총매출↔구성 확인
-  const segCard = (RPF.stmt === 'is' && typeof _rpSegmentCard === 'function' && (_rpData.segment || []).length)
-    ? `<div style="margin-top:16px">${_rpSegmentCard(_rpData.segment)}</div>`
-    : '';
-  el.innerHTML = charts + table + segCard;
+  el.innerHTML = charts + table;
 }
 
 // ═══ 투자지표 탭 (FnGuide c1040001 스타일) ═══════════════════════════════════
