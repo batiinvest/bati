@@ -471,13 +471,7 @@ async function rpSetTab(idx) {
   switch (name) {
     case '기업개요':   await _rpLoadAndRenderProfile(card); return;      // FnGuide c1020001
     case '사업분석':   await _rpLoadAndRenderBiz(card); return;          // DART 4-1~4-6 그래프+표
-    case '재무분석': {                                                   // 재무제표 차트(Chart.js·GPM/판관비 필터) + FnGuide 상세표 통합
-      card.innerHTML = `<div id="rpf-fs-block"></div>
-        <div id="rpf-detail-block" style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px"></div>`;
-      await _renderFinancialTab(document.getElementById('rpf-fs-block'), _rpStock.code, _rpStock.name);
-      await _rpLoadAndRenderFinAnalysis(document.getElementById('rpf-detail-block'));
-      return;
-    }
+    case '재무분석':   await _rpLoadAndRenderFinAnalysis(card); return;  // 차트(Chart.js·GPM/판관비 필터) + 상세표 통합
     case '투자지표':   await _rpLoadAndRenderInvMetrics(card); return;   // FnGuide c1040001
     case '지분현황':   await _rpLoadAndRenderOwnership(card); return;    // FnGuide c1070001
     case '최근리포트': await _rpLoadAndRenderReports(card); return;      // FnGuide c1080001

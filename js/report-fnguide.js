@@ -695,7 +695,7 @@ async function _rpLoadAndRenderFinAnalysis(body) {
       .order('bsns_year', { ascending: true }).order('quarter', { ascending: true });
     RPF.rows = data || [];
     RPF._annual = null; // 연간 합산 캐시 무효화
-    RPF.stmt = 'is'; RPF.view = 'annual';
+    RPF.stmt = 'is'; RPF.view = 'annual'; RPF.chartType = 'revenue';
     if (!RPF.rows.length) {
       body.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center;font-size:12px">재무 데이터 없음</div>';
       return;
@@ -885,48 +885,13 @@ function rpfRender() {
     ? String(r.bsns_year) : `${String(r.bsns_year).slice(2)} ${r.quarter}`);
   const eokV = v => v != null ? v / 1e8 : null;
 
-  // ── 차트 (재무제표 종류별) ──
-  let charts = '';
-  if (RPF.stmt === 'is') {
-    charts = _rpfChart('주요재무항목', labels,
-      [
-        { name: '매출액',     color: '#4a9eff', vals: periods.map(r => eokV(r.revenue)) },
-        { name: '영업이익',   color: '#2AABEE', vals: periods.map(r => eokV(r.operating_profit)) },
-        { name: '당기순이익', color: '#a78bfa', vals: periods.map(r => eokV(r.net_income)) },
-      ],
-      [
-        { name: '영업이익률', color: '#f59e0b', vals: periods.map(_rpfOpm) },
-        { name: '순이익률',   color: '#4ade80', vals: periods.map(_rpfNpm) },
-      ]);
-    // 수익성장성지표 (YoY %)
-    const grow = key => periods.map(r => {
-      const prev = _rpfPrevRow(r, 'yoy');
-      const cur = r[key], old = prev?.[key];
-      return cur != null && old != null && old !== 0 ? (cur - old) / Math.abs(old) * 100 : null;
-    });
-    charts += '<div style="height:10px"></div>' + _rpfChart('수익성장성지표 (YoY)', labels, [],
-      [
-        { name: '매출액증가율',   color: '#4a9eff', vals: grow('revenue') },
-        { name: '영업이익증가율', color: '#f59e0b', vals: grow('operating_profit') },
-        { name: '순이익증가율',   color: '#a78bfa', vals: grow('net_income') },
-      ]);
-  } else if (RPF.stmt === 'bs') {
-    charts = _rpfChart('재무상태 주요항목', labels,
-      [
-        { name: '자산총계', color: '#4a9eff', vals: periods.map(r => eokV(r.total_assets)) },
-        { name: '부채총계', color: '#f87171', vals: periods.map(r => eokV(r.total_liabilities)) },
-        { name: '자본총계', color: '#4ade80', vals: periods.map(r => eokV(r.total_equity)) },
-      ],
-      [{ name: '부채비율', color: '#f59e0b', vals: periods.map(r => r.debt_ratio) }]);
-  } else {
-    charts = _rpfChart('현금흐름 주요항목', labels,
-      [
-        { name: '영업CF', color: '#4ade80', vals: periods.map(r => eokV(r.operating_cashflow)) },
-        { name: '투자CF', color: '#f87171', vals: periods.map(r => eokV(r.investing_cashflow)) },
-        { name: '재무CF', color: '#f59e0b', vals: periods.map(r => eokV(r.financing_cashflow)) },
-        { name: 'FCF',    color: '#2AABEE', vals: periods.map(r => eokV(r.fcf)) },
-      ], []);
-  }
+  // ── 차트 (Chart.js — 재무제표 디자인 · 손익은 매출·영업이익 / 매출·GPM·판관비 필터) ──
+  const chartTypeBar = RPF.stmt === 'is' ? `
+    <div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap">
+      ${[['revenue', '매출·영업이익'], ['gpm', '매출·GPM·판관비']].map(([t, l]) =>
+        `<button onclick="rpfSetChart('${t}')" id="rpf-ct-${t}" class="chip chip-sm${RPF.chartType === t ? ' active' : ''}">${l}</button>`).join('')}
+    </div>` : '';
+  const charts = chartTypeBar + `<div style="position:relative;height:240px;margin-bottom:12px"><canvas id="rpf-chart-canvas"></canvas></div>`;
 
   // ── 상세 표 ──
   const eok = v => v == null ? '—'
@@ -1028,6 +993,79 @@ function rpfRender() {
     * 연간=분기 순액 4개 합산(완결 연도만, 재무상태표는 Q4 시점) · 이익률은 금액 기준 재계산 · 법인세비용은 세전이익-순이익 계산치 · 강조열은 최근 기간</div>`;
 
   el.innerHTML = charts + table;
+  _rpfDrawChart();
+}
+
+// 재무분석 차트 종류 전환 (손익: 매출·영업이익 / 매출·GPM·판관비)
+function rpfSetChart(t) {
+  RPF.chartType = t;
+  ['revenue', 'gpm'].forEach(x => document.getElementById('rpf-ct-' + x)?.classList.toggle('active', RPF.chartType === x));
+  _rpfDrawChart();
+}
+
+// 재무분석 차트 렌더 (Chart.js — 재무제표 탭 디자인 재사용)
+function _rpfDrawChart() {
+  if (!window.Chart) return;
+  const canvas = document.getElementById('rpf-chart-canvas');
+  if (!canvas) return;
+  if (RPF._chart) { try { RPF._chart.destroy(); } catch (e) {} RPF._chart = null; }
+  const periods = _rpfPeriods();
+  if (!periods.length) return;
+  const labels = periods.map(r => RPF.view === 'annual' ? String(r.bsns_year) : `${String(r.bsns_year).slice(2)} ${r.quarter}`);
+  const eb = v => v != null ? Math.round(v / 1e8) : null;   // 억 정수
+  const p1 = v => v != null ? +(+v).toFixed(1) : null;
+  let datasets, hasY2 = false;
+
+  if (RPF.stmt === 'is' && RPF.chartType === 'gpm') {
+    hasY2 = true;
+    const gpm  = r => (r.gross_profit != null && r.revenue) ? p1(r.gross_profit / r.revenue * 100) : null;
+    const sgar = r => (r.sga != null && r.revenue) ? p1(r.sga / r.revenue * 100) : null;
+    datasets = [
+      { label: '매출액', data: periods.map(r => eb(r.revenue)), backgroundColor: 'rgba(42,171,238,0.55)', borderRadius: 3, yAxisID: 'y' },
+      { label: '매출총이익률(%)', data: periods.map(gpm), type: 'line', borderColor: 'rgba(45,206,137,0.9)', backgroundColor: 'transparent', pointBackgroundColor: 'rgba(45,206,137,0.9)', tension: 0.3, yAxisID: 'y2', borderWidth: 2 },
+      { label: '판관비율(%)', data: periods.map(sgar), type: 'line', borderColor: 'rgba(255,193,7,0.9)', backgroundColor: 'transparent', pointBackgroundColor: 'rgba(255,193,7,0.9)', tension: 0.3, yAxisID: 'y2', borderWidth: 2, borderDash: [4, 3] },
+    ];
+  } else if (RPF.stmt === 'is') {
+    hasY2 = true;
+    datasets = [
+      { label: '매출액', data: periods.map(r => eb(r.revenue)), backgroundColor: 'rgba(42,171,238,0.65)', borderRadius: 3, yAxisID: 'y' },
+      { label: '영업이익', data: periods.map(r => eb(r.operating_profit)), backgroundColor: 'rgba(245,54,92,0.65)', borderRadius: 3, yAxisID: 'y' },
+      { label: '영업이익률(%)', data: periods.map(r => p1(_rpfOpm(r))), type: 'line', borderColor: 'rgba(255,193,7,0.9)', backgroundColor: 'transparent', pointBackgroundColor: 'rgba(255,193,7,0.9)', tension: 0.3, yAxisID: 'y2', borderWidth: 2 },
+    ];
+  } else if (RPF.stmt === 'bs') {
+    hasY2 = true;
+    datasets = [
+      { label: '자산총계', data: periods.map(r => eb(r.total_assets)), backgroundColor: 'rgba(42,171,238,0.6)', borderRadius: 3, yAxisID: 'y' },
+      { label: '부채총계', data: periods.map(r => eb(r.total_liabilities)), backgroundColor: 'rgba(245,54,92,0.6)', borderRadius: 3, yAxisID: 'y' },
+      { label: '자본총계', data: periods.map(r => eb(r.total_equity)), backgroundColor: 'rgba(45,206,137,0.6)', borderRadius: 3, yAxisID: 'y' },
+      { label: '부채비율(%)', data: periods.map(r => p1(r.debt_ratio)), type: 'line', borderColor: 'rgba(255,193,7,0.9)', backgroundColor: 'transparent', pointBackgroundColor: 'rgba(255,193,7,0.9)', tension: 0.3, yAxisID: 'y2', borderWidth: 2 },
+    ];
+  } else {
+    datasets = [
+      { label: '영업CF', data: periods.map(r => eb(r.operating_cashflow)), backgroundColor: 'rgba(45,206,137,0.7)', borderRadius: 3, yAxisID: 'y' },
+      { label: '투자CF', data: periods.map(r => eb(r.investing_cashflow)), backgroundColor: 'rgba(245,54,92,0.6)', borderRadius: 3, yAxisID: 'y' },
+      { label: '재무CF', data: periods.map(r => eb(r.financing_cashflow)), backgroundColor: 'rgba(251,163,35,0.6)', borderRadius: 3, yAxisID: 'y' },
+      { label: 'FCF', data: periods.map(r => eb(r.fcf)), type: 'line', borderColor: 'rgba(42,171,238,0.9)', backgroundColor: 'transparent', pointBackgroundColor: 'rgba(42,171,238,0.9)', tension: 0.3, yAxisID: 'y', borderWidth: 2 },
+    ];
+  }
+
+  RPF._chart = new window.Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#a8adc4', font: { size: 11 }, boxWidth: 12 } },
+        tooltip: { backgroundColor: '#1a1d27', titleColor: '#f0f2f8', bodyColor: '#a8adc4' },
+      },
+      scales: {
+        x: { ticks: { color: '#6e7491', font: { size: 10 }, maxRotation: 45 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        y: { ticks: { color: '#6e7491', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' }, position: 'left' },
+        ...(hasY2 ? { y2: { ticks: { color: '#a8adc4', font: { size: 10 }, callback: v => v + '%' }, grid: { drawOnChartArea: false }, position: 'right' } } : {}),
+      },
+    },
+  });
 }
 
 // ═══ 투자지표 탭 (FnGuide c1040001 스타일) ═══════════════════════════════════
