@@ -70,7 +70,7 @@ function _bizSeriesClean(rows, keyFn) {
 // ── 공용: 누적 막대 그래프 (비인터랙티브) ────────────────────────────────────
 function _bizStack(m, opts) {
   const o = opts || {}, fmt = o.fmt || (v => Math.round(v).toLocaleString());
-  const COLORS = o.colors || BIZ_COLORS, lastN = o.lastN || 8, H = 150;
+  const COLORS = o.colors || BIZ_COLORS, lastN = o.lastN || m.periods.length, H = 150;
   const ps = m.periods.slice(-lastN);
   if (!ps.length || !m.items.length) return '';
   const last = m.dataMap[ps[ps.length - 1].key] || {};
@@ -99,7 +99,7 @@ function _bizStack(m, opts) {
 // ── 공용: 멀티 라인 그래프 (가격 추이 등) ────────────────────────────────────
 function _bizLines(m, opts) {
   const o = opts || {}, fmt = o.fmt || (v => v.toLocaleString());
-  const COLORS = o.colors || BIZ_COLORS, lastN = o.lastN || 13;
+  const COLORS = o.colors || BIZ_COLORS, lastN = o.lastN || m.periods.length;
   const ps = m.periods.slice(-lastN);
   if (ps.length < 2 || !m.items.length) return '';
   const all = [];
@@ -130,7 +130,7 @@ function _bizLines(m, opts) {
 // ── 공용: 항목 × 기간 표 ─────────────────────────────────────────────────────
 function _bizTable(m, opts) {
   const o = opts || {}, fmt = o.fmt || (v => v == null ? '—' : Math.round(v).toLocaleString());
-  const lastN = o.lastN || 8;
+  const lastN = o.lastN || m.periods.length;
   const ps = m.periods.slice(-lastN);
   if (!ps.length || !m.items.length) return '';
   const last = m.dataMap[ps[ps.length - 1].key] || {};
