@@ -4,6 +4,10 @@
 
 const BIZ_COLORS = ['#2AABEE','#4ade80','#fb923c','#a78bfa','#f59e0b','#34d399','#f87171','#60a5fa','#22d3ee','#e879f9'];
 
+// 매출(국내/해외) 품목 필터 상태
+let _rpBizRegion = null;      // { mR, rColor, prods }
+let _rpBizRegionSel = null;   // 선택 품목 (null = 전체)
+
 // ── 탭 진입: 6종 데이터 병렬 로드 후 렌더 ────────────────────────────────────
 async function _rpLoadAndRenderBiz(body) {
   if (!_rpStock || !body) return;
@@ -190,9 +194,13 @@ function _rpBizTab({ product, region, backlog, rawUsage, rawPrice, prod }) {
     const pi = Math.max(0, rProds.indexOf(n.replace(/ · (내수|수출)$/, '')));
     return /내수/.test(n) ? domSh[pi % domSh.length] : /수출/.test(n) ? expSh[pi % expSh.length] : '#60a5fa';
   };
-  const s2 = section('매출 (국내/해외)', '단위: 백만원 · 품목별 내수(초록)/수출(주황)', mR.items.length,
-    _bizStack(mR, { fmt: fmtEok, colorFn: rColor }) + _bizTable(mR, { label: '품목 · 구분', fmt: fmtMil }),
-    'DART 업로드 시 내수/수출 매출이 표시됩니다');
+  // 인터랙티브 필터 상태 저장 — 품목 칩으로 그래프 필터 (전체 → 품목 클릭 시 해당 품목 내수/수출만)
+  _rpBizRegion = mR.items.length ? { mR, rColor, prods: rProds } : null;
+  _rpBizRegionSel = null;
+  const s2 = box(secT('매출 (국내/해외)', '단위: 백만원 · 품목 선택 시 내수/수출만')
+    + (mR.items.length
+      ? _bizRegionChips(rProds) + `<div id="rp-biz-region-chart">${_rpBizRegionChart(null)}</div>` + _bizTable(mR, { label: '품목 · 구분', fmt: fmtMil })
+      : empty('DART 업로드 시 내수/수출 매출이 표시됩니다')));
 
   // ③ 원재료 (매입/투입)
   const uRows = (rawUsage || []).filter(r => (r.product_name || '').trim() !== '합계' && (r.material_name || '').trim() !== '합계');
@@ -223,6 +231,48 @@ function _rpBizTab({ product, region, backlog, rawUsage, rawPrice, prod }) {
     <span style="font-size:12px;color:var(--text3)">DART 분석 MD를 업로드하면 매출·원재료·생산·수주 데이터가 표시됩니다.</span></div>`;
 
   return `<div style="display:flex;flex-direction:column;gap:12px">${s1}${s2}${s3}${s4}${s5}${s6}</div>`;
+}
+
+// ── 매출(국내/해외) 품목 필터 ────────────────────────────────────────────────
+function _bizFilterItems(m, pred) {
+  const items = m.items.filter(pred), set = new Set(items), dataMap = {};
+  for (const k in m.dataMap) {
+    const o = {}, src = m.dataMap[k];
+    for (const n in src) if (set.has(n)) o[n] = src[n];
+    dataMap[k] = o;
+  }
+  return { periods: m.periods, items, dataMap };
+}
+
+function _bizRegionChips(prods) {
+  const esc = escapeHtml, js = typeof escJsStr === 'function' ? escJsStr : (s => String(s).replace(/'/g, "\\'"));
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+    ${['전체', ...prods].map(p => {
+      const on = (_rpBizRegionSel || '전체') === p;
+      return `<button onclick="rpBizRegionSel('${js(p)}')" data-biz-reg="${esc(p)}"
+        style="padding:3px 12px;font-size:11px;font-weight:600;border:1px solid var(--border);border-radius:100px;cursor:pointer;
+          background:${on ? 'var(--tg)' : 'transparent'};color:${on ? '#fff' : 'var(--text2)'}">${esc(p)}</button>`;
+    }).join('')}
+  </div>`;
+}
+
+function _rpBizRegionChart(sel) {
+  if (!_rpBizRegion) return '';
+  const { mR, rColor } = _rpBizRegion;
+  const m = sel ? _bizFilterItems(mR, n => n.indexOf(sel + ' · ') === 0) : mR;
+  return _bizStack(m, { fmt: v => fmtCap(v * 1e6), colorFn: rColor });
+}
+
+function rpBizRegionSel(prod) {
+  if (!_rpBizRegion) return;
+  _rpBizRegionSel = (prod === '전체' || _rpBizRegionSel === prod) ? null : prod;
+  const el = document.getElementById('rp-biz-region-chart');
+  if (el) el.innerHTML = _rpBizRegionChart(_rpBizRegionSel);
+  document.querySelectorAll('[data-biz-reg]').forEach(b => {
+    const on = b.getAttribute('data-biz-reg') === (_rpBizRegionSel || '전체');
+    b.style.background = on ? 'var(--tg)' : 'transparent';
+    b.style.color = on ? '#fff' : 'var(--text2)';
+  });
 }
 
 // ── 생산력 렌더 (가동률 라인 + 생산실적 추이 + 생산능력 최신) ────────────────
