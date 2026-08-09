@@ -75,11 +75,12 @@ function _bizStack(m, opts) {
   if (!ps.length || !m.items.length) return '';
   const last = m.dataMap[ps[ps.length - 1].key] || {};
   const its = [...m.items].sort((a, b) => (last[b] || 0) - (last[a] || 0));
+  const colorOf = o.colorFn ? (n, i) => o.colorFn(n) : (n, i) => COLORS[i % COLORS.length];
   const totals = ps.map(p => its.reduce((s, n) => s + ((m.dataMap[p.key] || {})[n] || 0), 0));
   const maxT = Math.max(...totals, 1);
   const bars = ps.map((p, pi) => {
     const total = totals[pi], bh = Math.max(3, Math.round(total / maxT * H)), isLast = pi === ps.length - 1;
-    const segs = its.map((n, i) => ({ n, v: (m.dataMap[p.key] || {})[n] || 0, c: COLORS[i % COLORS.length] })).filter(s => s.v > 0).reverse();
+    const segs = its.map((n, i) => ({ n, v: (m.dataMap[p.key] || {})[n] || 0, c: colorOf(n, i) })).filter(s => s.v > 0).reverse();
     return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;height:${H}px">
       <div style="font-size:10px;color:var(--text2);text-align:center;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${total ? fmt(total) : ''}</div>
       <div style="height:${bh}px;border-radius:2px 2px 0 0;overflow:hidden;display:flex;flex-direction:column;${isLast ? 'box-shadow:0 0 0 2px rgba(255,255,255,.18)' : ''}">
@@ -90,7 +91,7 @@ function _bizStack(m, opts) {
   const labels = ps.map((p, pi) => `<div style="flex:1;min-width:0;text-align:center;font-size:10px;
     color:${pi === ps.length - 1 ? 'var(--tg)' : 'var(--text3)'}">${String(p.year).slice(2)}<br>${p.q}</div>`).join('');
   const legend = its.map((n, i) => `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--text2)">
-    <span style="width:8px;height:8px;border-radius:2px;background:${COLORS[i % COLORS.length]};flex-shrink:0"></span>${escapeHtml(n)}</span>`).join('');
+    <span style="width:8px;height:8px;border-radius:2px;background:${colorOf(n, i)};flex-shrink:0"></span>${escapeHtml(n)}</span>`).join('');
   return `<div style="display:flex;align-items:flex-end;gap:4px">${bars}</div>
     <div style="display:flex;gap:4px;margin-top:3px">${labels}</div>
     <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px">${legend}</div>`;
@@ -171,15 +172,26 @@ function _rpBizTab({ product, region, backlog, rawUsage, rawPrice, prod }) {
     _bizStack(mP, { fmt: fmtEok }) + _bizTable(mP, { label: '제품', fmt: fmtMil }),
     'DART 업로드 시 제품별 매출이 표시됩니다');
 
-  // ② 매출(국내/해외)
+  // ② 매출(국내/해외) — 품목(반도체/디스플레이/태양전지) × 내수/수출 구분
   const isDom = s => /내수|국내/.test(s || ''), isExp = s => /수출|해외/.test(s || '');
-  const rRows = (region || []).filter(r => (r.category || '').trim() !== '합계');
-  const mR = _bizMatrix(rRows, r => {
-    const a = isDom(r.subcategory) || isExp(r.subcategory) ? r.subcategory : r.category;
-    return isDom(a) ? '내수' : isExp(a) ? '수출' : null;
-  }, r => +r.revenue || 0);
-  const s2 = section('매출 (국내/해외)', '단위: 백만원 · 그래프 총계는 억', mR.items.length,
-    _bizStack(mR, { fmt: fmtEok, colors: ['#4ade80', '#fb923c'] }) + _bizTable(mR, { label: '구분', fmt: fmtMil }),
+  const rRows = (region || []).filter(r => (r.category || '').trim() !== '합계' && (r.subcategory || '').trim() !== '합계');
+  const rKey = r => {                                        // "반도체 장비 · 내수"
+    const subAxis = isDom(r.subcategory) || isExp(r.subcategory);
+    const axis = subAxis ? r.subcategory : r.category;
+    const prod = ((subAxis ? r.category : r.subcategory) || '').trim();
+    const ax = isDom(axis) ? '내수' : isExp(axis) ? '수출' : null;
+    return ax ? (prod ? `${prod} · ${ax}` : ax) : null;
+  };
+  const mR = _bizMatrix(rRows, rKey, r => +r.revenue || 0);
+  // 내수=초록 계열 / 수출=주황 계열, 품목별 명암으로 구분
+  const rProds = [...new Set(mR.items.map(n => n.replace(/ · (내수|수출)$/, '')))];
+  const domSh = ['#16a34a', '#22c55e', '#4ade80', '#86efac'], expSh = ['#ea580c', '#f97316', '#fb923c', '#fdba74'];
+  const rColor = n => {
+    const pi = Math.max(0, rProds.indexOf(n.replace(/ · (내수|수출)$/, '')));
+    return /내수/.test(n) ? domSh[pi % domSh.length] : /수출/.test(n) ? expSh[pi % expSh.length] : '#60a5fa';
+  };
+  const s2 = section('매출 (국내/해외)', '단위: 백만원 · 품목별 내수(초록)/수출(주황)', mR.items.length,
+    _bizStack(mR, { fmt: fmtEok, colorFn: rColor }) + _bizTable(mR, { label: '품목 · 구분', fmt: fmtMil }),
     'DART 업로드 시 내수/수출 매출이 표시됩니다');
 
   // ③ 원재료 (매입/투입)
