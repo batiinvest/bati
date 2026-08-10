@@ -891,7 +891,7 @@ function rpfRender() {
       ${[['revenue', '매출·영업이익'], ['gpm', '매출·GPM·판관비']].map(([t, l]) =>
         `<button onclick="rpfSetChart('${t}')" id="rpf-ct-${t}" class="chip chip-sm${RPF.chartType === t ? ' active' : ''}">${l}</button>`).join('')}
     </div>` : '';
-  const charts = chartTypeBar + `<div style="position:relative;height:240px;margin-bottom:12px"><canvas id="rpf-chart-canvas"></canvas></div>`;
+  const charts = chartTypeBar + `<div style="position:relative;height:340px;margin-bottom:12px"><canvas id="rpf-chart-canvas"></canvas></div>`;
 
   // ── 상세 표 ──
   const eok = v => v == null ? '—'
