@@ -695,7 +695,7 @@ async function _rpLoadAndRenderFinAnalysis(body) {
       .order('bsns_year', { ascending: true }).order('quarter', { ascending: true });
     RPF.rows = data || [];
     RPF._annual = null; // 연간 합산 캐시 무효화
-    RPF.stmt = 'is'; RPF.view = 'annual'; RPF.chartType = 'revenue';
+    RPF.stmt = 'is'; RPF.view = 'annual'; RPF.sel = _rpfDefaultSel('is');
     if (!RPF.rows.length) {
       body.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center;font-size:12px">재무 데이터 없음</div>';
       return;
@@ -885,13 +885,13 @@ function rpfRender() {
     ? String(r.bsns_year) : `${String(r.bsns_year).slice(2)} ${r.quarter}`);
   const eokV = v => v != null ? v / 1e8 : null;
 
-  // ── 차트 (Chart.js — 재무제표 디자인 · 손익은 매출·영업이익 / 매출·GPM·판관비 필터) ──
-  const chartTypeBar = RPF.stmt === 'is' ? `
-    <div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap">
-      ${[['revenue', '매출·영업이익'], ['gpm', '매출·GPM·판관비']].map(([t, l]) =>
-        `<button onclick="rpfSetChart('${t}')" id="rpf-ct-${t}" class="chip chip-sm${RPF.chartType === t ? ' active' : ''}">${l}</button>`).join('')}
-    </div>` : '';
-  const charts = chartTypeBar + `<div style="position:relative;height:340px;margin-bottom:12px"><canvas id="rpf-chart-canvas"></canvas></div>`;
+  // ── 차트 (Chart.js — 표 항목 선택형: 항목 클릭 시 그래프에 추가/제거) ──
+  const chartCtl = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--text3)">표의 <b style="color:var(--text2)">항목을 클릭</b>하면 그래프에 추가/제거됩니다 · 선택 <b id="rpf-sel-count" style="color:var(--tg)">${(RPF.sel || []).length}</b>개</span>
+      <button onclick="rpfClearSeries()" class="chip chip-sm" style="padding:2px 10px;font-size:11px">전체 해제</button>
+    </div>`;
+  const charts = chartCtl + `<div style="position:relative;height:340px;margin-bottom:12px"><canvas id="rpf-chart-canvas"></canvas></div>`;
 
   // ── 상세 표 ──
   const eok = v => v == null ? '—'
@@ -950,6 +950,15 @@ function rpfRender() {
   }
   const allDefs = defs.concat(segDefs);
 
+  // 선택형 차트: 선택 가능한 항목(구분선 제외) + 키/색상 맵 + 현재 stmt 유효 선택 유지
+  const keyOf = d => d.k || ('s:' + d.label);
+  RPF._defs = allDefs.filter(d => !d.divider);
+  RPF._colorMap = {};
+  RPF._defs.forEach((d, i) => { RPF._colorMap[keyOf(d)] = RPF_PAL[i % RPF_PAL.length]; });
+  const validKeys = new Set(RPF._defs.map(keyOf));
+  RPF.sel = (RPF.sel || []).filter(k => validKeys.has(k));
+  if (!RPF.sel.length) RPF.sel = _rpfDefaultSel(RPF.stmt).filter(k => validKeys.has(k));
+
   const table = `
   <div style="overflow-x:auto;margin-top:12px">
     <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
@@ -967,6 +976,8 @@ function rpfRender() {
             style="padding:9px 10px 4px;font-weight:700;color:var(--tg);font-size:12px;
               border-top:2px solid var(--border);border-bottom:1px solid var(--border);background:var(--bg3)">${d.divider}</td></tr>`;
           const val = r => d.calc ? d.calc(r) : r[d.k];
+          const key = keyOf(d), color = RPF._colorMap[key], on = RPF.sel.includes(key);
+          const selBg = 'color-mix(in srgb, var(--tg) 8%, transparent)';
           const cells = periods.map((r, i) => {
             const v = val(r);
             const col = d.sign && v != null && v < 0 ? 'var(--blue)' : 'var(--text1)';
@@ -978,10 +989,13 @@ function rpfRender() {
           const gCells = growCols.map(g => `<td style="padding:6px 10px;text-align:right;font-weight:600;
             font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border)">
             ${growCell(val(lastR), g.prev ? val(g.prev) : null, !!d.pct)}</td>`).join('');
-          return `<tr>
+          return `<tr data-rpf-key="${escapeHtml(key)}" onclick="rpfToggleSeries('${escJsStr(key)}')"
+            style="cursor:pointer;${on ? 'background:' + selBg : ''}">
             <td style="padding:6px 10px;color:var(--text1);border-bottom:1px solid var(--border);
-              position:sticky;left:0;background:var(--bg2);
+              position:sticky;left:0;background:${on ? selBg : 'var(--bg2)'};user-select:none;
               ${d.bold ? 'font-weight:700' : ''};padding-left:${10 + (d.ind || 0) * 14}px">
+              <span class="rpf-mark" style="display:inline-block;width:9px;height:9px;border-radius:2px;
+                border:1.5px solid ${color};background:${on ? color : 'transparent'};margin-right:6px;vertical-align:middle"></span>
               ${d.ind ? '<span style="color:var(--text3)">· </span>' : ''}${d.label}${d.pct ? ' <span style="color:var(--text3);font-size:11px">(%)</span>' : ''}</td>
             ${cells}${gCells}
           </tr>`;
@@ -996,58 +1010,58 @@ function rpfRender() {
   _rpfDrawChart();
 }
 
-// 재무분석 차트 종류 전환 (손익: 매출·영업이익 / 매출·GPM·판관비)
-function rpfSetChart(t) {
-  RPF.chartType = t;
-  ['revenue', 'gpm'].forEach(x => document.getElementById('rpf-ct-' + x)?.classList.toggle('active', RPF.chartType === x));
-  _rpfDrawChart();
+// 재무분석 차트 — 표 항목 선택형 상태·헬퍼
+const RPF_PAL = ['#2AABEE','#f5365c','#2dce89','#fba323','#a78bfa','#4a9eff','#f87171','#22d3ee','#e879f9','#facc15','#fb923c','#34d399','#c084fc','#f472b6'];
+function _rpfDefaultSel(stmt) {
+  return stmt === 'bs' ? ['total_assets', 'total_liabilities', 'total_equity']
+       : stmt === 'cf' ? ['operating_cashflow', 'investing_cashflow', 'financing_cashflow']
+       : ['revenue', 'operating_profit'];
+}
+function rpfToggleSeries(key) {
+  RPF.sel = RPF.sel || [];
+  const i = RPF.sel.indexOf(key);
+  if (i >= 0) RPF.sel.splice(i, 1); else RPF.sel.push(key);
+  _rpfDrawChart(); _rpfSyncRowMarks();
+}
+function rpfClearSeries() { RPF.sel = []; _rpfDrawChart(); _rpfSyncRowMarks(); }
+function _rpfSyncRowMarks() {
+  const sel = new Set(RPF.sel || []), cm = RPF._colorMap || {};
+  const selBg = 'color-mix(in srgb, var(--tg) 8%, transparent)';
+  document.querySelectorAll('#rpf-body tr[data-rpf-key]').forEach(tr => {
+    const k = tr.getAttribute('data-rpf-key'), on = sel.has(k), color = cm[k] || 'var(--tg)';
+    tr.style.background = on ? selBg : '';
+    const nameCell = tr.querySelector('td'); if (nameCell) nameCell.style.background = on ? selBg : 'var(--bg2)';
+    const mark = tr.querySelector('.rpf-mark'); if (mark) mark.style.background = on ? color : 'transparent';
+  });
+  const cnt = document.getElementById('rpf-sel-count'); if (cnt) cnt.textContent = (RPF.sel || []).length;
 }
 
-// 재무분석 차트 렌더 (Chart.js — 재무제표 탭 디자인 재사용)
+// 재무분석 차트 렌더 (Chart.js — 선택된 표 항목만: 금액=막대(좌축·억), 비율=선(우축·%))
 function _rpfDrawChart() {
   if (!window.Chart) return;
   const canvas = document.getElementById('rpf-chart-canvas');
   if (!canvas) return;
   if (RPF._chart) { try { RPF._chart.destroy(); } catch (e) {} RPF._chart = null; }
-  const periods = _rpfPeriods();
-  if (!periods.length) return;
+  const periods = _rpfPeriods(), defs = RPF._defs || [], sel = RPF.sel || [];
+  if (!periods.length || !sel.length) return;
   const labels = periods.map(r => RPF.view === 'annual' ? String(r.bsns_year) : `${String(r.bsns_year).slice(2)} ${r.quarter}`);
   const eb = v => v != null ? Math.round(v / 1e8) : null;   // 억 정수
   const p1 = v => v != null ? +(+v).toFixed(1) : null;
-  let datasets, hasY2 = false;
-
-  if (RPF.stmt === 'is' && RPF.chartType === 'gpm') {
-    hasY2 = true;
-    const gpm  = r => (r.gross_profit != null && r.revenue) ? p1(r.gross_profit / r.revenue * 100) : null;
-    const sgar = r => (r.sga != null && r.revenue) ? p1(r.sga / r.revenue * 100) : null;
-    datasets = [
-      { label: '매출액', data: periods.map(r => eb(r.revenue)), backgroundColor: 'rgba(42,171,238,0.55)', borderRadius: 3, yAxisID: 'y' },
-      { label: '매출총이익률(%)', data: periods.map(gpm), type: 'line', borderColor: 'rgba(45,206,137,0.9)', backgroundColor: 'transparent', pointBackgroundColor: 'rgba(45,206,137,0.9)', tension: 0.3, yAxisID: 'y2', borderWidth: 2 },
-      { label: '판관비율(%)', data: periods.map(sgar), type: 'line', borderColor: 'rgba(255,193,7,0.9)', backgroundColor: 'transparent', pointBackgroundColor: 'rgba(255,193,7,0.9)', tension: 0.3, yAxisID: 'y2', borderWidth: 2, borderDash: [4, 3] },
-    ];
-  } else if (RPF.stmt === 'is') {
-    hasY2 = true;
-    datasets = [
-      { label: '매출액', data: periods.map(r => eb(r.revenue)), backgroundColor: 'rgba(42,171,238,0.65)', borderRadius: 3, yAxisID: 'y' },
-      { label: '영업이익', data: periods.map(r => eb(r.operating_profit)), backgroundColor: 'rgba(245,54,92,0.65)', borderRadius: 3, yAxisID: 'y' },
-      { label: '영업이익률(%)', data: periods.map(r => p1(_rpfOpm(r))), type: 'line', borderColor: 'rgba(255,193,7,0.9)', backgroundColor: 'transparent', pointBackgroundColor: 'rgba(255,193,7,0.9)', tension: 0.3, yAxisID: 'y2', borderWidth: 2 },
-    ];
-  } else if (RPF.stmt === 'bs') {
-    hasY2 = true;
-    datasets = [
-      { label: '자산총계', data: periods.map(r => eb(r.total_assets)), backgroundColor: 'rgba(42,171,238,0.6)', borderRadius: 3, yAxisID: 'y' },
-      { label: '부채총계', data: periods.map(r => eb(r.total_liabilities)), backgroundColor: 'rgba(245,54,92,0.6)', borderRadius: 3, yAxisID: 'y' },
-      { label: '자본총계', data: periods.map(r => eb(r.total_equity)), backgroundColor: 'rgba(45,206,137,0.6)', borderRadius: 3, yAxisID: 'y' },
-      { label: '부채비율(%)', data: periods.map(r => p1(r.debt_ratio)), type: 'line', borderColor: 'rgba(255,193,7,0.9)', backgroundColor: 'transparent', pointBackgroundColor: 'rgba(255,193,7,0.9)', tension: 0.3, yAxisID: 'y2', borderWidth: 2 },
-    ];
-  } else {
-    datasets = [
-      { label: '영업CF', data: periods.map(r => eb(r.operating_cashflow)), backgroundColor: 'rgba(45,206,137,0.7)', borderRadius: 3, yAxisID: 'y' },
-      { label: '투자CF', data: periods.map(r => eb(r.investing_cashflow)), backgroundColor: 'rgba(245,54,92,0.6)', borderRadius: 3, yAxisID: 'y' },
-      { label: '재무CF', data: periods.map(r => eb(r.financing_cashflow)), backgroundColor: 'rgba(251,163,35,0.6)', borderRadius: 3, yAxisID: 'y' },
-      { label: 'FCF', data: periods.map(r => eb(r.fcf)), type: 'line', borderColor: 'rgba(42,171,238,0.9)', backgroundColor: 'transparent', pointBackgroundColor: 'rgba(42,171,238,0.9)', tension: 0.3, yAxisID: 'y', borderWidth: 2 },
-    ];
-  }
+  const keyOf = d => d.k || ('s:' + d.label);
+  const byKey = {}; defs.forEach(d => { byKey[keyOf(d)] = d; });
+  let hasY2 = false;
+  const datasets = sel.map(k => {
+    const d = byKey[k]; if (!d) return null;
+    const color = (RPF._colorMap || {})[k] || '#2AABEE';
+    const val = r => d.calc ? d.calc(r) : r[d.k];
+    if (d.pct) {
+      hasY2 = true;
+      return { label: d.label, data: periods.map(r => p1(val(r))), type: 'line', borderColor: color,
+        backgroundColor: 'transparent', pointBackgroundColor: color, tension: 0.3, yAxisID: 'y2', borderWidth: 2 };
+    }
+    return { label: d.label, data: periods.map(r => eb(val(r))), backgroundColor: color + 'a6', borderColor: color, borderRadius: 3, yAxisID: 'y' };
+  }).filter(Boolean);
+  if (!datasets.length) return;
 
   RPF._chart = new window.Chart(canvas.getContext('2d'), {
     type: 'bar',
