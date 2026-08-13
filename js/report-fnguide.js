@@ -756,6 +756,11 @@ function _rpfPrevRow(r, mode) {
 // 이익률 재계산 (저장값은 일부 행에서 누적/순액 기준 혼재 — 금액 기준 재계산 우선)
 function _rpfOpm(r) { return r.revenue > 0 && r.operating_profit != null ? r.operating_profit / r.revenue * 100 : r.operating_margin; }
 function _rpfNpm(r) { return r.revenue > 0 && r.net_income != null ? r.net_income / r.revenue * 100 : r.net_margin; }
+// 부채총계: total_liabilities 수집오류(자산총계와 동일) 방어 → 자산−자본 파생, 정상값이면 그대로
+function _rpfLiab(r) {
+  if (r.total_assets != null && r.total_equity != null) return r.total_assets - r.total_equity;
+  return r.total_liabilities ?? null;
+}
 
 // ── 이중축 그룹바+라인 SVG 차트 ──────────────────────────────────────────────
 // bars: [{name,color,vals[]}] (좌축) / lines: [{name,color,vals[]}] (우축)
@@ -852,12 +857,14 @@ function _rpfRowDefs() {
       { k: 'total_assets',       label: '자산총계',   bold: 1 },
       { k: 'current_assets',     label: '유동자산',   ind: 1 },
       { k: 'non_current_assets', label: '비유동자산', ind: 1 },
-      { k: 'total_liabilities',  label: '부채총계',   bold: 1 },
+      // 부채총계·부채비율은 total_liabilities 수집오류(=자산총계) 방어 → 자산−자본으로 파생
+      { k: '_liab',              label: '부채총계',   bold: 1, calc: _rpfLiab },
       { k: 'current_liabilities',label: '유동부채',   ind: 1 },
       { k: 'total_equity',       label: '자본총계',   bold: 1 },
       { k: 'capital_stock',      label: '자본금',     ind: 1 },
       { k: 'retained_earnings',  label: '이익잉여금', ind: 1 },
-      { k: 'debt_ratio',         label: '부채비율',   pct: 1 },
+      { k: '_debtr',             label: '부채비율',     pct: 1, calc: r => { const l = _rpfLiab(r); return l != null && r.total_equity > 0 ? l / r.total_equity * 100 : null; } },
+      { k: '_eqr',               label: '자기자본비율', pct: 1, calc: r => r.total_equity != null && r.total_assets ? r.total_equity / r.total_assets * 100 : null },
       { k: 'current_ratio',      label: '유동비율',   pct: 1 },
     ],
     cf: [
@@ -1009,14 +1016,83 @@ function rpfRender() {
   <div style="font-size:11px;color:var(--text3);margin-top:6px">
     * 연간=분기 순액 4개 합산(완결 연도만, 재무상태표는 Q4 시점) · 이익률은 금액 기준 재계산 · 법인세비용은 세전이익-순이익 계산치 · 강조열은 최근 기간</div>`;
 
-  el.innerHTML = charts + table;
+  // 재무상태 뷰: 재무 건전성 요약 스트립(위) + 자산구성/자본구조 도넛(차트 아래)
+  const bsTop = RPF.stmt === 'bs' ? _rpfBsSummary(periods) : '';
+  const bsDonuts = RPF.stmt === 'bs' ? `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin:6px 0 14px">
+      <div style="width:210px;height:190px"><canvas id="rpf-donut-a"></canvas></div>
+      <div style="width:210px;height:190px"><canvas id="rpf-donut-b"></canvas></div>
+    </div>` : '';
+
+  el.innerHTML = bsTop + charts + bsDonuts + table;
   _rpfDrawChart();
+  if (RPF.stmt === 'bs') _rpfDrawDonuts();
+}
+
+// 재무 건전성 요약 스트립 (재무상태 최신 기간)
+function _rpfBsSummary(periods) {
+  const r = periods[periods.length - 1]; if (!r) return '';
+  const fmtE = v => v == null ? '—' : Math.round(v / 1e8).toLocaleString() + '억';
+  const assets = r.total_assets, equity = r.total_equity, cap = r.capital_stock, re = r.retained_earnings;
+  const liab = _rpfLiab(r);
+  const eqRatio = equity != null && assets ? equity / assets * 100 : null;
+  const debtRatio = liab != null && equity > 0 ? liab / equity * 100 : null;
+  const curRatio = r.current_assets != null && r.current_liabilities ? r.current_assets / r.current_liabilities * 100 : r.current_ratio;
+  let imp;
+  if (equity != null && equity < 0) imp = { t: '완전자본잠식', c: '#ef4444' };
+  else if (equity != null && cap != null && equity < cap) imp = { t: '부분자본잠식', c: '#f5a623' };
+  else imp = { t: '자본잠식 없음', c: '#4ade80' };
+  const label = String(r.bsns_year) + (RPF.view === 'annual' ? '년' : ' ' + r.quarter);
+  const chip = (k, v, col) => `<span style="display:inline-flex;align-items:baseline;gap:4px">
+    <span style="color:var(--text3);font-size:11px">${k}</span><b style="color:${col || 'var(--text1)'};font-size:12px">${v}</b></span>`;
+  return `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:9px 12px;margin-bottom:10px;
+    background:var(--bg3);border-radius:var(--radius-sm)">
+    <span style="font-size:11px;font-weight:700;color:var(--text2)">재무 건전성 <span style="color:var(--text3);font-weight:400">(${label})</span></span>
+    ${chip('자기자본비율', eqRatio != null ? eqRatio.toFixed(1) + '%' : '—', eqRatio >= 50 ? '#4ade80' : eqRatio >= 30 ? 'var(--text1)' : '#f5a623')}
+    ${chip('부채비율', debtRatio != null ? debtRatio.toFixed(1) + '%' : '—', debtRatio != null && debtRatio <= 100 ? '#4ade80' : debtRatio <= 200 ? 'var(--text1)' : '#f5a623')}
+    ${chip('유동비율', curRatio != null ? Math.round(curRatio) + '%' : '—', curRatio >= 150 ? '#4ade80' : curRatio >= 100 ? 'var(--text1)' : '#f5a623')}
+    ${chip('이익잉여금', fmtE(re), re > 0 ? '#4ade80' : '#f5a623')}
+    <span style="font-size:10px;padding:2px 9px;border-radius:100px;background:${imp.c}20;color:${imp.c};font-weight:700">${imp.t}</span>
+  </div>`;
+}
+
+// 자산구성 / 자본구조 도넛 (Chart.js — 최신 기간)
+function _rpfDrawDonuts() {
+  if (!window.Chart) return;
+  (RPF._donuts || []).forEach(c => { try { c.destroy(); } catch (e) {} });
+  RPF._donuts = [];
+  const periods = _rpfPeriods(), r = periods[periods.length - 1]; if (!r) return;
+  const eb = v => v == null ? 0 : Math.round(v / 1e8);
+  const mk = (id, title, entries) => {
+    const cv = document.getElementById(id); if (!cv) return;
+    const vals = entries.map(e => e.v), sum = vals.reduce((s, x) => s + x, 0) || 1;
+    RPF._donuts.push(new window.Chart(cv.getContext('2d'), {
+      type: 'doughnut',
+      data: { labels: entries.map(e => e.l), datasets: [{ data: vals, backgroundColor: entries.map(e => e.c), borderWidth: 0 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '60%',
+        plugins: {
+          title: { display: true, text: title, color: '#e8ecf1', font: { size: 12 } },
+          legend: { position: 'bottom', labels: { color: '#a8adc4', font: { size: 10 }, boxWidth: 10, padding: 6 } },
+          tooltip: { backgroundColor: '#1a1d27', callbacks: { label: c => `${c.label}: ${c.parsed.toLocaleString()}억 (${(c.parsed / sum * 100).toFixed(1)}%)` } },
+        },
+      },
+    }));
+  };
+  mk('rpf-donut-a', '자산 구성', [
+    { l: '유동자산', v: eb(r.current_assets), c: '#2AABEE' },
+    { l: '비유동자산', v: eb(r.non_current_assets), c: '#4a9eff' },
+  ]);
+  mk('rpf-donut-b', '자본 구조', [
+    { l: '부채', v: eb(_rpfLiab(r)), c: '#f5365c' },
+    { l: '자본', v: eb(r.total_equity), c: '#2dce89' },
+  ]);
 }
 
 // 재무분석 차트 — 표 항목 선택형 상태·헬퍼
 const RPF_PAL = ['#2AABEE','#f5365c','#2dce89','#fba323','#a78bfa','#4a9eff','#f87171','#22d3ee','#e879f9','#facc15','#fb923c','#34d399','#c084fc','#f472b6'];
 function _rpfDefaultSel(stmt) {
-  return stmt === 'bs' ? ['total_assets', 'total_liabilities', 'total_equity']
+  return stmt === 'bs' ? ['total_assets', '_liab', 'total_equity']
        : stmt === 'cf' ? ['operating_cashflow', 'investing_cashflow', 'financing_cashflow']
        : ['revenue', 'operating_profit'];
 }
