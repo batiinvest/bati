@@ -1018,15 +1018,61 @@ function rpfRender() {
 
   // 재무상태 뷰: 재무 건전성 요약 스트립(위) + 자산구성/자본구조 도넛(차트 아래)
   const bsTop = RPF.stmt === 'bs' ? _rpfBsSummary(periods) : '';
+  // 현금흐름 뷰: 현금흐름 요약(영업/투자/재무 구조 + 패턴·현금창출 질 배지)
+  const cfTop = RPF.stmt === 'cf' ? _rpfCfSummary(periods) : '';
   const bsDonuts = RPF.stmt === 'bs' ? `
     <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin:6px 0 14px">
       <div style="width:210px;height:190px"><canvas id="rpf-donut-a"></canvas></div>
       <div style="width:210px;height:190px"><canvas id="rpf-donut-b"></canvas></div>
     </div>` : '';
 
-  el.innerHTML = bsTop + charts + bsDonuts + table;
+  el.innerHTML = bsTop + cfTop + charts + bsDonuts + table;
   _rpfDrawChart();
   if (RPF.stmt === 'bs') _rpfDrawDonuts();
+}
+
+// 현금흐름 요약 (영업/투자/재무 구조 바 + 순증감·패턴·현금창출 질 배지)
+function _rpfCfSummary(periods) {
+  const r = periods[periods.length - 1]; if (!r) return '';
+  const eok = v => v == null ? '—' : (v < 0 ? '-' : '') + Math.abs(Math.round(v / 1e8)).toLocaleString() + '억';
+  const sc = v => v == null ? 'var(--text3)' : v >= 0 ? '#4ade80' : '#f87171';
+  const op = r.operating_cashflow, inv = r.investing_cashflow, fin = r.financing_cashflow, ni = r.net_income;
+  const net = [op, inv, fin].every(v => v != null) ? op + inv + fin : null;
+  const label = String(r.bsns_year) + (RPF.view === 'annual' ? '년' : ' ' + r.quarter);
+  let pat;
+  if (op == null) pat = null;
+  else if (op < 0) pat = { t: '영업 현금유출 (주의)', c: '#ef4444' };
+  else if (inv < 0 && fin < 0) pat = { t: '우량 성숙형 (창출·투자·환원)', c: '#4ade80' };
+  else if (inv < 0 && fin >= 0) pat = { t: '성장 투자형 (외부조달 투자)', c: '#f5a623' };
+  else if (inv >= 0) pat = { t: '자산 매각·회수형', c: '#22d3ee' };
+  else pat = { t: '일반', c: 'var(--text2)' };
+  let qual = null;
+  if (op != null && ni != null) {
+    if (op > 0 && op >= ni) qual = { t: '현금창출 양호', c: '#4ade80' };
+    else if (op < ni) qual = { t: '이익 대비 현금 부진', c: '#f5a623' };
+    else qual = { t: '보통', c: 'var(--text2)' };
+  }
+  const chip = (k, v, col) => `<span style="display:inline-flex;align-items:baseline;gap:4px">
+    <span style="color:var(--text3);font-size:11px">${k}</span><b style="color:${col};font-size:12px">${v}</b></span>`;
+  const items = [['영업', op], ['투자', inv], ['재무', fin]];
+  const maxAbs = Math.max(...items.map(([, v]) => Math.abs(v || 0)), 1);
+  const bars = items.map(([lb, v]) => {
+    const w = Math.round(Math.abs(v || 0) / maxAbs * 100), col = v >= 0 ? '#4ade80' : '#fb923c';
+    return `<div style="display:flex;align-items:center;gap:8px;font-size:11px">
+      <span style="width:40px;color:var(--text2)">${lb}CF</span>
+      <div style="flex:1;height:8px;background:var(--bg2);border-radius:4px;overflow:hidden"><div style="width:${w}%;height:100%;background:${col};border-radius:4px"></div></div>
+      <span style="width:66px;text-align:right;color:${sc(v)};font-weight:600;font-variant-numeric:tabular-nums">${eok(v)}</span>
+    </div>`;
+  }).join('');
+  return `<div style="padding:10px 12px;margin-bottom:10px;background:var(--bg3);border-radius:var(--radius-sm)">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+      <span style="font-size:11px;font-weight:700;color:var(--text2)">현금흐름 <span style="color:var(--text3);font-weight:400">(${label})</span></span>
+      ${chip('순현금증감', eok(net), sc(net))}
+      ${pat ? `<span style="font-size:10px;padding:2px 9px;border-radius:100px;background:${pat.c}20;color:${pat.c};font-weight:700">${pat.t}</span>` : ''}
+      ${qual ? `<span style="font-size:10px;padding:2px 9px;border-radius:100px;background:${qual.c}20;color:${qual.c};font-weight:700">${qual.t}</span>` : ''}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:5px;max-width:440px">${bars}</div>
+  </div>`;
 }
 
 // 재무 건전성 요약 스트립 (재무상태 최신 기간)
