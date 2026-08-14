@@ -1020,15 +1020,64 @@ function rpfRender() {
   const bsTop = RPF.stmt === 'bs' ? _rpfBsSummary(periods) : '';
   // 현금흐름 뷰: 현금흐름 요약(영업/투자/재무 구조 + 패턴·현금창출 질 배지)
   const cfTop = RPF.stmt === 'cf' ? _rpfCfSummary(periods) : '';
+  // 손익 뷰: 손익 요약(성장·수익성 + 흑자적자·마진추세·판관비 경고 배지)
+  const isTop = RPF.stmt === 'is' ? _rpfIsSummary(periods) : '';
   const bsDonuts = RPF.stmt === 'bs' ? `
     <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin:6px 0 14px">
       <div style="width:210px;height:190px"><canvas id="rpf-donut-a"></canvas></div>
       <div style="width:210px;height:190px"><canvas id="rpf-donut-b"></canvas></div>
     </div>` : '';
 
-  el.innerHTML = bsTop + cfTop + charts + bsDonuts + table;
+  el.innerHTML = bsTop + cfTop + isTop + charts + bsDonuts + table;
   _rpfDrawChart();
   if (RPF.stmt === 'bs') _rpfDrawDonuts();
+}
+
+// 손익 요약 (성장·수익성 칩 + 흑자적자·마진추세·판관비 경고·영업레버리지 배지)
+function _rpfIsSummary(periods) {
+  const r = periods[periods.length - 1]; if (!r) return '';
+  const prev = _rpfPrevRow(r, 'yoy');
+  const label = String(r.bsns_year) + (RPF.view === 'annual' ? '년' : ' ' + r.quarter);
+  const opm = _rpfOpm(r), npm = _rpfNpm(r);
+  const gp = r.gross_profit ?? (r.revenue != null && r.cogs != null ? r.revenue - r.cogs : null);
+  const gpm = gp != null && r.revenue ? gp / r.revenue * 100 : null;
+  const sgar = r.sga != null && r.revenue ? r.sga / r.revenue * 100 : null;
+  const op = r.operating_profit, prevOp = prev ? prev.operating_profit : null;
+  const revYoY = prev && prev.revenue ? (r.revenue - prev.revenue) / Math.abs(prev.revenue) * 100 : null;
+  const prevOpm = prev ? _rpfOpm(prev) : null;
+
+  // 흑자/적자·전환 배지
+  let status = null;
+  if (op != null && op < 0) status = (prevOp != null && prevOp >= 0) ? { t: '영업 적자전환', c: '#ef4444' } : { t: '영업 적자', c: '#f5a623' };
+  else if (op != null) status = (prevOp != null && prevOp < 0) ? { t: '영업 흑자전환', c: '#4ade80' } : { t: '영업 흑자', c: '#4ade80' };
+  // 마진 추세
+  let mtrend = null;
+  if (opm != null && prevOpm != null) { const d = opm - prevOpm; if (Math.abs(d) >= 0.5) mtrend = { t: (d > 0 ? '마진 개선 +' : '마진 악화 ') + d.toFixed(1) + 'p', c: d > 0 ? '#4ade80' : '#f5a623' }; }
+  // 판관비 경고 (판관비율 > GPM → 매출총이익으로 판관비 못 덮음)
+  const costWarn = (gpm != null && sgar != null && sgar > gpm) ? { t: '판관비 부담 (영업적자 압력)', c: '#ef4444' } : null;
+  // 영업레버리지 (매출 증감 대비 영업이익 증감 배수) — 흑자→흑자 구간에서만(부호전환 제외)
+  let lev = null;
+  if (prev && prev.revenue && prevOp > 0 && op > 0 && revYoY != null && Math.abs(revYoY) >= 3) {
+    const dOp = (op - prevOp) / Math.abs(prevOp) * 100;
+    const m = dOp / revYoY;
+    if (isFinite(m) && Math.abs(m) < 30) lev = m;
+  }
+
+  const scg = v => v == null ? 'var(--text3)' : v >= 0 ? '#f87171' : '#60a5fa';  // 성장률: 한국식 +빨강
+  const scm = v => v == null ? 'var(--text3)' : v >= 0 ? 'var(--text1)' : '#60a5fa';
+  const chip = (k, v, col) => `<span style="display:inline-flex;align-items:baseline;gap:4px">
+    <span style="color:var(--text3);font-size:11px">${k}</span><b style="color:${col || 'var(--text1)'};font-size:12px">${v}</b></span>`;
+  const badge = b => b ? `<span style="font-size:10px;padding:2px 9px;border-radius:100px;background:${b.c}20;color:${b.c};font-weight:700">${b.t}</span>` : '';
+
+  return `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:9px 12px;margin-bottom:10px;
+    background:var(--bg3);border-radius:var(--radius-sm)">
+    <span style="font-size:11px;font-weight:700;color:var(--text2)">손익 <span style="color:var(--text3);font-weight:400">(${label})</span></span>
+    ${chip('매출 YoY', revYoY != null ? (revYoY >= 0 ? '+' : '') + revYoY.toFixed(0) + '%' : '—', scg(revYoY))}
+    ${chip('영업이익률', opm != null ? opm.toFixed(1) + '%' : '—', scm(opm))}
+    ${chip('순이익률', npm != null ? npm.toFixed(1) + '%' : '—', scm(npm))}
+    ${lev != null ? chip('영업레버리지', lev.toFixed(1) + 'x', lev >= 0 ? '#f87171' : '#60a5fa') : ''}
+    ${badge(status)}${badge(mtrend)}${badge(costWarn)}
+  </div>`;
 }
 
 // 현금흐름 요약 (영업/투자/재무 구조 바 + 순증감·패턴·현금창출 질 배지)
