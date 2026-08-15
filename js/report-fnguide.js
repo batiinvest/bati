@@ -690,10 +690,10 @@ async function _rpLoadAndRenderFinAnalysis(body) {
   if (!_rpStock || !body) return;
   try {
     const { data } = await sb.from('financials')
-      .select('bsns_year,quarter,revenue,cogs,gross_profit,sga,rd_expense,operating_profit,other_operating_income,other_operating_expense,pretax_income,net_income,total_assets,current_assets,non_current_assets,total_liabilities,current_liabilities,total_equity,capital_stock,retained_earnings,operating_cashflow,investing_cashflow,financing_cashflow,capex,capex_intangible,capex_total,da,ebitda,fcf,operating_margin,net_margin,debt_ratio,current_ratio')
-      .eq('stock_code', _rpStock.code).eq('fs_div', 'CFS')
+      .select('fs_div,bsns_year,quarter,revenue,cogs,gross_profit,sga,rd_expense,operating_profit,other_operating_income,other_operating_expense,pretax_income,net_income,total_assets,current_assets,non_current_assets,total_liabilities,current_liabilities,total_equity,capital_stock,retained_earnings,operating_cashflow,investing_cashflow,financing_cashflow,capex,capex_intangible,capex_total,da,ebitda,fcf,operating_margin,net_margin,debt_ratio,current_ratio')
+      .eq('stock_code', _rpStock.code)
       .order('bsns_year', { ascending: true }).order('quarter', { ascending: true });
-    RPF.rows = data || [];
+    RPF.rows = finPreferFs(data);   // 연결(CFS) 우선·별도(OFS) 폴백
     RPF._annual = null; // 연간 합산 캐시 무효화
     RPF.stmt = 'is'; RPF.view = 'annual'; RPF.sel = _rpfDefaultSel('is');
     if (!RPF.rows.length) {
@@ -1265,10 +1265,10 @@ async function _rpLoadAndRenderInvMetrics(body) {
   if (!_rpStock || !body) return;
   try {
     const { data } = await sb.from('financials')
-      .select('bsns_year,quarter,revenue,cogs,gross_profit,operating_profit,net_income,total_assets,total_equity,capital_stock,retained_earnings,operating_cashflow,ebitda,operating_margin,net_margin,gross_margin,roe,roa,debt_ratio,current_ratio')
-      .eq('stock_code', _rpStock.code).eq('fs_div', 'CFS')
+      .select('fs_div,bsns_year,quarter,revenue,cogs,gross_profit,operating_profit,net_income,total_assets,total_equity,capital_stock,retained_earnings,operating_cashflow,ebitda,operating_margin,net_margin,gross_margin,roe,roa,debt_ratio,current_ratio')
+      .eq('stock_code', _rpStock.code)
       .order('bsns_year', { ascending: true }).order('quarter', { ascending: true });
-    RPI.rows = data || [];
+    RPI.rows = finPreferFs(data);   // 연결(CFS) 우선·별도(OFS) 폴백
     RPI._annual = null; // 연간 합산 캐시 무효화
     RPI.shares = _rpShares(_rpData.price?.[0]);
     RPI.cat = 'profit'; RPI.view = 'annual';

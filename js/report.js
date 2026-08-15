@@ -183,8 +183,7 @@ async function rpLoadReport() {
     const [priceRes, finRes, watchRes, dartRes, analystRes, segRes, compRes, summaryRes] = await Promise.all([
       sb.from('market_data').select('price,price_change,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low,per,pbr,base_date,week_return,month_return,quarter_return,year_return')
         .eq('stock_code', _rpStock.code).order('base_date', { ascending: false }).limit(500),
-      sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,debt_ratio,roe,roa,operating_margin,net_margin,ebitda,fcf,da')
-        .eq('stock_code', _rpStock.code).eq('fs_div','CFS').order('bsns_year', { ascending: false }).order('quarter', { ascending: false }).limit(24),
+      loadFinPreferred(_rpStock.code, 'bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,debt_ratio,roe,roa,operating_margin,net_margin,ebitda,fcf,da', { limit: 24 }),
       sb.from('watchlist').select('note,target_price,opinion,buy_price,created_at')
         .eq('stock_code', _rpStock.code).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       sb.from('dart_reports').select('report_type,receive_date,summary')
@@ -246,8 +245,8 @@ async function _rpLoadPeerStats() {
   const [mktRes, finRes] = await Promise.all([
     sb.from('market_data').select('stock_code,per,pbr')
       .in('stock_code', codes).order('base_date', { ascending: false }),
-    sb.from('financials').select('stock_code,roe,roa,operating_margin')
-      .in('stock_code', codes).eq('fs_div','CFS')
+    sb.from('financials').select('stock_code,fs_div,roe,roa,operating_margin')
+      .in('stock_code', codes)
       .order('bsns_year', { ascending: false }).order('quarter', { ascending: false }),
   ]);
 
@@ -256,7 +255,7 @@ async function _rpLoadPeerStats() {
   for (const r of (mktRes.data || [])) {
     if (!latestMkt[r.stock_code]) latestMkt[r.stock_code] = r;
   }
-  for (const r of (finRes.data || [])) {
+  for (const r of finPreferFs(finRes.data)) {   // 종목별 CFS 우선·OFS 폴백
     if (!latestFin[r.stock_code]) latestFin[r.stock_code] = r;
   }
 

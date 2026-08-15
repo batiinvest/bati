@@ -253,8 +253,8 @@ async function _runScreenerInner(el) {
 
     // PEG/EVEB 계산에는 net_income, operating_income, total_debt도 필요
     const finSelect = hasPegFilter || hasEvebFilter
-      ? 'stock_code,operating_margin,roe,roa,debt_ratio,current_ratio,bsns_year,quarter,net_income,operating_income,total_debt'
-      : 'stock_code,operating_margin,roe,roa,debt_ratio,current_ratio,bsns_year,quarter';
+      ? 'stock_code,fs_div,operating_margin,roe,roa,debt_ratio,current_ratio,bsns_year,quarter,net_income,operating_income,total_debt'
+      : 'stock_code,fs_div,operating_margin,roe,roa,debt_ratio,current_ratio,bsns_year,quarter';
 
     // ⚠️ 기존 slice(0,500) + limit(2000)은 시총 하위 종목·뒤쪽 재무 행을
     //    조용히 누락시켜 스크리닝 결과가 부정확했음.
@@ -264,7 +264,6 @@ async function _runScreenerInner(el) {
     const buildFinQuery = (chunk) => {
       let q = sb.from('financials')
         .select(finSelect)
-        .eq('fs_div', 'CFS')
         .in('stock_code', chunk)
         .gte('bsns_year', minYear)
         .order('bsns_year', { ascending: false })
@@ -284,11 +283,12 @@ async function _runScreenerInner(el) {
     };
 
     const CHUNK = 500;
-    const finRows = [];
+    let finRows = [];
     for (let i = 0; i < codes.length; i += CHUNK) {
       const rows = await fetchAllPages(buildFinQuery(codes.slice(i, i + CHUNK)));
       finRows.push(...rows);
     }
+    finRows = finPreferFs(finRows);   // 종목별 CFS 우선·OFS 폴백 (OFS-only 종목 포함)
 
     if (hasPegFilter) {
       // 종목별 최신 2개 연간 행 수집 → YoY net_income 성장률로 PEG 계산

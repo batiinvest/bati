@@ -106,16 +106,15 @@ async function loadEarningsSurge() {
   for (let i = 0; i < codes.length; i += 200) {
     const batch = codes.slice(i, i + 200);
     const { data } = await sb.from('financials')
-      .select('stock_code,bsns_year,quarter,revenue,operating_profit,revenue_yoy,revenue_qoq,op_profit_yoy,op_profit_qoq,trend_flags')
-      .eq('fs_div', 'CFS')
+      .select('stock_code,fs_div,bsns_year,quarter,revenue,operating_profit,revenue_yoy,revenue_qoq,op_profit_yoy,op_profit_qoq,trend_flags')
       .in('stock_code', batch)
       .order('bsns_year', { ascending: false })
       .order('quarter',   { ascending: false })
-      .limit(batch.length * 12);
+      .limit(batch.length * 24);   // CFS+OFS 섞여 fetch → 아래 finPreferFs로 종목별 우선 fs만
     if (data) histRows.push(...data);
   }
   const histMap = {};
-  histRows.forEach(r => {
+  finPreferFs(histRows).forEach(r => {   // 종목별 CFS 우선·OFS 폴백
     if (!histMap[r.stock_code]) histMap[r.stock_code] = [];
     histMap[r.stock_code].push(r);
   });

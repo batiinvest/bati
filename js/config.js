@@ -18,6 +18,31 @@ const sb = supabase.createClient(SB_URL, SB_KEY, {
 const DB = sb.from.bind(sb);
 
 // ══════════════════════════════════════════
+//  재무제표 연결/별도 선택 — CFS(연결) 우선, 없으면 OFS(별도) 폴백
+//  financials는 종목마다 CFS만/OFS만/둘다가 섞임(연결대상 없는 단일법인은 OFS만).
+//  fs_div='CFS' 하드코딩 시 OFS-only 종목(약 17%)이 빈 화면 → 종목별 우선 fs_div만 남김.
+// ══════════════════════════════════════════
+function finPreferFs(rows) {
+  if (!rows || !rows.length) return rows || [];
+  const hasCfs = {};
+  for (const r of rows) if (r.fs_div === 'CFS' && r.stock_code != null) hasCfs[r.stock_code] = true;
+  const anyCfs = rows.some(r => r.fs_div === 'CFS');   // stock_code 미포함(단일종목) 폴백
+  return rows.filter(r => r.stock_code != null
+    ? (hasCfs[r.stock_code] ? r.fs_div === 'CFS' : r.fs_div === 'OFS')
+    : (anyCfs ? r.fs_div === 'CFS' : r.fs_div === 'OFS'));
+}
+
+// 단일 종목 재무 로드 (CFS 우선·OFS 폴백). cols에 fs_div 자동 포함, limit*2 fetch 후 우선 fs만.
+async function loadFinPreferred(code, cols, { limit = 24, asc = false } = {}) {
+  const sel = /(^|,)\s*fs_div\s*(,|$)/.test(cols) ? cols : cols + ',fs_div';
+  const { data } = await sb.from('financials').select(sel)
+    .eq('stock_code', code)
+    .order('bsns_year', { ascending: asc }).order('quarter', { ascending: asc })
+    .limit(limit * 2);
+  return { data: finPreferFs(data).slice(0, limit) };
+}
+
+// ══════════════════════════════════════════
 //  전역 데이터 캐시 네임스페이스 — 구 window._* 수렴
 //  industryMap(산업맵)·subIndustryMap(세부분야)·wlCodesLoaded(투자노트 코드셋)
 //  ※ 페이지 상태는 각 페이지 파일의 const 네임스페이스(WL·FIN·CMP·SCR·INV·IND·USKR·SURGE) 사용

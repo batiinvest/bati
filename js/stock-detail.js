@@ -306,9 +306,7 @@ async function _sdOverview(body, code, name) {
     ] = await Promise.all([
       sb.from('market_data').select('*').eq('stock_code', code)
         .order('base_date', { ascending:false }).limit(1).maybeSingle(),
-      sb.from('financials').select('bsns_year,quarter,revenue,operating_profit,net_income,operating_margin,net_margin,roe,roa,debt_ratio,total_assets,total_equity,operating_cashflow,fcf,fcf_direct,fcf_indirect,capex,capex_intangible,capex_total,depreciation,amortization,da,ebitda')
-        .eq('stock_code', code).eq('fs_div','CFS')
-        .order('bsns_year',{ascending:false}).order('quarter',{ascending:false}).limit(8),
+      loadFinPreferred(code, 'bsns_year,quarter,revenue,operating_profit,net_income,operating_margin,net_margin,roe,roa,debt_ratio,total_assets,total_equity,operating_cashflow,fcf,fcf_direct,fcf_indirect,capex,capex_intangible,capex_total,depreciation,amortization,da,ebitda', { limit: 8 }),
       sb.from('analyst_opinions').select('firm_name,opinion,target_price,gap_rate,opinion_date')
         .eq('stock_code', code).in('opinion_code',['1','2'])
         .order('opinion_date',{ascending:false}).limit(10),

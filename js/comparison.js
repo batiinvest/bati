@@ -369,7 +369,6 @@ async function runComparison() {
       sb.from('financials')
         .select('stock_code,corp_name,bsns_year,quarter,fs_div,' + CMP_METRICS.map(m=>m.key).filter((k,i,a)=>a.indexOf(k)===i).join(','))
         .in('stock_code', codes)
-        .eq('fs_div', 'CFS')
         .order('bsns_year', { ascending: false })
         .order('quarter', { ascending: false })
     );
@@ -390,7 +389,7 @@ async function runComparison() {
     // 종목별 데이터 구성
     const stockDataMap = {};
     codes.forEach(code => { stockDataMap[code] = []; });
-    finRows.forEach(r => {
+    finPreferFs(finRows).forEach(r => {   // 종목별 CFS 우선·OFS 폴백
       // FCF 근사: 영업현금흐름 (capex 데이터 없으므로 보수적 근사)
       // fcf: DB 컬럼에서 직접 가져옴 (collect_financials.py에서 계산)
       if (stockDataMap[r.stock_code]) {
@@ -823,16 +822,15 @@ async function fetchCmpMetricAndRender(metricKey, canvas, labels, metaDef) {
 
   // fetchAllPages 대신 직접 쿼리 (정렬+range 충돌 방지)
   const { data: rows } = await sb.from('financials')
-    .select(`stock_code,bsns_year,quarter,${metricKey}`)
+    .select(`stock_code,fs_div,bsns_year,quarter,${metricKey}`)
     .in('stock_code', codes)
-    .eq('fs_div', 'CFS')
     .order('bsns_year', { ascending: true })
     .order('quarter', { ascending: true })
     .limit(500);
 
   const stockMap = {};
   codes.forEach(c => { stockMap[c] = {}; });
-  (rows || []).forEach(r => {
+  finPreferFs(rows).forEach(r => {   // 종목별 CFS 우선·OFS 폴백
     if (stockMap[r.stock_code]) {
       stockMap[r.stock_code][`${r.bsns_year} ${r.quarter}`] = r[metricKey];
     }
