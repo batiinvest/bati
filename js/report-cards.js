@@ -29,13 +29,13 @@ function _rpSummaryCard(s) {
   if (dcnt === 0 && ncnt === 0) {
     return `<div class="card" style="padding:14px">
       ${_rpSecT('오늘의 공시·뉴스 요약', dateStr + ' 기준')}
-      <div style="color:var(--text3);font-size:12px;text-align:center;padding:14px">최근 공시·뉴스 없음</div>
+      <div style="color:var(--text3);font-size:calc(12px*var(--m-sub));text-align:center;padding:14px">최근 공시·뉴스 없음</div>
     </div>`;
   }
 
   const aiHTML = s.ai_summary ? `
     <div style="margin-top:8px;padding:10px 12px;background:var(--bg3);border-left:3px solid var(--tg);
-      border-radius:4px;font-size:13px;color:var(--text1);line-height:1.6;white-space:pre-line">${esc(s.ai_summary)}</div>` : '';
+      border-radius:4px;font-size:calc(13px*var(--m-body));color:var(--text1);line-height:1.6;white-space:pre-line">${esc(s.ai_summary)}</div>` : '';
 
   const discHTML = discs.length ? `
     <div style="display:flex;flex-direction:column;gap:5px;margin-top:10px">
@@ -44,8 +44,8 @@ function _rpSummaryCard(s) {
         const col = _RP_CAT_COL[cat] || '#94a3b8';
         const nm  = esc((d.report_nm || '').trim());
         const url = safeUrl(`https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${encodeURIComponent(d.rcept_no || '')}`);
-        return `<div style="display:flex;align-items:flex-start;gap:7px;font-size:12px">
-          <span style="flex-shrink:0;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;
+        return `<div style="display:flex;align-items:flex-start;gap:7px;font-size:calc(12px*var(--m-sub))">
+          <span style="flex-shrink:0;padding:1px 6px;border-radius:4px;font-size:calc(10px*var(--m-label));font-weight:600;
             background:${col}22;color:${col}">${esc(cat)}</span>
           ${url ? `<a href="${escAttr(url)}" target="_blank" rel="noopener" style="color:var(--text1);text-decoration:none;line-height:1.4">${nm}</a>`
                 : `<span style="color:var(--text1);line-height:1.4">${nm}</span>`}
@@ -61,12 +61,12 @@ function _rpSummaryCard(s) {
         // sources = cluster_news가 저장한 매체 수(정수). 배열이 아니라 카운트.
         const nsrc = (typeof n.sources === 'number') ? n.sources : (Array.isArray(n.sources) ? n.sources.length : 0);
         const meta = [nsrc > 1 ? `${nsrc}개 매체` : '', esc(n.time || '')].filter(Boolean).join(' · ');
-        return `<div style="display:flex;align-items:flex-start;gap:7px;font-size:12px">
+        return `<div style="display:flex;align-items:flex-start;gap:7px;font-size:calc(12px*var(--m-sub))">
           <span style="flex-shrink:0;color:var(--tg);margin-top:1px">📰</span>
           <div style="line-height:1.4">
             ${url ? `<a href="${escAttr(url)}" target="_blank" rel="noopener" style="color:var(--text1);text-decoration:none">${t}</a>`
                   : `<span style="color:var(--text1)">${t}</span>`}
-            ${meta ? `<span style="color:var(--text3);font-size:11px;margin-left:4px">${meta}</span>` : ''}
+            ${meta ? `<span style="color:var(--text3);font-size:calc(11px*var(--m-label));margin-left:4px">${meta}</span>` : ''}
           </div>
         </div>`;
       }).join('')}
@@ -91,7 +91,7 @@ function _rpOpinionBadgeInline(opinion) {
   const key = opinion?.toLowerCase();
   const col = map[key] || 'var(--text3)';
   const lbl = label[key] || (opinion || '—');
-  return `<span style="font-size:12px;font-weight:800;color:${col};padding:3px 10px;
+  return `<span style="font-size:calc(12px*var(--m-sub));font-weight:800;color:${col};padding:3px 10px;
     border-radius:100px;background:${col}20;border:1px solid ${col}50">${lbl}</span>`;
 }
 
@@ -101,7 +101,7 @@ function _rpAnalystList(analysts, currentPrice) {
   const colMap = { BUY:'#22c55e', HOLD:'#f59e0b', SELL:'#ef4444' };
 
   if (!analysts?.length) return `
-    <div style="display:flex;align-items:center;justify-content:center;color:var(--text1);font-size:12px">
+    <div style="display:flex;align-items:center;justify-content:center;color:var(--text1);font-size:calc(12px*var(--m-sub))">
       증권사 의견 없음
     </div>`;
 
@@ -113,8 +113,8 @@ function _rpAnalystList(analysts, currentPrice) {
 
   return `<div style="display:flex;flex-direction:column;gap:0;min-width:0;height:100%">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <span style="font-size:11px;font-weight:700;color:var(--text1)">증권사 목표주가</span>
-      ${avgTp ? `<span style="font-size:11px;color:var(--text1)">
+      <span style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text1)">증권사 목표주가</span>
+      ${avgTp ? `<span style="font-size:calc(11px*var(--m-label));color:var(--text1)">
         평균 <b style="color:var(--text1)">${fmtNum(avgTp)}원</b>
         ${avgGap != null ? `<span style="font-weight:700;color:${avgGap>0?'var(--red)':'var(--blue)'}">
           ${avgGap>0?'▲':'▼'}${Math.abs(avgGap).toFixed(1)}%</span>` : ''}
@@ -132,12 +132,12 @@ function _rpAnalystList(analysts, currentPrice) {
         return `<div style="display:grid;grid-template-columns:34px 1fr 42px 44px;
           align-items:center;gap:5px;padding:5px 8px;
           border-radius:var(--radius-sm);background:var(--bg3)">
-          <span style="font-size:11px;font-weight:800;color:${col}">${op}</span>
-          <span style="font-size:12px;color:var(--text1);min-width:0;overflow:hidden;
+          <span style="font-size:calc(11px*var(--m-label));font-weight:800;color:${col}">${op}</span>
+          <span style="font-size:calc(12px*var(--m-sub));color:var(--text1);min-width:0;overflow:hidden;
             text-overflow:ellipsis;white-space:nowrap">${a.firm_name||''}</span>
-          <span style="font-size:12px;font-weight:700;color:var(--text1);
+          <span style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--text1);
             text-align:right;white-space:nowrap">${tp}</span>
-          <span style="font-size:12px;font-weight:700;color:${gCol};
+          <span style="font-size:calc(12px*var(--m-sub));font-weight:700;color:${gCol};
             text-align:right;white-space:nowrap">${gStr}</span>
         </div>`;
       }).join('')}
@@ -152,8 +152,8 @@ function _rpAnalystGrid(analysts, currentPrice) {
 
   if (!analysts?.length) return `
     <div style="border-top:1px solid var(--border);padding-top:10px">
-      <div style="font-size:11px;font-weight:700;color:var(--text1);margin-bottom:6px">증권사 목표주가</div>
-      <div style="font-size:12px;color:var(--text1);padding:8px 0">등록된 증권사 의견이 없습니다</div>
+      <div style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text1);margin-bottom:6px">증권사 목표주가</div>
+      <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);padding:8px 0">등록된 증권사 의견이 없습니다</div>
     </div>`;
 
   // 증권사별 최신 1건만
@@ -168,8 +168,8 @@ function _rpAnalystGrid(analysts, currentPrice) {
   return `
     <div style="border-top:1px solid var(--border);padding-top:10px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:11px;font-weight:700;color:var(--text1)">증권사 목표주가</span>
-        ${avgTp ? `<span style="font-size:11px;color:var(--text1)">
+        <span style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text1)">증권사 목표주가</span>
+        ${avgTp ? `<span style="font-size:calc(11px*var(--m-label));color:var(--text1)">
           평균 <b style="color:var(--text1)">${fmtNum(avgTp)}원</b>
           ${avgGap != null ? `<span style="margin-left:4px;font-weight:700;
             color:${avgGap>0?'var(--red)':'var(--blue)'}">${avgGap>0?'▲':'▼'}${Math.abs(avgGap).toFixed(1)}%</span>` : ''}
@@ -186,13 +186,13 @@ function _rpAnalystGrid(analysts, currentPrice) {
           const dt  = a.opinion_date ? a.opinion_date.slice(2,10).replace(/-/g,'.') : '';
           return `<div style="padding:8px 6px;border-radius:var(--radius-sm);background:var(--bg3);
             border:1px solid ${col}30;text-align:center">
-            <div style="font-size:11px;color:var(--text1);overflow:hidden;text-overflow:ellipsis;
+            <div style="font-size:calc(11px*var(--m-label));color:var(--text1);overflow:hidden;text-overflow:ellipsis;
               white-space:nowrap;margin-bottom:4px">${a.firm_name||''}</div>
-            <div style="font-size:11px;font-weight:800;color:${col};margin-bottom:3px">${op}</div>
-            <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:2px">${tp}</div>
-            ${tp !== '—' ? `<div style="font-size:11px;color:var(--text1);margin-bottom:1px">원</div>` : ''}
-            ${gStr ? `<div style="font-size:11px;font-weight:700;color:${gCol}">${gStr}</div>` : ''}
-            <div style="font-size:11px;color:var(--text1);margin-top:3px;opacity:.7">${dt}</div>
+            <div style="font-size:calc(11px*var(--m-label));font-weight:800;color:${col};margin-bottom:3px">${op}</div>
+            <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1);margin-bottom:2px">${tp}</div>
+            ${tp !== '—' ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text1);margin-bottom:1px">원</div>` : ''}
+            ${gStr ? `<div style="font-size:calc(11px*var(--m-label));font-weight:700;color:${gCol}">${gStr}</div>` : ''}
+            <div style="font-size:calc(11px*var(--m-label));color:var(--text1);margin-top:3px;opacity:.7">${dt}</div>
           </div>`;
         }).join('')}
       </div>
@@ -211,8 +211,8 @@ function _rpOpinionBadge(opinion) {
   const o = map[opinion?.toLowerCase()] || map['hold'];
   return `<div style="text-align:center;padding:12px 8px;border-radius:var(--radius-sm);
     background:${o.bg};border:1.5px solid ${o.color}40">
-    <div style="font-size:24px;color:${o.color};margin-bottom:2px">${o.icon}</div>
-    <div style="font-size:18px;font-weight:800;color:${o.color};letter-spacing:1px">${o.label}</div>
+    <div style="font-size:calc(24px*var(--m-title));color:${o.color};margin-bottom:2px">${o.icon}</div>
+    <div style="font-size:calc(18px*var(--m-title));font-weight:800;color:${o.color};letter-spacing:1px">${o.label}</div>
   </div>`;
 }
 
@@ -220,7 +220,7 @@ function _rpFormatNote(note) {
   if (!note) return '';
   return note.split('\n').filter(l => l.trim()).slice(0, 5).map(line =>
     `<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:4px">
-      <span style="color:#4ade80;font-weight:700;font-size:12px;margin-top:1px">•</span>
+      <span style="color:#4ade80;font-weight:700;font-size:calc(12px*var(--m-sub));margin-top:1px">•</span>
       <span>${line.trim()}</span>
     </div>`
   ).join('');
@@ -230,7 +230,7 @@ function _rpEarningsCard(fin) {
   if (!fin?.length) return `
     <div class="card" style="padding:16px">
       ${_rpSecT('분기 실적 트렌드')}
-      <div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">재무 데이터 없음</div>
+      <div style="padding:20px;text-align:center;color:var(--text3);font-size:calc(12px*var(--m-sub))">재무 데이터 없음</div>
     </div>`;
 
   // 최신순으로 정렬된 fin → 오래된 것부터 표시
@@ -250,8 +250,8 @@ function _rpEarningsCard(fin) {
   const chip = (label, value, color) => value != null ? `
     <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;
       border-radius:100px;background:${color}18;border:1px solid ${color}40;white-space:nowrap">
-      <span style="font-size:11px;color:var(--text1)">${label}</span>
-      <span style="font-size:12px;font-weight:700;color:${color}">${value}</span>
+      <span style="font-size:calc(11px*var(--m-label));color:var(--text1)">${label}</span>
+      <span style="font-size:calc(12px*var(--m-sub));font-weight:700;color:${color}">${value}</span>
     </span>` : '';
 
   return `<div class="card" style="padding:16px">
@@ -286,13 +286,13 @@ function _rpEarningsCard(fin) {
     <div style="display:flex;gap:6px;margin-top:6px">
       ${items.map(f => `
         <div style="flex:1;min-width:0;text-align:center">
-          <div style="font-size:11px;font-weight:600;color:var(--text1)">${f.bsns_year||''}</div>
-          <div style="font-size:12px;color:var(--text1)">${f.quarter||''}</div>
+          <div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text1)">${f.bsns_year||''}</div>
+          <div style="font-size:calc(12px*var(--m-sub));color:var(--text1)">${f.quarter||''}</div>
         </div>`).join('')}
     </div>
 
     <!-- 범례 -->
-    <div style="display:flex;gap:12px;font-size:11px;color:var(--text1);margin-top:8px">
+    <div style="display:flex;gap:12px;font-size:calc(11px*var(--m-label));color:var(--text1);margin-top:8px">
       <span style="display:flex;align-items:center;gap:4px">
         <span style="width:9px;height:9px;background:#4a9eff55;border-radius:2px;display:inline-block"></span>매출
       </span>
@@ -303,7 +303,7 @@ function _rpEarningsCard(fin) {
 
     <!-- 실적 수치 테이블 -->
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
+      <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub));white-space:nowrap">
         <thead>
           <tr style="background:var(--bg3)">
             <th style="padding:6px 8px;text-align:left;color:var(--text1);font-weight:600;
@@ -488,7 +488,7 @@ function _rpSegmentCard(rows) {
   if (!clean.length) return `
     <div class="card" style="padding:16px">
       ${_rpSecT('제품·사업부별 매출')}
-      <div style="color:var(--text3);font-size:12px;padding:20px;text-align:center">
+      <div style="color:var(--text3);font-size:calc(12px*var(--m-sub));padding:20px;text-align:center">
         DART 파일을 업로드하면 사업별 매출이 연도별로 표시됩니다
       </div>
     </div>`;
@@ -496,7 +496,7 @@ function _rpSegmentCard(rows) {
   _rpSegCache = _rpBuildSegCache(clean);
 
   const modeBtn = (m, label) => `<button onclick="rpSegMode('${m}')" data-seg-mode="${m}"
-    style="padding:3px 13px;font-size:11px;font-weight:600;border:none;cursor:pointer;
+    style="padding:3px 13px;font-size:calc(11px*var(--m-label));font-weight:600;border:none;cursor:pointer;
       background:${_rpSegMode === m ? 'var(--tg)' : 'transparent'};
       color:${_rpSegMode === m ? '#fff' : 'var(--text2)'}">${label}</button>`;
 
@@ -504,8 +504,8 @@ function _rpSegmentCard(rows) {
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
       <span style="display:inline-flex;align-items:center;gap:7px">
         <span style="width:3px;height:13px;background:var(--tg);border-radius:2px"></span>
-        <span style="font-size:13px;font-weight:700;color:var(--text1)">제품·사업부별 매출</span>
-        <span style="font-size:11px;color:var(--text3)">단위: 매출액(백만원)</span>
+        <span style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1)">제품·사업부별 매출</span>
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text3)">단위: 매출액(백만원)</span>
       </span>
       <div style="display:inline-flex;border:1px solid var(--border);border-radius:100px;overflow:hidden">
         ${modeBtn('year', '연간')}${modeBtn('quarter', '분기')}
@@ -567,7 +567,7 @@ function _rpSegInner(cache, selected, mode) {
 
   const periods = axis.periods.slice(mode === 'year' ? -12 : -20);
   const dataMap = axis.dataMap;
-  if (!periods.length) return `<div style="color:var(--text3);font-size:12px;padding:20px;text-align:center">표시할 매출 데이터 없음</div>`;
+  if (!periods.length) return `<div style="color:var(--text3);font-size:calc(12px*var(--m-sub));padding:20px;text-align:center">표시할 매출 데이터 없음</div>`;
 
   const lastP       = periods[periods.length - 1];
   const latestKey   = lastP?.key;
@@ -610,7 +610,7 @@ function _rpSegInner(cache, selected, mode) {
           const v = vals[pi], barH = Math.max(4, Math.round(v / max * CHART_H));
           const isLatest = pi === periods.length - 1;
           return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;height:${CHART_H}px">
-            <div style="font-size:11px;font-weight:600;color:${color};text-align:center;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v ? fmtCap(v * 1e6) : ''}</div>
+            <div style="font-size:calc(11px*var(--m-label));font-weight:600;color:${color};text-align:center;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v ? fmtCap(v * 1e6) : ''}</div>
             <div style="height:${barH}px;border-radius:3px 3px 0 0;background:${color};opacity:${isLatest ? 1 : .72};
               ${isLatest ? 'box-shadow:0 0 0 2px ' + color + '55' : ''}"></div>
           </div>`;
@@ -629,7 +629,7 @@ function _rpSegInner(cache, selected, mode) {
             name, rev: dataMap[p.key]?.[name] || 0, color: COLORS[si % COLORS.length],
           })).filter(s => s.rev > 0).reverse();
           return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;height:${CHART_H}px">
-            <div style="font-size:11px;font-weight:600;color:var(--text1);text-align:center;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${total ? fmtCap(total * 1e6) : ''}</div>
+            <div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text1);text-align:center;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${total ? fmtCap(total * 1e6) : ''}</div>
             <div style="height:${barH}px;border-radius:3px 3px 0 0;overflow:hidden;display:flex;flex-direction:column;
               ${isLatest ? 'box-shadow:0 0 0 2px rgba(255,255,255,.22)' : ''}">
               ${segs.map(s => `<div style="flex:${s.rev};background:${s.color};min-height:2px"
@@ -646,8 +646,8 @@ function _rpSegInner(cache, selected, mode) {
       ${periods.map((p, pi) => {
         const isLast = pi === periods.length - 1;
         return `<div style="flex:1;min-width:0;text-align:center">
-          <div style="font-size:11px;font-weight:${isLast ? 700 : 500};color:${isLast ? 'var(--text1)' : 'var(--text2)'}">${p.top}</div>
-          <div style="font-size:10px;color:${isLast ? 'var(--tg)' : 'var(--text3)'}">${p.sub}</div>
+          <div style="font-size:calc(11px*var(--m-label));font-weight:${isLast ? 700 : 500};color:${isLast ? 'var(--text1)' : 'var(--text2)'}">${p.top}</div>
+          <div style="font-size:calc(10px*var(--m-label));color:${isLast ? 'var(--tg)' : 'var(--text3)'}">${p.sub}</div>
         </div>`;
       }).join('')}
     </div>`;
@@ -672,14 +672,14 @@ function _rpSegInner(cache, selected, mode) {
         cursor:pointer;transition:opacity .2s;${opacity}user-select:none"
       onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity=''">
       <div style="display:flex;align-items:center;gap:7px">
-        <span style="font-size:11px;font-weight:800;color:${color};min-width:18px;text-align:center;
+        <span style="font-size:calc(11px*var(--m-label));font-weight:800;color:${color};min-width:18px;text-align:center;
           background:${color}22;border-radius:3px;padding:1px 4px">${si + 1}</span>
         <span style="font-size:${isTop ? '13px' : '12px'};font-weight:${isTop || isSel ? 700 : 500};color:var(--text1);
           flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}</span>
         ${sparkline(name, color)}
-        <span style="font-size:12px;color:var(--text1);white-space:nowrap">${fmtCap(revenue * 1e6)}</span>
+        <span style="font-size:calc(12px*var(--m-sub));color:var(--text1);white-space:nowrap">${fmtCap(revenue * 1e6)}</span>
         <span style="font-size:${isTop ? '13px' : '12px'};font-weight:700;color:${color};min-width:40px;text-align:right">${pct.toFixed(1)}%</span>
-        <span style="font-size:12px;font-weight:700;color:${chgCol};min-width:58px;text-align:right;white-space:nowrap">${icon} ${chgStr}</span>
+        <span style="font-size:calc(12px*var(--m-sub));font-weight:700;color:${chgCol};min-width:58px;text-align:right;white-space:nowrap">${icon} ${chgStr}</span>
       </div>
       <div style="height:3px;border-radius:2px;background:${color}22;overflow:hidden;margin-top:5px">
         <div style="height:100%;width:${pct}%;background:${color};border-radius:2px"></div>
@@ -689,20 +689,20 @@ function _rpSegInner(cache, selected, mode) {
 
   const latestLabel = lastP ? `${lastP.top}${latestPartial ? ' ' + lastP.sub : ''}` : '';
   const headerRight = selected
-    ? `<button onclick="rpSegFilter(null)" style="font-size:11px;padding:2px 10px;border:1px solid var(--border);
+    ? `<button onclick="rpSegFilter(null)" style="font-size:calc(11px*var(--m-label));padding:2px 10px;border:1px solid var(--border);
         border-radius:100px;background:var(--bg3);color:var(--text1);cursor:pointer">전체 보기</button>`
-    : `<span style="font-size:11px;color:var(--text3)">사업 클릭 → 단일 추이 · ${changeLabel}</span>`;
+    : `<span style="font-size:calc(11px*var(--m-label));color:var(--text3)">사업 클릭 → 단일 추이 · ${changeLabel}</span>`;
 
   return `
     <div>${chartHTML}</div>
     ${periodLabels}
     <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:6px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <span style="font-size:11px;color:var(--text2)">${latestLabel} 구성 · ${segNames.filter(n => latestData[n]).length}개 사업</span>
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">${latestLabel} 구성 · ${segNames.filter(n => latestData[n]).length}개 사업</span>
         ${headerRight}
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">${listHTML}</div>
-      ${latestPartial ? `<div style="font-size:11px;color:var(--text3);margin-top:8px">* 최신 연도는 분기 누적(연환산 아님) — ${changeLabel} 비교는 생략</div>` : ''}
+      ${latestPartial ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:8px">* 최신 연도는 분기 누적(연환산 아님) — ${changeLabel} 비교는 생략</div>` : ''}
     </div>`;
 }
 
@@ -741,7 +741,7 @@ function _rpBacklogCard(rows) {
   _rpBlCache = _rpBuildBacklogCache(clean);
 
   const modeBtn = (m, label) => `<button onclick="rpBlMode('${m}')" data-bl-mode="${m}"
-    style="padding:3px 13px;font-size:11px;font-weight:600;border:none;cursor:pointer;
+    style="padding:3px 13px;font-size:calc(11px*var(--m-label));font-weight:600;border:none;cursor:pointer;
       background:${_rpBlMode === m ? 'var(--tg)' : 'transparent'};
       color:${_rpBlMode === m ? '#fff' : 'var(--text2)'}">${label}</button>`;
 
@@ -749,8 +749,8 @@ function _rpBacklogCard(rows) {
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
       <span style="display:inline-flex;align-items:center;gap:7px">
         <span style="width:3px;height:13px;background:var(--tg);border-radius:2px"></span>
-        <span style="font-size:13px;font-weight:700;color:var(--text1)">수주잔고 추이</span>
-        <span style="font-size:11px;color:var(--text3)">기말 잔액 · 백만원</span>
+        <span style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1)">수주잔고 추이</span>
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text3)">기말 잔액 · 백만원</span>
       </span>
       <div style="display:inline-flex;border:1px solid var(--border);border-radius:100px;overflow:hidden">
         ${modeBtn('year', '연간')}${modeBtn('quarter', '분기')}
@@ -804,7 +804,7 @@ function _rpBacklogInner(cache, selected, mode) {
 
   const periods = axis.periods.slice(mode === 'year' ? -12 : -20);
   const dataMap = axis.dataMap;
-  if (!periods.length) return `<div style="color:var(--text3);font-size:12px;padding:20px;text-align:center">표시할 수주 데이터 없음</div>`;
+  if (!periods.length) return `<div style="color:var(--text3);font-size:calc(12px*var(--m-sub));padding:20px;text-align:center">표시할 수주 데이터 없음</div>`;
 
   const lastP = periods[periods.length - 1];
   const latestData = dataMap[lastP?.key] || {};
@@ -835,7 +835,7 @@ function _rpBacklogInner(cache, selected, mode) {
       ${periods.map((p, pi) => {
         const v = vals[pi], barH = Math.max(4, Math.round(v / max * CHART_H)), isLast = pi === periods.length - 1;
         return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;height:${CHART_H}px">
-          <div style="font-size:11px;font-weight:600;color:${color};text-align:center;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v ? fmtCap(v * 1e6) : ''}</div>
+          <div style="font-size:calc(11px*var(--m-label));font-weight:600;color:${color};text-align:center;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v ? fmtCap(v * 1e6) : ''}</div>
           <div style="height:${barH}px;border-radius:3px 3px 0 0;background:${color};opacity:${isLast ? 1 : .72};
             ${isLast ? 'box-shadow:0 0 0 2px ' + color + '55' : ''}"></div>
         </div>`;
@@ -850,7 +850,7 @@ function _rpBacklogInner(cache, selected, mode) {
         const segs = segNames.map((name, si) => ({ name, val: dataMap[p.key]?.[name] || 0, color: COLORS[si % COLORS.length] }))
           .filter(s => s.val > 0).reverse();
         return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;height:${CHART_H}px">
-          <div style="font-size:11px;font-weight:600;color:var(--text1);text-align:center;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${total ? fmtCap(total * 1e6) : ''}</div>
+          <div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text1);text-align:center;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${total ? fmtCap(total * 1e6) : ''}</div>
           <div style="height:${barH}px;border-radius:3px 3px 0 0;overflow:hidden;display:flex;flex-direction:column;
             ${isLast ? 'box-shadow:0 0 0 2px rgba(255,255,255,.22)' : ''}">
             ${segs.map(s => `<div style="flex:${s.val};background:${s.color};min-height:2px"
@@ -865,8 +865,8 @@ function _rpBacklogInner(cache, selected, mode) {
     ${periods.map((p, pi) => {
       const isLast = pi === periods.length - 1;
       return `<div style="flex:1;min-width:0;text-align:center">
-        <div style="font-size:11px;font-weight:${isLast ? 700 : 500};color:${isLast ? 'var(--text1)' : 'var(--text2)'}">${p.top}</div>
-        <div style="font-size:10px;color:${isLast ? 'var(--tg)' : 'var(--text3)'}">${p.sub}</div>
+        <div style="font-size:calc(11px*var(--m-label));font-weight:${isLast ? 700 : 500};color:${isLast ? 'var(--text1)' : 'var(--text2)'}">${p.top}</div>
+        <div style="font-size:calc(10px*var(--m-label));color:${isLast ? 'var(--tg)' : 'var(--text3)'}">${p.sub}</div>
       </div>`;
     }).join('')}
   </div>`;
@@ -887,14 +887,14 @@ function _rpBacklogInner(cache, selected, mode) {
         cursor:pointer;transition:opacity .2s;${opacity}user-select:none"
       onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity=''">
       <div style="display:flex;align-items:center;gap:7px">
-        <span style="font-size:11px;font-weight:800;color:${color};min-width:18px;text-align:center;
+        <span style="font-size:calc(11px*var(--m-label));font-weight:800;color:${color};min-width:18px;text-align:center;
           background:${color}22;border-radius:3px;padding:1px 4px">${si + 1}</span>
         <span style="font-size:${isTop ? '13px' : '12px'};font-weight:${isTop || isSel ? 700 : 500};color:var(--text1);
           flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}</span>
         ${sparkline(name, color)}
-        <span style="font-size:12px;color:var(--text1);white-space:nowrap">${fmtCap(bal * 1e6)}</span>
+        <span style="font-size:calc(12px*var(--m-sub));color:var(--text1);white-space:nowrap">${fmtCap(bal * 1e6)}</span>
         <span style="font-size:${isTop ? '13px' : '12px'};font-weight:700;color:${color};min-width:40px;text-align:right">${pct.toFixed(1)}%</span>
-        <span style="font-size:12px;font-weight:700;color:${chgCol};min-width:58px;text-align:right;white-space:nowrap">${icon} ${chgStr}</span>
+        <span style="font-size:calc(12px*var(--m-sub));font-weight:700;color:${chgCol};min-width:58px;text-align:right;white-space:nowrap">${icon} ${chgStr}</span>
       </div>
       <div style="height:3px;border-radius:2px;background:${color}22;overflow:hidden;margin-top:5px">
         <div style="height:100%;width:${pct}%;background:${color};border-radius:2px"></div>
@@ -904,20 +904,20 @@ function _rpBacklogInner(cache, selected, mode) {
 
   const latestLabel = lastP ? `${lastP.top} ${lastP.sub}` : '';
   const headerRight = selected
-    ? `<button onclick="rpBlFilter(null)" style="font-size:11px;padding:2px 10px;border:1px solid var(--border);
+    ? `<button onclick="rpBlFilter(null)" style="font-size:calc(11px*var(--m-label));padding:2px 10px;border:1px solid var(--border);
         border-radius:100px;background:var(--bg3);color:var(--text1);cursor:pointer">전체 보기</button>`
-    : `<span style="font-size:11px;color:var(--text3)">품목 클릭 → 단일 추이 · ${changeLabel}</span>`;
+    : `<span style="font-size:calc(11px*var(--m-label));color:var(--text3)">품목 클릭 → 단일 추이 · ${changeLabel}</span>`;
 
   return `
     <div>${chartHTML}</div>
     ${periodLabels}
     <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:6px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <span style="font-size:11px;color:var(--text2)">${latestLabel} 잔고 · ${segNames.filter(n => latestData[n]).length}개 품목</span>
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">${latestLabel} 잔고 · ${segNames.filter(n => latestData[n]).length}개 품목</span>
         ${headerRight}
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">${listHTML}</div>
-      ${latestPartial ? `<div style="font-size:11px;color:var(--text3);margin-top:8px">* 최신 연도는 ${lastP.sub}(기말 아님)</div>` : ''}
+      ${latestPartial ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:8px">* 최신 연도는 ${lastP.sub}(기말 아님)</div>` : ''}
     </div>`;
 }
 
@@ -951,10 +951,10 @@ function _rpValuationCard(latestF, latest) {
   const trend = (cur, old) => {
     if (cur == null || old == null) return '';
     const d = cur - old;
-    if (Math.abs(d) < 0.1) return `<span style="font-size:11px;color:var(--text1)"> →</span>`;
+    if (Math.abs(d) < 0.1) return `<span style="font-size:calc(11px*var(--m-label));color:var(--text1)"> →</span>`;
     return d > 0
-      ? `<span style="font-size:11px;color:#f87171"> ▲${d.toFixed(1)}</span>`
-      : `<span style="font-size:11px;color:#60a5fa"> ▼${Math.abs(d).toFixed(1)}</span>`;
+      ? `<span style="font-size:calc(11px*var(--m-label));color:#f87171"> ▲${d.toFixed(1)}</span>`
+      : `<span style="font-size:calc(11px*var(--m-label));color:#60a5fa"> ▼${Math.abs(d).toFixed(1)}</span>`;
   };
 
   // PER/PBR 역사적 추세 (시장 데이터 기준)
@@ -994,8 +994,8 @@ function _rpValuationCard(latestF, latest) {
       const bandColor=curPer>avg*1.3?'#f87171':curPer<avg*0.8?'#4ade80':'#f59e0b';
       return `<div style="margin-bottom:10px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <span style="font-size:11px;font-weight:700;color:var(--text1)">PER 히스토리 (최근 ${pts.length}거래일)</span>
-          <div style="display:flex;gap:10px;font-size:11px;color:var(--text1)">
+          <span style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text1)">PER 히스토리 (최근 ${pts.length}거래일)</span>
+          <div style="display:flex;gap:10px;font-size:calc(11px*var(--m-label));color:var(--text1)">
             <span>최저 <b style="color:#4ade80">${mn.toFixed(1)}x</b></span>
             <span>평균 <b style="color:#f59e0b">${avg.toFixed(1)}x</b></span>
             <span>최고 <b style="color:#f87171">${mx.toFixed(1)}x</b></span>
@@ -1006,7 +1006,7 @@ function _rpValuationCard(latestF, latest) {
           <path d="${path}" fill="none" stroke="var(--border)" stroke-width="1.2" opacity="0.7"/>
           <circle cx="${xs[xs.length-1].toFixed(1)}" cy="${curY}" r="3" fill="${bandColor}" stroke="var(--bg3)" stroke-width="1.5"/>
         </svg>
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text1);margin-top:3px">
+        <div style="display:flex;justify-content:space-between;font-size:calc(11px*var(--m-label));color:var(--text1);margin-top:3px">
           <span>← ${pts.length}거래일 전</span>
           <span style="color:${bandColor};font-weight:700">현재 ${curPer.toFixed(1)}x (하위 ${pctPos}%)</span>
           <span>현재 →</span>
@@ -1060,8 +1060,8 @@ function _rpValuationCard(latestF, latest) {
       return `
       <div style="margin-bottom:8px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px">
-          <span style="font-size:11px;font-weight:700;color:var(--text1)">${label} 분기별 밴드 (${n}분기)</span>
-          <div style="display:flex;gap:10px;font-size:11px;color:var(--text1)">
+          <span style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text1)">${label} 분기별 밴드 (${n}분기)</span>
+          <div style="display:flex;gap:10px;font-size:calc(11px*var(--m-label));color:var(--text1)">
             <span>최저 <b style="color:#4ade80">${mn.toFixed(unit==='x'?1:2)}${unit}</b></span>
             <span>평균 <b style="color:#f59e0b">${avg.toFixed(unit==='x'?1:2)}${unit}</b></span>
             <span>최고 <b style="color:#f87171">${mx.toFixed(unit==='x'?1:2)}${unit}</b></span>
@@ -1086,7 +1086,7 @@ function _rpValuationCard(latestF, latest) {
           ${xLabels}
         </svg>
         ${curVal != null ? `
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text1);margin-top:2px">
+        <div style="display:flex;justify-content:space-between;font-size:calc(11px*var(--m-label));color:var(--text1);margin-top:2px">
           <span>← ${n}분기 이전</span>
           <span style="color:${curColor};font-weight:700">
             현재 ${curVal.toFixed(unit==='x'?1:2)}${unit}
@@ -1121,20 +1121,20 @@ function _rpValuationCard(latestF, latest) {
   };
 
   const peerHeader = ps
-    ? `<div style="font-size:11px;color:var(--text3)">
+    ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3)">
         ${ps.industry} 동종 ${ps.count}개사 중앙값 비교
         <span style="margin-left:4px">|</span>
         <span style="margin-left:4px"><span style="color:#4ade80">●</span> 유리
         <span style="color:#f59e0b">●</span> 중립
         <span style="color:#f87171">●</span> 불리</span>
       </div>`
-    : `<div style="font-size:11px;color:var(--text3)">업종 비교 로딩 중...</div>`;
+    : `<div style="font-size:calc(11px*var(--m-label));color:var(--text3)">업종 비교 로딩 중...</div>`;
 
   return `<div id="rp-val-card" class="card" style="padding:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
       <span style="display:inline-flex;align-items:center;gap:7px">
         <span style="width:3px;height:13px;background:var(--tg);border-radius:2px"></span>
-        <span style="font-size:13px;font-weight:700;color:var(--text1)">밸류에이션 & 수익성</span>
+        <span style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1)">밸류에이션 & 수익성</span>
       </span>
       ${peerHeader}
     </div>
@@ -1143,12 +1143,12 @@ function _rpValuationCard(latestF, latest) {
     <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px;
       padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);
       border-left:3px solid var(--tg)">
-      <div style="font-size:11px;font-weight:700;color:var(--tg);letter-spacing:.6px;margin-bottom:2px">
+      <div style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--tg);letter-spacing:.6px;margin-bottom:2px">
         펀드매니저 종합 판단
       </div>
       ${synthesis.map(s => {
         const col = s.type==='good'?'#4ade80' : s.type==='bad'?'#f87171' : s.type==='warn'?'#f59e0b' : 'var(--text2)';
-        return `<div style="font-size:12px;color:var(--text1);line-height:1.5">
+        return `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.5">
           <span style="color:${col};font-weight:700">●</span> ${s.msg}</div>`;
       }).join('')}
     </div>
@@ -1172,23 +1172,23 @@ function _rpValuationCard(latestF, latest) {
 
           <!-- 1줄: 지표 + 현재값 + 화살표 + 중앙값 + 판단 배지 -->
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            <span style="font-size:12px;font-weight:700;color:var(--text1);min-width:28px">${m.label}</span>
-            <span style="font-size:20px;font-weight:800;color:var(--text1)">${m.val != null ? m.fmt(m.val)+m.unit : '—'}</span>${trend(m.val, m.prevVal)}
+            <span style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--text1);min-width:28px">${m.label}</span>
+            <span style="font-size:calc(20px*var(--m-title));font-weight:800;color:var(--text1)">${m.val != null ? m.fmt(m.val)+m.unit : '—'}</span>${trend(m.val, m.prevVal)}
             ${m.peer != null ? `
-              <span style="font-size:12px;color:var(--text1)">vs</span>
+              <span style="font-size:calc(12px*var(--m-sub));color:var(--text1)">vs</span>
               <div>
-                <div style="font-size:11px;color:var(--text1)">업종 중앙</div>
-                <div style="font-size:15px;font-weight:700;color:var(--text1)">${m.fmt(m.peer)}${m.unit}</div>
+                <div style="font-size:calc(11px*var(--m-label));color:var(--text1)">업종 중앙</div>
+                <div style="font-size:calc(15px*var(--m-title));font-weight:700;color:var(--text1)">${m.fmt(m.peer)}${m.unit}</div>
               </div>
               ${judge ? `
-              <span style="margin-left:auto;font-size:11px;font-weight:700;
+              <span style="margin-left:auto;font-size:calc(11px*var(--m-label));font-weight:700;
                 padding:3px 8px;border-radius:100px;
                 background:${judge.color}20;color:${judge.color};
                 border:1px solid ${judge.color}40;white-space:nowrap">
                 ${judge.diffStr}&nbsp;${judge.label.replace('업종 대비 ','')}
               </span>` : ''}` : `
-              <span style="flex:1;font-size:11px;color:var(--text1)">${m.desc}</span>
-              ${sig ? `<span style="font-size:11px;font-weight:700;color:${sig.color}">${sig.label}</span>` : ''}`}
+              <span style="flex:1;font-size:calc(11px*var(--m-label));color:var(--text1)">${m.desc}</span>
+              ${sig ? `<span style="font-size:calc(11px*var(--m-label));font-weight:700;color:${sig.color}">${sig.label}</span>` : ''}`}
           </div>
 
           <!-- 2줄: 포지션 바 -->
@@ -1208,7 +1208,7 @@ function _rpValuationCard(latestF, latest) {
               border-radius:50%;background:${jColor};
               border:2px solid var(--bg3)"></div>
           </div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;
+          <div style="display:flex;justify-content:space-between;font-size:calc(11px*var(--m-label));
             color:var(--text1);margin-top:3px">
             <span>${m.lowerBetter ? '◀ 저평가' : '◀ 저수익'}</span>
             <span style="opacity:.6">│ 업종 중앙</span>
@@ -1230,8 +1230,8 @@ function _rpFinHealthCard(f) {
     const d = cur - old;
     if (Math.abs(d) < 0.1) return '';
     return d > 0
-      ? `<span style="font-size:11px;color:#f87171">▲${d.toFixed(1)}</span>`
-      : `<span style="font-size:11px;color:#60a5fa">▼${Math.abs(d).toFixed(1)}</span>`;
+      ? `<span style="font-size:calc(11px*var(--m-label));color:#f87171">▲${d.toFixed(1)}</span>`
+      : `<span style="font-size:calc(11px*var(--m-label));color:#60a5fa">▼${Math.abs(d).toFixed(1)}</span>`;
   };
 
   // 이자보상배율 근사 (영업이익 / 금융비용 — 금융비용 없으면 skip)
@@ -1259,7 +1259,7 @@ function _rpFinHealthCard(f) {
 
   if (!rows.length) return `<div class="card" style="padding:16px">
     ${_rpSecT('재무 건전성')}
-    <div style="color:var(--text3);font-size:12px;text-align:center;padding:12px">재무 데이터 없음</div>
+    <div style="color:var(--text3);font-size:calc(12px*var(--m-sub));text-align:center;padding:12px">재무 데이터 없음</div>
   </div>`;
 
   // 재무 → 투자 연결 스토리
@@ -1279,8 +1279,8 @@ function _rpFinHealthCard(f) {
     return `<div style="display:flex;flex-direction:column;gap:4px;margin-top:10px;
       padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);
       border-left:3px solid var(--border)">
-      <div style="font-size:11px;font-weight:700;color:var(--text1);letter-spacing:.5px;margin-bottom:2px">투자 연결 시사점</div>
-      ${stories.map(s => `<div style="font-size:11px;color:var(--text1);line-height:1.5">
+      <div style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text1);letter-spacing:.5px;margin-bottom:2px">투자 연결 시사점</div>
+      ${stories.map(s => `<div style="font-size:calc(11px*var(--m-label));color:var(--text1);line-height:1.5">
         <span style="color:${s.color};font-weight:700">●</span> ${s.text}</div>`).join('')}
     </div>`;
   };
@@ -1295,16 +1295,16 @@ function _rpFinHealthCard(f) {
           border-radius:var(--radius-sm);border-left:3px solid ${sig?.color||'var(--border)'};
           background:var(--bg3)">
           <div style="min-width:64px">
-            <div style="font-size:12px;color:var(--text1)">${k.label}</div>
+            <div style="font-size:calc(12px*var(--m-sub));color:var(--text1)">${k.label}</div>
           </div>
           <div style="flex:1;min-width:0">
-            ${k.hint ? `<div style="font-size:11px;color:${sig?.color||'var(--text2)'}">${k.hint}</div>` : ''}
+            ${k.hint ? `<div style="font-size:calc(11px*var(--m-label));color:${sig?.color||'var(--text2)'}">${k.hint}</div>` : ''}
           </div>
           <div style="display:flex;align-items:center;gap:6px;white-space:nowrap">
             ${trend(k.val, k.prev)}
-            ${sig ? `<span style="font-size:11px;padding:1px 6px;border-radius:100px;
+            ${sig ? `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:100px;
               background:${sig.color}20;color:${sig.color};font-weight:700">${sig.label}</span>` : ''}
-            <span style="font-size:15px;font-weight:800;color:var(--text1)">${disp}</span>
+            <span style="font-size:calc(15px*var(--m-title));font-weight:800;color:var(--text1)">${disp}</span>
           </div>
         </div>`;
       }).join('')}

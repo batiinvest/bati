@@ -31,7 +31,7 @@ async function _rpLoadAndRenderOwnership(body) {
       prices: _rpData.price || [], latest: _rpData.price?.[0] || {},
     });
   } catch (e) {
-    body.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:12px">지분현황 로드 실패: ${e.message}</div>`;
+    body.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:calc(12px*var(--m-sub))">지분현황 로드 실패: ${e.message}</div>`;
   }
 }
 
@@ -52,10 +52,10 @@ function _rpOwnershipTab({ discs, dp, s, dart, prices, latest }) {
   const esc = typeof escapeHtml === 'function' ? escapeHtml : (v => v ?? '');
   const secT = t => `<div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
     <span style="width:3px;height:13px;background:var(--tg);border-radius:2px"></span>
-    <span style="font-size:13px;font-weight:700;color:var(--text1)">${t}</span></div>`;
+    <span style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1)">${t}</span></div>`;
   const box = inner => `<div style="background:var(--bg2);border:1px solid var(--border);
     border-radius:var(--radius-sm);padding:14px">${inner}</div>`;
-  const empty = msg => `<div style="font-size:12px;color:var(--text3);padding:10px 0;text-align:center">${msg}</div>`;
+  const empty = msg => `<div style="font-size:calc(12px*var(--m-sub));color:var(--text3);padding:10px 0;text-align:center">${msg}</div>`;
 
   // ── ① 내부자거래·주가 차트 ─────────────────────────────────────────────
   let chartHTML = empty('주가 데이터 없음');
@@ -107,7 +107,7 @@ function _rpOwnershipTab({ discs, dp, s, dart, prices, latest }) {
     });
 
     chartHTML = `
-      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:6px;font-size:11px;color:var(--text2)">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:6px;font-size:calc(11px*var(--m-label));color:var(--text2)">
         <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f87171"></span> 취득</span>
         <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#60a5fa"></span> 처분</span>
         <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b"></span> 보고/기타</span>
@@ -126,9 +126,9 @@ function _rpOwnershipTab({ discs, dp, s, dart, prices, latest }) {
       </svg>
       <div style="position:relative;height:15px;margin-top:2px">
         ${ticks.map(t => `<div style="position:absolute;left:${t.xPct.toFixed(1)}%;transform:translateX(-50%);
-          font-size:11px;color:var(--text3);white-space:nowrap">${t.date}</div>`).join('')}
+          font-size:calc(11px*var(--m-label));color:var(--text3);white-space:nowrap">${t.date}</div>`).join('')}
       </div>
-      ${events.length ? '' : `<div style="font-size:11px;color:var(--text3);text-align:center;margin-top:4px">기간 내 지분 관련 공시 없음</div>`}`;
+      ${events.length ? '' : `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);text-align:center;margin-top:4px">기간 내 지분 관련 공시 없음</div>`}`;
   }
 
   // ── ② 주주 구성 요약 ───────────────────────────────────────────────────
@@ -138,9 +138,9 @@ function _rpOwnershipTab({ discs, dp, s, dart, prices, latest }) {
   const other = rp != null && fr != null ? Math.max(0, 100 - rp - fr) : null;
   const kv = (label, val, sub) => `
     <div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm)">
-      <div style="font-size:11px;color:var(--text2);margin-bottom:3px">${label}</div>
-      <div style="font-size:16px;font-weight:800;font-variant-numeric:tabular-nums">${val}</div>
-      ${sub ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${sub}</div>` : ''}
+      <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:3px">${label}</div>
+      <div style="font-size:calc(16px*var(--m-title));font-weight:800;font-variant-numeric:tabular-nums">${val}</div>
+      ${sub ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:2px">${sub}</div>` : ''}
     </div>`;
   const ownHTML = box(`
     ${secT('주주 구성')}
@@ -158,12 +158,12 @@ function _rpOwnershipTab({ discs, dp, s, dart, prices, latest }) {
       ${fr != null ? `<div style="flex:${Math.min(fr, freeFloat)};background:#f59e0b" title="외국인 ${fr.toFixed(2)}%"></div>` : ''}
       ${other != null ? `<div style="flex:${other};background:#4ade80" title="기타 유동 ${other.toFixed(1)}%"></div>` : ''}
     </div>
-    <div style="display:flex;gap:12px;margin-top:6px;font-size:11px;color:var(--text2);flex-wrap:wrap">
+    <div style="display:flex;gap:12px;margin-top:6px;font-size:calc(11px*var(--m-label));color:var(--text2);flex-wrap:wrap">
       <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--tg)"></span> 최대주주+특관 ${rp.toFixed(1)}%</span>
       ${fr != null ? `<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#f59e0b"></span> 외국인 ${fr.toFixed(2)}%</span>` : ''}
       ${other != null ? `<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#4ade80"></span> 기타 유동 ${other.toFixed(1)}%</span>` : ''}
     </div>` : ''}
-    ${dart?.receive_date ? `<div style="font-size:11px;color:var(--text3);margin-top:8px">* DART ${esc(dart.report_type || '')} 기준 [접수: ${esc(dart.receive_date)}] · 외국인 지분율은 시장 데이터</div>` : ''}`
+    ${dart?.receive_date ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:8px">* DART ${esc(dart.report_type || '')} 기준 [접수: ${esc(dart.receive_date)}] · 외국인 지분율은 시장 데이터</div>` : ''}`
     : empty('DART 리포트(.md)를 업로드하면 주주 구성이 표시됩니다')}`);
 
   // ── ③ 외국인 지분율 추이 ───────────────────────────────────────────────
@@ -182,7 +182,7 @@ function _rpOwnershipTab({ discs, dp, s, dart, prices, latest }) {
     frHTML = box(`
       <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px">
         ${secT('외국인 지분율 추이')}
-        <span style="font-size:11px;color:var(--text2)">
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">
           최저 <b style="color:#60a5fa">${mn.toFixed(2)}%</b> · 최고 <b style="color:#f87171">${mx.toFixed(2)}%</b> ·
           현재 <b style="color:${col}">${cur.toFixed(2)}%</b></span>
       </div>
@@ -191,7 +191,7 @@ function _rpOwnershipTab({ discs, dp, s, dart, prices, latest }) {
           stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
         <circle cx="${W}" cy="${Y(cur).toFixed(1)}" r="4" fill="${col}" vector-effect="non-scaling-stroke"/>
       </svg>
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:2px">
+      <div style="display:flex;justify-content:space-between;font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:2px">
         <span>${(frPts[0].base_date || '').slice(0, 7)}</span><span>${(frPts[n - 1].base_date || '').slice(0, 7)}</span>
       </div>`);
   }
@@ -202,7 +202,7 @@ function _rpOwnershipTab({ discs, dp, s, dart, prices, latest }) {
     ${secT('지분 변동내역 (최근 ' + (discs?.length || 0) + '건)')}
     ${discs?.length ? `
     <div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
+    <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub));white-space:nowrap">
       <thead><tr style="background:var(--bg3)">
         ${['공시일', '구분', '공시명', '내역'].map((h, i) => `<th style="padding:6px 10px;text-align:left;
           color:var(--text2);font-weight:600;border-bottom:1px solid var(--border)">${h}</th>`).join('')}
@@ -214,13 +214,13 @@ function _rpOwnershipTab({ discs, dp, s, dart, prices, latest }) {
             <td style="padding:6px 10px;color:var(--text3);font-variant-numeric:tabular-nums;
               border-bottom:1px solid var(--border)">${(d.base_date || '').slice(2)}</td>
             <td style="padding:6px 10px;border-bottom:1px solid var(--border)">
-              <span style="font-size:11px;padding:2px 8px;border-radius:100px;background:${c}20;
+              <span style="font-size:calc(11px*var(--m-label));padding:2px 8px;border-radius:100px;background:${c}20;
                 color:${c};font-weight:700">${esc(d.category || '')}</span></td>
             <td style="padding:6px 10px;border-bottom:1px solid var(--border);max-width:340px;
               overflow:hidden;text-overflow:ellipsis">
               <a href="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${encodeURIComponent(d.rcept_no || '')}"
                 target="_blank" rel="noopener" style="color:var(--text1);text-decoration:none">${esc(d.report_nm || '')}</a></td>
-            <td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:11px">${_rpInsBadge(d.insider_summary)}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:calc(11px*var(--m-label))">${_rpInsBadge(d.insider_summary)}</td>
           </tr>`;
         }).join('')}
       </tbody>
@@ -250,7 +250,7 @@ async function _rpLoadAndRenderReports(body) {
       .order('opinion_date', { ascending: false }).limit(100);
     const rows = data || [];
     if (!rows.length) {
-      body.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center;font-size:12px">수집된 증권사 리포트/투자의견 없음</div>';
+      body.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center;font-size:calc(12px*var(--m-sub))">수집된 증권사 리포트/투자의견 없음</div>';
       return;
     }
     const esc = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
@@ -263,9 +263,9 @@ async function _rpLoadAndRenderReports(body) {
     const upside = avgTp && price ? (avgTp - price) / price * 100 : null;
     const kv = (label, val, sub, subCol) => `
       <div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);text-align:center">
-        <div style="font-size:11px;color:var(--text2);margin-bottom:3px">${label}</div>
-        <div style="font-size:16px;font-weight:800;font-variant-numeric:tabular-nums">${val}</div>
-        ${sub ? `<div style="font-size:11px;color:${subCol || 'var(--text3)'};margin-top:2px">${sub}</div>` : ''}
+        <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:3px">${label}</div>
+        <div style="font-size:calc(16px*var(--m-title));font-weight:800;font-variant-numeric:tabular-nums">${val}</div>
+        ${sub ? `<div style="font-size:calc(11px*var(--m-label));color:${subCol || 'var(--text3)'};margin-top:2px">${sub}</div>` : ''}
       </div>`;
 
     // 목표가 변화: 같은 증권사의 직전(더 오래된) 목표가와 비교
@@ -293,7 +293,7 @@ async function _rpLoadAndRenderReports(body) {
         ${kv('전체 이력', rows.length + '건', `${(rows[rows.length-1]?.opinion_date || '').slice(0,7)} ~`)}
       </div>
       <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
+      <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub));white-space:nowrap">
         <thead><tr style="background:var(--bg3)">
           ${['일자', '제공처', '투자의견', '직전의견', '목표가', '변동', '괴리율'].map((h, i) => `
             <th style="padding:7px 10px;text-align:${i <= 1 ? 'left' : i === 5 ? 'center' : 'right'};color:var(--text2);
@@ -322,10 +322,10 @@ async function _rpLoadAndRenderReports(body) {
         </tbody>
       </table>
       </div>
-      <div style="font-size:11px;color:var(--text3);margin-top:6px">
+      <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">
         * 변동: N=신규 · ▲=직전 대비 상향 · ▼=하향 · ==변동없음 (같은 증권사 직전 목표가 기준) · 리포트 원문/제목은 데이터 미수집</div>`;
   } catch (e) {
-    body.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:12px">리포트 이력 로드 실패: ${e.message}</div>`;
+    body.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:calc(12px*var(--m-sub))">리포트 이력 로드 실패: ${e.message}</div>`;
   }
 }
 
@@ -340,7 +340,7 @@ async function _rpLoadAndRenderFss(body) {
     const { data: comp } = await sb.from('companies')
       .select('corp_code').eq('code', _rpStock.code).maybeSingle();
     if (!comp?.corp_code) {
-      body.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center;font-size:12px">DART 고유코드(corp_code) 미등록 종목 — 공시 조회 불가</div>';
+      body.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center;font-size:calc(12px*var(--m-sub))">DART 고유코드(corp_code) 미등록 종목 — 공시 조회 불가</div>';
       return;
     }
     const { data } = await sb.from('daily_disclosures')
@@ -350,7 +350,7 @@ async function _rpLoadAndRenderFss(body) {
     RFD.rows = data || [];
     RFD.cat = 'all';
     if (!RFD.rows.length) {
-      body.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center;font-size:12px">수집된 공시 없음 (매일 18:30 업데이트)</div>';
+      body.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center;font-size:calc(12px*var(--m-sub))">수집된 공시 없음 (매일 18:30 업데이트)</div>';
       return;
     }
     // 카테고리 칩 (건수순)
@@ -363,12 +363,12 @@ async function _rpLoadAndRenderFss(body) {
         <button id="rfd-cat-all" class="chip chip-sm active" onclick="rpFssFilter('all')">전체 ${RFD.rows.length}</button>
         ${cats.map(([c, n]) => `<button id="rfd-cat-${esc(c)}" class="chip chip-sm"
           onclick="rpFssFilter('${typeof escJsStr === 'function' ? escJsStr(c) : c.replace(/'/g, "\\'")}')">${esc(c)} ${n}</button>`).join('')}
-        <span style="margin-left:auto;font-size:11px;color:var(--text3)">최근 ${RFD.rows.length}건 · 공시명 클릭 시 DART 원문</span>
+        <span style="margin-left:auto;font-size:calc(11px*var(--m-label));color:var(--text3)">최근 ${RFD.rows.length}건 · 공시명 클릭 시 DART 원문</span>
       </div>
       <div id="rfd-list"></div>`;
     _rpFssRenderList();
   } catch (e) {
-    body.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:12px">공시 로드 실패: ${e.message}</div>`;
+    body.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:calc(12px*var(--m-sub))">공시 로드 실패: ${e.message}</div>`;
   }
 }
 
@@ -385,12 +385,12 @@ function _rpFssRenderList() {
   const esc = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
   const rows = RFD.cat === 'all' ? RFD.rows : RFD.rows.filter(r => (r.category || '기타') === RFD.cat);
   if (!rows.length) {
-    el.innerHTML = '<div style="color:var(--text3);padding:30px;text-align:center;font-size:12px">해당 카테고리 공시 없음</div>';
+    el.innerHTML = '<div style="color:var(--text3);padding:30px;text-align:center;font-size:calc(12px*var(--m-sub))">해당 카테고리 공시 없음</div>';
     return;
   }
   el.innerHTML = `
     <div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
+    <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub));white-space:nowrap">
       <thead><tr style="background:var(--bg3)">
         ${['공시일', '구분', '공시명', '비고'].map(h => `<th style="padding:6px 10px;text-align:left;
           color:var(--text2);font-weight:600;border-bottom:1px solid var(--border)">${h}</th>`).join('')}
@@ -405,7 +405,7 @@ function _rpFssRenderList() {
             overflow:hidden;text-overflow:ellipsis">
             <a href="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${encodeURIComponent(d.rcept_no || '')}"
               target="_blank" rel="noopener" style="color:var(--text1);text-decoration:none">${esc(d.report_nm || '')}</a></td>
-          <td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:11px">${_rpInsBadge(d.insider_summary)}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:calc(11px*var(--m-label))">${_rpInsBadge(d.insider_summary)}</td>
         </tr>`).join('')}
       </tbody>
     </table>
@@ -423,15 +423,15 @@ function _rpCatalystCard() {
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
       ${catalysts.map(c => `
       <div style="padding:10px;border-radius:var(--radius-sm);border:1px solid ${c.color}30;background:${c.color}08">
-        <div style="font-size:11px;font-weight:700;color:${c.color};margin-bottom:8px">${c.horizon}</div>
+        <div style="font-size:calc(11px*var(--m-label));font-weight:700;color:${c.color};margin-bottom:8px">${c.horizon}</div>
         ${c.items.map(item => `
         <div style="display:flex;align-items:flex-start;gap:5px;margin-bottom:5px">
-          <span style="color:${c.color};font-size:11px;margin-top:2px">◦</span>
-          <span style="font-size:12px;color:var(--text1)">${item}</span>
+          <span style="color:${c.color};font-size:calc(11px*var(--m-label));margin-top:2px">◦</span>
+          <span style="font-size:calc(12px*var(--m-sub));color:var(--text1)">${item}</span>
         </div>`).join('')}
       </div>`).join('')}
     </div>
-    <div style="margin-top:8px;font-size:11px;color:var(--text3)">
+    <div style="margin-top:8px;font-size:calc(11px*var(--m-label));color:var(--text3)">
       * 투자노트에 카탈리스트를 직접 입력하면 여기에 반영됩니다</div>
   </div>`;
 }

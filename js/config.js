@@ -151,19 +151,19 @@ const escJsStr = s => escAttr(String(s ?? '').replace(/\\/g, '\\\\').replace(/'/
 const safeUrl = u => /^https?:\/\//i.test(String(u || '').trim()) ? String(u).trim() : '';
 
 const loadingHTML = (msg = '') =>
-  `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:13px"><span class="loading"></span>${msg ? ' ' + msg : ''}</div>`;
+  `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:calc(13px*var(--m-body))"><span class="loading"></span>${msg ? ' ' + msg : ''}</div>`;
 
 const emptyHTML = (msg = '데이터 없음', hint = '') =>
   `<div style="padding:2.5rem;text-align:center">
-    <div style="font-size:32px;margin-bottom:.75rem;opacity:.3">📊</div>
-    <div style="font-size:13px;color:var(--text2)">${msg}</div>
-    ${hint ? `<div style="font-size:11px;color:var(--text3);margin-top:6px">${hint}</div>` : ''}
+    <div style="font-size:calc(32px*var(--m-title));margin-bottom:.75rem;opacity:.3">📊</div>
+    <div style="font-size:calc(13px*var(--m-body));color:var(--text2)">${msg}</div>
+    ${hint ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">${hint}</div>` : ''}
   </div>`;
 
 const errorHTML = (msg = '') =>
   `<div style="padding:1.5rem;text-align:center">
-    <div style="font-size:28px;margin-bottom:.5rem;opacity:.4">⚠️</div>
-    <div style="font-size:13px;color:var(--red)">${msg}</div>
+    <div style="font-size:calc(28px*var(--m-title));margin-bottom:.5rem;opacity:.4">⚠️</div>
+    <div style="font-size:calc(13px*var(--m-body));color:var(--red)">${msg}</div>
   </div>`;
 
 // ══════════════════════════════════════════
@@ -201,6 +201,60 @@ function setFontScale(pct) {
 
 // 로드 즉시 적용 — config.js는 bootAuth()보다 먼저 실행되므로 깜빡임 최소화
 applyFontScale(getFontScale());
+
+// ══════════════════════════════════════════
+//  역할별 글자 크기 배율 — 기기별 저장(localStorage), 로그인 전부터 적용
+//  전 파일의 font-size:NNpx 를 calc(NNpx*var(--m-역할))로 감싸(빌드 시 일괄 변환) 배율을 반영.
+//  역할=크기 계층: title(제목·수치 ≥15px) / body(본문 13~14px) / sub(보조·표 12px) / label(라벨 ≤11px)
+//  값은 배율(1=100%). --m-* CSS 변수를 documentElement에 세팅해 전역 적용. 설정 UI는 pSettings(bots.js).
+// ══════════════════════════════════════════
+const FONT_ROLE_KEY = 'bati-font-roles';
+const FONT_ROLE_KEYS = ['title', 'body', 'sub', 'label'];
+const FONT_ROLE_LABELS = { title: '제목·수치', body: '본문', sub: '보조·표', label: '라벨' };
+const FONT_ROLE_MIN = 0.8, FONT_ROLE_MAX = 1.6, FONT_ROLE_DEFAULT = 1;
+
+const _clampRole = v => {
+  const n = Math.round(Number(v) * 100) / 100;   // 0.05 단위 정밀도
+  return Number.isFinite(n) ? Math.min(FONT_ROLE_MAX, Math.max(FONT_ROLE_MIN, n)) : FONT_ROLE_DEFAULT;
+};
+
+// 저장된 역할 배율 { title, body, sub, label } — 없거나 이상값이면 각 1
+function getFontRoles() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(FONT_ROLE_KEY)) || {}; } catch { saved = {}; }
+  const out = {};
+  for (const k of FONT_ROLE_KEYS) out[k] = k in saved ? _clampRole(saved[k]) : FONT_ROLE_DEFAULT;
+  return out;
+}
+
+// 역할 배율 즉시 적용 (저장 안 함) — --m-* 변수 세팅. 1이면 변수 제거(기본값 상속).
+function applyFontRoles(roles) {
+  const r = { ...getFontRoles(), ...(roles || {}) };
+  for (const k of FONT_ROLE_KEYS) {
+    const v = _clampRole(r[k]);
+    if (v === 1) document.documentElement.style.removeProperty(`--m-${k}`);
+    else document.documentElement.style.setProperty(`--m-${k}`, String(v));
+  }
+  return r;
+}
+
+// 단일 역할 배율 저장 + 적용 — 반환: 적용된 전체 역할맵
+function setFontRole(role, v) {
+  if (!FONT_ROLE_KEYS.includes(role)) return getFontRoles();
+  const next = { ...getFontRoles(), [role]: _clampRole(v) };
+  localStorage.setItem(FONT_ROLE_KEY, JSON.stringify(next));
+  applyFontRoles(next);
+  return next;
+}
+
+// 전체 역할 배율 초기화(모두 1) + 적용
+function resetFontRoles() {
+  localStorage.removeItem(FONT_ROLE_KEY);
+  return applyFontRoles(Object.fromEntries(FONT_ROLE_KEYS.map(k => [k, 1])));
+}
+
+// 로드 즉시 적용
+applyFontRoles(getFontRoles());
 
 // ══════════════════════════════════════════
 //  공통 페이징 유틸
@@ -340,9 +394,9 @@ async function loadWatchlistCodes(force = false) {
 function wlBadge(code) {
   const c = _normCode(code);
   if (_wlHeldCodes.has(c))
-    return `<span title="보유 중" style="font-size:11px;font-weight:700;padding:1px 5px;border-radius:100px;background:rgba(42,171,238,.18);color:var(--tg);white-space:nowrap;flex-shrink:0">보유</span>`;
+    return `<span title="보유 중" style="font-size:calc(11px*var(--m-label));font-weight:700;padding:1px 5px;border-radius:100px;background:rgba(42,171,238,.18);color:var(--tg);white-space:nowrap;flex-shrink:0">보유</span>`;
   if (_wlWatchCodes.has(c))
-    return `<span title="투자노트 관심" style="font-size:11px;font-weight:700;padding:1px 5px;border-radius:100px;background:rgba(74,158,255,.16);color:#4a9eff;white-space:nowrap;flex-shrink:0">관심</span>`;
+    return `<span title="투자노트 관심" style="font-size:calc(11px*var(--m-label));font-weight:700;padding:1px 5px;border-radius:100px;background:rgba(74,158,255,.16);color:#4a9eff;white-space:nowrap;flex-shrink:0">관심</span>`;
   return '';
 }
 

@@ -60,7 +60,7 @@ async function loadLeadingStocks() {
   } catch(e) {
     console.error('[LeadingStocks]', e);
     const elE = document.getElementById('ls-body');
-    if (elE) elE.innerHTML = `<div style="padding:1rem;text-align:center;color:var(--text2);font-size:12px">조회 실패: ${e.message}</div>`;
+    if (elE) elE.innerHTML = `<div style="padding:1rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">조회 실패: ${e.message}</div>`;
   }
 }
 
@@ -86,7 +86,7 @@ function renderLeadingStocks() {
   rows = rows.slice(0, 8);
 
   if (!rows.length) {
-    el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text2);font-size:12px">해당 시장 데이터 없음</div>';
+    el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">해당 시장 데이터 없음</div>';
     return;
   }
 
@@ -98,27 +98,27 @@ function renderLeadingStocks() {
     const miniBar = (label, val, max, color) => {
       const pct = Math.round((val || 0) / max * 100);
       return `<div style="display:flex;align-items:center;gap:3px">
-        <span style="font-size:11px;color:var(--text2);width:34px;flex-shrink:0;white-space:nowrap">${label}</span>
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text2);width:34px;flex-shrink:0;white-space:nowrap">${label}</span>
         <div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden;min-width:20px">
           <div style="height:100%;width:${pct}%;background:${color};border-radius:2px"></div>
         </div>
-        <span style="font-size:11px;color:var(--text2);width:18px;text-align:right;flex-shrink:0">${val || 0}</span>
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text2);width:18px;text-align:right;flex-shrink:0">${val || 0}</span>
       </div>`;
     };
 
     const mktTag = (r.market === 'KOSDAQ' && _lsTab === 'all')
-      ? '<span style="font-size:11px;color:var(--text2);margin-left:2px;font-weight:600">Q</span>' : '';
+      ? '<span style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:2px;font-weight:600">Q</span>' : '';
     const indTag = r.industry
-      ? `<span style="font-size:11px;color:var(--text2)">${r.industry}</span>` : '';
+      ? `<span style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.industry}</span>` : '';
     const chg5dStr = r.price_chg_5d != null
-      ? `<span style="font-size:11px;color:${chgColor(r.price_chg_5d)}">${r.price_chg_5d >= 0 ? '+' : ''}${Number(r.price_chg_5d).toFixed(1)}%</span>`
+      ? `<span style="font-size:calc(11px*var(--m-label));color:${chgColor(r.price_chg_5d)}">${r.price_chg_5d >= 0 ? '+' : ''}${Number(r.price_chg_5d).toFixed(1)}%</span>`
       : '';
     const volRatio = r.volume_ratio != null && r.volume_ratio > 1.5
-      ? `<span style="font-size:11px;color:#f59e0b;padding:1px 4px;border-radius:3px;background:rgba(245,158,11,.1)">거래 ${Number(r.volume_ratio).toFixed(1)}x</span>` : '';
+      ? `<span style="font-size:calc(11px*var(--m-label));color:#f59e0b;padding:1px 4px;border-radius:3px;background:rgba(245,158,11,.1)">거래 ${Number(r.volume_ratio).toFixed(1)}x</span>` : '';
     const frgnTag = r.foreign_3d_sum != null && r.foreign_3d_sum !== 0
       ? (r.foreign_3d_sum > 0
-          ? `<span style="font-size:11px;color:var(--tg);padding:1px 4px;border-radius:3px;background:rgba(42,171,238,.1)">외국인↑</span>`
-          : `<span style="font-size:11px;color:var(--blue);padding:1px 4px;border-radius:3px;background:rgba(74,158,255,.08)">외국인↓</span>`)
+          ? `<span style="font-size:calc(11px*var(--m-label));color:var(--tg);padding:1px 4px;border-radius:3px;background:rgba(42,171,238,.1)">외국인↑</span>`
+          : `<span style="font-size:calc(11px*var(--m-label));color:var(--blue);padding:1px 4px;border-radius:3px;background:rgba(74,158,255,.08)">외국인↓</span>`)
       : '';
 
     return `
@@ -131,7 +131,7 @@ function renderLeadingStocks() {
       <!-- 종목 정보 + 스코어 바 -->
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:4px;margin-bottom:5px;flex-wrap:wrap">
-          <span style="font-size:13px;font-weight:600">${escapeHtml(r.corp_name || r.stock_code)}${mktTag}</span>
+          <span style="font-size:calc(13px*var(--m-body));font-weight:600">${escapeHtml(r.corp_name || r.stock_code)}${mktTag}</span>
           ${typeof wlBadge==='function'?wlBadge(r.stock_code):''}
           ${chg5dStr}${indTag}${volRatio}${frgnTag}
         </div>
@@ -151,8 +151,8 @@ function renderLeadingStocks() {
       </div>
       <!-- 총점 -->
       <div style="text-align:right;flex-shrink:0;padding-top:2px">
-        <div style="font-size:18px;font-weight:800;line-height:1;color:${scoreColor};font-variant-numeric:tabular-nums">${total}</div>
-        <div style="font-size:11px;color:var(--text2);margin-top:1px">/ 100</div>
+        <div style="font-size:calc(18px*var(--m-title));font-weight:800;line-height:1;color:${scoreColor};font-variant-numeric:tabular-nums">${total}</div>
+        <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:1px">/ 100</div>
       </div>
     </div>`;
   }).join('');
@@ -163,24 +163,24 @@ function _lsEmptyHtml() {
   const isAdm = typeof isAdmin === 'function' && isAdmin();
   const adminBtn = isAdm
     ? `<button onclick="triggerLeadingStocks()"
-        style="margin-top:8px;font-size:11px;padding:4px 14px;border-radius:5px;
+        style="margin-top:8px;font-size:calc(11px*var(--m-label));padding:4px 14px;border-radius:5px;
                border:1px solid var(--border);background:var(--bg3);color:var(--text1);cursor:pointer">
         지금 계산 요청
        </button>`
     : '';
-  return `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:12px;line-height:1.8">
+  return `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub));line-height:1.8">
     오늘 데이터가 없습니다 — 매일 장 마감 후 자동 생성됩니다<br>
-    <span style="font-size:11px;color:var(--text2);opacity:.7">(leading_stocks_generator.py)</span>
+    <span style="font-size:calc(11px*var(--m-label));color:var(--text2);opacity:.7">(leading_stocks_generator.py)</span>
     ${adminBtn}
   </div>`;
 }
 
 // ── 계산 중 HTML (폴링 상태) ───────────────────────────────────────────────────
 function _lsCalcHtml() {
-  return `<div id="ls-calc-state" style="padding:1.5rem;text-align:center;color:var(--text2);font-size:12px;line-height:2">
+  return `<div id="ls-calc-state" style="padding:1.5rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub));line-height:2">
     <span class="loading"></span> 백엔드에서 주도주 스코어 계산 중...<br>
-    <span style="font-size:11px;opacity:.7">전체 종목 분석 (최대 3분 소요)</span>
-    <div id="ls-poll-counter" style="font-size:11px;color:var(--text2);margin-top:2px;opacity:.6"></div>
+    <span style="font-size:calc(11px*var(--m-label));opacity:.7">전체 종목 분석 (최대 3분 소요)</span>
+    <div id="ls-poll-counter" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:2px;opacity:.6"></div>
   </div>`;
 }
 
@@ -299,7 +299,7 @@ async function loadLeadingBacktest() {
   const el = document.getElementById('ls-bt-body');
   if (!el) return;
 
-  el.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:12px">
+  el.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">
     <span class="loading"></span> 수익률 계산 중...</div>`;
 
   try {
@@ -441,21 +441,21 @@ function _renderBacktest(el, { windowStart, latestDate, results, total, avgRet, 
   <!-- 요약 카드 -->
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
     <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:10px;text-align:center">
-      <div style="font-size:11px;color:var(--text2);margin-bottom:4px">평균 수익률</div>
+      <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:4px">평균 수익률</div>
       <div>${fmtRet(avgRet, 18)}</div>
     </div>
     <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:10px;text-align:center">
-      <div style="font-size:11px;color:var(--text2);margin-bottom:4px">성공률 (양수)</div>
-      <div style="font-size:18px;font-weight:700;color:${winColor}">${winStr}</div>
+      <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:4px">성공률 (양수)</div>
+      <div style="font-size:calc(18px*var(--m-title));font-weight:700;color:${winColor}">${winStr}</div>
     </div>
     <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:10px;text-align:center">
-      <div style="font-size:11px;color:var(--text2);margin-bottom:4px">시장 대비</div>
-      <div style="font-size:18px;font-weight:700;color:${excessColor}">${excessStr}</div>
+      <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:4px">시장 대비</div>
+      <div style="font-size:calc(18px*var(--m-title));font-weight:700;color:${excessColor}">${excessStr}</div>
     </div>
   </div>
 
   <!-- 기간 윈도우 + 종목 수 (종목별 선정일은 각 행에 표시) -->
-  <div style="font-size:11px;color:var(--text2);margin-bottom:8px;padding:0 2px">
+  <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:8px;padding:0 2px">
     기간 <b style="color:var(--text1)">${windowStart} ~ ${latestDate}</b>
     · 주도주 <b style="color:var(--text1)">${total}개</b>${total > results.length ? ` 중 상위 ${results.length}` : ''}
   </div>
@@ -469,15 +469,15 @@ function _renderBacktest(el, { windowStart, latestDate, results, total, avgRet, 
       return `
       <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;
         border-radius:var(--radius-sm);background:${r.ret > 0 ? 'rgba(245,54,92,.05)' : r.ret < 0 ? 'rgba(74,158,255,.05)' : 'transparent'}">
-        <span style="font-size:11px;color:var(--text2);min-width:16px">#${r.rank}</span>
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text2);min-width:16px">#${r.rank}</span>
         <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.corp_name)}</div>
-          <div style="font-size:11px;color:var(--text2)">
+          <div style="font-size:calc(12px*var(--m-sub));font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.corp_name)}</div>
+          <div style="font-size:calc(11px*var(--m-label));color:var(--text2)">
             선정일 ${r.entry_date} &nbsp;${r.entry_price?.toLocaleString()}원 → ${r.curr_price?.toLocaleString()}원
           </div>
         </div>
         <div style="text-align:right;min-width:60px">
-          <div style="font-size:13px;font-weight:700;color:${retColor}">${retStr}</div>
+          <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:${retColor}">${retStr}</div>
           <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.08);margin-top:3px;overflow:hidden">
             <div style="height:100%;width:${barW}%;background:${retColor};border-radius:2px;
               ${r.ret < 0 ? 'margin-left:auto' : ''}"></div>
@@ -501,5 +501,5 @@ function _lsBtLabel() {
 }
 
 function _lsBtEmpty(msg) {
-  return `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:12px">${msg}</div>`;
+  return `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">${msg}</div>`;
 }

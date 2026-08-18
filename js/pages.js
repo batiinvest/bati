@@ -76,33 +76,33 @@ function pOverview() {
           <div style="display:flex;align-items:center;gap:10px;padding:9px 0;cursor:pointer"
                onclick="toggleCatDetail('${catId}')">
             <span class="cat-dot" style="background:${CATS[cat]||'#888'}"></span>
-            <span style="font-weight:600;font-size:13px;min-width:56px">${cat}</span>
+            <span style="font-weight:600;font-size:calc(13px*var(--m-body));min-width:56px">${cat}</span>
             ${v.industryM > 0 ? `
-            <span style="font-size:12px;color:var(--tg)">
+            <span style="font-size:calc(12px*var(--m-sub));color:var(--tg)">
               ${indLink
                 ? `<a href="${escAttr(indLink)}" target="_blank" rel="noopener" style="color:var(--tg)" onclick="event.stopPropagation()">산업채팅방</a>`
                 : '산업채팅방'}
               <span style="color:var(--text1);margin-left:3px">${v.industryM.toLocaleString()}명</span>
             </span>` : '<span></span>'}
             <span style="flex:1"></span>
-            <span style="font-size:12px;color:var(--text1)">기업방 <b>${v.n}</b>개</span>
-            <span style="font-size:13px;font-weight:600;min-width:70px;text-align:right">${v.m.toLocaleString()}명</span>
-            <span style="font-size:11px;color:var(--text2);width:14px;text-align:center" id="${catId}-icon">▶</span>
+            <span style="font-size:calc(12px*var(--m-sub));color:var(--text1)">기업방 <b>${v.n}</b>개</span>
+            <span style="font-size:calc(13px*var(--m-body));font-weight:600;min-width:70px;text-align:right">${v.m.toLocaleString()}명</span>
+            <span style="font-size:calc(11px*var(--m-label));color:var(--text2);width:14px;text-align:center" id="${catId}-icon">▶</span>
           </div>
           <div id="${catId}" style="display:none;padding:2px 0 10px 18px">
             ${compList.map(r=>`
               <div style="display:flex;align-items:center;gap:6px;padding:3px 0">
-                <span style="font-size:12px;flex:1;color:var(--text1)">${escapeHtml(r.name)}</span>
-                <span style="font-size:12px;color:var(--text1);min-width:52px;text-align:right">${(r.members||0).toLocaleString()}명</span>
-                <span style="font-size:11px;font-weight:500;min-width:28px;text-align:center;color:${(r.members||0)>=(r.max_members||1000)?'var(--red)':'var(--green)'}">${(r.members||0)>=(r.max_members||1000)?'마감':'입장'}</span>
-                ${safeUrl(r.link)?`<a href="${escAttr(safeUrl(r.link))}" target="_blank" rel="noopener" style="font-size:12px;color:var(--tg);text-decoration:none">→</a>`:'<span style="width:12px"></span>'}
+                <span style="font-size:calc(12px*var(--m-sub));flex:1;color:var(--text1)">${escapeHtml(r.name)}</span>
+                <span style="font-size:calc(12px*var(--m-sub));color:var(--text1);min-width:52px;text-align:right">${(r.members||0).toLocaleString()}명</span>
+                <span style="font-size:calc(11px*var(--m-label));font-weight:500;min-width:28px;text-align:center;color:${(r.members||0)>=(r.max_members||1000)?'var(--red)':'var(--green)'}">${(r.members||0)>=(r.max_members||1000)?'마감':'입장'}</span>
+                ${safeUrl(r.link)?`<a href="${escAttr(safeUrl(r.link))}" target="_blank" rel="noopener" style="font-size:calc(12px*var(--m-sub));color:var(--tg);text-decoration:none">→</a>`:'<span style="width:12px"></span>'}
               </div>`).join('')}
           </div>
         </div>`;
       }).join('')}
     </div></div>
     <div class="card"><div class="card-header"><span class="card-title">채팅방 멤버 순위</span></div><div class="card-body" style="padding:.75rem 1rem;max-height:400px;overflow-y:auto">
-      ${sortedRooms.map((r,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px"><span style="width:16px;color:var(--text2);font-size:11px;font-weight:600">${i+1}</span><span style="flex:1">${escapeHtml(r.name)}</span><span style="color:var(--text1);font-size:12px">${(r.members||0).toLocaleString()}</span><div style="width:50px"><div class="progress"><div class="progress-fill" style="background:${CATS[r.cat]||'#888'};width:${Math.min(100,Math.round((r.members||0)/(r.max_members||1000)*100))}%"></div></div></div></div>`).join('')}
+      ${sortedRooms.map((r,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:calc(13px*var(--m-body))"><span style="width:16px;color:var(--text2);font-size:calc(11px*var(--m-label));font-weight:600">${i+1}</span><span style="flex:1">${escapeHtml(r.name)}</span><span style="color:var(--text1);font-size:calc(12px*var(--m-sub))">${(r.members||0).toLocaleString()}</span><div style="width:50px"><div class="progress"><div class="progress-fill" style="background:${CATS[r.cat]||'#888'};width:${Math.min(100,Math.round((r.members||0)/(r.max_members||1000)*100))}%"></div></div></div></div>`).join('')}
     </div></div>
   </div>`;
 }
@@ -115,14 +115,14 @@ function _renderRoomRow(r) {
     <td><div style="display:flex;align-items:center;gap:6px">
       <span class="cat-dot" style="background:${CATS[r.cat]||'#888'}"></span>
       <span style="font-weight:500">${escapeHtml(r.name)}</span>
-      ${r.code ? `<span style="font-size:11px;color:var(--text2)">${escapeHtml(r.code)}</span>` : ''}
+      ${r.code ? `<span style="font-size:calc(11px*var(--m-label));color:var(--text2)">${escapeHtml(r.code)}</span>` : ''}
     </div></td>
     <td>
       <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
         <span class="badge badge-cat">${r.cat}</span>
-        ${r.room_type==='industry' ? `<span style="font-size:11px;padding:1px 6px;border-radius:100px;background:rgba(74,158,255,.15);color:#4a9eff">산업방</span>` : ''}
+        ${r.room_type==='industry' ? `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:100px;background:rgba(74,158,255,.15);color:#4a9eff">산업방</span>` : ''}
       </div>
-      ${r.sub_cat && r.sub_cat !== '산업전체' ? `<div style="font-size:11px;color:var(--text2);margin-top:2px">${r.sub_cat}</div>` : ''}
+      ${r.sub_cat && r.sub_cat !== '산업전체' ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:2px">${r.sub_cat}</div>` : ''}
     </td>
     <td>
       <div>${(r.members||0).toLocaleString()}<span style="color:var(--text2)">/${r.max_members||1000}</span></div>
@@ -131,11 +131,11 @@ function _renderRoomRow(r) {
       </div>
     </td>
     <td><span class="badge ${r.status==='full'?'badge-full':r.status==='paid'?'badge-paid':'badge-open'}">${r.status==='full'?'정원 마감':r.status==='paid'?'🔒 유료':'일반 입장'}</span></td>
-    <td><span style="font-size:11px;color:var(--text2);font-family:monospace">${String(r.chat_id).slice(0,22)}</span></td>
+    <td><span style="font-size:calc(11px*var(--m-label));color:var(--text2);font-family:monospace">${String(r.chat_id).slice(0,22)}</span></td>
     <td><div style="display:flex;gap:5px">
       <button class="btn btn-sm" onclick="openDetail(${r.id})">상세</button>
       ${canEdit() ? `<button class="btn btn-sm" onclick="syncOne(${r.id})" title="동기화">↻</button>
-        <button class="btn btn-sm" onclick="toggleStatus(${r.id})" style="font-size:11px">${r.status==='full'?'→ 일반':r.status==='paid'?'→ 마감':'→ 유료'}</button>` : ''}
+        <button class="btn btn-sm" onclick="toggleStatus(${r.id})" style="font-size:calc(11px*var(--m-label))">${r.status==='full'?'→ 일반':r.status==='paid'?'→ 마감':'→ 유료'}</button>` : ''}
     </div></td>
   </tr>`;
 }
@@ -197,7 +197,7 @@ function pRooms() {
     ${cats.map(c => `<button class="chip ${A.cat===c?'active':''}" data-cat="${c}"
       onclick="A.cat='${c}';_filterAndRenderRooms()">${c}</button>`).join('')}
   </div>
-  <div style="font-size:12px;color:var(--text2);margin-bottom:.75rem" id="room-count">${filtered.length}개</div>
+  <div style="font-size:calc(12px*var(--m-sub));color:var(--text2);margin-bottom:.75rem" id="room-count">${filtered.length}개</div>
   <div class="card"><div class="table-wrap"><table>
     <thead><tr><th>채팅방</th><th>산업</th><th id="th-members" onclick="A.sortBy='members';A.sortDir=(A.sortDir==='desc'?'asc':'desc');_filterAndRenderRooms()" style="cursor:pointer;user-select:none">멤버 수 ↕</th><th>상태</th><th>Chat ID</th><th>관리</th></tr></thead>
     <tbody id="room-tbody">${filtered.map(_renderRoomRow).join('')}</tbody>
@@ -205,7 +205,7 @@ function pRooms() {
 }
 
 function pNotice() {
-  if (!canEdit()) return `<div style="padding:2rem;text-align:center;color:var(--text2);font-size:13px">발송 권한이 없습니다 (viewer)</div>`;
+  if (!canEdit()) return `<div style="padding:2rem;text-align:center;color:var(--text2);font-size:calc(13px*var(--m-body))">발송 권한이 없습니다 (viewer)</div>`;
 
   const rooms = A.rooms;
   const openCount    = rooms.filter(r => r.status === 'open').length;
@@ -351,9 +351,9 @@ async function loadNotices() {
       const emoji = IND_EMOJI_MAP[h.target] || '';
       const txt = (h.content||'').replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim();
       return `<tr>
-      <td style="font-size:12px;color:var(--text1);white-space:nowrap">${new Date(h.created_at).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
+      <td style="font-size:calc(12px*var(--m-sub));color:var(--text1);white-space:nowrap">${new Date(h.created_at).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
       <td><span class="badge badge-cat">${emoji ? emoji+' ' : ''}${escapeHtml(h.target||'—')}</span></td>
-      <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text1)" title="${escAttr(txt.slice(0,300))}">${escapeHtml(txt.slice(0,50))}${txt.length>50?'…':''}</td>
+      <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:calc(12px*var(--m-sub));color:var(--text1)" title="${escAttr(txt.slice(0,300))}">${escapeHtml(txt.slice(0,50))}${txt.length>50?'…':''}</td>
       <td style="text-align:right;font-weight:600;color:${resColor}">${ok}/${sent}</td>
     </tr>`;}).join('')}
   </tbody></table></div>`;
@@ -370,7 +370,7 @@ async function loadLogs() {
   if (error) { el.innerHTML = errorHTML(error.message); return; }
   el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>시각</th><th>채팅방</th><th>이전</th><th>이후</th><th>변화</th></tr></thead><tbody>
     ${!data.length?'<tr><td colspan="5" class="empty-row">동기화 기록이 없습니다. 멤버 수 동기화를 실행하면 여기에 기록됩니다.</td></tr>':data.map(l=>{const d=l.after-l.before;return`<tr>
-      <td style="font-size:12px;color:var(--text1)">${new Date(l.synced_at).toLocaleString('ko-KR')}</td>
+      <td style="font-size:calc(12px*var(--m-sub));color:var(--text1)">${new Date(l.synced_at).toLocaleString('ko-KR')}</td>
       <td style="font-weight:500">${l.room_name}</td>
       <td>${(l.before||0).toLocaleString()}</td><td>${(l.after||0).toLocaleString()}</td>
       <td style="font-weight:600;color:${d>0?'var(--green)':d<0?'var(--red)':'var(--text3)'}">${d>0?'+':''}${d}</td>

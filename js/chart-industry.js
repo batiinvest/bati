@@ -99,12 +99,12 @@ async function loadIndTrendChart() {
       lbl.className = 'ind-legend-item';
       lbl.id = 'ind-lbl-' + ind;
       lbl.style.cssText = `display:flex;align-items:center;gap:5px;cursor:pointer;padding:3px 8px;
-        border-radius:100px;border:1px solid var(--border);font-size:12px;user-select:none;
+        border-radius:100px;border:1px solid var(--border);font-size:calc(12px*var(--m-sub));user-select:none;
         opacity:${isChecked ? '1' : '0.35'};transition:opacity .15s`;
       lbl.innerHTML = `
         <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></span>
         <span>${ind}</span>
-        <span style="font-weight:700;color:${retColor};font-size:11px">${retStr}</span>`;
+        <span style="font-weight:700;color:${retColor};font-size:calc(11px*var(--m-label))">${retStr}</span>`;
       lbl.onclick = () => { IND.toggleLegend(ind); };
 
       if (btnGroup) checksEl.insertBefore(lbl, btnGroup);

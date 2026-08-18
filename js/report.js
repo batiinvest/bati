@@ -28,7 +28,7 @@ function pReport() {
         <input id="rp-search" type="text" placeholder="종목명 또는 코드 입력 (예: 삼성전자, 005930)"
           oninput="rpSearchInput(this.value)"
           style="width:100%;padding:6px 30px 6px 10px;border:1px solid var(--border);
-            border-radius:var(--radius-sm);background:var(--bg3);color:var(--text);font-size:13px">
+            border-radius:var(--radius-sm);background:var(--bg3);color:var(--text);font-size:calc(13px*var(--m-body))">
         <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--text3);pointer-events:none"
           viewBox="0 0 16 16" fill="none">
           <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" stroke-width="1.5"/>
@@ -46,20 +46,20 @@ function pReport() {
     <!-- 종목 헤더 바 -->
     <div id="rp-stock-header" style="padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg2)">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
-        <span style="font-size:18px;font-weight:700">${escapeHtml(_rpStock.name)}</span>
-        <span style="font-size:12px;color:var(--text3);font-family:monospace">${_rpStock.code}</span>
-        <span id="rp-industry-badge" style="font-size:11px;padding:2px 8px;border-radius:100px;background:var(--bg3);color:var(--text2)">—</span>
-        <span id="rp-market-badge"   style="font-size:11px;padding:2px 8px;border-radius:100px;background:var(--bg3);color:var(--text2)">—</span>
+        <span style="font-size:calc(18px*var(--m-title));font-weight:700">${escapeHtml(_rpStock.name)}</span>
+        <span style="font-size:calc(12px*var(--m-sub));color:var(--text3);font-family:monospace">${_rpStock.code}</span>
+        <span id="rp-industry-badge" style="font-size:calc(11px*var(--m-label));padding:2px 8px;border-radius:100px;background:var(--bg3);color:var(--text2)">—</span>
+        <span id="rp-market-badge"   style="font-size:calc(11px*var(--m-label));padding:2px 8px;border-radius:100px;background:var(--bg3);color:var(--text2)">—</span>
         <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
           <span id="rp-price-badge" style="font-size:var(--fs-value);font-weight:700;font-variant-numeric:tabular-nums">—</span>
-          <span id="rp-chg-badge"   style="font-size:12px">—</span>
+          <span id="rp-chg-badge"   style="font-size:calc(12px*var(--m-sub))">—</span>
         </div>
       </div>
       <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px">
-        <span style="font-size:11px;color:var(--text3)">시총 <span id="rp-cap-val" style="color:var(--text);font-weight:600">—</span></span>
-        <span style="font-size:11px;color:var(--text3)">PER <span id="rp-per-val" style="color:var(--text);font-weight:600">—</span></span>
-        <span style="font-size:11px;color:var(--text3)">PBR <span id="rp-pbr-val" style="color:var(--text);font-weight:600">—</span></span>
-        <span style="font-size:11px;color:var(--text3)">ROE <span id="rp-roe-val" style="color:var(--text);font-weight:600">—</span></span>
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text3)">시총 <span id="rp-cap-val" style="color:var(--text);font-weight:600">—</span></span>
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text3)">PER <span id="rp-per-val" style="color:var(--text);font-weight:600">—</span></span>
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text3)">PBR <span id="rp-pbr-val" style="color:var(--text);font-weight:600">—</span></span>
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text3)">ROE <span id="rp-roe-val" style="color:var(--text);font-weight:600">—</span></span>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btn-sm btn-primary" onclick="rpLoadReport()">분석 리포트</button>
@@ -89,8 +89,8 @@ function _rpLanding() {
       </svg>
     </div>
     <div>
-      <div style="font-size:18px;font-weight:700;margin-bottom:6px">기업 분석 리포트</div>
-      <div style="font-size:13px;color:var(--text2);line-height:1.6">
+      <div style="font-size:calc(18px*var(--m-title));font-weight:700;margin-bottom:6px">기업 분석 리포트</div>
+      <div style="font-size:calc(13px*var(--m-body));color:var(--text2);line-height:1.6">
         20년+ 수석 펀드매니저 관점의 투자 분석<br>
         시세 · 컨센서스 · 실적 · 밸류에이션 · 재무를 한 화면에
       </div>
@@ -99,7 +99,7 @@ function _rpLanding() {
       ${examples.map(n => `
         <button onclick="rpQuickSearch('${n}')"
           style="padding:5px 12px;border:1px solid var(--border);border-radius:100px;
-            background:var(--bg3);color:var(--text1);font-size:12px;cursor:pointer">
+            background:var(--bg3);color:var(--text1);font-size:calc(12px*var(--m-sub));cursor:pointer">
           ${n}
         </button>`).join('')}
     </div>
@@ -107,7 +107,7 @@ function _rpLanding() {
 }
 
 function _rpSkeleton() {
-  return `<div style="text-align:center;padding:40px;color:var(--text2);font-size:13px">
+  return `<div style="text-align:center;padding:40px;color:var(--text2);font-size:calc(13px*var(--m-body))">
     <span class="loading"></span> 데이터 로딩 중...
   </div>`;
 }
@@ -137,9 +137,9 @@ async function rpSearchInput(q) {
           display:flex;align-items:center;gap:8px"
         onmouseover="this.style.background='var(--bg3)'"
         onmouseout="this.style.background=''">
-        <span style="font-size:13px;font-weight:500">${escapeHtml(r.name)}</span>
-        <span style="font-size:12px;color:var(--text1)">${r.code}</span>
-        <span style="font-size:12px;color:var(--text1);margin-left:auto">${escapeHtml(r.industry||'')}</span>
+        <span style="font-size:calc(13px*var(--m-body));font-weight:500">${escapeHtml(r.name)}</span>
+        <span style="font-size:calc(12px*var(--m-sub));color:var(--text1)">${r.code}</span>
+        <span style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-left:auto">${escapeHtml(r.industry||'')}</span>
       </div>`).join('');
     dd.style.display = 'block';
   }, 200);
@@ -221,7 +221,7 @@ async function rpLoadReport() {
     // peer 비교 데이터 비동기 로드 (렌더 후)
     _rpLoadPeerStats().catch(() => {});
   } catch (e) {
-    if (body) body.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--red);font-size:13px">데이터 로드 실패: ${e.message}</div>`;
+    if (body) body.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--red);font-size:calc(13px*var(--m-body))">데이터 로드 실패: ${e.message}</div>`;
   }
 }
 
@@ -310,7 +310,7 @@ async function rpRenderReport() {
     <div style="display:flex;background:var(--bg2);overflow-x:auto;scrollbar-width:none">
       ${RP_TABS.map((t,i) => `
         <button onclick="rpSetTab(${i})" id="rp-tabbtn-${i}"
-          style="flex:1 0 auto;padding:11px 14px;font-size:14px;font-weight:600;border:none;white-space:nowrap;
+          style="flex:1 0 auto;padding:11px 14px;font-size:calc(14px*var(--m-body));font-weight:600;border:none;white-space:nowrap;
             background:none;cursor:pointer;border-bottom:2px solid ${i===0?'var(--tg)':'transparent'};
             color:${i===0?'var(--tg)':'var(--text3)'};transition:all .2s">${t}</button>`).join('')}
     </div>
@@ -322,7 +322,7 @@ async function rpRenderReport() {
   `;
   } catch(err) {
     console.error('[rpRenderReport] 렌더 에러:', err);
-    body.innerHTML = `<div style="padding:20px;color:var(--red);font-size:13px">
+    body.innerHTML = `<div style="padding:20px;color:var(--red);font-size:calc(13px*var(--m-body))">
       렌더 오류: ${err.message}<br>
       <small style="color:var(--text2)">콘솔에서 상세 확인</small>
     </div>`;
@@ -364,35 +364,35 @@ function _rpTabOverview() {
   const dartRisks = _rpData.dart?.summary?.risk_points || [];
 
   const bullHTML = watch?.note
-    ? `<div id="rp-bull-points" style="font-size:14px;color:var(--text1);line-height:1.7">${_rpFormatNote(watch.note)}</div>`
+    ? `<div id="rp-bull-points" style="font-size:calc(14px*var(--m-body));color:var(--text1);line-height:1.7">${_rpFormatNote(watch.note)}</div>`
     : dartPts.length
       ? `<div style="display:flex;flex-direction:column;gap:5px" id="rp-bull-points">
           ${dartPts.slice(0,4).map(t => `<div style="display:flex;align-items:flex-start;gap:8px">
-            <span style="color:#4ade80;font-weight:700;font-size:14px;margin-top:1px">•</span>
-            <span style="font-size:13px;color:var(--text1);line-height:1.5">${t}</span>
+            <span style="color:#4ade80;font-weight:700;font-size:calc(14px*var(--m-body));margin-top:1px">•</span>
+            <span style="font-size:calc(13px*var(--m-body));color:var(--text1);line-height:1.5">${t}</span>
           </div>`).join('')}
-          <div style="font-size:11px;color:var(--text3);margin-top:2px">* DART 분석 기반 자동 추출</div>
+          <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:2px">* DART 분석 기반 자동 추출</div>
         </div>`
       : `<div style="display:flex;flex-direction:column;gap:6px" id="rp-bull-points">
           ${['핵심 투자포인트를 투자노트에 작성해주세요','예) HBM 수주 확대로 데이터센터 모멘텀 강화','예) 하반기 ASP 상승 + 원가 하락 → 마진 개선']
             .map((t,i) => `<div style="display:flex;align-items:flex-start;gap:8px">
-              <span style="color:#4ade80;font-weight:700;font-size:14px;margin-top:1px">•</span>
-              <span style="font-size:14px;color:${i===0?'var(--text3)':'var(--border)'}">${t}</span>
+              <span style="color:#4ade80;font-weight:700;font-size:calc(14px*var(--m-body));margin-top:1px">•</span>
+              <span style="font-size:calc(14px*var(--m-body));color:${i===0?'var(--text3)':'var(--border)'}">${t}</span>
             </div>`).join('')}
         </div>`;
 
   const bearHTML = dartRisks.length
     ? `<div style="display:flex;flex-direction:column;gap:5px">
         ${dartRisks.slice(0,4).map(t => `<div style="display:flex;align-items:flex-start;gap:8px">
-          <span style="color:#f87171;font-weight:700;font-size:14px;margin-top:1px">•</span>
-          <span style="font-size:13px;color:var(--text1);line-height:1.5">${t}</span>
+          <span style="color:#f87171;font-weight:700;font-size:calc(14px*var(--m-body));margin-top:1px">•</span>
+          <span style="font-size:calc(13px*var(--m-body));color:var(--text1);line-height:1.5">${t}</span>
         </div>`).join('')}
       </div>`
     : `<div style="display:flex;flex-direction:column;gap:6px">
         ${['투자노트에 리스크 요인을 추가하세요','예) 미중 무역분쟁 재확대 시 수출 타격','예) 경쟁사 공격적 증설로 공급과잉 우려']
           .map((t,i) => `<div style="display:flex;align-items:flex-start;gap:8px">
-            <span style="color:#f87171;font-weight:700;font-size:14px;margin-top:1px">•</span>
-            <span style="font-size:14px;color:${i===0?'var(--text3)':'var(--border)'}">${t}</span>
+            <span style="color:#f87171;font-weight:700;font-size:calc(14px*var(--m-body));margin-top:1px">•</span>
+            <span style="font-size:calc(14px*var(--m-body));color:${i===0?'var(--text3)':'var(--border)'}">${t}</span>
           </div>`).join('')}
       </div>`;
 
@@ -407,14 +407,14 @@ function _rpTabOverview() {
   <div class="card" style="padding:16px">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <div>
-          <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:10px;display:flex;align-items:center;gap:7px">
+          <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1);margin-bottom:10px;display:flex;align-items:center;gap:7px">
             <span style="width:3px;height:13px;border-radius:2px;background:#4ade80;display:inline-block"></span>
             핵심 투자포인트 (Bull Case)
           </div>
           ${bullHTML}
         </div>
         <div style="border-left:1px solid var(--border);padding-left:16px">
-          <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:10px;display:flex;align-items:center;gap:7px">
+          <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1);margin-bottom:10px;display:flex;align-items:center;gap:7px">
             <span style="width:3px;height:13px;border-radius:2px;background:#f87171;display:inline-block"></span>
             주요 리스크 (Bear Case)
           </div>
@@ -481,7 +481,7 @@ async function rpSetTab(idx) {
 }
 
 function _rpTabFlow(prices) {
-  if (!prices?.length) return `<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">수급 데이터 없음</div>`;
+  if (!prices?.length) return `<div style="padding:20px;text-align:center;color:var(--text3);font-size:calc(12px*var(--m-sub))">수급 데이터 없음</div>`;
   const recent = prices.slice(0, 20).reverse();
   const maxTV  = Math.max(...recent.map(r => r.trading_value || 0));
   return `
@@ -497,11 +497,11 @@ function _rpTabFlow(prices) {
           height:${h}px" title="${r.base_date||''} ${fmtCap(tv)}"></div>`;
       }).join('')}
     </div>
-    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:4px">
+    <div style="display:flex;justify-content:space-between;font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:4px">
       <span>${(recent[0]?.base_date || '').slice(2)}</span>
       <span>${(recent[recent.length-1]?.base_date || '').slice(2)}</span>
     </div>
-    <div style="font-size:11px;color:var(--text3);margin-top:8px">
+    <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:8px">
       * 외국인/기관 상세 수급은 수급 분석 기능 연동 예정</div>
   </div>`;
 }

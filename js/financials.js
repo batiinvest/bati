@@ -34,7 +34,7 @@ function pFinancials() {
   <div class="tabs" style="margin-bottom:.75rem">
     <button class="tab fin-tab ${F.mode==='market'?'active':''}" data-mode="market" onclick="F.mode='market';loadFinancials()">시장 현황</button>
     <button class="tab fin-tab ${F.mode==='financial'?'active':''}" data-mode="financial" onclick="F.mode='financial';loadFinancials()">재무제표</button>
-    <div style="margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11px;padding:0 4px">
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px;font-size:calc(11px*var(--m-label));padding:0 4px">
       <span style="padding:1px 6px;border-radius:3px;background:rgba(45,206,137,.15);color:var(--green);font-weight:600">DART</span><span style="color:var(--text2)">금융감독원 공시</span>
       <span style="padding:1px 6px;border-radius:3px;background:rgba(251,99,64,.15);color:var(--yellow);font-weight:600">계산</span><span style="color:var(--text2)">DB 자동계산</span>
       <span style="padding:1px 6px;border-radius:3px;background:rgba(42,171,238,.15);color:var(--tg);font-weight:600">KIS</span><span style="color:var(--text2)">한투 API</span>
@@ -50,7 +50,7 @@ function pFinancials() {
     <select class="form-select" id="fin-ind" onchange="F.industry=this.value;loadFinancials()" style="width:120px;padding:6px 10px">
       ${industries.map(i=>`<option value="${i}" ${F.industry===i?'selected':''}>${i}</option>`).join('')}
     </select>
-    <span style="font-size:12px;color:var(--text2)" id="fin-count"></span>
+    <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)" id="fin-count"></span>
     <div style="margin-left:auto;display:flex;gap:6px">
       <button class="btn btn-sm" onclick="loadFinancials()">새로고침</button>
       <button class="btn btn-sm" onclick="exportFinancials()">CSV 다운로드</button>
@@ -94,9 +94,9 @@ function _applyFinFilter(rows) {
  */
 // src 배지: 'D'=DART, 'C'=계산(DB), 'K'=KIS API
 const _SRC = {
-  D: '<sup style="font-size:8px;color:var(--green);font-weight:700;margin-left:1px">D</sup>',
-  C: '<sup style="font-size:8px;color:var(--yellow);font-weight:700;margin-left:1px">C</sup>',
-  K: '<sup style="font-size:8px;color:var(--tg);font-weight:700;margin-left:1px">K</sup>',
+  D: '<sup style="font-size:calc(8px*var(--m-label));color:var(--green);font-weight:700;margin-left:1px">D</sup>',
+  C: '<sup style="font-size:calc(8px*var(--m-label));color:var(--yellow);font-weight:700;margin-left:1px">C</sup>',
+  K: '<sup style="font-size:calc(8px*var(--m-label));color:var(--tg);font-weight:700;margin-left:1px">K</sup>',
 };
 function _sortBtn(col, label, src) {
   const active = F.sortBy === col;
@@ -148,7 +148,7 @@ async function _getMonitoredCodes() {
 function _renderTable(headers, bodyRows) {
   if (!bodyRows.length) return emptyHTML();
   return `
-    <table style="border-collapse:collapse;width:max-content;min-width:100%;font-size:13px">
+    <table style="border-collapse:collapse;width:max-content;min-width:100%;font-size:calc(13px*var(--m-body))">
       <thead>
         <tr>
           ${headers.map(h => `<th style="
@@ -156,7 +156,7 @@ function _renderTable(headers, bodyRows) {
             background:var(--bg2);
             border-bottom:2px solid var(--border2);
             text-align:left;padding:9px 12px;
-            font-size:11px;font-weight:600;color:var(--text1);
+            font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text1);
             text-transform:uppercase;letter-spacing:.06em;
             white-space:nowrap;
           ">${h}</th>`).join('')}
@@ -335,7 +335,7 @@ async function loadMarketData(el) {
       const w52pct = (r.w52_high && r.w52_low && r.price && r.w52_high > r.w52_low)
         ? Math.round((r.price - r.w52_low) / (r.w52_high - r.w52_low) * 100) : null;
       const w52bar = w52pct != null
-        ? `<div style="display:flex;align-items:center;gap:3px;font-size:11px">
+        ? `<div style="display:flex;align-items:center;gap:3px;font-size:calc(11px*var(--m-label))">
             <span style="width:40px;height:3px;background:var(--bg3);border-radius:2px;display:inline-block;position:relative">
               <span style="position:absolute;left:0;top:0;height:100%;width:${Math.max(2,w52pct)}%;
                 background:${w52pct>=80?'var(--red)':w52pct<=20?'var(--blue)':'var(--tg)'};border-radius:2px"></span>
@@ -343,48 +343,48 @@ async function loadMarketData(el) {
       return `<tr>
         <td class="stock-row" style="font-weight:500;color:var(--tg);white-space:nowrap"
           data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||'')}" data-stock-tab="market">${escapeHtml(r.corp_name||'')}</td>
-        <td style="font-size:11px;color:var(--text2);font-family:monospace">${r.stock_code}</td>
-        <td style="font-size:11px;color:var(--text2)">${r.market||'—'}</td>
+        <td style="font-size:calc(11px*var(--m-label));color:var(--text2);font-family:monospace">${r.stock_code}</td>
+        <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.market||'—'}</td>
         <td>${fmtCap(r.market_cap)}</td>
         <td style="font-weight:500">${fmtPrice(r.price)}</td>
         <td style="color:${chgC}">${chgV != null ? (chgV>0?'+':'')+chgV.toLocaleString()+'원' : '—'}</td>
         <td style="color:${chgC};font-weight:500">${chgStr(chg)}</td>
-        <td style="font-size:11px;color:var(--text2)">${p(r.volume_change_rate)}</td>
+        <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${p(r.volume_change_rate)}</td>
         <td style="color:var(--red)">${fmtPrice(r.high_price)}</td>
         <td style="color:var(--blue)">${fmtPrice(r.low_price)}</td>
-        <td style="font-size:11px">${fmtPrice(r.vwap)}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${fmtPrice(r.vwap)}</td>
         <td>${n(r.volume)}</td>
         <td>${r.trading_value ? fmtCap(r.trading_value) : '—'}</td>
-        <td style="font-size:11px">${n(r.listing_shares)}</td>
-        <td style="font-size:11px">${r.vol_turnover != null ? r.vol_turnover.toFixed(2)+'%' : '—'}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${n(r.listing_shares)}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${r.vol_turnover != null ? r.vol_turnover.toFixed(2)+'%' : '—'}</td>
         <td>${r.per != null && r.per !== 0 ? r.per.toFixed(1) : '—'}</td>
         <td>${r.pbr != null && r.pbr !== 0 ? r.pbr.toFixed(2) : '—'}</td>
         <td>${n(r.eps)}</td><td>${n(r.bps)}</td>
-        <td style="font-size:11px;color:var(--text2)">${r.fiscal_month||'—'}월</td>
+        <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.fiscal_month||'—'}월</td>
         <td>${r.foreign_hold_rate != null ? r.foreign_hold_rate.toFixed(1)+'%' : '—'}</td>
-        <td style="font-size:11px">${n(r.foreign_hold_qty)}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${n(r.foreign_hold_qty)}</td>
         <td style="color:${buyClr(r.foreign_net_buy||0)}">${buyFmt(r.foreign_net_buy)}</td>
         <td style="color:${buyClr(r.program_net_buy||0)}">${buyFmt(r.program_net_buy)}</td>
         <td>${r.loan_balance_rate != null ? r.loan_balance_rate.toFixed(2)+'%' : '—'}</td>
-        <td style="font-size:11px">${n(r.short_sell_qty)}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${n(r.short_sell_qty)}</td>
         <td>
-          <div style="color:var(--red);font-size:12px">${n(r.w52_high)}</div>
+          <div style="color:var(--red);font-size:calc(12px*var(--m-sub))">${n(r.w52_high)}</div>
           ${w52bar}
         </td>
-        <td style="color:var(--blue);font-size:12px">${n(r.w52_low)}</td>
-        <td style="font-size:11px;color:var(--text2)">${r.w52_high_date||'—'}</td>
-        <td style="font-size:11px;color:var(--text2)">${r.w52_low_date||'—'}</td>
-        <td style="font-size:11px">${p(r.price && r.w52_high ? (r.price - r.w52_high) / r.w52_high * 100 : null)}</td>
-        <td style="font-size:11px">${p(r.price && r.w52_low  ? (r.price - r.w52_low)  / r.w52_low  * 100 : null)}</td>
-        <td style="font-size:11px;color:var(--text2);font-family:monospace">${r.price_change_sign||'—'}</td>
+        <td style="color:var(--blue);font-size:calc(12px*var(--m-sub))">${n(r.w52_low)}</td>
+        <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.w52_high_date||'—'}</td>
+        <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.w52_low_date||'—'}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${p(r.price && r.w52_high ? (r.price - r.w52_high) / r.w52_high * 100 : null)}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${p(r.price && r.w52_low  ? (r.price - r.w52_low)  / r.w52_low  * 100 : null)}</td>
+        <td style="font-size:calc(11px*var(--m-label));color:var(--text2);font-family:monospace">${r.price_change_sign||'—'}</td>
         <td>${warn(r.market_warn_code)}</td>
         <td>${yn(r.is_caution)}</td>
-        <td style="font-size:11px">${r.manage_issue_code||'—'}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${r.manage_issue_code||'—'}</td>
         <td>${yn(r.is_short_over)}</td>
         <td>${yn(r.is_liquidation)}</td>
-        <td style="font-size:11px;color:var(--tg)">${r.hgpr_cls||'—'}</td>
-        <td style="font-size:11px;color:var(--text2);font-family:monospace">${r.hgpr_cls_code||'—'}</td>
-        <td style="font-size:11px;color:var(--text2)">${r.base_date||'—'}</td>
+        <td style="font-size:calc(11px*var(--m-label));color:var(--tg)">${r.hgpr_cls||'—'}</td>
+        <td style="font-size:calc(11px*var(--m-label));color:var(--text2);font-family:monospace">${r.hgpr_cls_code||'—'}</td>
+        <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.base_date||'—'}</td>
       </tr>`;
     },
   });
@@ -394,7 +394,7 @@ async function loadFinancialData(el) {
   const pct  = v => v != null ? v.toFixed(1) + '%' : '—';
   const cap  = v => v != null ? fmtCap(v) : '—';
   const num  = v => v != null ? v.toLocaleString() : '—';
-  const src  = (s) => `<span style="font-size:11px;padding:1px 4px;border-radius:3px;
+  const src  = (s) => `<span style="font-size:calc(11px*var(--m-label));padding:1px 4px;border-radius:3px;
     background:${s==='DART'?'rgba(45,206,137,.15)':s==='계산'?'rgba(251,99,64,.15)':'rgba(42,171,238,.15)'};
     color:${s==='DART'?'var(--green)':s==='계산'?'var(--yellow)':'var(--tg)'};font-weight:600">${s}</span>`;
 
@@ -471,10 +471,10 @@ async function loadFinancialData(el) {
       return `<tr>
         <td class="stock-row" style="font-weight:500;color:var(--tg);white-space:nowrap"
           data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||'')}" data-stock-tab="financial">${escapeHtml(r.corp_name||'')}</td>
-        <td style="font-size:11px;color:var(--text2);font-family:monospace">${r.stock_code}</td>
-        <td style="font-size:11px;color:var(--text2)">${r.bsns_year||'—'}</td>
-        <td style="font-size:11px;color:var(--text2)">${r.quarter||'—'}</td>
-        <td style="font-size:11px">${r.fs_div==='CFS'?'연결':'별도'}</td>
+        <td style="font-size:calc(11px*var(--m-label));color:var(--text2);font-family:monospace">${r.stock_code}</td>
+        <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.bsns_year||'—'}</td>
+        <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.quarter||'—'}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${r.fs_div==='CFS'?'연결':'별도'}</td>
         <td>${cap(r.revenue)}</td>
         <td>${cap(r.gross_profit)}</td>
         <td>${cap(r.cogs)}</td>
@@ -503,15 +503,15 @@ async function loadFinancialData(el) {
         <td>${cap(r.amortization)}</td>
         <td>${cap(r.da)}</td>
         <td style="color:${ebitdaC};font-weight:500">${cap(r.ebitda)}</td>
-        <td style="font-size:11px">${pct(r.gross_margin)}</td>
-        <td style="font-size:11px">${pct(r.operating_margin)}</td>
-        <td style="font-size:11px">${pct(r.net_margin)}</td>
-        <td style="font-size:11px">${pct(r.cogs_ratio)}</td>
-        <td style="font-size:11px">${pct(r.sga_ratio)}</td>
-        <td style="font-size:11px">${pct(r.debt_ratio)}</td>
-        <td style="font-size:11px">${pct(r.current_ratio)}</td>
-        <td style="font-size:11px">${pct(r.roe)}</td>
-        <td style="font-size:11px">${pct(r.roa)}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${pct(r.gross_margin)}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${pct(r.operating_margin)}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${pct(r.net_margin)}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${pct(r.cogs_ratio)}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${pct(r.sga_ratio)}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${pct(r.debt_ratio)}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${pct(r.current_ratio)}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${pct(r.roe)}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${pct(r.roa)}</td>
         <td style="color:${fcfC};font-weight:500">${cap(r.fcf)}</td>
       </tr>`;
     },

@@ -24,26 +24,26 @@ async function openStockDetail(code, name, initTab = 'overview') {
         <div style="display:flex;align-items:flex-start;justify-content:space-between">
           <div>
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
-              <span style="font-size:20px;font-weight:700">${escapeHtml(name)}</span>
-              <span style="font-size:11px;color:var(--text2);padding:2px 7px;background:var(--bg3);
+              <span style="font-size:calc(20px*var(--m-title));font-weight:700">${escapeHtml(name)}</span>
+              <span style="font-size:calc(11px*var(--m-label));color:var(--text2);padding:2px 7px;background:var(--bg3);
                 border-radius:4px;border:1px solid var(--border);font-family:monospace">${escapeHtml(code)}</span>
-              <span id="sd-industry-badge" style="font-size:11px;color:var(--tg)"></span>
+              <span id="sd-industry-badge" style="font-size:calc(11px*var(--m-label));color:var(--tg)"></span>
             </div>
-            <div id="sd-sub-info" style="font-size:11px;color:var(--text2)"></div>
+            <div id="sd-sub-info" style="font-size:calc(11px*var(--m-label));color:var(--text2)"></div>
           </div>
           <div style="display:flex;align-items:center;gap:12px">
             <div id="sd-price-badge" style="text-align:right"></div>
             ${_canEditSD ? `<button onclick="document.getElementById('m-stock-detail').remove();openReportFor('${code}','${_sdSafeName}')"
               style="background:var(--bg3);border:1px solid var(--border);cursor:pointer;color:var(--tg);
-                font-size:12px;font-weight:600;padding:6px 12px;line-height:1;border-radius:6px;transition:.15s;white-space:nowrap"
+                font-size:calc(12px*var(--m-sub));font-weight:600;padding:6px 12px;line-height:1;border-radius:6px;transition:.15s;white-space:nowrap"
               title="종목 리포트 전체 보기">전체 리포트 →</button>
             <button id="sd-watch-btn" onclick="window.sdToggleWatch('${code}','${_sdSafeName}')"
               style="background:var(--bg3);border:1px solid var(--border);cursor:pointer;color:var(--text1);
-                font-size:12px;font-weight:600;padding:6px 12px;line-height:1;border-radius:6px;transition:.15s;white-space:nowrap"
+                font-size:calc(12px*var(--m-sub));font-weight:600;padding:6px 12px;line-height:1;border-radius:6px;transition:.15s;white-space:nowrap"
               title="관심종목 추가/해제">⭐ 관심</button>` : ''}
             <button onclick="document.getElementById('m-stock-detail').remove()"
               style="background:var(--bg3);border:1px solid var(--border);cursor:pointer;
-                color:var(--text2);font-size:18px;padding:2px 8px;line-height:1;
+                color:var(--text2);font-size:calc(18px*var(--m-title));padding:2px 8px;line-height:1;
                 border-radius:6px;transition:.15s" onmouseover="this.style.color='var(--text)'"
               onmouseout="this.style.color='var(--text3)'">×</button>
           </div>
@@ -62,7 +62,7 @@ async function openStockDetail(code, name, initTab = 'overview') {
         ].map(([id, ic, lb]) => `
           <button id="sd-tab-${id}" onclick="window.sdSwitchTab('${id}')"
             style="background:none;border:none;border-bottom:2px solid transparent;
-              padding:10px 16px;cursor:pointer;font-size:13px;font-weight:600;
+              padding:10px 16px;cursor:pointer;font-size:calc(13px*var(--m-body));font-weight:600;
               color:var(--text2);white-space:nowrap;transition:.15s;flex-shrink:0">
             ${ic}${lb}
           </button>`).join('')}
@@ -113,11 +113,11 @@ async function openStockDetail(code, name, initTab = 'overview') {
       if (pb) {
         const cc = chgColor(lp.price_change_rate);
         pb.innerHTML =
-          `<div style="font-size:24px;font-weight:700">${lp.price?.toLocaleString()}원</div>` +
+          `<div style="font-size:calc(24px*var(--m-title));font-weight:700">${lp.price?.toLocaleString()}원</div>` +
           `<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:2px">` +
-            `<span style="color:${cc};font-weight:700;font-size:14px">${chgStr(lp.price_change_rate)}</span>` +
-            (lp.price_change != null ? `<span style="color:${cc};font-size:12px">${lp.price_change>0?'+':''}${lp.price_change?.toLocaleString()}원</span>` : '') +
-            `<span style="color:var(--text2);font-size:11px">${lp.base_date}</span>` +
+            `<span style="color:${cc};font-weight:700;font-size:calc(14px*var(--m-body))">${chgStr(lp.price_change_rate)}</span>` +
+            (lp.price_change != null ? `<span style="color:${cc};font-size:calc(12px*var(--m-sub))">${lp.price_change>0?'+':''}${lp.price_change?.toLocaleString()}원</span>` : '') +
+            `<span style="color:var(--text2);font-size:calc(11px*var(--m-label))">${lp.base_date}</span>` +
           `</div>`;
       }
     }
@@ -245,14 +245,14 @@ window.sdToggleWatch = async function(code, name) {
 const _sdRow2 = (label, val, color='') =>
   `<div style="display:flex;justify-content:space-between;align-items:center;
     padding:5px 0;border-bottom:1px solid var(--border)">
-    <span style="font-size:12px;color:var(--text)">${label}</span>
-    <span style="font-size:13px;font-weight:600;color:${color||'var(--text1)'}">${val}</span>
+    <span style="font-size:calc(12px*var(--m-sub));color:var(--text)">${label}</span>
+    <span style="font-size:calc(13px*var(--m-body));font-weight:600;color:${color||'var(--text1)'}">${val}</span>
   </div>`;
 
 const _sdSec = (title, content, accent='var(--tg)') =>
   `<div style="background:var(--bg3);border-radius:10px;padding:14px 16px;
     border:1px solid var(--border);border-top:2px solid ${accent}">
-    <div style="font-size:11px;font-weight:700;color:var(--text1);
+    <div style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text1);
       letter-spacing:.6px;margin-bottom:10px">${title}</div>
     ${content}
   </div>`;
@@ -268,7 +268,7 @@ function _sdW52bar(r) {
   const c = pct>=80?'var(--red)':pct<=20?'var(--blue)':'var(--tg)';
   return `
     <div style="margin:8px 0 4px">
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text1);margin-bottom:4px">
+      <div style="display:flex;justify-content:space-between;font-size:calc(11px*var(--m-label));color:var(--text1);margin-bottom:4px">
         <span>저 ${_sdWon(lo)}</span>
         <span style="color:${c};font-weight:700">현재 ${pct}%</span>
         <span>고 ${_sdWon(hi)}</span>
@@ -330,11 +330,11 @@ async function _sdOverview(body, code, name) {
       : null;
 
     const signalItems = [];
-    if (r.hgpr_cls) signalItems.push(`<span style="background:rgba(42,171,238,.15);color:var(--tg);padding:2px 8px;border-radius:4px;font-size:11px">📈 ${r.hgpr_cls}</span>`);
-    if (r.is_caution) signalItems.push(`<span style="background:rgba(245,54,92,.15);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px">⚠️ 투자유의</span>`);
-    if (r.manage_issue_code && r.manage_issue_code!=='0') signalItems.push(`<span style="background:rgba(245,54,92,.2);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px">🚨 관리종목</span>`);
-    if (r.is_short_over) signalItems.push(`<span style="background:rgba(251,99,64,.15);color:var(--yellow);padding:2px 8px;border-radius:4px;font-size:11px">🔥 단기과열</span>`);
-    if (upside > 0) signalItems.push(`<span style="background:rgba(45,206,137,.12);color:var(--green);padding:2px 8px;border-radius:4px;font-size:11px">🎯 목표가 +${upside}%</span>`);
+    if (r.hgpr_cls) signalItems.push(`<span style="background:rgba(42,171,238,.15);color:var(--tg);padding:2px 8px;border-radius:4px;font-size:calc(11px*var(--m-label))">📈 ${r.hgpr_cls}</span>`);
+    if (r.is_caution) signalItems.push(`<span style="background:rgba(245,54,92,.15);color:var(--red);padding:2px 8px;border-radius:4px;font-size:calc(11px*var(--m-label))">⚠️ 투자유의</span>`);
+    if (r.manage_issue_code && r.manage_issue_code!=='0') signalItems.push(`<span style="background:rgba(245,54,92,.2);color:var(--red);padding:2px 8px;border-radius:4px;font-size:calc(11px*var(--m-label))">🚨 관리종목</span>`);
+    if (r.is_short_over) signalItems.push(`<span style="background:rgba(251,99,64,.15);color:var(--yellow);padding:2px 8px;border-radius:4px;font-size:calc(11px*var(--m-label))">🔥 단기과열</span>`);
+    if (upside > 0) signalItems.push(`<span style="background:rgba(45,206,137,.12);color:var(--green);padding:2px 8px;border-radius:4px;font-size:calc(11px*var(--m-label))">🎯 목표가 +${upside}%</span>`);
 
     body.innerHTML = `
       <!-- 시그널 배지 -->
@@ -350,8 +350,8 @@ async function _sdOverview(body, code, name) {
           ['외국인 보유율', r.foreign_hold_rate!=null?r.foreign_hold_rate.toFixed(1)+'%':'—', ''],
         ].map(([lb,v,c])=>`
           <div style="background:var(--bg3);border-radius:8px;padding:12px 14px;border:1px solid var(--border);text-align:center">
-            <div style="font-size:11px;color:var(--text1);margin-bottom:6px">${lb}</div>
-            <div style="font-size:16px;font-weight:700;color:${c||'var(--text1)'}">${v}</div>
+            <div style="font-size:calc(11px*var(--m-label));color:var(--text1);margin-bottom:6px">${lb}</div>
+            <div style="font-size:calc(16px*var(--m-title));font-weight:700;color:${c||'var(--text1)'}">${v}</div>
           </div>`).join('')}
       </div>
 
@@ -384,13 +384,13 @@ async function _sdOverview(body, code, name) {
         ${_sdSec('증권사 컨센서스', `
           ${avgTarget ? `
             <div style="text-align:center;margin-bottom:10px">
-              <div style="font-size:11px;color:var(--text1);margin-bottom:2px">평균 목표주가</div>
-              <div style="font-size:22px;font-weight:700;color:var(--text1)">${avgTarget.toLocaleString()}원</div>
-              ${upside != null ? `<div style="font-size:14px;color:${upside>=0?'var(--green)':'var(--red)'};font-weight:600">현재가 대비 ${upside>=0?'+':''}${upside}%</div>` : ''}
-            </div>` : '<div style="color:var(--text2);font-size:12px;padding:8px 0">컨센서스 없음</div>'}
+              <div style="font-size:calc(11px*var(--m-label));color:var(--text1);margin-bottom:2px">평균 목표주가</div>
+              <div style="font-size:calc(22px*var(--m-title));font-weight:700;color:var(--text1)">${avgTarget.toLocaleString()}원</div>
+              ${upside != null ? `<div style="font-size:calc(14px*var(--m-body));color:${upside>=0?'var(--green)':'var(--red)'};font-weight:600">현재가 대비 ${upside>=0?'+':''}${upside}%</div>` : ''}
+            </div>` : '<div style="color:var(--text2);font-size:calc(12px*var(--m-sub));padding:8px 0">컨센서스 없음</div>'}
           ${_sdRow2('커버리지', `${buyCount}개 증권사`)}
           ${(opinions||[]).slice(0,4).map(o=>
-            `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px">
+            `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:calc(12px*var(--m-sub))">
               <span style="color:var(--text1)">${o.firm_name}</span>
               <span style="color:${o.opinion?.includes('매수')||o.opinion==='BUY'?'var(--red)':'var(--text2)'}">
                 ${o.opinion} ${o.target_price?o.target_price.toLocaleString()+'원':''}
@@ -424,20 +424,20 @@ async function _sdMarket(body, code, name) {
       <!-- 3종 차트 -->
       <div style="background:var(--bg3);border-radius:10px;border:1px solid var(--border);
         padding:14px 16px;margin-bottom:14px">
-        <div style="font-size:11px;font-weight:700;color:var(--text1);letter-spacing:.6px;margin-bottom:10px">
+        <div style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text1);letter-spacing:.6px;margin-bottom:10px">
           주가 · 거래량 · 외국인 지분율
         </div>
         <div style="display:grid;grid-template-columns:1fr;gap:8px">
           <div>
-            <div style="font-size:11px;color:var(--tg);margin-bottom:3px;font-weight:600">주가 (원)</div>
+            <div style="font-size:calc(11px*var(--m-label));color:var(--tg);margin-bottom:3px;font-weight:600">주가 (원)</div>
             <div style="position:relative;height:130px"><canvas id="sd-chart-price"></canvas></div>
           </div>
           <div>
-            <div style="font-size:11px;color:var(--green);margin-bottom:3px;font-weight:600">거래량</div>
+            <div style="font-size:calc(11px*var(--m-label));color:var(--green);margin-bottom:3px;font-weight:600">거래량</div>
             <div style="position:relative;height:80px"><canvas id="sd-chart-volume"></canvas></div>
           </div>
           <div>
-            <div style="font-size:11px;color:var(--yellow);margin-bottom:3px;font-weight:600">외국인 보유율 (%)</div>
+            <div style="font-size:calc(11px*var(--m-label));color:var(--yellow);margin-bottom:3px;font-weight:600">외국인 보유율 (%)</div>
             <div style="position:relative;height:80px"><canvas id="sd-chart-foreign"></canvas></div>
           </div>
         </div>
@@ -485,7 +485,7 @@ async function _sdMarket(body, code, name) {
           ${_sdRow2('시장', r.market||'—')}
         `)}
       </div>
-      <div style="font-size:11px;font-weight:700;color:var(--text1);letter-spacing:.6px;margin-bottom:8px">
+      <div style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text1);letter-spacing:.6px;margin-bottom:8px">
         최근 시장 데이터 (${sorted.length}일)
       </div>
       <div class="table-wrap"><table>
@@ -498,7 +498,7 @@ async function _sdMarket(body, code, name) {
         <tbody>${sorted.slice().reverse().map(h=>{
           const hc = h.price_change_rate;
           return `<tr>
-            <td style="font-size:11px;color:var(--text2)">${h.base_date}</td>
+            <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${h.base_date}</td>
             <td style="text-align:right;font-weight:600">${fmtPrice(h.price)}</td>
             <td style="text-align:right;color:${chgColor(hc)};font-weight:600">${chgStr(hc)}</td>
             <td style="text-align:right;color:var(--text1)">${h.market_cap?_sdCap(h.market_cap):'—'}</td>
@@ -617,7 +617,7 @@ async function _sdSupply(body, code, name) {
           ${r.listing_shares&&r.volume?_sdRow2('일 회전율', (r.volume/r.listing_shares*100).toFixed(3)+'%'):''}
         `, 'var(--green)')}
       </div>
-      <div style="font-size:11px;font-weight:700;color:var(--text1);letter-spacing:.6px;margin-bottom:8px">최근 30일 수급 추이</div>
+      <div style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text1);letter-spacing:.6px;margin-bottom:8px">최근 30일 수급 추이</div>
       <div class="table-wrap"><table>
         <thead><tr>
           <th>기준일</th><th style="text-align:right">종가</th><th style="text-align:right">등락률</th>
@@ -628,7 +628,7 @@ async function _sdSupply(body, code, name) {
         <tbody>${rows.slice().reverse().map(h=>{
           const hc = h.price_change_rate;
           return `<tr>
-            <td style="font-size:11px;color:var(--text2)">${h.base_date}</td>
+            <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${h.base_date}</td>
             <td style="text-align:right;font-weight:600">${fmtPrice(h.price)}</td>
             <td style="text-align:right;color:${chgColor(hc)};font-weight:600">${chgStr(hc)}</td>
             <td style="text-align:right;color:${(h.foreign_net_buy||0)<0?'var(--blue)':'var(--red)'}">
@@ -656,7 +656,7 @@ async function _sdOpinion(body, code, name) {
       .order('opinion_date',{ascending:false}).limit(100);
 
     if (!opinions?.length) {
-      body.innerHTML = '<div style="color:var(--text2);padding:60px;text-align:center">증권사 투자의견 없음<br><span style="font-size:11px">수집된 데이터가 없습니다</span></div>';
+      body.innerHTML = '<div style="color:var(--text2);padding:60px;text-align:center">증권사 투자의견 없음<br><span style="font-size:calc(11px*var(--m-label))">수집된 데이터가 없습니다</span></div>';
       return;
     }
 
@@ -689,9 +689,9 @@ async function _sdOpinion(body, code, name) {
           ['중립/기타', `${holdCnt}개`, ''],
         ].map(([lb,v,sub])=>`
           <div style="background:var(--bg3);border-radius:8px;padding:12px 14px;border:1px solid var(--border);text-align:center">
-            <div style="font-size:11px;color:var(--text1);margin-bottom:4px">${lb}</div>
-            <div style="font-size:18px;font-weight:700">${v}</div>
-            ${sub?`<div style="font-size:11px;color:${upside&&upside>=0?'var(--green)':'var(--text2)'};margin-top:2px">${sub}</div>`:''}
+            <div style="font-size:calc(11px*var(--m-label));color:var(--text1);margin-bottom:4px">${lb}</div>
+            <div style="font-size:calc(18px*var(--m-title));font-weight:700">${v}</div>
+            ${sub?`<div style="font-size:calc(11px*var(--m-label));color:${upside&&upside>=0?'var(--green)':'var(--text2)'};margin-top:2px">${sub}</div>`:''}
           </div>`).join('')}
       </div>
       <!-- 의견 목록 -->
@@ -708,12 +708,12 @@ async function _sdOpinion(body, code, name) {
           // 의견 변화 감지
           const changed = o.opinion !== o.prev_opinion ? '🔄' : '';
           return `<tr>
-            <td style="font-size:11px;color:var(--text2)">${o.opinion_date}</td>
+            <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${o.opinion_date}</td>
             <td style="font-weight:500">${o.firm_name}</td>
             <td style="text-align:center">
               <span style="color:${opColor};font-weight:700">${changed}${o.opinion||'—'}</span>
             </td>
-            <td style="color:var(--text2);font-size:12px">${o.prev_opinion||'—'}</td>
+            <td style="color:var(--text2);font-size:calc(12px*var(--m-sub))">${o.prev_opinion||'—'}</td>
             <td style="text-align:right;font-weight:600">${fmtPrice(o.target_price)}</td>
             <td style="text-align:right;color:${gapColor}">${o.gap_rate!=null?o.gap_rate.toFixed(1)+'%':'—'}</td>
           </tr>`;
@@ -750,16 +750,16 @@ async function _renderFinancialTab(body, code, name) {
     body.innerHTML = `
       <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
         <button id="btn-quarter" class="chip active" onclick="FIN.view='quarter';FIN.render()">분기별</button>
-        <button id="btn-annual"  class="chip"        onclick="FIN.view='annual'; FIN.render()">연간별 <span style="font-size:11px;color:var(--text2)">(4분기 합산)</span></button>
+        <button id="btn-annual"  class="chip"        onclick="FIN.view='annual'; FIN.render()">연간별 <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">(4분기 합산)</span></button>
         <button id="btn-qcomp"   class="chip"        onclick="FIN.view='qcomp';  FIN.render()">분기비교</button>
         <div style="display:flex;gap:4px;margin-left:auto;align-items:center">
           <button id="btn-chart-rev"  class="chip active" onclick="FIN.chart='revenue'; FIN.drawChart()">매출·영업이익</button>
           <button id="btn-chart-gpm"  class="chip"        onclick="FIN.chart='gpm';     FIN.drawChart()">매출·GPM·판관비</button>
           <button id="btn-chart-cf"   class="chip"        onclick="FIN.chart='cf';      FIN.drawChart()">현금흐름</button>
           <div style="display:flex;align-items:center;gap:6px;margin-left:8px;border-left:1px solid var(--border);padding-left:8px">
-            <span style="font-size:11px;color:var(--text2)">차트</span>
-            <button onclick="FIN.resizeChart(-60)" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text1);width:22px;height:22px;font-size:14px;line-height:1">−</button>
-            <button onclick="FIN.resizeChart(+60)" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text1);width:22px;height:22px;font-size:14px;line-height:1">+</button>
+            <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">차트</span>
+            <button onclick="FIN.resizeChart(-60)" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text1);width:22px;height:22px;font-size:calc(14px*var(--m-body));line-height:1">−</button>
+            <button onclick="FIN.resizeChart(+60)" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text1);width:22px;height:22px;font-size:calc(14px*var(--m-body));line-height:1">+</button>
           </div>
         </div>
       </div>
@@ -853,7 +853,7 @@ async function _renderFinancialTab(body, code, name) {
         wrap.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           ${QUARTERS.map((q,i) => `
             <div style="background:var(--bg3);border-radius:8px;padding:8px">
-              <div style="font-size:11px;font-weight:700;color:var(--text1);margin-bottom:4px">${q.replace('Q','')}분기</div>
+              <div style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text1);margin-bottom:4px">${q.replace('Q','')}분기</div>
               <div style="position:relative;height:130px"><canvas id="fin-qc-${q}"></canvas></div>
             </div>`).join('')}
         </div>`;
@@ -1062,17 +1062,17 @@ async function _renderFinancialTab(body, code, name) {
           const years = qRows.map(r => r.bsns_year);
           return `
             <div style="margin-bottom:20px">
-              <div style="font-size:12px;font-weight:700;color:var(--text1);margin-bottom:6px;padding:4px 0;border-bottom:1px solid var(--border)">
+              <div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--text1);margin-bottom:6px;padding:4px 0;border-bottom:1px solid var(--border)">
                 ${q.replace('Q','') + '분기'} 연도별 비교
               </div>
-              <div style="overflow-x:auto"><table style="font-size:12px;width:100%">
+              <div style="overflow-x:auto"><table style="font-size:calc(12px*var(--m-sub));width:100%">
                 <thead><tr>
                   <th style="text-align:left;min-width:76px">지표</th>
                   ${years.map(y => `<th style="text-align:right;min-width:60px">${y}년</th>`).join('')}
                 </tr></thead>
                 <tbody>
                   ${metrics.map(m => `<tr>
-                    <td style="font-size:11px;color:var(--text2);padding:5px 4px">${m.label}</td>
+                    <td style="font-size:calc(11px*var(--m-label));color:var(--text2);padding:5px 4px">${m.label}</td>
                     ${qRows.map(r => `<td style="text-align:right;padding:5px 8px">${m.fn(r)}</td>`).join('')}
                   </tr>`).join('')}
                 </tbody>
@@ -1098,7 +1098,7 @@ async function _renderFinancialTab(body, code, name) {
             <th style="text-align:right">영업현금흐름</th>
           </tr></thead>
           <tbody>${tableRows.map(f => `<tr>
-            <td style="font-size:12px;color:var(--text2);white-space:nowrap">${f.label}</td>
+            <td style="font-size:calc(12px*var(--m-sub));color:var(--text2);white-space:nowrap">${f.label}</td>
             <td style="text-align:right;font-weight:600">${fmt(f.revenue)}</td>
             <td style="text-align:right">${fmt(f.operating_profit)}</td>
             <td style="text-align:right;color:${f.operating_margin>=0?'var(--red)':'var(--blue)'}">${pct(f.operating_margin)}</td>

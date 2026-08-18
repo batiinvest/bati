@@ -84,9 +84,9 @@ function renderMarketInvestor() {
       const cum = rows.reduce((a, r) => a + r[col(s.key)], 0);
       return `
       <div style="padding:8px 12px;border-left:3px solid ${s.color}">
-        <div style="font-size:11px;color:var(--text2)">${s.name}</div>
-        <div style="font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:${chgColor(d1)}">${fmtNet(d1)}</div>
-        <div style="font-size:11px;margin-top:2px;color:${chgColor(cum)}">${pdLbl} 누적 ${fmtNet(cum)}</div>
+        <div style="font-size:calc(11px*var(--m-label));color:var(--text2)">${s.name}</div>
+        <div style="font-size:calc(15px*var(--m-title));font-weight:700;font-variant-numeric:tabular-nums;color:${chgColor(d1)}">${fmtNet(d1)}</div>
+        <div style="font-size:calc(11px*var(--m-label));margin-top:2px;color:${chgColor(cum)}">${pdLbl} 누적 ${fmtNet(cum)}</div>
       </div>`;
     }).join('');
   }

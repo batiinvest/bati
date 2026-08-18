@@ -12,13 +12,13 @@ async function _rpLoadAndRenderDart(body) {
 
   if (error || !data) {
     body.innerHTML = `
-      <div style="padding:32px;text-align:center;color:var(--text2);font-size:13px">
-        <div style="margin-bottom:12px;font-size:28px">📄</div>
-        <div style="font-weight:600;margin-bottom:6px;font-size:15px">DART 분석 리포트 없음</div>
-        <div style="font-size:12px;margin-bottom:16px">사업보고서 분석 MD 파일을 업로드하면 여기에 표시됩니다</div>
+      <div style="padding:32px;text-align:center;color:var(--text2);font-size:calc(13px*var(--m-body))">
+        <div style="margin-bottom:12px;font-size:calc(28px*var(--m-title))">📄</div>
+        <div style="font-weight:600;margin-bottom:6px;font-size:calc(15px*var(--m-title))">DART 분석 리포트 없음</div>
+        <div style="font-size:calc(12px*var(--m-sub));margin-bottom:16px">사업보고서 분석 MD 파일을 업로드하면 여기에 표시됩니다</div>
         <button onclick="document.getElementById('rp-dart-file').click()"
           style="padding:8px 18px;border:1px solid var(--tg);border-radius:var(--radius-sm);
-            background:none;color:var(--tg);font-size:13px;cursor:pointer">DART 업로드</button>
+            background:none;color:var(--tg);font-size:calc(13px*var(--m-body));cursor:pointer">DART 업로드</button>
       </div>`;
     return;
   }
@@ -34,16 +34,16 @@ async function _rpLoadAndRenderDart(body) {
   const kv  = (k, v, c) => v ? `
     <div style="padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);
       border:1px solid var(--border);min-width:0">
-      <div style="font-size:12px;color:var(--text1);margin-bottom:3px;white-space:nowrap">${k}</div>
-      <div style="font-size:13px;font-weight:700;color:${c||'var(--text1)'}; word-break:break-all">${esc(v)}</div>
+      <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:3px;white-space:nowrap">${k}</div>
+      <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:${c||'var(--text1)'}; word-break:break-all">${esc(v)}</div>
     </div>` : '';
   const sectionTitle = t => typeof _rpSecT === 'function' ? _rpSecT(t) : `
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
+    <div style="font-size:calc(11px*var(--m-label));font-weight:700;text-transform:uppercase;letter-spacing:.8px;
       color:var(--text2);margin-bottom:10px">${t}</div>`;
   const bullet = (text, color) => `
     <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;margin-bottom:4px;
       background:${color}08;border-radius:var(--radius-sm);border-left:2px solid ${color}50">
-      <span style="font-size:13px;color:var(--text1);line-height:1.6">${esc(text)}</span>
+      <span style="font-size:calc(13px*var(--m-body));color:var(--text1);line-height:1.6">${esc(text)}</span>
     </div>`;
 
   body.innerHTML = `
@@ -53,17 +53,17 @@ async function _rpLoadAndRenderDart(body) {
   <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;
     padding-bottom:14px;border-bottom:2px solid color-mix(in srgb, var(--tg) 25%, transparent)">
     <div>
-      <div style="font-size:20px;font-weight:800;color:var(--text1)">${esc(dp.stockName || _rpStock?.name || '')}</div>
+      <div style="font-size:calc(20px*var(--m-title));font-weight:800;color:var(--text1)">${esc(dp.stockName || _rpStock?.name || '')}</div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap">
-        <span style="font-size:12px;color:var(--text2)">${esc(dp.stockCode || _rpStock?.code || '')}</span>
-        <span style="font-size:12px;padding:2px 9px;border-radius:100px;
+        <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">${esc(dp.stockCode || _rpStock?.code || '')}</span>
+        <span style="font-size:calc(12px*var(--m-sub));padding:2px 9px;border-radius:100px;
           background:color-mix(in srgb, var(--tg) 12%, transparent);color:var(--tg);font-weight:600">${esc(data.report_type||'')}</span>
-        <span style="font-size:12px;color:var(--text2)">접수 ${esc(data.receive_date||'')}</span>
-        ${dp.listedDate ? `<span style="font-size:12px;color:var(--text2)">상장 ${esc(dp.listedDate)}</span>` : ''}
+        <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">접수 ${esc(data.receive_date||'')}</span>
+        ${dp.listedDate ? `<span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">상장 ${esc(dp.listedDate)}</span>` : ''}
       </div>
     </div>
     <button onclick="document.getElementById('rp-dart-file').click()"
-      style="padding:5px 12px;font-size:11px;border:1px solid var(--border);
+      style="padding:5px 12px;font-size:calc(11px*var(--m-label));border:1px solid var(--border);
         border-radius:var(--radius-sm);background:var(--bg3);color:var(--text2);cursor:pointer;white-space:nowrap">
       최신 업로드
     </button>
@@ -89,13 +89,13 @@ async function _rpLoadAndRenderDart(body) {
       ${sectionTitle('핵심 투자 포인트')}
       ${pts.length
         ? pts.map(t => bullet(t,'#4ade80')).join('')
-        : `<div style="font-size:12px;color:var(--text2);padding:8px">투자판단 항목 없음</div>`}
+        : `<div style="font-size:calc(12px*var(--m-sub));color:var(--text2);padding:8px">투자판단 항목 없음</div>`}
     </div>
     <div style="background:var(--bg2);border:1px solid #f8717130;border-radius:var(--radius-sm);padding:14px">
       ${sectionTitle('주요 리스크')}
       ${risks.length
         ? risks.map(t => bullet(t,'#f87171')).join('')
-        : `<div style="font-size:12px;color:var(--text2);padding:8px">리스크 항목 없음</div>`}
+        : `<div style="font-size:calc(12px*var(--m-sub));color:var(--text2);padding:8px">리스크 항목 없음</div>`}
     </div>
   </div>
 
@@ -107,12 +107,12 @@ async function _rpLoadAndRenderDart(body) {
       ${sectionTitle('기업 개요')}
       <div style="display:flex;flex-direction:column;gap:6px">
         ${dp.mainBusiness ? `
-          <div style="font-size:12px;color:var(--text1);line-height:1.6;padding:8px;
+          <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.6;padding:8px;
             background:var(--bg3);border-radius:var(--radius-sm)">${esc(dp.mainBusiness)}</div>` : ''}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
-          ${dp.established ? `<div style="font-size:12px;color:var(--text1)">설립 <span style="color:var(--text1);font-weight:600">${esc(dp.established)}</span></div>` : ''}
-          ${dp.listedDate  ? `<div style="font-size:12px;color:var(--text1)">상장 <span style="color:var(--text1);font-weight:600">${esc(dp.listedDate)}</span></div>` : ''}
-          ${dp.location    ? `<div style="font-size:12px;color:var(--text1);grid-column:1/-1">소재 <span style="color:var(--text1)">${esc(dp.location)}</span></div>` : ''}
+          ${dp.established ? `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1)">설립 <span style="color:var(--text1);font-weight:600">${esc(dp.established)}</span></div>` : ''}
+          ${dp.listedDate  ? `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1)">상장 <span style="color:var(--text1);font-weight:600">${esc(dp.listedDate)}</span></div>` : ''}
+          ${dp.location    ? `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);grid-column:1/-1">소재 <span style="color:var(--text1)">${esc(dp.location)}</span></div>` : ''}
         </div>
       </div>
     </div>
@@ -125,20 +125,20 @@ async function _rpLoadAndRenderDart(body) {
           <div style="display:flex;justify-content:space-between;align-items:center;
             padding:7px 10px;background:var(--bg3);border-radius:var(--radius-sm)">
             <div>
-              <div style="font-size:13px;font-weight:700;color:var(--text1)">${esc(dp.majorShareholder)}</div>
-              <div style="font-size:12px;color:var(--text1)">최대주주</div>
+              <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1)">${esc(dp.majorShareholder)}</div>
+              <div style="font-size:calc(12px*var(--m-sub));color:var(--text1)">최대주주</div>
             </div>
-            ${dp.majorShareholderRatio ? `<div style="font-size:16px;font-weight:800;color:var(--tg)">${esc(dp.majorShareholderRatio)}</div>` : ''}
+            ${dp.majorShareholderRatio ? `<div style="font-size:calc(16px*var(--m-title));font-weight:800;color:var(--tg)">${esc(dp.majorShareholderRatio)}</div>` : ''}
           </div>` : ''}
         ${s.related_party_ratio ? `
           <div style="display:flex;justify-content:space-between;padding:6px 10px;
-            font-size:12px;color:var(--text1)">
+            font-size:calc(12px*var(--m-sub));color:var(--text1)">
             <span>최대주주+특수관계인</span>
             <span style="font-weight:700;color:var(--text1)">${s.related_party_ratio.toFixed(1)}%</span>
           </div>` : ''}
         ${s.lockup_ratio ? `
           <div style="display:flex;justify-content:space-between;padding:6px 10px;
-            font-size:12px;color:var(--text1)">
+            font-size:calc(12px*var(--m-sub));color:var(--text1)">
             <span>보호예수 (해제 ${esc(s.lockup_end||'-')})</span>
             <span style="font-weight:700;color:var(--text1)">${s.lockup_ratio.toFixed(1)}%</span>
           </div>` : ''}
@@ -151,7 +151,7 @@ async function _rpLoadAndRenderDart(body) {
                 <div style="position:absolute;left:0;top:0;height:100%;width:${total}%;
                   background:linear-gradient(90deg,var(--tg),color-mix(in srgb, var(--tg) 50%, transparent));border-radius:3px"></div>
               </div>
-              <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:12px;color:var(--text1)">
+              <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:calc(12px*var(--m-sub));color:var(--text1)">
                 <span>0%</span><span style="color:var(--tg);font-weight:600">${total.toFixed(1)}%</span><span>100%</span>
               </div>
             </div>`;
@@ -301,7 +301,7 @@ function _rpSubsContent(subs, summary) {
   if (summary && (summary.count || summary.revenueSum || summary.lossCount || summary.financeCheck)) {
     const chip = (label, val, col) => val ? `<span style="display:inline-flex;align-items:baseline;gap:4px">
       <span style="color:var(--text3)">${label}</span><b style="color:${col || 'var(--text1)'}">${esc(val)}</b></span>` : '';
-    summaryHTML = `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:baseline;font-size:11px;margin-bottom:10px;
+    summaryHTML = `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:baseline;font-size:calc(11px*var(--m-label));margin-bottom:10px;
       padding:8px 11px;background:var(--bg3);border-radius:var(--radius-sm)">
       ${chip('계열사', summary.count)}${chip('매출합계', summary.revenueSum)}${chip('손실', summary.lossCount, '#f5a623')}
       ${summary.financeCheck ? `<span style="color:#ef4444;flex-basis:100%;line-height:1.5">⚠ ${esc(summary.financeCheck)}</span>` : ''}</div>`;
@@ -320,15 +320,15 @@ function _rpSubsContent(subs, summary) {
     const isLoss = s.netIncome != null && s.netIncome < 0;
     const rc = relColor(s.relation);
     const badge = insolvent
-      ? `<span style="font-size:10px;padding:1px 7px;border-radius:100px;background:#ef444420;color:#ef4444;font-weight:700">자본잠식</span>`
+      ? `<span style="font-size:calc(10px*var(--m-label));padding:1px 7px;border-radius:100px;background:#ef444420;color:#ef4444;font-weight:700">자본잠식</span>`
       : isLoss
-      ? `<span style="font-size:10px;padding:1px 7px;border-radius:100px;background:#f5a62320;color:#f5a623;font-weight:700">순손실</span>`
-      : `<span style="font-size:10px;padding:1px 7px;border-radius:100px;background:#4ade8020;color:#4ade80;font-weight:700">정상</span>`;
+      ? `<span style="font-size:calc(10px*var(--m-label));padding:1px 7px;border-radius:100px;background:#f5a62320;color:#f5a623;font-weight:700">순손실</span>`
+      : `<span style="font-size:calc(10px*var(--m-label));padding:1px 7px;border-radius:100px;background:#4ade8020;color:#4ade80;font-weight:700">정상</span>`;
     const debtRatio = (s.equity != null && s.equity > 0 && s.liabilities != null) ? (s.liabilities / s.equity * 100) : null;
     const rowBg = insolvent ? 'background:#ef44440a' : '';
     return `<tr style="${rowBg}">
       ${td(esc(s.name), 'left', 'var(--text1)', true)}
-      ${td(s.relation ? `<span style="font-size:10px;padding:1px 6px;border-radius:100px;background:${rc}1f;color:${rc};font-weight:600">${esc(s.relation)}</span>` : '—', 'left')}
+      ${td(s.relation ? `<span style="font-size:calc(10px*var(--m-label));padding:1px 6px;border-radius:100px;background:${rc}1f;color:${rc};font-weight:600">${esc(s.relation)}</span>` : '—', 'left')}
       ${td(s.ownership ? esc(s.ownership) : '—', 'right')}
       ${td(s.country ? esc(s.country) : '—', 'center', 'var(--text2)')}
       ${td(s.role ? esc(s.role) : '—', 'left', 'var(--text2)')}
@@ -340,12 +340,12 @@ function _rpSubsContent(subs, summary) {
       ${td(debtRatio != null ? Math.round(debtRatio).toLocaleString() + '%' : '—', 'right', debtRatio != null && debtRatio > 200 ? '#f5a623' : 'var(--text1)')}
       ${td(badge, 'center')}
     </tr>${s.opinion ? `<tr style="${rowBg}"><td colspan="${COLS + 1}" style="padding:2px 9px 9px;border-bottom:1px solid var(--border);
-      font-size:11px;color:var(--text3);line-height:1.55;white-space:normal">
+      font-size:calc(11px*var(--m-label));color:var(--text3);line-height:1.55;white-space:normal">
       <span style="color:var(--text2)">검토의견</span> · ${esc(s.opinion)}</td></tr>` : ''}`;
   }).join('');
 
   return summaryHTML + `<div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
+    <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub));white-space:nowrap">
       <thead><tr style="background:var(--bg3)">
         ${th('계열사')}${th('관계')}${th('지분', 'right')}${th('국가', 'center')}${th('역할')}
         ${th('매출', 'right')}${th('순손익', 'right')}${th('자본', 'right')}${th('자산', 'right')}${th('부채', 'right')}${th('부채비율', 'right')}${th('상태', 'center')}
@@ -610,7 +610,7 @@ function _mdToAccordion(md) {
   const esc  = escapeHtml;
   const inl  = s => esc(s)
     .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    .replace(/`(.+?)`/g,'<code style="background:var(--bg3);padding:1px 4px;border-radius:3px;font-size:11px">$1</code>');
+    .replace(/`(.+?)`/g,'<code style="background:var(--bg3);padding:1px 4px;border-radius:3px;font-size:calc(11px*var(--m-label))">$1</code>');
   const keyword = t => {
     if (/^투자판단[:：]/.test(t)) return `<span style="color:#4ade80;font-weight:600">${inl(t)}</span>`;
     if (/^리스크[:：]/.test(t))   return `<span style="color:#f87171;font-weight:600">${inl(t)}</span>`;
@@ -627,7 +627,7 @@ function _mdToAccordion(md) {
     const cols = r => r.split('|').slice(1,-1).map(c => c.trim());
     const hdr = cols(rows[0]);
     return `<div style="overflow-x:auto;margin:4px 0">
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub))">
         <thead><tr style="background:var(--bg2)">
           ${hdr.map(h=>`<th style="padding:5px 8px;text-align:left;font-weight:600;color:var(--text1);
             border-bottom:1px solid var(--border);white-space:nowrap">${inl(h)}</th>`).join('')}
@@ -635,7 +635,7 @@ function _mdToAccordion(md) {
         <tbody>
           ${rows.slice(1).map((r,ri)=>`<tr style="background:${ri%2?'var(--bg3)':''}">
             ${cols(r).map(c=>`<td style="padding:4px 8px;color:var(--text1);
-              border-bottom:1px solid var(--border);line-height:1.5;font-size:12px">${inl(c)}</td>`).join('')}
+              border-bottom:1px solid var(--border);line-height:1.5;font-size:calc(12px*var(--m-sub))">${inl(c)}</td>`).join('')}
           </tr>`).join('')}
         </tbody>
       </table></div>`;
@@ -658,8 +658,8 @@ function _mdToAccordion(md) {
               a.style.transform=b.style.display==='none'?'rotate(0)':'rotate(90deg)'})(
               document.getElementById('${sid}'),this.querySelector('span'))"
             style="padding:9px 14px;background:var(--bg2);cursor:pointer;display:flex;
-              align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text1);user-select:none">
-            <span style="font-size:11px;color:var(--text2);transition:transform .15s">▶</span>
+              align-items:center;gap:8px;font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1);user-select:none">
+            <span style="font-size:calc(11px*var(--m-label));color:var(--text2);transition:transform .15s">▶</span>
             ${esc(title)}
           </div>
           <div id="${sid}" style="display:none;padding:12px 14px;flex-direction:column;gap:6px">`;
@@ -668,16 +668,16 @@ function _mdToAccordion(md) {
     }
 
     if (/^### /.test(line)) {
-      html += `<div style="font-size:12px;font-weight:700;color:var(--tg);margin-top:10px;margin-bottom:4px;
+      html += `<div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--tg);margin-top:10px;margin-bottom:4px;
         padding-bottom:3px;border-bottom:1px solid var(--border2)">${esc(line.replace(/^### /,'').trim())}</div>`;
       i++; continue;
     }
     if (/^#### /.test(line)) {
-      html += `<div style="font-size:12px;font-weight:700;color:var(--text1);margin-top:6px">${esc(line.replace(/^#### /,'').trim())}</div>`;
+      html += `<div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--text1);margin-top:6px">${esc(line.replace(/^#### /,'').trim())}</div>`;
       i++; continue;
     }
     if (/^##### /.test(line)) {
-      html += `<div style="font-size:11px;font-weight:600;color:var(--text2);margin-top:4px">${esc(line.replace(/^##### /,'').trim())}</div>`;
+      html += `<div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text2);margin-top:4px">${esc(line.replace(/^##### /,'').trim())}</div>`;
       i++; continue;
     }
     if (/^---+$/.test(line.trim())) { i++; continue; }
@@ -692,14 +692,14 @@ function _mdToAccordion(md) {
     if (/^[-*] /.test(line)) {
       const t = line.replace(/^[-*] /,'').trim();
       html += `<div style="display:flex;align-items:flex-start;gap:6px;padding:1px 0">
-        <span style="color:var(--text2);font-size:11px;margin-top:5px;flex-shrink:0">◦</span>
-        <span style="font-size:12px;color:var(--text1);line-height:1.6">${keyword(t)}</span>
+        <span style="color:var(--text2);font-size:calc(11px*var(--m-label));margin-top:5px;flex-shrink:0">◦</span>
+        <span style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.6">${keyword(t)}</span>
       </div>`;
       i++; continue;
     }
 
     if (!line.trim()) { i++; continue; }
-    html += `<div style="font-size:12px;color:var(--text1);line-height:1.6">${inl(line.trim())}</div>`;
+    html += `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.6">${inl(line.trim())}</div>`;
     i++;
   }
 

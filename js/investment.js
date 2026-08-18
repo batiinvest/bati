@@ -56,9 +56,9 @@ function pInvestment() {
   return `
   <!-- 페이지 헤더 -->
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:8px">
-    <div style="font-size:13px;font-weight:600;color:var(--text)">오늘의 시황</div>
+    <div style="font-size:calc(13px*var(--m-body));font-weight:600;color:var(--text)">오늘의 시황</div>
     <div style="display:flex;align-items:center;gap:8px">
-      <div style="font-size:11px;color:var(--text2)" id="inv-date"></div>
+      <div style="font-size:calc(11px*var(--m-label));color:var(--text2)" id="inv-date"></div>
       <button class="btn btn-sm" id="inv-refresh-btn" onclick="refreshInvestment()">${_ICO.refresh}새로고침</button>
     </div>
   </div>
@@ -68,8 +68,8 @@ function pInvestment() {
     <div class="card-header" style="flex-wrap:wrap;gap:6px">
       <span class="card-title">${_ICO.temp}오늘의 시장 판단</span>
       <span class="card-sub">지금 들어가도 되나 → 무엇을 할까</span>
-      <span id="mj-source" style="font-size:11px;color:var(--text2);margin-left:auto"></span>
-      <span style="font-size:11px;color:var(--text2)" id="market-temp-date"></span>
+      <span id="mj-source" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:auto"></span>
+      <span style="font-size:calc(11px*var(--m-label));color:var(--text2)" id="market-temp-date"></span>
       <!-- 보조 작업(히스토리·재분석·관리자)은 케밥 메뉴로 — 헤더 요소 과밀 방지 -->
       <div class="kebab-wrap">
         <button class="chip chip-sm" onclick="toggleMjMenu(event)" title="작업 메뉴" aria-label="작업 메뉴">⋯</button>
@@ -91,7 +91,7 @@ function pInvestment() {
       </div>
       <!-- B. 전략(Selection) — 영향 업종 + 기회/리스크 -->
       <div class="mj-col-b" style="padding:.75rem 1rem" id="market-insight-card">
-        <div style="color:var(--text2);font-size:12px"><span class="loading"></span> 전략 분석 중...</div>
+        <div style="color:var(--text2);font-size:calc(12px*var(--m-sub))"><span class="loading"></span> 전략 분석 중...</div>
       </div>
     </div>
 
@@ -101,13 +101,13 @@ function pInvestment() {
 
     <!-- 히스토리 (DB 저장 국면) -->
     <div id="insight-history" style="display:none;border-top:1px solid var(--border)">
-      <div style="padding:7px 1rem 4px;font-size:11px;font-weight:600;color:var(--text2);
+      <div style="padding:7px 1rem 4px;font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text2);
         letter-spacing:.04em;display:flex;align-items:center;gap:6px">
         최근 시장 국면
-        <span style="font-size:11px;font-weight:400;opacity:.7">(DB 저장 기준)</span>
+        <span style="font-size:calc(11px*var(--m-label));font-weight:400;opacity:.7">(DB 저장 기준)</span>
       </div>
       <div id="insight-history-body" style="padding:0 1rem .75rem">
-        <div style="color:var(--text2);font-size:12px;padding:.5rem 0"><span class="loading"></span></div>
+        <div style="color:var(--text2);font-size:calc(12px*var(--m-sub));padding:.5rem 0"><span class="loading"></span></div>
       </div>
     </div>
   </div>
@@ -117,7 +117,7 @@ function pInvestment() {
     <div class="card-header" style="flex-wrap:wrap;gap:6px">
       <span class="card-title">${_ICO.doc}내 종목 현황</span>
       <span class="card-sub">시세 · 오늘 공시 · 최근 보고서</span>
-      <span id="ms-count-badge" style="font-size:11px;color:var(--text2);margin-left:auto"></span>
+      <span id="ms-count-badge" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:auto"></span>
     </div>
     <div id="ms-body" style="border-top:1px solid var(--border)">${_skelList(3, true)}</div>
   </div>
@@ -127,7 +127,7 @@ function pInvestment() {
     <div class="card-header" style="flex-wrap:wrap;gap:6px">
       <span class="card-title">${_ICO.flow}산업별 수급동향</span>
       <span class="card-sub">자금이 어디로 — 등락·거래대금·수급·국면</span>
-      <span id="sr-date" style="font-size:11px;color:var(--text2);margin-left:auto"></span>
+      <span id="sr-date" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:auto"></span>
       <div style="display:flex;gap:4px">
         <button class="chip chip-sm"        data-sr-period="1"  onclick="switchSrPeriod(1)" >1일</button>
         <button class="chip chip-sm active" data-sr-period="5"  onclick="switchSrPeriod(5)" >5일</button>
@@ -150,19 +150,19 @@ function pInvestment() {
       <div class="card" style="margin-bottom:0">
         <div class="card-header">
           <span class="card-title">${_ICO.flow}기관/외국인 수급</span>
-          <span style="font-size:11px;color:var(--text2)" id="flow-date-label">집계 중…</span>
+          <span style="font-size:calc(11px*var(--m-label));color:var(--text2)" id="flow-date-label">집계 중…</span>
         </div>
         <div class="flow-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--border)">
           <div>
-            <div style="padding:5px 8px;font-size:11px;font-weight:600;color:var(--text1);background:var(--bg2);border-bottom:1px solid var(--border)">${_ICO.shuffle}동시매수</div>
+            <div style="padding:5px 8px;font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text1);background:var(--bg2);border-bottom:1px solid var(--border)">${_ICO.shuffle}동시매수</div>
             <div id="flow-body-both">${_skelList(6, true)}</div>
           </div>
           <div style="border-left:1px solid var(--border)">
-            <div style="padding:5px 8px;font-size:11px;font-weight:600;color:var(--tg);background:var(--bg2);border-bottom:1px solid var(--border)">${_ICO.globe}외국인</div>
+            <div style="padding:5px 8px;font-size:calc(11px*var(--m-label));font-weight:600;color:var(--tg);background:var(--bg2);border-bottom:1px solid var(--border)">${_ICO.globe}외국인</div>
             <div id="flow-body-frgn">${_skelList(6, true)}</div>
           </div>
           <div style="border-left:1px solid var(--border)">
-            <div style="padding:5px 8px;font-size:11px;font-weight:600;color:var(--yellow);background:var(--bg2);border-bottom:1px solid var(--border)">${_ICO.building}기관</div>
+            <div style="padding:5px 8px;font-size:calc(11px*var(--m-label));font-weight:600;color:var(--yellow);background:var(--bg2);border-bottom:1px solid var(--border)">${_ICO.building}기관</div>
             <div id="flow-body-orgn">${_skelList(6, true)}</div>
           </div>
         </div>
@@ -173,7 +173,7 @@ function pInvestment() {
         <div class="card-header" style="flex-wrap:wrap;gap:6px">
           <span class="card-title">${_ICO.bar}투자자별 매매동향</span>
           <span class="card-sub">누가 사고 파나 — 개인·외국인·기관</span>
-          <span id="mif-date" style="font-size:11px;color:var(--text2);margin-left:auto"></span>
+          <span id="mif-date" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:auto"></span>
           <div style="display:flex;gap:4px">
             <button class="chip chip-sm active" data-mif-market="kospi"  onclick="setMifMarket('kospi')" >코스피</button>
             <button class="chip chip-sm"        data-mif-market="kosdaq" onclick="setMifMarket('kosdaq')">코스닥</button>
@@ -188,7 +188,7 @@ function pInvestment() {
         <div id="mif-summary" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border-top:1px solid var(--border)"></div>
         <div style="padding:.75rem 1rem;position:relative;height:220px;border-top:1px solid var(--border)">
           <canvas id="mif-chart"></canvas>
-          <div id="mif-empty" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;color:var(--text2);font-size:12px">
+          <div id="mif-empty" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">
             데이터 수집 중... (매일 18:20 업데이트)
           </div>
         </div>
@@ -199,7 +199,7 @@ function pInvestment() {
         <div class="card-header" style="flex-wrap:wrap;gap:6px">
           <span class="card-title">${_ICO.bank}신용융자 잔고</span>
           <span class="card-sub">빚투 규모 — 레버리지 과열·위축</span>
-          <span id="cb-date" style="font-size:11px;color:var(--text2);margin-left:auto"></span>
+          <span id="cb-date" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:auto"></span>
           <div style="display:flex;gap:4px">
             ${[{d:90,l:'3달'},{d:180,l:'6달'},{d:365,l:'1년'},{d:0,l:'전체'}].map(({d,l})=>`
               <button class="chip chip-sm ${d===180?'active':''}" data-cb-period="${d}"
@@ -210,7 +210,7 @@ function pInvestment() {
         <div id="cb-summary" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;border-top:1px solid var(--border)"></div>
         <div style="padding:.75rem 1rem;position:relative;height:220px;border-top:1px solid var(--border)">
           <canvas id="cb-chart"></canvas>
-          <div id="cb-empty" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;color:var(--text2);font-size:12px">
+          <div id="cb-empty" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">
             데이터 수집 중... (매일 19:00 업데이트)
           </div>
         </div>
@@ -243,13 +243,13 @@ function pInvestment() {
             <button class="chip chip-sm active" data-ls-tab="all"    onclick="switchLsTab('all')"   >전체</button>
             <button class="chip chip-sm"        data-ls-tab="kospi"  onclick="switchLsTab('kospi')" >코스피</button>
             <button class="chip chip-sm"        data-ls-tab="kosdaq" onclick="switchLsTab('kosdaq')">코스닥</button>
-            <span style="font-size:11px;color:var(--text2);margin-left:auto;align-self:center" id="ls-date"></span>
+            <span style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:auto;align-self:center" id="ls-date"></span>
             <button id="ls-refresh-btn" class="chip chip-sm" onclick="refreshLeadingStocks()" style="margin-left:6px" title="새로고침">${_ICO.refresh}</button>
           </div>
           <div id="ls-body">${_skelList(8)}</div>
           <div style="padding:5px 10px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;gap:3px;align-items:center">
-            <span onclick="toggleLsBacktest()" style="font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;user-select:none">과거 주도주 수익률 <span id="ls-bt-chev" style="font-size:11px">▾</span></span>
-            <span id="ls-bt-date" style="font-size:11px;color:var(--text2);margin-left:auto;align-self:center"></span>
+            <span onclick="toggleLsBacktest()" style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text2);cursor:pointer;user-select:none">과거 주도주 수익률 <span id="ls-bt-chev" style="font-size:calc(11px*var(--m-label))">▾</span></span>
+            <span id="ls-bt-date" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:auto;align-self:center"></span>
             <div style="display:flex;gap:3px">
               <button class="chip chip-sm active" data-bt-period="1w" onclick="switchBtPeriod('1w')">1주</button>
               <button class="chip chip-sm"        data-bt-period="1m" onclick="switchBtPeriod('1m')">1달</button>
@@ -262,8 +262,8 @@ function pInvestment() {
         <!-- 신고가 패널 -->
         <div id="idea-panel-hgpr" style="display:none;border-top:1px solid var(--border)">
           <div style="padding:5px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span style="font-size:11px;color:var(--text2)">KIS 기준 신고가 지정 종목</span>
-            <span id="hgpr-date" style="font-size:11px;color:var(--text2)"></span>
+            <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">KIS 기준 신고가 지정 종목</span>
+            <span id="hgpr-date" style="font-size:calc(11px*var(--m-label));color:var(--text2)"></span>
             <div style="display:flex;gap:4px;margin-left:auto">
               <button class="chip chip-sm active" data-hgpr-tab="monitored" onclick="switchHgprTab('monitored')">${_ICO.star}모니터링</button>
               <button class="chip chip-sm"        data-hgpr-tab="all"       onclick="switchHgprTab('all')"      >전체 종목</button>
@@ -282,7 +282,7 @@ function pInvestment() {
               <button class="chip chip-sm"        data-surge-grade="B"    onclick="setSurgeGrade(this,'B')"   >B급</button>
               <button class="chip chip-sm"        data-surge-grade="관찰"  onclick="setSurgeGrade(this,'관찰')" >관찰</button>
             </div>
-            <select class="form-select" id="inv-earnings-quarter" style="width:130px;padding:3px 8px;font-size:12px;margin-left:auto"
+            <select class="form-select" id="inv-earnings-quarter" style="width:130px;padding:3px 8px;font-size:calc(12px*var(--m-sub));margin-left:auto"
               onchange="loadEarningsSurge()"><option value="">로딩 중...</option></select>
           </div>
           <div id="inv-earnings-list" style="padding:.5rem 0">${_skelCards(4)}</div>
@@ -290,13 +290,13 @@ function pInvestment() {
 
         <!-- 급등 패널 (당일 상승률 상위, 거래대금 필터) -->
         <div id="idea-panel-surge" style="display:none;border-top:1px solid var(--border)">
-          <div style="padding:5px 10px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text2)">거래대금 5억↑ · 상승률 상위 (최근 거래일 종가 기준)</div>
+          <div style="padding:5px 10px;border-bottom:1px solid var(--border);font-size:calc(11px*var(--m-label));color:var(--text2)">거래대금 5억↑ · 상승률 상위 (최근 거래일 종가 기준)</div>
           <div id="idea-surge-body" style="padding:.25rem 0">${_skelList(8, true)}</div>
         </div>
 
         <!-- 전망 패널 (미래 실적 추정치 — 상향 감지 + 고성장, estimates.js) -->
         <div id="idea-panel-outlook" style="display:none;border-top:1px solid var(--border)">
-          <div style="padding:5px 10px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text2)">KIS 리서치 연간 추정치 (매일 18:40 갱신) · 커버 종목만 표시</div>
+          <div style="padding:5px 10px;border-bottom:1px solid var(--border);font-size:calc(11px*var(--m-label));color:var(--text2)">KIS 리서치 연간 추정치 (매일 18:40 갱신) · 커버 종목만 표시</div>
           <div id="idea-outlook-body" style="padding:.25rem 0">${_skelList(8, true)}</div>
         </div>
       </div>
@@ -305,8 +305,8 @@ function pInvestment() {
       <div class="card" style="margin-bottom:0">
         <div class="card-header">
           <span class="card-title">${_ICO.doc}오늘 실적 공시 종목</span>
-          <span id="inv-disclosure-date" style="font-size:11px;color:var(--text2);margin-left:8px"></span>
-          <button id="inv-disclosure-expand-btn" class="btn btn-sm" style="margin-left:auto;font-size:12px"
+          <span id="inv-disclosure-date" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:8px"></span>
+          <button id="inv-disclosure-expand-btn" class="btn btn-sm" style="margin-left:auto;font-size:calc(12px*var(--m-sub))"
             onclick="toggleAllDisclosures()">+ 전체 공시</button>
         </div>
         <div id="inv-disclosure-list" style="padding:.5rem 0">${_skelList(4)}</div>
@@ -335,12 +335,12 @@ function pInvestment() {
       <div class="card-header" style="flex-wrap:wrap;gap:4px;padding-bottom:6px">
         <span class="card-title">${_ICO.grid}산업 동향</span>
         <!-- US ETF 배너 -->
-        <div id="inv-etf-banner" style="display:flex;gap:10px;align-items:center;margin-left:auto;font-size:12px;flex-wrap:wrap">
+        <div id="inv-etf-banner" style="display:flex;gap:10px;align-items:center;margin-left:auto;font-size:calc(12px*var(--m-sub));flex-wrap:wrap">
           <span style="color:var(--text2)"><span class="loading"></span></span>
         </div>
       </div>
       <!-- KR 모니터링 현황 -->
-      <div id="inv-industry-banner" style="padding:4px 1rem 6px;border-bottom:1px solid var(--border);font-size:12px;display:flex;gap:10px;color:var(--text2)">
+      <div id="inv-industry-banner" style="padding:4px 1rem 6px;border-bottom:1px solid var(--border);font-size:calc(12px*var(--m-sub));display:flex;gap:10px;color:var(--text2)">
         <span><span class="loading"></span></span>
       </div>
       <div id="inv-industry-chart"></div>
@@ -349,9 +349,9 @@ function pInvestment() {
     <!-- Zone C — 심화 분석 (기본 접힘) -->
     <div onclick="toggleZoneC()" style="cursor:pointer;display:flex;align-items:center;gap:8px;
       padding:10px 14px;margin-bottom:12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px">
-      <span style="font-size:13px;font-weight:600;color:var(--text1)">${_ICO.grid}심화 분석</span>
+      <span style="font-size:calc(13px*var(--m-body));font-weight:600;color:var(--text1)">${_ICO.grid}심화 분석</span>
       <span class="card-sub">종목별 수급 · 거래대금 · 급등/급락 · 비교 차트</span>
-      <span id="zonec-toggle" style="font-size:12px;color:var(--text2);margin-left:auto">펼치기 ▾</span>
+      <span id="zonec-toggle" style="font-size:calc(12px*var(--m-sub));color:var(--text2);margin-left:auto">펼치기 ▾</span>
     </div>
 
     <div id="inv-zonec" style="display:none">
@@ -360,7 +360,7 @@ function pInvestment() {
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="flex-wrap:wrap;gap:6px">
         <span class="card-title">${_ICO.bank}종목별 수급 순위 <span class="card-sub">(10거래일 누적)</span></span>
-        <span style="font-size:11px;color:var(--text2)" id="stockflow-date"></span>
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text2)" id="stockflow-date"></span>
         <div style="display:flex;gap:4px;margin-left:auto">
           <button class="chip chip-sm active" data-sflow-type="foreign" onclick="switchStockFlowType('foreign')">외국인</button>
           <button class="chip chip-sm"        data-sflow-type="inst"    onclick="switchStockFlowType('inst')"   >기관</button>
@@ -378,7 +378,7 @@ function pInvestment() {
     <div class="card" style="margin-bottom:12px">
       <div class="card-header">
         <span class="card-title">${_ICO.coin}거래대금 상위</span>
-        <span style="font-size:11px;color:var(--text2)">최근 거래일 종가 기준</span>
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">최근 거래일 종가 기준</span>
       </div>
       <div id="inv-volume-body" style="display:grid;grid-template-columns:repeat(2,1fr);gap:0;border-top:1px solid var(--border)">
         ${_skelList(3)}
@@ -389,7 +389,7 @@ function pInvestment() {
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="cursor:pointer" onclick="toggleTrendChart()">
         <span class="card-title">${_ICO.chart}흐름 비교 차트</span>
-        <span id="inv-trend-toggle" style="font-size:12px;color:var(--text2);margin-left:auto">접기 ▴</span>
+        <span id="inv-trend-toggle" style="font-size:calc(12px*var(--m-sub));color:var(--text2);margin-left:auto">접기 ▴</span>
       </div>
       <div id="inv-trend-body" style="display:block">
         <div style="flex-wrap:wrap;gap:8px;padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center">
@@ -402,7 +402,7 @@ function pInvestment() {
         </div>
         <!-- 그룹 필터 버튼 -->
         <div style="padding:.5rem 1rem;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:4px;align-items:center">
-          <span style="font-size:11px;color:var(--text2);margin-right:4px">그룹선택</span>
+          <span style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-right:4px">그룹선택</span>
           ${['미국','한국','환율','원자재','기타'].map(g => `
             <button class="chip chip-sm"
               onclick="selectInvGroup('${g}')">${g}</button>
@@ -412,19 +412,19 @@ function pInvestment() {
         </div>
         <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:6px" id="inv-metric-checks">
           ${INV_ALL_METRICS.map(m => `
-            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:3px 8px;border-radius:100px;border:1px solid var(--border);font-size:12px;user-select:none"
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:3px 8px;border-radius:100px;border:1px solid var(--border);font-size:calc(12px*var(--m-sub));user-select:none"
               id="inv-lbl-${m.col}">
               <input type="checkbox" style="display:none" id="inv-chk-${m.col}"
                 onchange="toggleInvMetric('${m.col}')" ${['sp500','nasdaq','kospi','kosdaq'].includes(m.col)?'checked':''}>
               <span style="width:8px;height:8px;border-radius:50%;background:${m.color};flex-shrink:0"></span>
               <span>${m.name}</span>
-              <span style="font-size:11px;color:var(--text2)">${m.group}</span>
+              <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">${m.group}</span>
             </label>
           `).join('')}
         </div>
         <div style="padding:1rem;position:relative;height:260px">
           <canvas id="inv-trend-chart"></canvas>
-          <div id="inv-trend-empty" style="display:none;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:13px">
+          <div id="inv-trend-empty" style="display:none;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:calc(13px*var(--m-body))">
             데이터 수집 중... (매일 09:00, 16:10 업데이트)
           </div>
         </div>
@@ -479,7 +479,7 @@ function pInvestment() {
       </div>
       <!-- 모드 전환 버튼 -->
       <div style="padding:.4rem 1rem;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center">
-        <span style="font-size:11px;color:var(--text2)">표시 방식</span>
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">표시 방식</span>
         <button class="chip chip-sm active" id="uskr-mode-avg" onclick="setUskrMode('avg')"
          >KR vs US 평균</button>
         <button class="chip chip-sm" id="uskr-mode-all" onclick="setUskrMode('all')"
@@ -494,25 +494,25 @@ function pInvestment() {
     <div class="surge-drop-grid">
       <div class="card" style="margin-bottom:0">
         <div class="card-header" style="padding:8px 10px">
-          <span class="card-title" style="color:var(--red);font-size:13px">${_ICO.arrowUp}코스피 급등</span>
+          <span class="card-title" style="color:var(--red);font-size:calc(13px*var(--m-body))">${_ICO.arrowUp}코스피 급등</span>
         </div>
         <div id="inv-surge-kospi" style="padding:.25rem 0"></div>
       </div>
       <div class="card" style="margin-bottom:0">
         <div class="card-header" style="padding:8px 10px">
-          <span class="card-title" style="color:var(--blue);font-size:13px">${_ICO.arrowDn}코스피 급락</span>
+          <span class="card-title" style="color:var(--blue);font-size:calc(13px*var(--m-body))">${_ICO.arrowDn}코스피 급락</span>
         </div>
         <div id="inv-drop-kospi" style="padding:.25rem 0"></div>
       </div>
       <div class="card" style="margin-bottom:0">
         <div class="card-header" style="padding:8px 10px">
-          <span class="card-title" style="color:var(--red);font-size:13px">${_ICO.arrowUp}코스닥 급등</span>
+          <span class="card-title" style="color:var(--red);font-size:calc(13px*var(--m-body))">${_ICO.arrowUp}코스닥 급등</span>
         </div>
         <div id="inv-surge-kosdaq" style="padding:.25rem 0"></div>
       </div>
       <div class="card" style="margin-bottom:0">
         <div class="card-header" style="padding:8px 10px">
-          <span class="card-title" style="color:var(--blue);font-size:13px">${_ICO.arrowDn}코스닥 급락</span>
+          <span class="card-title" style="color:var(--blue);font-size:calc(13px*var(--m-body))">${_ICO.arrowDn}코스닥 급락</span>
         </div>
         <div id="inv-drop-kosdaq" style="padding:.25rem 0"></div>
       </div>
@@ -772,15 +772,15 @@ async function loadInvestment() {
   const rankRow = (r, i) => `
     <div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||r.stock_code||'')}" data-stock-tab="market"
       style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-bottom:1px solid var(--border)">
-      <span style="width:14px;font-size:11px;color:var(--text2);font-weight:600;flex-shrink:0">${i+1}</span>
-      <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.corp_name)}</span>
+      <span style="width:14px;font-size:calc(11px*var(--m-label));color:var(--text2);font-weight:600;flex-shrink:0">${i+1}</span>
+      <span style="flex:1;font-size:calc(12px*var(--m-sub));font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.corp_name)}</span>
       ${wlBadge(r.stock_code)}
-      <span style="font-size:12px;font-weight:700;color:${chgColor(r.price_change_rate)};flex-shrink:0">${chgStr(r.price_change_rate)}</span>
+      <span style="font-size:calc(12px*var(--m-sub));font-weight:700;color:${chgColor(r.price_change_rate)};flex-shrink:0">${chgStr(r.price_change_rate)}</span>
     </div>`;
 
   const setCard = (id, data) => {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = (data || []).map(rankRow).join('') || '<div style="padding:12px;color:var(--text2);font-size:12px;text-align:center">데이터 없음</div>';
+    if (el) el.innerHTML = (data || []).map(rankRow).join('') || '<div style="padding:12px;color:var(--text2);font-size:calc(12px*var(--m-sub));text-align:center">데이터 없음</div>';
   };
   setCard('inv-surge-kospi',  surgeKospi  || []);
   setCard('inv-drop-kospi',   dropKospi   || []);
@@ -796,7 +796,7 @@ function renderVolumeLeaders() {
 
   const allRows = INV.allMarketRows || [];
   if (!allRows.length) {
-    el.innerHTML = '<div style="grid-column:1/-1;padding:1rem;text-align:center;color:var(--text2);font-size:12px">데이터 없음</div>';
+    el.innerHTML = '<div style="grid-column:1/-1;padding:1rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">데이터 없음</div>';
     return;
   }
 
@@ -814,9 +814,9 @@ function renderVolumeLeaders() {
     const sorted = [...p.rows].sort((a, b) => b.tv - a.tv).slice(0, 10);
     if (!sorted.length) return `
       <div style="border-right:${pi === 0 ? '1px solid var(--border)' : 'none'}">
-        <div style="padding:8px 12px;font-size:12px;font-weight:700;color:${p.color};
+        <div style="padding:8px 12px;font-size:calc(12px*var(--m-sub));font-weight:700;color:${p.color};
           border-bottom:2px solid ${p.color}50;letter-spacing:.5px">${p.label}</div>
-        <div style="padding:1rem;text-align:center;color:var(--text2);font-size:11px">데이터 없음</div>
+        <div style="padding:1rem;text-align:center;color:var(--text2);font-size:calc(11px*var(--m-label))">데이터 없음</div>
       </div>`;
 
     const maxTV = sorted[0].tv;
@@ -830,23 +830,23 @@ function renderVolumeLeaders() {
       <div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||r.stock_code||'')}" data-stock-tab="market"
         style="display:flex;align-items:center;gap:8px;padding:6px 12px;
         border-bottom:1px solid var(--border)">
-        <span style="min-width:16px;font-size:11px;color:var(--text2);font-weight:600">${i + 1}</span>
+        <span style="min-width:16px;font-size:calc(11px*var(--m-label));color:var(--text2);font-weight:600">${i + 1}</span>
         <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px"><span style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.corp_name)}</span>${wlBadge(r.stock_code)}</div>
+          <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px"><span style="font-size:calc(12px*var(--m-sub));font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.corp_name)}</span>${wlBadge(r.stock_code)}</div>
           <div style="height:3px;border-radius:2px;background:var(--border);overflow:hidden">
             <div style="height:100%;width:${barPct}%;background:${p.color};border-radius:2px"></div>
           </div>
         </div>
         <div style="text-align:right;white-space:nowrap">
-          <div style="font-size:12px;color:var(--text1)">${tvStr}</div>
-          <div style="font-size:11px;font-weight:600;color:${cc}">${cs}</div>
+          <div style="font-size:calc(12px*var(--m-sub));color:var(--text1)">${tvStr}</div>
+          <div style="font-size:calc(11px*var(--m-label));font-weight:600;color:${cc}">${cs}</div>
         </div>
       </div>`;
     }).join('');
 
     return `
     <div style="border-right:${pi === 0 ? '1px solid var(--border)' : 'none'}">
-      <div style="padding:8px 12px;font-size:12px;font-weight:700;color:${p.color};
+      <div style="padding:8px 12px;font-size:calc(12px*var(--m-sub));font-weight:700;color:${p.color};
         border-bottom:2px solid ${p.color}50;letter-spacing:.5px">${p.label}</div>
       ${rows}
     </div>`;
@@ -896,22 +896,22 @@ function renderIdeaSurge() {
     .slice(0, 15);
 
   if (!rows.length) {
-    el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text2);font-size:12px">데이터 없음</div>';
+    el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">데이터 없음</div>';
     return;
   }
 
   el.innerHTML = rows.map((r, i) => {
     const mkTag = r.market === 'KOSDAQ'
-      ? '<span style="font-size:11px;color:var(--text2);margin-left:2px;font-weight:600">Q</span>' : '';
+      ? '<span style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:2px;font-weight:600">Q</span>' : '';
     const tv    = r.trading_value || ((r.volume ?? 0) * (r.price ?? 0));
     const tvStr = fmtTV(tv);
     return `
     <div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||r.stock_code||'')}" data-stock-tab="market"
       style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border)">
-      <span style="width:16px;font-size:11px;color:var(--text2);font-weight:600;flex-shrink:0">${i + 1}</span>
-      <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.corp_name)}${mkTag}</span>
-      <span style="font-size:11px;color:var(--text2);white-space:nowrap">${tvStr}</span>
-      <span style="font-size:12px;font-weight:700;color:${chgColor(r.price_change_rate)};flex-shrink:0;min-width:48px;text-align:right">${chgStr(r.price_change_rate)}</span>
+      <span style="width:16px;font-size:calc(11px*var(--m-label));color:var(--text2);font-weight:600;flex-shrink:0">${i + 1}</span>
+      <span style="flex:1;font-size:calc(12px*var(--m-sub));font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.corp_name)}${mkTag}</span>
+      <span style="font-size:calc(11px*var(--m-label));color:var(--text2);white-space:nowrap">${tvStr}</span>
+      <span style="font-size:calc(12px*var(--m-sub));font-weight:700;color:${chgColor(r.price_change_rate)};flex-shrink:0;min-width:48px;text-align:right">${chgStr(r.price_change_rate)}</span>
     </div>`;
   }).join('');
 }
@@ -979,7 +979,7 @@ async function loadMyStocksCard() {
     return;
   }
   if (!wlRows?.length) {
-    body.innerHTML = '<div style="padding:1.2rem;text-align:center;color:var(--text2);font-size:12px">보유/관심 종목을 추가하면 현황이 표시됩니다</div>';
+    body.innerHTML = '<div style="padding:1.2rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">보유/관심 종목을 추가하면 현황이 표시됩니다</div>';
     return;
   }
 
@@ -1076,8 +1076,8 @@ function _renderMyStocks() {
 
     // 등락률
     const chgHTML = it.chg != null
-      ? `<span style="font-size:12px;font-weight:700;color:${chgColor(it.chg)};flex-shrink:0;min-width:52px;text-align:right">${chgStr(it.chg)}</span>`
-      : `<span style="font-size:11px;color:var(--text3);flex-shrink:0;min-width:52px;text-align:right">${priceReady ? '—' : '·'}</span>`;
+      ? `<span style="font-size:calc(12px*var(--m-sub));font-weight:700;color:${chgColor(it.chg)};flex-shrink:0;min-width:52px;text-align:right">${chgStr(it.chg)}</span>`
+      : `<span style="font-size:calc(11px*var(--m-label));color:var(--text3);flex-shrink:0;min-width:52px;text-align:right">${priceReady ? '—' : '·'}</span>`;
 
     // 공시 — 카테고리 배지 + 공시 제목(첫 건), 추가 건은 +N. 클릭 시 DART
     let discHTML = '';
@@ -1087,12 +1087,12 @@ function _renderMyStocks() {
       const link = d0.rcept_no ? `https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${d0.rcept_no}` : null;
       const click = link ? `onclick="event.stopPropagation();window.open('${link}','_blank')"` : '';
       const more  = it.discs.length > 1
-        ? `<span style="font-size:11px;color:var(--text3);flex-shrink:0">+${it.discs.length - 1}</span>` : '';
+        ? `<span style="font-size:calc(11px*var(--m-label));color:var(--text3);flex-shrink:0">+${it.discs.length - 1}</span>` : '';
       discHTML = `
-        <span ${click} style="font-size:11px;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;flex-shrink:0;
+        <span ${click} style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;flex-shrink:0;
           background:${s.bg};color:${s.c};cursor:${link ? 'pointer' : 'default'}">${escapeHtml(d0.category || '공시')}</span>
         <span ${click} title="${escAttr(d0.report_nm || '')}"
-          style="font-size:11px;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;cursor:${link ? 'pointer' : 'default'}">${escapeHtml(d0.report_nm || '공시')}</span>
+          style="font-size:calc(11px*var(--m-label));color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;cursor:${link ? 'pointer' : 'default'}">${escapeHtml(d0.report_nm || '공시')}</span>
         ${more}`;
     }
 
@@ -1102,7 +1102,7 @@ function _renderMyStocks() {
       const latest = it.reports[0];
       const md = (latest.receive_date || '').slice(5).replace('-', '/');
       reportHTML = `<span title="${escAttr(latest.report_type || 'DART 분석 보고서')}"
-        style="font-size:11px;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;flex-shrink:0;
+        style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;flex-shrink:0;
         background:rgba(42,171,238,.13);color:#2AABEE">📄 리포트${md ? ' ' + md : ''}${it.reports.length > 1 ? ` +${it.reports.length - 1}` : ''}</span>`;
     }
 
@@ -1110,8 +1110,8 @@ function _renderMyStocks() {
     <div class="stock-row" data-stock-open="${it.code}" data-stock-name="${escAttr(it.name)}" data-stock-tab="market"
       style="display:flex;align-items:center;gap:8px;padding:7px 14px 7px 12px;border-top:1px solid var(--border);
       border-left:2px solid ${it.hasEvent ? 'var(--tg)' : 'transparent'}">
-      <span style="font-size:12px;font-weight:500;color:var(--text1);flex-shrink:0;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(it.name)}</span>
-      <span style="font-size:11px;padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0;
+      <span style="font-size:calc(12px*var(--m-sub));font-weight:500;color:var(--text1);flex-shrink:0;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(it.name)}</span>
+      <span style="font-size:calc(11px*var(--m-label));padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0;
         background:${it.held?'rgba(245,58,92,.13)':'rgba(255,255,255,.06)'};
         color:${it.held?'var(--red)':'var(--text2)'}">${it.held?'보유':'관심'}</span>
       ${chgHTML}
@@ -1121,7 +1121,7 @@ function _renderMyStocks() {
     </div>`;
   }).join('');
 
-  const header = `<div style="display:flex;align-items:center;gap:6px;padding:7px 14px 7px 12px;font-size:11px;color:var(--text2)">
+  const header = `<div style="display:flex;align-items:center;gap:6px;padding:7px 14px 7px 12px;font-size:calc(11px*var(--m-label));color:var(--text2)">
     <span style="width:2px;height:11px;background:var(--tg);border-radius:2px;flex-shrink:0"></span>
     ${eventCnt ? `오늘 <b style="color:var(--text1)">${eventCnt}</b>종목에 공시·리포트` : '오늘 공시·리포트 있는 종목 없음'}
     <span style="color:var(--text3);margin-left:auto">${todayKst} 기준 · 리포트 30일</span>

@@ -114,7 +114,7 @@ function _renderTopbarStrip() {
 
   // 지수값+등락률 한 줄
   const valRow = (item) =>
-    `<span class="market-strip-name" style="font-size:11px;color:var(--text3)">${item.name}</span>` +
+    `<span class="market-strip-name" style="font-size:calc(11px*var(--m-label));color:var(--text3)">${item.name}</span>` +
     `<span class="market-strip-val">${Number(item.val).toLocaleString(undefined,{maximumFractionDigits:2})}</span>` +
     `<span class="market-strip-chg" style="color:${chgColor(item.chg)}">${chgStr(item.chg)}</span>`;
 
@@ -159,11 +159,11 @@ async function loadUsEtfBanner() {
 
   if (error) {
     console.error('[ETF배너] 조회 오류:', error);
-    etfBanner.innerHTML = '<span style="color:var(--text2);font-size:11px">US ETF 데이터 오류</span>';
+    etfBanner.innerHTML = '<span style="color:var(--text2);font-size:calc(11px*var(--m-label))">US ETF 데이터 오류</span>';
     return;
   }
   if (!rows?.length) {
-    etfBanner.innerHTML = '<span style="color:var(--text2);font-size:11px">US ETF 수집 대기 중</span>';
+    etfBanner.innerHTML = '<span style="color:var(--text2);font-size:calc(11px*var(--m-label))">US ETF 수집 대기 중</span>';
     return;
   }
 
@@ -194,14 +194,14 @@ async function loadUsEtfBanner() {
 
   etfBanner.innerHTML = sorted.map(([ind, avg]) =>
     `<span style="display:flex;align-items:center;gap:4px;white-space:nowrap">
-      <span style="font-size:11px;color:var(--text2)">${ind}</span>
+      <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">${ind}</span>
       ${fmt(avg)}
     </span>`
   ).join(sep);
 
   } catch(e) {
     console.error('[ETF배너] 예외:', e);
-    etfBanner.innerHTML = '<span style="color:var(--text2);font-size:11px">US ETF 로드 실패</span>';
+    etfBanner.innerHTML = '<span style="color:var(--text2);font-size:calc(11px*var(--m-label))">US ETF 로드 실패</span>';
   }
 }
 

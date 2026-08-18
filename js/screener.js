@@ -25,7 +25,7 @@ function pScreener() {
       </div>
       <div id="sc-filter-body" style="padding:.75rem 1rem;display:flex;flex-direction:column;gap:1rem">
         <div>
-          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:.75rem">프리셋 — 한 번에 조건 채우기</div>
+          <div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text2);margin-bottom:.75rem">프리셋 — 한 번에 조건 채우기</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px">
             <button class="btn btn-sm" onclick="applyPreset('value')">가치주</button>
             <button class="btn btn-sm" onclick="applyPreset('growth')">성장주</button>
@@ -36,14 +36,14 @@ function pScreener() {
           </div>
         </div>
         <div style="border-top:1px solid var(--border);padding-top:.75rem">
-          <div style="font-size:12px;color:var(--text1);margin-bottom:6px">산업</div>
+          <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:6px">산업</div>
           <select class="form-select" id="sc-industry" style="width:100%">
             <option value="">전체</option>
             ${INDUSTRIES.map(i => `<option>${i}</option>`).join('')}
           </select>
         </div>
         <div>
-          <div style="font-size:12px;color:var(--text1);margin-bottom:6px">시장</div>
+          <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:6px">시장</div>
           <select class="form-select" id="sc-market" style="width:100%">
             <option value="">전체</option>
             <option value="KOSPI">코스피</option>
@@ -51,7 +51,7 @@ function pScreener() {
           </select>
         </div>
         <div style="border-top:1px solid var(--border);padding-top:.75rem">
-          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:.75rem">밸류에이션</div>
+          <div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text2);margin-bottom:.75rem">밸류에이션</div>
           ${[
             ['sc-per-min','sc-per-max','PER','저평가 기준: 0~15'],
             ['sc-pbr-min','sc-pbr-max','PBR','순자산 대비: 0~1 저평가'],
@@ -59,61 +59,61 @@ function pScreener() {
             ['sc-eveb-min','sc-eveb-max','EV/EBITDA','적정: 8~12배'],
           ].map(([a,b,l,hint])=>`
             <div style="margin-bottom:.75rem">
-              <div style="font-size:12px;color:var(--text1);margin-bottom:4px">${l}</div>
+              <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:4px">${l}</div>
               <div style="display:flex;gap:6px;align-items:center">
-                <input type="number" class="form-input" id="${a}" placeholder="최소" style="width:70px;padding:4px 8px;font-size:12px">
-                <span style="color:var(--text2);font-size:12px">~</span>
-                <input type="number" class="form-input" id="${b}" placeholder="최대" style="width:70px;padding:4px 8px;font-size:12px">
+                <input type="number" class="form-input" id="${a}" placeholder="최소" style="width:70px;padding:4px 8px;font-size:calc(12px*var(--m-sub))">
+                <span style="color:var(--text2);font-size:calc(12px*var(--m-sub))">~</span>
+                <input type="number" class="form-input" id="${b}" placeholder="최대" style="width:70px;padding:4px 8px;font-size:calc(12px*var(--m-sub))">
               </div>
               <div class="form-hint">${hint}</div>
             </div>`).join('')}
         </div>
         <div style="border-top:1px solid var(--border);padding-top:.75rem">
-          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:.75rem">수익성</div>
+          <div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text2);margin-bottom:.75rem">수익성</div>
           ${[
             ['sc-margin-min','sc-margin-max','영업이익률(%)','우량: 10% 이상'],
             ['sc-roe-min','sc-roe-max','ROE(%)','우량: 15% 이상'],
             ['sc-roa-min','sc-roa-max','ROA(%)','우량: 5% 이상'],
           ].map(([a,b,l,hint])=>`
             <div style="margin-bottom:.75rem">
-              <div style="font-size:12px;color:var(--text1);margin-bottom:4px">${l}</div>
+              <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:4px">${l}</div>
               <div style="display:flex;gap:6px;align-items:center">
-                <input type="number" class="form-input" id="${a}" placeholder="최소" style="width:70px;padding:4px 8px;font-size:12px">
-                <span style="color:var(--text2);font-size:12px">~</span>
-                <input type="number" class="form-input" id="${b}" placeholder="최대" style="width:70px;padding:4px 8px;font-size:12px">
+                <input type="number" class="form-input" id="${a}" placeholder="최소" style="width:70px;padding:4px 8px;font-size:calc(12px*var(--m-sub))">
+                <span style="color:var(--text2);font-size:calc(12px*var(--m-sub))">~</span>
+                <input type="number" class="form-input" id="${b}" placeholder="최대" style="width:70px;padding:4px 8px;font-size:calc(12px*var(--m-sub))">
               </div>
               <div class="form-hint">${hint}</div>
             </div>`).join('')}
         </div>
         <div style="border-top:1px solid var(--border);padding-top:.75rem">
-          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:.75rem">재무건전성</div>
+          <div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text2);margin-bottom:.75rem">재무건전성</div>
           ${[
             ['sc-debt-min','sc-debt-max','부채비율(%)','안정: 100% 이하'],
             ['sc-cr-min','sc-cr-max','유동비율(%)','안정: 150% 이상'],
           ].map(([a,b,l,hint])=>`
             <div style="margin-bottom:.75rem">
-              <div style="font-size:12px;color:var(--text1);margin-bottom:4px">${l}</div>
+              <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:4px">${l}</div>
               <div style="display:flex;gap:6px;align-items:center">
-                <input type="number" class="form-input" id="${a}" placeholder="최소" style="width:70px;padding:4px 8px;font-size:12px">
-                <span style="color:var(--text2);font-size:12px">~</span>
-                <input type="number" class="form-input" id="${b}" placeholder="최대" style="width:70px;padding:4px 8px;font-size:12px">
+                <input type="number" class="form-input" id="${a}" placeholder="최소" style="width:70px;padding:4px 8px;font-size:calc(12px*var(--m-sub))">
+                <span style="color:var(--text2);font-size:calc(12px*var(--m-sub))">~</span>
+                <input type="number" class="form-input" id="${b}" placeholder="최대" style="width:70px;padding:4px 8px;font-size:calc(12px*var(--m-sub))">
               </div>
               <div class="form-hint">${hint}</div>
             </div>`).join('')}
         </div>
         <div style="border-top:1px solid var(--border);padding-top:.75rem">
-          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:.75rem">시가총액</div>
+          <div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text2);margin-bottom:.75rem">시가총액</div>
           <div style="display:flex;gap:6px;align-items:center">
-            <input type="number" class="form-input" id="sc-cap-min" placeholder="최소(억)" style="width:90px;padding:4px 8px;font-size:12px">
-            <span style="color:var(--text2);font-size:12px">~</span>
-            <input type="number" class="form-input" id="sc-cap-max" placeholder="최대(억)" style="width:90px;padding:4px 8px;font-size:12px">
+            <input type="number" class="form-input" id="sc-cap-min" placeholder="최소(억)" style="width:90px;padding:4px 8px;font-size:calc(12px*var(--m-sub))">
+            <span style="color:var(--text2);font-size:calc(12px*var(--m-sub))">~</span>
+            <input type="number" class="form-input" id="sc-cap-max" placeholder="최대(억)" style="width:90px;padding:4px 8px;font-size:calc(12px*var(--m-sub))">
           </div>
         </div>
         <button class="btn btn-primary" onclick="runScreener()" style="width:100%">검색</button>
       </div>
     </div>
     <div>
-      <div id="sc-result" style="color:var(--text2);font-size:13px;padding:2rem;text-align:center">
+      <div id="sc-result" style="color:var(--text2);font-size:calc(13px*var(--m-body));padding:2rem;text-align:center">
         조건을 설정하고 검색 버튼을 눌러주세요.
       </div>
     </div>
@@ -163,7 +163,7 @@ function _scActiveChips(f, industry, market) {
   });
   if (!chips.length) return '';
   return `<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:.75rem">` +
-    `<span style="font-size:11px;color:var(--text2);margin-right:2px">적용 조건</span>` +
+    `<span style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-right:2px">적용 조건</span>` +
     chips.join('') +
     `<button class="chip chip-sm" onclick="applyPreset('reset');runScreener()" ` +
     `style="color:var(--text3)" title="모든 조건 초기화">전체 해제</button></div>`;
@@ -398,8 +398,8 @@ async function _runScreenerInner(el) {
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:8px">
       <div>
-        <span style="font-size:13px;font-weight:600">총 ${combined.length}개 종목 검색됨</span>
-        ${finPeriodLabel ? `<span style="font-size:11px;color:var(--text2);margin-left:8px">${finPeriodLabel}</span>` : ''}
+        <span style="font-size:calc(13px*var(--m-body));font-weight:600">총 ${combined.length}개 종목 검색됨</span>
+        ${finPeriodLabel ? `<span style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:8px">${finPeriodLabel}</span>` : ''}
       </div>
       <button class="btn btn-sm" onclick="exportScreener()">CSV 다운로드</button>
     </div>
@@ -421,7 +421,7 @@ async function _runScreenerInner(el) {
         <th></th>
       </tr></thead>
       <tbody>${combined.map((r, i) => `<tr>
-        <td style="color:var(--text3);font-size:11px;text-align:right;padding:6px 8px">${i+1}</td>
+        <td style="color:var(--text3);font-size:calc(11px*var(--m-label));text-align:right;padding:6px 8px">${i+1}</td>
         <td style="cursor:pointer" onclick="go('report');setTimeout(()=>rpQuickSearch&&rpQuickSearch('${escJsStr(r.corp_name)}'),200)">
           <div class="stock-name" style="color:var(--tg)">${escapeHtml(r.corp_name)}</div>
           <div class="stock-code">${r.stock_code} · ${r.market||''}</div>
@@ -438,7 +438,7 @@ async function _runScreenerInner(el) {
         <td>${_sig(r)}</td>
         <td style="padding:4px 6px">
           <button onclick="scAddToWatchlist('${r.stock_code}','${escJsStr(r.corp_name)}');event.stopPropagation()"
-            style="font-size:11px;padding:2px 6px;border-radius:4px;background:rgba(45,206,137,.15);color:#2dce89;border:1px solid rgba(45,206,137,.3);cursor:pointer;white-space:nowrap">+WL</button>
+            style="font-size:calc(11px*var(--m-label));padding:2px 6px;border-radius:4px;background:rgba(45,206,137,.15);color:#2dce89;border:1px solid rgba(45,206,137,.3);cursor:pointer;white-space:nowrap">+WL</button>
         </td>
       </tr>`).join('')}</tbody>
     </table></div>`;

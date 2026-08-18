@@ -31,7 +31,7 @@ async function _rpLoadAndRenderBiz(body) {
       prod,
     });
   } catch (e) {
-    body.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:12px">사업분석 로드 실패: ${e.message}</div>`;
+    body.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:calc(12px*var(--m-sub))">사업분석 로드 실패: ${e.message}</div>`;
   }
 }
 
@@ -86,15 +86,15 @@ function _bizStack(m, opts) {
     const total = totals[pi], bh = Math.max(3, Math.round(total / maxT * H)), isLast = pi === ps.length - 1;
     const segs = its.map((n, i) => ({ n, v: (m.dataMap[p.key] || {})[n] || 0, c: colorOf(n, i) })).filter(s => s.v > 0).reverse();
     return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;height:${H}px">
-      <div style="font-size:10px;color:var(--text2);text-align:center;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${total ? fmt(total) : ''}</div>
+      <div style="font-size:calc(10px*var(--m-label));color:var(--text2);text-align:center;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${total ? fmt(total) : ''}</div>
       <div style="height:${bh}px;border-radius:2px 2px 0 0;overflow:hidden;display:flex;flex-direction:column;${isLast ? 'box-shadow:0 0 0 2px rgba(255,255,255,.18)' : ''}">
         ${segs.map(s => `<div style="flex:${s.v};background:${s.c};min-height:1px" title="${escapeHtml(s.n)}: ${fmt(s.v)}"></div>`).join('')}
       </div>
     </div>`;
   }).join('');
-  const labels = ps.map((p, pi) => `<div style="flex:1;min-width:0;text-align:center;font-size:10px;
+  const labels = ps.map((p, pi) => `<div style="flex:1;min-width:0;text-align:center;font-size:calc(10px*var(--m-label));
     color:${pi === ps.length - 1 ? 'var(--tg)' : 'var(--text3)'}">${String(p.year).slice(2)}<br>${p.q}</div>`).join('');
-  const legend = its.map((n, i) => `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--text2)">
+  const legend = its.map((n, i) => `<span style="display:inline-flex;align-items:center;gap:4px;font-size:calc(11px*var(--m-label));color:var(--text2)">
     <span style="width:8px;height:8px;border-radius:2px;background:${colorOf(n, i)};flex-shrink:0"></span>${escapeHtml(n)}</span>`).join('');
   return `<div style="display:flex;align-items:flex-end;gap:4px">${bars}</div>
     <div style="display:flex;gap:4px;margin-top:3px">${labels}</div>
@@ -123,11 +123,11 @@ function _bizLines(m, opts) {
   }).join('');
   const legend = m.items.map((n, i) => {
     const c = COLORS[i % COLORS.length], lv = (m.dataMap[ps[ps.length - 1].key] || {})[n];
-    return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text2)">
+    return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:calc(11px*var(--m-label));color:var(--text2)">
       <span style="width:11px;height:2px;background:${c};flex-shrink:0"></span>${escapeHtml(n)}${lv != null ? ` <b style="color:var(--text1)">${fmt(lv)}</b>` : ''}</span>`;
   }).join('');
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:150px;display:block" preserveAspectRatio="none">${lines}</svg>
-    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:2px">
+    <div style="display:flex;justify-content:space-between;font-size:calc(10px*var(--m-label));color:var(--text3);margin-top:2px">
       <span>${ps[0].year} ${ps[0].q}</span><span>${ps[ps.length - 1].year} ${ps[ps.length - 1].q}</span></div>
     <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px">${legend}</div>`;
 }
@@ -154,7 +154,7 @@ function _bizTable(m, opts) {
     ${ps.map(p => { const t = its.reduce((s, n) => s + ((m.dataMap[p.key] || {})[n] || 0), 0);
       return `<td style="padding:6px 8px;text-align:right;font-weight:700;color:var(--text1);border-top:2px solid var(--border);font-variant-numeric:tabular-nums">${fmt(t)}</td>`; }).join('')}
   </tr>`;
-  return `<div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
+  return `<div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub));white-space:nowrap">
     <thead>${head}</thead><tbody>${body}${sumRow}</tbody></table></div>`;
 }
 
@@ -162,8 +162,8 @@ function _bizTable(m, opts) {
 function _rpBizTab({ product, region, backlog, rawUsage, rawPrice, prod }) {
   const box = inner => `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">${inner}</div>`;
   const secT = (t, r) => typeof _rpSecT === 'function' ? _rpSecT(t, r || '')
-    : `<div style="font-size:13px;font-weight:700;margin-bottom:10px">${t}</div>`;
-  const empty = msg => `<div style="font-size:12px;color:var(--text3);padding:20px 0;text-align:center">${msg}</div>`;
+    : `<div style="font-size:calc(13px*var(--m-body));font-weight:700;margin-bottom:10px">${t}</div>`;
+  const empty = msg => `<div style="font-size:calc(12px*var(--m-sub));color:var(--text3);padding:20px 0;text-align:center">${msg}</div>`;
   const label = typeof _rpSegLabel === 'function' ? _rpSegLabel : (r => (r.category || '').trim());
   const fmtEok = v => fmtCap(v * 1e6);            // 그래프 총계: 억
   const fmtMil = v => v == null ? '—' : Math.round(v).toLocaleString();  // 표: 백만원 원값
@@ -226,9 +226,9 @@ function _rpBizTab({ product, region, backlog, rawUsage, rawPrice, prod }) {
     'DART 업로드 시 수주잔고 추이가 표시됩니다');
 
   const allEmpty = !mP.items.length && !mR.items.length && !mU.items.length && !mPr.items.length && !(prod && prod.length) && !mB.items.length;
-  if (allEmpty) return `<div style="padding:40px;text-align:center;color:var(--text2);font-size:13px">
-    <div style="font-size:26px;margin-bottom:10px">📊</div>사업분석 데이터가 없습니다.<br>
-    <span style="font-size:12px;color:var(--text3)">DART 분석 MD를 업로드하면 매출·원재료·생산·수주 데이터가 표시됩니다.</span></div>`;
+  if (allEmpty) return `<div style="padding:40px;text-align:center;color:var(--text2);font-size:calc(13px*var(--m-body))">
+    <div style="font-size:calc(26px*var(--m-title));margin-bottom:10px">📊</div>사업분석 데이터가 없습니다.<br>
+    <span style="font-size:calc(12px*var(--m-sub));color:var(--text3)">DART 분석 MD를 업로드하면 매출·원재료·생산·수주 데이터가 표시됩니다.</span></div>`;
 
   return `<div style="display:flex;flex-direction:column;gap:12px">${s1}${s2}${s3}${s4}${s5}${s6}</div>`;
 }
@@ -250,7 +250,7 @@ function _bizRegionChips(prods) {
     ${['전체', ...prods].map(p => {
       const on = (_rpBizRegionSel || '전체') === p;
       return `<button onclick="rpBizRegionSel('${js(p)}')" data-biz-reg="${esc(p)}"
-        style="padding:3px 12px;font-size:11px;font-weight:600;border:1px solid var(--border);border-radius:100px;cursor:pointer;
+        style="padding:3px 12px;font-size:calc(11px*var(--m-label));font-weight:600;border:1px solid var(--border);border-radius:100px;cursor:pointer;
           background:${on ? 'var(--tg)' : 'transparent'};color:${on ? '#fff' : 'var(--text2)'}">${esc(p)}</button>`;
     }).join('')}
   </div>`;
@@ -277,7 +277,7 @@ function rpBizRegionSel(prod) {
 
 // ── 생산력 렌더 (가동률 라인 + 생산실적 추이 + 생산능력 최신) ────────────────
 function _bizProduction(prod) {
-  if (!prod.length) return `<div style="font-size:12px;color:var(--text3);padding:16px 0;text-align:center">
+  if (!prod.length) return `<div style="font-size:calc(12px*var(--m-sub));color:var(--text3);padding:16px 0;text-align:center">
     이 종목은 생산능력·가동률을 공시하지 않습니다 (장비/서비스업 등).</div>`;
   const esc = escapeHtml, fmtN = v => v == null ? '—' : Math.round(v).toLocaleString();
   const items = prod.filter(r => r.factory_name !== '평균가동률');   // 품목별 능력/실적
@@ -290,15 +290,15 @@ function _bizProduction(prod) {
     const lastKey = mUtil.periods[mUtil.periods.length - 1]?.key;
     const lastU = (mUtil.dataMap[lastKey] || {})[mUtil.items[0]];
     html += `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
-      <span style="font-size:11px;color:var(--text2)">가동률 추이 (%)</span>
-      ${lastU != null ? `<span style="font-size:11px;color:var(--text3)">최신 <b style="color:${lastU < 60 ? '#f5a623' : 'var(--tg)'}">${lastU.toFixed(1)}%</b></span>` : ''}</div>`
+      <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">가동률 추이 (%)</span>
+      ${lastU != null ? `<span style="font-size:calc(11px*var(--m-label));color:var(--text3)">최신 <b style="color:${lastU < 60 ? '#f5a623' : 'var(--tg)'}">${lastU.toFixed(1)}%</b></span>` : ''}</div>`
       + _bizLines(mUtil, { fmt: v => v.toFixed(1) + '%' });
   }
 
   // ② 생산실적 추이 (품목별, 대)
   const mAct = _bizMatrix(items.filter(r => r.actual != null), r => r.factory_name, r => +r.actual);
   if (mAct.items.length) {
-    html += `<div style="font-size:11px;color:var(--text2);margin:14px 0 4px">생산실적 추이 (대)</div>`
+    html += `<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin:14px 0 4px">생산실적 추이 (대)</div>`
       + _bizStack(mAct, { fmt: v => v.toLocaleString() }) + _bizTable(mAct, { label: '생산실적(대)', fmt: fmtN });
   }
 
@@ -307,12 +307,12 @@ function _bizProduction(prod) {
   const lastKey = periods[periods.length - 1];
   const capRows = items.filter(r => `${r.bsns_year}.${r.quarter}` === lastKey && r.capacity != null);
   if (capRows.length) {
-    html += `<div style="font-size:11px;color:var(--text2);margin-top:14px">생산능력 <span style="color:var(--text3)">(${(lastKey || '').replace('.', ' ')})</span></div>
+    html += `<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:14px">생산능력 <span style="color:var(--text3)">(${(lastKey || '').replace('.', ' ')})</span></div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
-        ${capRows.map(r => `<span style="padding:4px 11px;background:var(--bg3);border-radius:100px;font-size:12px">
+        ${capRows.map(r => `<span style="padding:4px 11px;background:var(--bg3);border-radius:100px;font-size:calc(12px*var(--m-sub))">
           <span style="color:var(--text2)">${esc(r.factory_name)}</span> <b style="color:var(--text1)">${fmtN(r.capacity)}대</b></span>`).join('')}
       </div>`;
   }
 
-  return html || `<div style="font-size:12px;color:var(--text3);padding:16px 0;text-align:center">생산 데이터 파싱 실패</div>`;
+  return html || `<div style="font-size:calc(12px*var(--m-sub));color:var(--text3);padding:16px 0;text-align:center">생산 데이터 파싱 실패</div>`;
 }

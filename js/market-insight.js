@@ -523,7 +523,7 @@ function _renderInsightCard(data) {
   // ─── Zone B 라벨 ───
   // 통합 카드에서 '환경/행동지침'은 온도계(Zone A)가 단독 소유 → 여기선 한 줄 총평을 렌더하지 않는다.
   // (지수 리캡은 탑바·근거지표, 레짐 verdict는 온도계 행동지침으로 일원화 — 중복·불일치 제거)
-  const zoneLabel = `<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:9px;display:flex;align-items:center;gap:6px">
+  const zoneLabel = `<div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text2);margin-bottom:9px;display:flex;align-items:center;gap:6px">
     <span style="width:2px;height:11px;background:var(--tg);border-radius:2px;flex-shrink:0"></span>이 환경에서의 전략</div>`;
 
   // ─── 영향 업종 배지 (시장 전체 등급은 온도계 카드 역할 — 여기선 업종 단위만) ───
@@ -535,7 +535,7 @@ function _renderInsightCard(data) {
 
   const moodRow = indBadges ? `
   <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
-    <span style="font-size:11px;color:var(--text2);font-weight:600">영향 업종</span>
+    <span style="font-size:calc(11px*var(--m-label));color:var(--text2);font-weight:600">영향 업종</span>
     ${indBadges}
   </div>` : '';
 
@@ -561,7 +561,7 @@ function _renderInsightCard(data) {
     const ts = typeStyle[p.type] || typeStyle.flat;
     return `
     <div style="display:flex;gap:7px;align-items:flex-start;margin-bottom:7px">
-      <span style="font-size:11px;padding:1px 6px;border-radius:4px;background:${ts.bg};color:${ts.color};font-weight:600;flex-shrink:0;margin-top:1px">${ts.label}</span>
+      <span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:4px;background:${ts.bg};color:${ts.color};font-weight:600;flex-shrink:0;margin-top:1px">${ts.label}</span>
       <span style="font-size:12.5px;color:var(--text1);line-height:1.5">${escapeHtml(p.text)}</span>
     </div>`;
   }).join('');
@@ -598,7 +598,7 @@ function _renderInsightCard(data) {
 async function loadInsightHistory() {
   const el = document.getElementById('insight-history-body');
   if (!el) return;
-  el.innerHTML = `<div style="color:var(--text2);font-size:12px;padding:.5rem 0"><span class="loading"></span> 불러오는 중...</div>`;
+  el.innerHTML = `<div style="color:var(--text2);font-size:calc(12px*var(--m-sub));padding:.5rem 0"><span class="loading"></span> 불러오는 중...</div>`;
 
   try {
     const { data, error } = await sb.from('market_investment_summary')
@@ -609,7 +609,7 @@ async function loadInsightHistory() {
 
     if (error) throw error;
     if (!data || !data.length) {
-      el.innerHTML = `<div style="color:var(--text2);font-size:12px;padding:.5rem 0">저장된 기록이 없습니다.</div>`;
+      el.innerHTML = `<div style="color:var(--text2);font-size:calc(12px*var(--m-sub));padding:.5rem 0">저장된 기록이 없습니다.</div>`;
       return;
     }
 
@@ -647,20 +647,20 @@ async function loadInsightHistory() {
         <!-- 내용 -->
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
-            <span style="font-size:11px;font-weight:700;color:${isFirst ? 'var(--text)' : 'var(--text2)'}">${row.market_date}</span>
+            <span style="font-size:calc(11px*var(--m-label));font-weight:700;color:${isFirst ? 'var(--text)' : 'var(--text2)'}">${row.market_date}</span>
             ${flow.market_mood_label
-              ? `<span style="font-size:11px;font-weight:600;color:${moodColor}">${escapeHtml(flow.market_mood_label)}</span>`
+              ? `<span style="font-size:calc(11px*var(--m-label));font-weight:600;color:${moodColor}">${escapeHtml(flow.market_mood_label)}</span>`
               : ''}
             ${kospiStr}
             ${vixStr}
           </div>
-          <div style="font-size:12px;color:var(--text1);line-height:1.5;margin-bottom:4px">
+          <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.5;margin-bottom:4px">
             ${escapeHtml(row.one_line_summary || '—')}
           </div>
           ${kps.length ? `
           <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px">
             ${kps.slice(0, 3).map(kp =>
-              `<span style="font-size:11px;color:var(--text2);background:rgba(255,255,255,.04);
+              `<span style="font-size:calc(11px*var(--m-label));color:var(--text2);background:rgba(255,255,255,.04);
                 border:1px solid rgba(255,255,255,.07);border-radius:3px;padding:1px 6px;
                 white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px">${escapeHtml(kp)}</span>`
             ).join('')}
@@ -671,7 +671,7 @@ async function loadInsightHistory() {
 
   } catch(e) {
     console.error('[InsightHistory]', e);
-    el.innerHTML = `<div style="color:var(--text2);font-size:12px;padding:.5rem 0">기록 조회 실패: ${e.message}</div>`;
+    el.innerHTML = `<div style="color:var(--text2);font-size:calc(12px*var(--m-sub));padding:.5rem 0">기록 조회 실패: ${e.message}</div>`;
   }
 }
 
@@ -686,7 +686,7 @@ async function loadMarketInsight(force = false) {
   const el = document.getElementById('market-insight-card');
   if (!el) return;
 
-  el.innerHTML = `<div style="padding:.5rem;color:var(--text2);font-size:12px">
+  el.innerHTML = `<div style="padding:.5rem;color:var(--text2);font-size:calc(12px*var(--m-sub))">
     <span class="loading"></span> 분석 중...</div>`;
 
   try {
@@ -703,7 +703,7 @@ async function loadMarketInsight(force = false) {
     _renderInsightCard(liveData);
   } catch(e) {
     console.error('[MarketInsight]', e);
-    el.innerHTML = `<div style="color:var(--text2);font-size:12px;padding:.5rem">
+    el.innerHTML = `<div style="color:var(--text2);font-size:calc(12px*var(--m-sub));padding:.5rem">
       분석 데이터 준비 중... (장 마감 후 업데이트)</div>`;
   }
 }

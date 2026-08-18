@@ -24,7 +24,7 @@ async function loadStockFlow() {
       .select('base_date')
       .order('base_date', { ascending: false })
       .limit(10);
-    if (!dateRows?.length) { el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text2);font-size:12px">데이터 없음</div>'; return; }
+    if (!dateRows?.length) { el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">데이터 없음</div>'; return; }
 
     const dates    = dateRows.map(r => r.base_date);
     const latestDate = dates[0];
@@ -32,7 +32,7 @@ async function loadStockFlow() {
     // 모니터링 종목 코드 목록 (getIndustryMap 캐시 활용)
     const indMap = await getIndustryMap();
     const monCodes = Object.keys(indMap);
-    if (!monCodes.length) { el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text2);font-size:12px">종목 데이터 없음</div>'; return; }
+    if (!monCodes.length) { el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">종목 데이터 없음</div>'; return; }
 
     // 10거래일치 market_data 조회 — 모니터링 종목만, 청크 500개 단위
     const chunkSize = 500;
@@ -74,7 +74,7 @@ async function loadStockFlow() {
   } catch(e) {
     console.error('[StockFlow]', e);
     const el2 = document.getElementById('stockflow-body');
-    if (el2) el2.innerHTML = `<div style="padding:1rem;color:var(--text2);font-size:12px">조회 실패: ${e.message}</div>`;
+    if (el2) el2.innerHTML = `<div style="padding:1rem;color:var(--text2);font-size:calc(12px*var(--m-sub))">조회 실패: ${e.message}</div>`;
   }
 }
 
@@ -110,26 +110,26 @@ function renderStockFlow() {
     <div class="stock-row" data-stock-open="${e.code}" data-stock-name="${escAttr(e.corp_name||e.code)}" data-stock-tab="market"
       style="display:flex;align-items:center;gap:8px;padding:5px 12px;border-bottom:1px solid var(--border)">
       <div style="min-width:90px">
-        <div style="font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px">${e.corp_name}${typeof wlBadge==='function'?wlBadge(e.code):''}</div>
-        <div style="font-size:11px;color:var(--text2)">${e.industry}</div>
+        <div style="font-size:calc(12px*var(--m-sub));font-weight:600;display:flex;align-items:center;gap:5px">${e.corp_name}${typeof wlBadge==='function'?wlBadge(e.code):''}</div>
+        <div style="font-size:calc(11px*var(--m-label));color:var(--text2)">${e.industry}</div>
       </div>
       <div style="flex:1;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden">
         <div style="width:${barPct}%;height:100%;background:${color};border-radius:3px"></div>
       </div>
-      <span style="min-width:64px;text-align:right;font-size:12px;font-weight:600;color:${color}">${fmtNet(e.val)}</span>
+      <span style="min-width:64px;text-align:right;font-size:calc(12px*var(--m-sub));font-weight:600;color:${color}">${fmtNet(e.val)}</span>
     </div>`;
   }).join('');
 
   el.innerHTML = `
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
     <div>
-      <div style="font-size:11px;font-weight:600;color:var(--tg);padding:6px 12px 4px;border-bottom:1px solid var(--border)">
+      <div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--tg);padding:6px 12px 4px;border-bottom:1px solid var(--border)">
         📈 순매수 상위 10
       </div>
       ${renderRows(top10, true)}
     </div>
     <div style="border-left:1px solid var(--border)">
-      <div style="font-size:11px;font-weight:600;color:var(--red);padding:6px 12px 4px;border-bottom:1px solid var(--border)">
+      <div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--red);padding:6px 12px 4px;border-bottom:1px solid var(--border)">
         📉 순매도 상위 10
       </div>
       ${renderRows(bot10, false)}

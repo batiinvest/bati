@@ -163,8 +163,8 @@ async function openJournalModal(stockCode, corpName) {
   const reasons = ['목표 달성','손절 룰','펀더멘털 훼손','더 좋은 기회','패닉·감정','자금 필요','기타'];
   const auto = (label, val, color = 'var(--text1)') =>
     `<div style="flex:1;min-width:90px;background:var(--bg2);border-radius:8px;padding:8px 10px">
-       <div style="font-size:11px;color:var(--text2)">${label}</div>
-       <div style="font-size:14px;font-weight:700;color:${color}">${val}</div></div>`;
+       <div style="font-size:calc(11px*var(--m-label));color:var(--text2)">${label}</div>
+       <div style="font-size:calc(14px*var(--m-body));font-weight:700;color:${color}">${val}</div></div>`;
 
   const overlay = document.createElement('div');
   overlay.id = 'm-journal';
@@ -185,10 +185,10 @@ async function openJournalModal(stockCode, corpName) {
           ${auto('진입 → 청산', `${rt.avgBuy?rt.avgBuy.toLocaleString():'—'} → ${rt.avgSell?rt.avgSell.toLocaleString():'—'}`)}
           ${auto('목표가 대비', targetHitPct!=null?`${targetHitPct.toFixed(0)}% 도달`:'—')}
         </div>
-        ${w.thesis_1 ? `<div style="font-size:12px;background:var(--bg3);border-radius:6px;padding:8px 10px;line-height:1.5">
+        ${w.thesis_1 ? `<div style="font-size:calc(12px*var(--m-sub));background:var(--bg3);border-radius:6px;padding:8px 10px;line-height:1.5">
           <span style="color:var(--text2)">당시 근거 · </span>${escapeHtml(w.thesis_1)}${w.risk_1?`<br><span style="color:var(--text2)">리스크 · </span>${escapeHtml(w.risk_1)}`:''}</div>` : ''}
         <div>
-          <div style="font-size:12px;color:var(--text1);margin-bottom:4px">매도 사유</div>
+          <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:4px">매도 사유</div>
           <select class="form-select" id="j-reason" style="width:100%">
             <option value="">선택…</option>
             ${reasons.map(r=>`<option value="${r}" ${j.sell_reason===r?'selected':''}>${r}</option>`).join('')}
@@ -196,21 +196,21 @@ async function openJournalModal(stockCode, corpName) {
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div>
-            <div style="font-size:12px;color:var(--text1);margin-bottom:4px">잘한 점</div>
+            <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:4px">잘한 점</div>
             <textarea class="form-input" id="j-well" placeholder="예: 분할 매수로 평단 낮춤" style="width:100%;box-sizing:border-box;height:54px;resize:vertical">${escapeHtml(j.did_well||'')}</textarea>
           </div>
           <div>
-            <div style="font-size:12px;color:var(--text1);margin-bottom:4px">아쉬운 점</div>
+            <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:4px">아쉬운 점</div>
             <textarea class="form-input" id="j-poorly" placeholder="예: 목표 직전 조기 청산" style="width:100%;box-sizing:border-box;height:54px;resize:vertical">${escapeHtml(j.did_poorly||'')}</textarea>
           </div>
         </div>
         <div>
-          <div style="font-size:12px;color:var(--text1);margin-bottom:4px">교훈 (다음 거래에 적용)</div>
+          <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:4px">교훈 (다음 거래에 적용)</div>
           <input type="text" class="form-input" id="j-lesson" placeholder="예: 목표가 80%부터 분할 매도 룰화" value="${escAttr(j.lesson||'')}" style="width:100%;box-sizing:border-box">
         </div>
         <div>
-          <div style="font-size:12px;color:var(--text1);margin-bottom:4px">프로세스 점수 <span style="color:var(--text2);font-weight:400">(결과와 무관하게 판단·실행의 질)</span></div>
-          <span id="j-stars">${[1,2,3,4,5].map(n=>`<span onclick="_setJournalScore(${n})" data-star="${n}" style="cursor:pointer;font-size:22px;color:${(j.process_score||0)>=n?'var(--accent)':'var(--text3)'}">★</span>`).join('')}</span>
+          <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:4px">프로세스 점수 <span style="color:var(--text2);font-weight:400">(결과와 무관하게 판단·실행의 질)</span></div>
+          <span id="j-stars">${[1,2,3,4,5].map(n=>`<span onclick="_setJournalScore(${n})" data-star="${n}" style="cursor:pointer;font-size:calc(22px*var(--m-title));color:${(j.process_score||0)>=n?'var(--accent)':'var(--text3)'}">★</span>`).join('')}</span>
           <input type="hidden" id="j-process" value="${j.process_score||''}">
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -271,41 +271,41 @@ function openTradeModal(watchlistId, stockCode, corpName, type, curPrice) {
       <div style="padding:1.25rem;display:flex;flex-direction:column;gap:12px">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div>
-            <div style="font-size:12px;color:var(--text1);margin-bottom:4px">거래일</div>
+            <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:4px">거래일</div>
             <input type="date" class="form-input" id="trade-date" value="${today}" style="width:100%;box-sizing:border-box">
           </div>
           <div>
-            <div style="font-size:12px;color:var(--text1);margin-bottom:4px">${isBuy?'매수':'매도'}가 (원)</div>
+            <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:4px">${isBuy?'매수':'매도'}가 (원)</div>
             <input type="number" class="form-input" id="trade-price" value="${curPrice||''}" placeholder="체결가"
               oninput="_tradePreview()" style="width:100%;box-sizing:border-box">
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div>
-            <div style="font-size:12px;color:var(--text1);margin-bottom:4px">수량 (주)</div>
+            <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:4px">수량 (주)</div>
             <input type="number" class="form-input" id="trade-qty" placeholder="수량"
               oninput="_tradePreview()" style="width:100%;box-sizing:border-box">
           </div>
           <div>
-            <div style="font-size:12px;color:var(--text1);margin-bottom:4px">수수료·세금 (원)</div>
+            <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:4px">수수료·세금 (원)</div>
             <input type="number" class="form-input" id="trade-fee" value="0"
               oninput="_tradePreview()" style="width:100%;box-sizing:border-box">
           </div>
         </div>
         <div>
-          <div style="font-size:12px;color:var(--text1);margin-bottom:4px">거래 구분</div>
+          <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:4px">거래 구분</div>
           <div style="display:flex;gap:6px">
-            <button type="button" id="tm-cash"   onclick="_setTradeMethod('cash')"   style="flex:1;padding:7px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid var(--tg);background:var(--tg);color:#fff">현금</button>
-            <button type="button" id="tm-credit" onclick="_setTradeMethod('credit')" style="flex:1;padding:7px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;border:1px solid var(--border2);background:var(--bg3);color:var(--text1)">신용 ${isBuy?'(융자 매수)':'(상환 매도)'}</button>
+            <button type="button" id="tm-cash"   onclick="_setTradeMethod('cash')"   style="flex:1;padding:7px;border-radius:6px;font-size:calc(12px*var(--m-sub));font-weight:700;cursor:pointer;font-family:inherit;border:1px solid var(--tg);background:var(--tg);color:#fff">현금</button>
+            <button type="button" id="tm-credit" onclick="_setTradeMethod('credit')" style="flex:1;padding:7px;border-radius:6px;font-size:calc(12px*var(--m-sub));font-weight:500;cursor:pointer;font-family:inherit;border:1px solid var(--border2);background:var(--bg3);color:var(--text1)">신용 ${isBuy?'(융자 매수)':'(상환 매도)'}</button>
           </div>
           <input type="hidden" id="trade-method" value="cash">
         </div>
         <div>
-          <div style="font-size:12px;color:var(--text1);margin-bottom:4px">메모 (선택)</div>
+          <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:4px">메모 (선택)</div>
           <input type="text" class="form-input" id="trade-memo" placeholder="예: 분할 1차, 실적 발표 후"
             style="width:100%;box-sizing:border-box">
         </div>
-        <div id="trade-preview" style="font-size:12px;color:var(--text2);background:var(--bg2);border-radius:6px;padding:8px 12px"></div>
+        <div id="trade-preview" style="font-size:calc(12px*var(--m-sub));color:var(--text2);background:var(--bg2);border-radius:6px;padding:8px 12px"></div>
         <div style="display:flex;gap:8px;justify-content:flex-end">
           <button class="btn" onclick="document.getElementById('m-trade').remove()">취소</button>
           <button class="btn btn-primary" style="background:${isBuy?'var(--buy)':'var(--sell)'};border-color:transparent;color:#fff"
@@ -431,12 +431,12 @@ async function openTradeHistory(stockCode, corpName) {
     const isBuy = t.trade_type === 'buy';
     const amt = Number(t.price) * Number(t.quantity) + (Number(t.fee) || 0);
     return `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:7px 8px;font-size:12px">${t.trade_date}</td>
-      <td style="padding:7px 8px;font-size:12px;font-weight:700;color:${isBuy?'var(--buy)':'var(--sell)'}">${isBuy?'매수':'매도'}${t.trade_method==='credit'?` <span style="font-size:11px;padding:1px 4px;border-radius:3px;background:var(--accent);color:#1b1300;font-weight:700">신용</span>`:''}</td>
-      <td style="padding:7px 8px;font-size:12px;text-align:right">${Number(t.price).toLocaleString()}원</td>
-      <td style="padding:7px 8px;font-size:12px;text-align:right">${Number(t.quantity).toLocaleString()}주</td>
-      <td style="padding:7px 8px;font-size:12px;text-align:right">${Math.round(amt).toLocaleString()}원</td>
-      <td style="padding:7px 8px;font-size:11px;color:var(--text2)">${escapeHtml(t.memo||'')}</td>
+      <td style="padding:7px 8px;font-size:calc(12px*var(--m-sub))">${t.trade_date}</td>
+      <td style="padding:7px 8px;font-size:calc(12px*var(--m-sub));font-weight:700;color:${isBuy?'var(--buy)':'var(--sell)'}">${isBuy?'매수':'매도'}${t.trade_method==='credit'?` <span style="font-size:calc(11px*var(--m-label));padding:1px 4px;border-radius:3px;background:var(--accent);color:#1b1300;font-weight:700">신용</span>`:''}</td>
+      <td style="padding:7px 8px;font-size:calc(12px*var(--m-sub));text-align:right">${Number(t.price).toLocaleString()}원</td>
+      <td style="padding:7px 8px;font-size:calc(12px*var(--m-sub));text-align:right">${Number(t.quantity).toLocaleString()}주</td>
+      <td style="padding:7px 8px;font-size:calc(12px*var(--m-sub));text-align:right">${Math.round(amt).toLocaleString()}원</td>
+      <td style="padding:7px 8px;font-size:calc(11px*var(--m-label));color:var(--text2)">${escapeHtml(t.memo||'')}</td>
       <td style="padding:7px 8px;text-align:right">
         <button class="btn btn-sm" style="color:var(--red)" title="삭제"
           onclick="deleteTrade(${t.id},'${stockCode}','${nm}')">×</button></td>
@@ -445,8 +445,8 @@ async function openTradeHistory(stockCode, corpName) {
 
   const card = (label, val, color='var(--text)') =>
     `<div style="flex:1;min-width:120px;background:var(--bg2);border-radius:8px;padding:10px 12px">
-       <div style="font-size:11px;color:var(--text2)">${label}</div>
-       <div style="font-size:15px;font-weight:700;color:${color}">${val}</div>
+       <div style="font-size:calc(11px*var(--m-label));color:var(--text2)">${label}</div>
+       <div style="font-size:calc(15px*var(--m-title));font-weight:700;color:${color}">${val}</div>
      </div>`;
   body.innerHTML = `
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
@@ -457,12 +457,12 @@ async function openTradeHistory(stockCode, corpName) {
     </div>
     <table style="width:100%;border-collapse:collapse">
       <thead><tr style="border-bottom:1px solid var(--border2)">
-        <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text2)">거래일</th>
-        <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text2)">구분</th>
-        <th style="padding:6px 8px;text-align:right;font-size:11px;color:var(--text2)">단가</th>
-        <th style="padding:6px 8px;text-align:right;font-size:11px;color:var(--text2)">수량</th>
-        <th style="padding:6px 8px;text-align:right;font-size:11px;color:var(--text2)">금액</th>
-        <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text2)">메모</th>
+        <th style="padding:6px 8px;text-align:left;font-size:calc(11px*var(--m-label));color:var(--text2)">거래일</th>
+        <th style="padding:6px 8px;text-align:left;font-size:calc(11px*var(--m-label));color:var(--text2)">구분</th>
+        <th style="padding:6px 8px;text-align:right;font-size:calc(11px*var(--m-label));color:var(--text2)">단가</th>
+        <th style="padding:6px 8px;text-align:right;font-size:calc(11px*var(--m-label));color:var(--text2)">수량</th>
+        <th style="padding:6px 8px;text-align:right;font-size:calc(11px*var(--m-label));color:var(--text2)">금액</th>
+        <th style="padding:6px 8px;text-align:left;font-size:calc(11px*var(--m-label));color:var(--text2)">메모</th>
         <th style="padding:6px 8px"></th>
       </tr></thead>
       <tbody>${rows}</tbody>

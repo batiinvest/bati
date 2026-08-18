@@ -26,7 +26,7 @@ async function loadAllDisclosures() {
   const el = document.getElementById('inv-all-disclosure-list');
   if (!el) return;
 
-  el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text2);font-size:12px"><span class="loading"></span> 공시 목록 불러오는 중...</div>`;
+  el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))"><span class="loading"></span> 공시 목록 불러오는 중...</div>`;
 
   // ── 단일 쿼리: daily_disclosures 테이블에서 오늘 전체 조회 ──
   const todayStr = fmtDate();   // config.js fmtDate() 공통 헬퍼 사용
@@ -38,7 +38,7 @@ async function loadAllDisclosures() {
     .order('corp_name');
 
   if (error || !all?.length) {
-    el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text2);font-size:12px">
+    el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">
       ${error ? '조회 오류: ' + error.message : '전체 공시 데이터 없음 (매일 18:30 업데이트)'}
     </div>`;
     return;
@@ -89,24 +89,24 @@ async function loadAllDisclosures() {
     const { type, buy, sell, change, ratio_before, ratio_after, period } = summary;
     if (type === 'plan') {
       const parts = [];
-      if (buy)    parts.push(`<span style="color:var(--red);font-size:11px;font-weight:600">▲예정취득 ${buy.toLocaleString()}주</span>`);
-      if (sell)   parts.push(`<span style="color:var(--blue);font-size:11px;font-weight:600">▼예정처분 ${sell.toLocaleString()}주</span>`);
-      if (period) parts.push(`<span style="color:var(--text2);font-size:11px">(${period})</span>`);
+      if (buy)    parts.push(`<span style="color:var(--red);font-size:calc(11px*var(--m-label));font-weight:600">▲예정취득 ${buy.toLocaleString()}주</span>`);
+      if (sell)   parts.push(`<span style="color:var(--blue);font-size:calc(11px*var(--m-label));font-weight:600">▼예정처분 ${sell.toLocaleString()}주</span>`);
+      if (period) parts.push(`<span style="color:var(--text2);font-size:calc(11px*var(--m-label))">(${period})</span>`);
       return parts.join(' ');
     }
-    if (type === 'major') return `<span style="color:var(--yellow);font-size:11px;font-weight:600">⚠ 최대주주 지분변동</span>`;
+    if (type === 'major') return `<span style="color:var(--yellow);font-size:calc(11px*var(--m-label));font-weight:600">⚠ 최대주주 지분변동</span>`;
     if (type === 'bulk') {
       const bfRt = ratio_before != null ? ratio_before.toFixed(2) + '%' : '';
       const afRt = ratio_after  != null ? ratio_after.toFixed(2)  + '%' : '';
       const rtTxt = (bfRt && afRt && bfRt !== afRt) ? `${bfRt}→${afRt}` : (afRt || bfRt || '');
-      if (change > 0)  return `<span style="color:var(--red);font-size:11px;font-weight:600">▲취득 ${Math.abs(change).toLocaleString()}주${rtTxt ? ' (' + rtTxt + ')' : ''}</span>`;
-      if (change < 0)  return `<span style="color:var(--blue);font-size:11px;font-weight:600">▼처분 ${Math.abs(change).toLocaleString()}주${rtTxt ? ' (' + rtTxt + ')' : ''}</span>`;
-      return `<span style="color:var(--text2);font-size:11px">${rtTxt ? '보유 ' + rtTxt + ' ' : ''}변동없음</span>`;
+      if (change > 0)  return `<span style="color:var(--red);font-size:calc(11px*var(--m-label));font-weight:600">▲취득 ${Math.abs(change).toLocaleString()}주${rtTxt ? ' (' + rtTxt + ')' : ''}</span>`;
+      if (change < 0)  return `<span style="color:var(--blue);font-size:calc(11px*var(--m-label));font-weight:600">▼처분 ${Math.abs(change).toLocaleString()}주${rtTxt ? ' (' + rtTxt + ')' : ''}</span>`;
+      return `<span style="color:var(--text2);font-size:calc(11px*var(--m-label))">${rtTxt ? '보유 ' + rtTxt + ' ' : ''}변동없음</span>`;
     }
     // insider
     const parts = [];
-    if (buy)  parts.push(`<span style="color:var(--red);font-size:11px;font-weight:600">▲취득 ${buy.toLocaleString()}주</span>`);
-    if (sell) parts.push(`<span style="color:var(--blue);font-size:11px;font-weight:600">▼처분 ${sell.toLocaleString()}주</span>`);
+    if (buy)  parts.push(`<span style="color:var(--red);font-size:calc(11px*var(--m-label));font-weight:600">▲취득 ${buy.toLocaleString()}주</span>`);
+    if (sell) parts.push(`<span style="color:var(--blue);font-size:calc(11px*var(--m-label));font-weight:600">▼처분 ${sell.toLocaleString()}주</span>`);
     return parts.join(' ');
   };
 
@@ -135,8 +135,8 @@ async function loadAllDisclosures() {
     return `
       <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:100px;background:${style.bg};color:${style.color}">${label}</span>
-          <span style="font-size:11px;color:var(--text2)">${displayItems.length}건${isInsider && displayItems.length < items.length ? ` (${items.length}건 공시)` : ''}</span>
+          <span style="font-size:calc(12px*var(--m-sub));font-weight:600;padding:2px 8px;border-radius:100px;background:${style.bg};color:${style.color}">${label}</span>
+          <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">${displayItems.length}건${isInsider && displayItems.length < items.length ? ` (${items.length}건 공시)` : ''}</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(${needsBadge ? '240' : '180'}px,1fr));gap:6px">
           ${displayItems.map(d => {
@@ -147,18 +147,18 @@ async function loadAllDisclosures() {
             const countBadge = isInsider && origCount > 1
               ? `<span style="display:inline-flex;align-items:center;justify-content:center;
                   min-width:18px;height:18px;padding:0 5px;border-radius:100px;
-                  background:var(--tg);color:#fff;font-size:11px;font-weight:700;flex-shrink:0">${origCount}</span>` : '';
+                  background:var(--tg);color:#fff;font-size:calc(11px*var(--m-label));font-weight:700;flex-shrink:0">${origCount}</span>` : '';
             return `<div style="display:flex;flex-direction:column;gap:3px;padding:6px 10px;
                 background:var(--bg3);border-radius:var(--radius-sm);
                 border:1px solid ${badge ? 'var(--border2)' : 'var(--border)'};
                 cursor:${link ? 'pointer' : 'default'}"
                 ${link ? `onclick="window.open('${link}','_blank')"` : ''}>
               <div style="display:flex;align-items:center;gap:6px">
-                <span style="font-size:12px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                <span style="font-size:calc(12px*var(--m-sub));font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
                       title="${d.report_nm}">${d.corp_name}</span>
                 ${countBadge}
                 ${link ? `<a href="${link}" target="_blank"
-                    style="font-size:11px;color:var(--tg);flex-shrink:0;text-decoration:none"
+                    style="font-size:calc(11px*var(--m-label));color:var(--tg);flex-shrink:0;text-decoration:none"
                     onclick="event.stopPropagation()" title="${d.report_nm}">DART↗</a>` : ''}
               </div>
               ${badge ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${badge}</div>` : ''}
@@ -168,7 +168,7 @@ async function loadAllDisclosures() {
       </div>`;
   }).join('');
 
-  el.innerHTML = catHTML + `<div style="padding:4px 1rem 10px;font-size:11px;color:var(--text2)">총 ${all.length}건 표시</div>`;
+  el.innerHTML = catHTML + `<div style="padding:4px 1rem 10px;font-size:calc(11px*var(--m-label));color:var(--text2)">총 ${all.length}건 표시</div>`;
 }
 
 // ── 오늘 실적 공시 목록 ──
@@ -184,7 +184,7 @@ async function loadTodayDisclosures() {
     .maybeSingle();
 
   if (!cfg?.value) {
-    el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text2);font-size:12px">오늘 공시 데이터 없음 (매일 18:30 업데이트)</div>`;
+    el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">오늘 공시 데이터 없음 (매일 18:30 업데이트)</div>`;
     return;
   }
 
@@ -192,7 +192,7 @@ async function loadTodayDisclosures() {
   try { corps = JSON.parse(cfg.value); } catch { }
 
   if (!corps.length) {
-    el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text2);font-size:12px">오늘 실적 공시 없음</div>`;
+    el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">오늘 실적 공시 없음</div>`;
     return;
   }
 
@@ -211,12 +211,12 @@ async function loadTodayDisclosures() {
         const badge = reprtColor(c.report_nm || '', c.is_amended);
         return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg3);
             border-radius:var(--radius-sm);border:1px solid ${c.is_amended ? 'rgba(245,158,11,.3)' : 'var(--border)'}">
-          <span style="font-size:11px;padding:2px 6px;border-radius:100px;background:${badge.bg};color:${badge.color};font-weight:600;white-space:nowrap">${badge.label}</span>
-          <span style="font-size:13px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.corp_name}</span>
+          <span style="font-size:calc(11px*var(--m-label));padding:2px 6px;border-radius:100px;background:${badge.bg};color:${badge.color};font-weight:600;white-space:nowrap">${badge.label}</span>
+          <span style="font-size:calc(13px*var(--m-body));font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.corp_name}</span>
         </div>`;
       }).join('')}
     </div>
-    <div style="padding:4px 1rem 8px;font-size:11px;color:var(--text2)">
+    <div style="padding:4px 1rem 8px;font-size:calc(11px*var(--m-label));color:var(--text2)">
       총 ${corps.length}개 종목 공시 · 재무 데이터 수집 완료
     </div>`;
 }

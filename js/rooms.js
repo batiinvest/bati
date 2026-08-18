@@ -569,7 +569,7 @@ async function testBot() {
 //  TEAM MANAGEMENT
 // ══════════════════════════════════════════
 function pTeam() {
-  if (!isAdmin()) return `<div style="padding:2rem;text-align:center;color:var(--text2);font-size:13px">admin만 접근 가능합니다.</div>`;
+  if (!isAdmin()) return `<div style="padding:2rem;text-align:center;color:var(--text2);font-size:calc(13px*var(--m-body))">admin만 접근 가능합니다.</div>`;
   return `
   <div style="max-width:720px">
     <!-- 역할 설명 카드 -->
@@ -580,8 +580,8 @@ function pTeam() {
         { role:'viewer', label:'뷰어', color:'var(--text2)', bg:'rgba(255,255,255,.04)', perms:['모든 페이지 조회', '수정·발송 불가', '읽기 전용'] },
       ].map(r => `
       <div style="background:${r.bg};border:1px solid var(--border);border-radius:var(--radius);padding:1rem">
-        <div style="font-size:13px;font-weight:600;color:${r.color};margin-bottom:.5rem">${r.label}</div>
-        ${r.perms.map(p => `<div style="font-size:11px;color:var(--text1);padding:2px 0;display:flex;gap:5px;align-items:center">
+        <div style="font-size:calc(13px*var(--m-body));font-weight:600;color:${r.color};margin-bottom:.5rem">${r.label}</div>
+        ${r.perms.map(p => `<div style="font-size:calc(11px*var(--m-label));color:var(--text1);padding:2px 0;display:flex;gap:5px;align-items:center">
           <span style="width:4px;height:4px;border-radius:50%;background:${r.color};flex-shrink:0"></span>${p}
         </div>`).join('')}
       </div>`).join('')}
@@ -627,26 +627,26 @@ async function loadTeam() {
     return `
     <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border)">
       <!-- 아바타 -->
-      <div style="width:36px;height:36px;border-radius:50%;background:${m.bg};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:${m.color};flex-shrink:0">${initials}</div>
+      <div style="width:36px;height:36px;border-radius:50%;background:${m.bg};display:flex;align-items:center;justify-content:center;font-size:calc(12px*var(--m-sub));font-weight:600;color:${m.color};flex-shrink:0">${initials}</div>
 
       <!-- 이름/이메일 -->
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px">
+        <div style="font-size:calc(13px*var(--m-body));font-weight:500;display:flex;align-items:center;gap:6px">
           ${u.name || '—'}
-          ${isMe ? `<span style="font-size:11px;padding:1px 6px;border-radius:100px;background:rgba(42,171,238,.15);color:var(--tg)">나</span>` : ''}
+          ${isMe ? `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:100px;background:rgba(42,171,238,.15);color:var(--tg)">나</span>` : ''}
         </div>
-        <div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.email}</div>
+        <div style="font-size:calc(11px*var(--m-label));color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.email}</div>
       </div>
 
       <!-- 마지막 로그인 -->
-      <div style="font-size:11px;color:var(--text2);text-align:right;min-width:90px;display:none" class="team-col-time">${lastLogin}</div>
+      <div style="font-size:calc(11px*var(--m-label));color:var(--text2);text-align:right;min-width:90px;display:none" class="team-col-time">${lastLogin}</div>
 
       <!-- 역할 배지 / 변경 -->
       <div style="flex-shrink:0">
         ${isAdmin() && !isMe ? `
         <div style="position:relative">
           <select onchange="changeRole('${u.id}',this.value)"
-            style="appearance:none;-webkit-appearance:none;font-size:12px;font-weight:500;padding:4px 24px 4px 10px;border-radius:100px;border:1px solid var(--border);background:${m.bg};color:${m.color};cursor:pointer;font-family:inherit">
+            style="appearance:none;-webkit-appearance:none;font-size:calc(12px*var(--m-sub));font-weight:500;padding:4px 24px 4px 10px;border-radius:100px;border:1px solid var(--border);background:${m.bg};color:${m.color};cursor:pointer;font-family:inherit">
             <option value="admin"  ${u.role==='admin' ?'selected':''}>관리자</option>
             <option value="editor" ${u.role==='editor'?'selected':''}>에디터</option>
             <option value="viewer" ${u.role==='viewer'?'selected':''}>뷰어</option>
@@ -656,12 +656,12 @@ async function loadTeam() {
           </svg>
         </div>
         ` : `
-        <span style="font-size:12px;font-weight:500;padding:4px 12px;border-radius:100px;background:${m.bg};color:${m.color}">${m.label}</span>
+        <span style="font-size:calc(12px*var(--m-sub));font-weight:500;padding:4px 12px;border-radius:100px;background:${m.bg};color:${m.color}">${m.label}</span>
         `}
       </div>
     </div>`;
   }).join('') +
-  `<div style="padding:.75rem 1rem;font-size:11px;color:var(--text2)">
+  `<div style="padding:.75rem 1rem;font-size:calc(11px*var(--m-label));color:var(--text2)">
     총 ${data.length}명 · 본인 역할은 변경 불가
   </div>`;
 

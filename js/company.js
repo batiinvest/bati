@@ -21,7 +21,7 @@ function _renderMonitoringTab() {
     grid-template-columns:320px 1fr;gap:0;min-height:calc(100vh - 96px);align-items:start">
     <div style="border-right:1px solid var(--border);padding:1.25rem;position:sticky;top:45px;
       height:calc(100vh - 45px);overflow-y:auto;background:var(--bg2)">
-      <div style="font-size:12px;font-weight:700;color:var(--text1);margin-bottom:12px">🔍 기업 검색</div>
+      <div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--text1);margin-bottom:12px">🔍 기업 검색</div>
       <div style="position:relative;margin-bottom:8px">
         <input type="text" id="mon-search" class="form-input"
           placeholder="종목명 또는 코드..."
@@ -31,39 +31,39 @@ function _renderMonitoringTab() {
       </div>
       <div id="mon-search-results" style="margin-bottom:12px"></div>
       <div id="mon-add-panel" style="display:none;padding:12px;background:var(--bg3);border-radius:8px;margin-bottom:12px">
-        <div style="font-size:12px;font-weight:600;margin-bottom:8px">추가할 위치 선택</div>
-        <select id="mon-sel-industry" class="form-input" style="width:100%;margin-bottom:6px;font-size:13px"
+        <div style="font-size:calc(12px*var(--m-sub));font-weight:600;margin-bottom:8px">추가할 위치 선택</div>
+        <select id="mon-sel-industry" class="form-input" style="width:100%;margin-bottom:6px;font-size:calc(13px*var(--m-body))"
           onchange="monUpdateSubSel()">
           <option value="">산업 선택...</option>
         </select>
-        <select id="mon-sel-sub" class="form-input" style="width:100%;margin-bottom:8px;font-size:13px">
+        <select id="mon-sel-sub" class="form-input" style="width:100%;margin-bottom:8px;font-size:calc(13px*var(--m-body))">
           <option value="">서브섹터 선택...</option>
         </select>
         <button class="btn btn-sm" style="width:100%;background:var(--tg);color:#fff" onclick="monAddSelected()">
           ✚ 모니터링에 추가
         </button>
-        <div id="mon-sel-label" style="font-size:11px;color:var(--text2);margin-top:6px;text-align:center"></div>
+        <div id="mon-sel-label" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:6px;text-align:center"></div>
       </div>
       <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
-      <div style="font-size:12px;font-weight:700;color:var(--text1);margin-bottom:10px">🏗 산업 추가</div>
+      <div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--text1);margin-bottom:10px">🏗 산업 추가</div>
       <div style="display:flex;gap:6px;margin-bottom:8px">
         <input type="text" id="mon-new-industry" class="form-input" placeholder="새 산업명..."
-          style="flex:1;font-size:12px" onkeydown="if(event.key==='Enter')monAddIndustry()">
+          style="flex:1;font-size:calc(12px*var(--m-sub))" onkeydown="if(event.key==='Enter')monAddIndustry()">
         <button class="btn btn-sm" onclick="monAddIndustry()">추가</button>
       </div>
     </div>
     <div style="padding:1.25rem" id="mon-main">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-        <h2 style="font-size:16px;font-weight:700;margin:0">⭐ 모니터링 종목 관리</h2>
+        <h2 style="font-size:calc(16px*var(--m-title));font-weight:700;margin:0">⭐ 모니터링 종목 관리</h2>
         <div style="display:flex;align-items:center;gap:10px">
           <span id="mon-dirty-badge" style="display:none;align-items:center;gap:4px;
-            font-size:11px;padding:3px 8px;border-radius:100px;
+            font-size:calc(11px*var(--m-label));padding:3px 8px;border-radius:100px;
             background:rgba(255,193,7,0.15);color:#ffc107;border:1px solid rgba(255,193,7,0.3)">
             ● 미적용 변경사항
           </span>
-          <div style="font-size:12px;color:var(--text2)" id="mon-summary"></div>
+          <div style="font-size:calc(12px*var(--m-sub));color:var(--text2)" id="mon-summary"></div>
           <button id="mon-apply-btn" onclick="monApply()"
-            style="font-size:12px;font-weight:700;padding:6px 16px;border-radius:6px;
+            style="font-size:calc(12px*var(--m-sub));font-weight:700;padding:6px 16px;border-radius:6px;
               border:none;cursor:pointer;background:var(--tg);color:#fff;
               opacity:0.4;transition:opacity .2s" disabled>
             ✅ 적용
@@ -71,7 +71,7 @@ function _renderMonitoringTab() {
         </div>
       </div>
       <div id="mon-board">
-        <div style="color:var(--text2);font-size:13px;padding:40px;text-align:center"><span class="loading"></span> 로딩 중...</div>
+        <div style="color:var(--text2);font-size:calc(13px*var(--m-body));padding:40px;text-align:center"><span class="loading"></span> 로딩 중...</div>
       </div>
     </div>
   </div>`;
@@ -84,15 +84,15 @@ function _renderEtfTab() {
     <div class="card">
       <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span class="card-title">🌐 US 종목 관리</span>
-        <span style="font-size:12px;color:var(--text2)">KR 산업별 대응 US 종목 추가·삭제</span>
+        <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">KR 산업별 대응 US 종목 추가·삭제</span>
         <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
           <span id="etf-dirty-badge" style="display:none;align-items:center;gap:4px;
-            font-size:11px;padding:3px 8px;border-radius:100px;
+            font-size:calc(11px*var(--m-label));padding:3px 8px;border-radius:100px;
             background:rgba(255,193,7,0.15);color:#ffc107;border:1px solid rgba(255,193,7,0.3)">
             ● 미적용 변경사항
           </span>
           <button id="etf-apply-btn" onclick="etfApply()"
-            style="font-size:12px;font-weight:700;padding:6px 16px;border-radius:6px;
+            style="font-size:calc(12px*var(--m-sub));font-weight:700;padding:6px 16px;border-radius:6px;
               border:none;cursor:pointer;background:var(--tg);color:#fff;
               opacity:0.4;transition:opacity .2s" disabled>
             ✅ 데이터 수집 적용
@@ -101,7 +101,7 @@ function _renderEtfTab() {
       </div>
       <div class="card-body" style="padding:0">
         <div id="etf-map-wrap">
-          <div style="padding:1rem;color:var(--text2);font-size:13px">로딩 중...</div>
+          <div style="padding:1rem;color:var(--text2);font-size:calc(13px*var(--m-body))">로딩 중...</div>
         </div>
       </div>
     </div>
@@ -149,7 +149,7 @@ function _collectionScheduleCard() {
     const items = schedules.filter(s => s.group === g);
     return `
     <div style="margin-bottom:1rem">
-      <div style="padding:6px 1rem;font-size:11px;font-weight:700;color:var(--text2);
+      <div style="padding:6px 1rem;font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text2);
         letter-spacing:.08em;background:${groupColor[g]};border-radius:6px 6px 0 0;
         border:1px solid rgba(255,255,255,.06);border-bottom:none">
         ${groupLabel[g]}
@@ -160,12 +160,12 @@ function _collectionScheduleCard() {
             align-items:center;gap:12px;padding:9px 1rem;
             background:${i%2===0?'transparent':'rgba(255,255,255,.02)'};
             border-bottom:${i<items.length-1?'1px solid rgba(255,255,255,.04)':'none'}">
-            <span style="font-family:monospace;font-size:13px;font-weight:600;color:${s.color}">${s.time}</span>
-            <span style="font-size:13px;color:var(--text)">${s.label}</span>
+            <span style="font-family:monospace;font-size:calc(13px*var(--m-body));font-weight:600;color:${s.color}">${s.time}</span>
+            <span style="font-size:calc(13px*var(--m-body));color:var(--text)">${s.label}</span>
             <div style="display:flex;align-items:center;gap:6px">
-              ${s.badge ? `<span style="font-size:11px;padding:1px 6px;border-radius:3px;
+              ${s.badge ? `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:3px;
                 background:rgba(245,54,92,.2);color:#f5365c;font-weight:700">${s.badge}</span>` : ''}
-              <span style="font-size:11px;color:var(--text2);font-family:monospace">${s.job}</span>
+              <span style="font-size:calc(11px*var(--m-label));color:var(--text2);font-family:monospace">${s.job}</span>
             </div>
           </div>
         `).join('')}
@@ -177,8 +177,8 @@ function _collectionScheduleCard() {
   <div class="card" style="margin-bottom:1rem">
     <div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span class="card-title">📅 수집 스케줄</span>
-      <span style="font-size:12px;color:var(--text2)">평일 자동 실행 기준 · 주말/공휴일 자동 스킵</span>
-      <div style="margin-left:auto;font-size:11px;color:var(--text2)">
+      <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">평일 자동 실행 기준 · 주말/공휴일 자동 스킵</span>
+      <div style="margin-left:auto;font-size:calc(11px*var(--m-label));color:var(--text2)">
         market_data 보존: 모니터링 <b style="color:var(--tg)">90일</b> / 전체 <b style="color:var(--text1)">28일</b>
       </div>
     </div>
@@ -194,14 +194,14 @@ function pCompany() {
   <div style="display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 1.25rem;background:var(--bg);position:sticky;top:0;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,.3)">
     <button class="company-tab ${_companyTab==='monitoring'?'active':''}"
       data-tab="monitoring" onclick="switchCompanyTab('monitoring')"
-      style="padding:12px 20px;font-size:13px;font-weight:600;background:none;border:none;
+      style="padding:12px 20px;font-size:calc(13px*var(--m-body));font-weight:600;background:none;border:none;
         cursor:pointer;border-bottom:2px solid ${_companyTab==='monitoring'?'var(--tg)':'transparent'};
         color:${_companyTab==='monitoring'?'var(--text)':'var(--text3)'};margin-bottom:-1px">
       ⭐ 모니터링 종목
     </button>
     <button class="company-tab ${_companyTab==='etf'?'active':''}"
       data-tab="etf" onclick="switchCompanyTab('etf');setTimeout(loadEtfMapUI,50)"
-      style="padding:12px 20px;font-size:13px;font-weight:600;background:none;border:none;
+      style="padding:12px 20px;font-size:calc(13px*var(--m-body));font-weight:600;background:none;border:none;
         cursor:pointer;border-bottom:2px solid ${_companyTab==='etf'?'var(--tg)':'transparent'};
         color:${_companyTab==='etf'?'var(--text)':'var(--text3)'};margin-bottom:-1px">
       🌐 US 종목 관리
@@ -276,12 +276,12 @@ function _renderIndustryCard(ind, subs) {
   <div class="card" style="margin-bottom:16px;border-left:3px solid var(--tg)" data-industry="${ind}">
     <div class="card-header" style="flex-wrap:wrap;gap:8px;background:rgba(42,171,238,0.06);border-bottom:1px solid var(--border)">
       <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:15px;font-weight:800;color:var(--text1)">${ind}</span>
-        <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:100px;background:var(--tg);color:#fff">${total}개</span>
+        <span style="font-size:calc(15px*var(--m-title));font-weight:800;color:var(--text1)">${ind}</span>
+        <span style="font-size:calc(11px*var(--m-label));font-weight:700;padding:2px 8px;border-radius:100px;background:var(--tg);color:#fff">${total}개</span>
       </div>
       <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
         <input type="text" placeholder="서브섹터 추가..." class="form-input"
-          id="mon-new-sub-${CSS.escape(ind)}" style="font-size:11px;padding:3px 8px;width:130px"
+          id="mon-new-sub-${CSS.escape(ind)}" style="font-size:calc(11px*var(--m-label));padding:3px 8px;width:130px"
           onkeydown="if(event.key==='Enter')monAddSub('${escJsStr(ind)}')">
         <button class="btn btn-sm" onclick="monAddSub('${escJsStr(ind)}')">추가</button>
         <button class="btn btn-sm" onclick="monDeleteIndustry('${escJsStr(ind)}')"
@@ -292,7 +292,7 @@ function _renderIndustryCard(ind, subs) {
       ${subKeys.map(sub => _renderSubCard(ind, sub, subs[sub])).join('')}
       <div class="mon-drop-zone" data-industry="${ind}" data-sub=""
         style="border:2px dashed var(--border);border-radius:8px;padding:12px;min-height:60px;
-          text-align:center;color:var(--text2);font-size:11px;display:flex;align-items:center;justify-content:center">
+          text-align:center;color:var(--text2);font-size:calc(11px*var(--m-label));display:flex;align-items:center;justify-content:center">
         ＋ 서브섹터 없이 추가
       </div>
     </div>
@@ -306,18 +306,18 @@ function _renderSubCard(ind, sub, stocks) {
   <div class="mon-sub-card" data-industry="${ind}" data-sub="${sub}"
     style="background:var(--bg3);border-radius:8px;padding:10px;border:1px solid var(--border)">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:7px;border-bottom:1px solid var(--border)">
-      <span class="mon-sub-label" style="font-size:12px;font-weight:700;color:var(--text1);cursor:pointer;flex:1"
+      <span class="mon-sub-label" style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--text1);cursor:pointer;flex:1"
         title="더블클릭으로 이름 수정"
         ondblclick="monEditSub(this,'${safeInd}','${safeSub}')">${escapeHtml(sub)}</span>
       <div style="display:flex;gap:6px;align-items:center">
         <button onclick="monEditSub(this.closest('.mon-sub-card').querySelector('.mon-sub-label'),'${safeInd}','${safeSub}')"
-          style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 2px;color:var(--text2)"
+          style="background:none;border:none;cursor:pointer;font-size:calc(12px*var(--m-sub));padding:0 2px;color:var(--text2)"
           title="이름 수정"
           onmouseenter="this.style.color='var(--tg)'"
           onmouseleave="this.style.color='var(--text3)'">✎</button>
-        <span style="font-size:11px;color:var(--text1);font-weight:600">${stocks.length}개</span>
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text1);font-weight:600">${stocks.length}개</span>
         <button onclick="monDeleteSub('${safeInd}','${safeSub}')"
-          style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:11px;padding:0"
+          style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:calc(11px*var(--m-label));padding:0"
           onmouseenter="this.style.color='var(--red)'"
           onmouseleave="this.style.color='var(--text3)'">✕</button>
       </div>
@@ -339,15 +339,15 @@ function _renderStockChip(s) {
     data-industry="${s.industry||''}" data-sub="${s.sub_industry||''}"
     style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;
       background:var(--bg3);border-radius:4px;cursor:grab;border:1px solid transparent;
-      font-size:12px;transition:border-color .15s;gap:6px"
+      font-size:calc(12px*var(--m-sub));transition:border-color .15s;gap:6px"
     onmouseenter="this.style.borderColor='var(--tg)'"
     onmouseleave="this.style.borderColor='var(--border)'">
     <div style="display:flex;flex-direction:column;gap:1px;overflow:hidden;flex:1">
-      <span style="font-size:13px;font-weight:600;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(s.name)}</span>
-      <span style="font-size:11px;color:var(--text1)">${code} · ${mkt}</span>
+      <span style="font-size:calc(13px*var(--m-body));font-weight:600;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(s.name)}</span>
+      <span style="font-size:calc(11px*var(--m-label));color:var(--text1)">${code} · ${mkt}</span>
     </div>
     <button onclick="monRemoveStock('${code}','${safeName}')"
-      style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:13px;
+      style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:calc(13px*var(--m-body));
         padding:0 2px;flex-shrink:0;line-height:1;border-radius:3px"
       onmouseenter="this.style.color='var(--red)';this.style.background='rgba(245,54,92,0.1)'"
       onmouseleave="this.style.color='var(--text3)';this.style.background='none'">✕</button>
@@ -426,20 +426,20 @@ async function monSearch(q) {
     orderBy: 'is_monitored', limit: 12,
   });
 
-  if (!data?.length) { el.innerHTML='<div style="font-size:12px;color:var(--text2);padding:6px">검색 결과 없음</div>'; return; }
+  if (!data?.length) { el.innerHTML='<div style="font-size:calc(12px*var(--m-sub));color:var(--text2);padding:6px">검색 결과 없음</div>'; return; }
 
   el.innerHTML = data.map(c => {
     const code = c.code.replace(/\.(KS|KQ)$/, '');
     const mon  = c.is_monitored;
     return `<div style="display:flex;align-items:center;justify-content:space-between;
-        padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px;margin-bottom:2px;
+        padding:6px 10px;border-radius:6px;cursor:pointer;font-size:calc(12px*var(--m-sub));margin-bottom:2px;
         background:${mon?'rgba(42,171,238,0.08)':'var(--bg3)'}"
         onclick="monSelectStock('${code}','${escJsStr(c.name)}','${escJsStr(c.industry||'')}','${escJsStr(c.sub_industry||'')}')">
       <div>
-        <span style="color:var(--text2);font-size:11px;margin-right:4px">${code}</span>
+        <span style="color:var(--text2);font-size:calc(11px*var(--m-label));margin-right:4px">${code}</span>
         <span style="font-weight:600">${escapeHtml(c.name)}</span>
       </div>
-      <span style="font-size:11px;color:${mon?'var(--tg)':'var(--text3)'}">${mon?'✓모니터링':'+ 추가'}</span>
+      <span style="font-size:calc(11px*var(--m-label));color:${mon?'var(--tg)':'var(--text3)'}">${mon?'✓모니터링':'+ 추가'}</span>
     </div>`;
   }).join('');
 }
@@ -547,7 +547,7 @@ function monEditSub(labelEl, ind, oldSub) {
   const currentText = labelEl.textContent.trim();
   const input = document.createElement('input');
   input.value = currentText;
-  input.style.cssText = 'font-size:12px;font-weight:700;background:var(--bg1);border:1px solid var(--tg);' +
+  input.style.cssText = 'font-size:calc(12px*var(--m-sub));font-weight:700;background:var(--bg1);border:1px solid var(--tg);' +
     'border-radius:4px;padding:1px 6px;width:100%;color:var(--text1);outline:none;box-sizing:border-box';
 
   labelEl.textContent = '';
@@ -660,7 +660,7 @@ async function monApply() {
 async function loadEtfMapUI() {
   const wrap = document.getElementById('etf-map-wrap');
   if (!wrap) return;
-  wrap.innerHTML = '<div style="padding:1rem;color:var(--text2);font-size:13px">로딩 중...</div>';
+  wrap.innerHTML = '<div style="padding:1rem;color:var(--text2);font-size:calc(13px*var(--m-body))">로딩 중...</div>';
 
   const { data: rows, error } = await sb.from('us_etf_map')
     .select('industry,ticker')
@@ -685,36 +685,36 @@ async function loadEtfMapUI() {
     const border = isLast ? 'none' : '0.5px solid rgba(255,255,255,.08)';
     return `
     <div style="display:grid;grid-template-columns:100px 1fr;border-bottom:${border};align-items:start">
-      <div style="padding:13px 16px;font-size:13px;font-weight:500;color:rgba(255,255,255,.5)">${ind}</div>
+      <div style="padding:13px 16px;font-size:calc(13px*var(--m-body));font-weight:500;color:rgba(255,255,255,.5)">${ind}</div>
       <div style="padding:9px 12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
         ${tickers.map(t => `
           <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;
-            border-radius:6px;font-size:12px;font-weight:500;
+            border-radius:6px;font-size:calc(12px*var(--m-sub));font-weight:500;
             background:rgba(255,255,255,.06);border:0.5px solid rgba(255,255,255,.15);
             color:rgba(255,255,255,.9)">
             ${t}
             <button onclick="removeEtfTicker('${ind}','${t}')"
               style="display:flex;align-items:center;background:none;border:none;
-                cursor:pointer;color:rgba(255,255,255,.35);padding:0;font-size:12px;line-height:1"
+                cursor:pointer;color:rgba(255,255,255,.35);padding:0;font-size:calc(12px*var(--m-sub));line-height:1"
               title="${t} 제거">&#x2715;</button>
           </span>
         `).join('')}
         <button onclick="showAddEtfInput('${ind}')"
           style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;
-            border-radius:6px;font-size:12px;cursor:pointer;
+            border-radius:6px;font-size:calc(12px*var(--m-sub));cursor:pointer;
             color:rgba(255,255,255,.3);background:none;
             border:0.5px dashed rgba(255,255,255,.2)">&#43; 추가</button>
         <span id="etf-input-${ind}" style="display:none;align-items:center;gap:6px">
           <input id="etf-new-${ind}" placeholder="SOXX" maxlength="10"
             style="width:76px;padding:4px 8px;border:0.5px solid rgba(255,255,255,.2);
               border-radius:6px;background:rgba(255,255,255,.06);
-              color:rgba(255,255,255,.9);font-size:12px"
+              color:rgba(255,255,255,.9);font-size:calc(12px*var(--m-sub))"
             onkeydown="if(event.key===\'Enter\')addEtfTicker(\'${ind}\')">
           <button onclick="addEtfTicker(\'${ind}\')"
-            style="padding:4px 10px;font-size:12px;background:#2AABEE;color:#fff;
+            style="padding:4px 10px;font-size:calc(12px*var(--m-sub));background:#2AABEE;color:#fff;
               border:none;border-radius:6px;cursor:pointer;font-weight:500">추가</button>
           <button onclick="document.getElementById(\'etf-input-${ind}\').style.display=\'none\'"
-            style="padding:4px 8px;font-size:12px;background:none;
+            style="padding:4px 8px;font-size:calc(12px*var(--m-sub));background:none;
               border:0.5px solid rgba(255,255,255,.2);border-radius:6px;
               cursor:pointer;color:rgba(255,255,255,.4)">취소</button>
         </span>
@@ -726,8 +726,8 @@ async function loadEtfMapUI() {
   wrap.innerHTML = `
     <div style="display:grid;grid-template-columns:100px 1fr;
       background:rgba(255,255,255,.03);border-bottom:0.5px solid rgba(255,255,255,.08)">
-      <div style="padding:8px 16px;font-size:11px;color:rgba(255,255,255,.3);font-weight:500">KR 산업</div>
-      <div style="padding:8px 12px;font-size:11px;color:rgba(255,255,255,.3);font-weight:500">매핑 ETF</div>
+      <div style="padding:8px 16px;font-size:calc(11px*var(--m-label));color:rgba(255,255,255,.3);font-weight:500">KR 산업</div>
+      <div style="padding:8px 12px;font-size:calc(11px*var(--m-label));color:rgba(255,255,255,.3);font-weight:500">매핑 ETF</div>
     </div>
     ${finalHtml}`;
 }

@@ -18,9 +18,9 @@ function pHighLow() {
       <button class="chip active" data-hl-grp="all"  onclick="switchHlGrp(this,'all')">전체</button>
       ${INDUSTRIES.map(i => `<button class="chip" data-hl-grp="${i}" onclick="switchHlGrp(this,'${i}')">${i}</button>`).join('')}
     </div>
-    <span id="hl-date" style="font-size:11px;color:var(--text2)"></span>
+    <span id="hl-date" style="font-size:calc(11px*var(--m-label));color:var(--text2)"></span>
   </div>
-  <div id="hl-desc" style="font-size:12px;color:var(--text2);margin-bottom:.75rem"></div>
+  <div id="hl-desc" style="font-size:calc(12px*var(--m-sub));color:var(--text2);margin-bottom:.75rem"></div>
   <div id="hl-body">${loadingHTML('조회 중...')}</div>`;
 }
 
@@ -142,9 +142,9 @@ function renderHighLow() {
 
     el.innerHTML = indOrder.map(ind => `
       <div style="margin-bottom:1.25rem">
-        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.5rem;padding:0 2px">
+        <div style="font-size:calc(12px*var(--m-sub));font-weight:600;color:var(--text2);margin-bottom:.5rem;padding:0 2px">
           <span class="badge badge-cat">${ind}</span>
-          <span style="margin-left:6px;font-size:11px;color:var(--text2)">${byInd[ind].length}개</span>
+          <span style="margin-left:6px;font-size:calc(11px*var(--m-label));color:var(--text2)">${byInd[ind].length}개</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.5rem">
           ${byInd[ind].map(r => _hlCard(r, isHigh)).join('')}
@@ -175,23 +175,23 @@ function _hlCard(r, isHigh) {
   <div style="background:var(--bg1);border:1px solid ${borderColor};border-radius:8px;padding:10px 12px">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
       <div>
-        <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:5px">${escapeHtml(r.corp_name)}${typeof wlBadge==='function'?wlBadge(r.stock_code):''}</div>
-        <div style="font-size:11px;color:var(--text2);margin-top:1px">${r.stock_code} · ${r.market || ''}</div>
+        <div style="font-size:calc(13px*var(--m-body));font-weight:700;display:flex;align-items:center;gap:5px">${escapeHtml(r.corp_name)}${typeof wlBadge==='function'?wlBadge(r.stock_code):''}</div>
+        <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:1px">${r.stock_code} · ${r.market || ''}</div>
       </div>
-      <span style="font-size:11px;padding:2px 7px;border-radius:100px;
+      <span style="font-size:calc(11px*var(--m-label));padding:2px 7px;border-radius:100px;
                    background:${isHigh ? 'rgba(45,206,137,.15)' : 'rgba(255,99,99,.15)'};
                    color:${accentColor};white-space:nowrap">${badge}</span>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:baseline">
       <div>
-        <span style="font-size:15px;font-weight:700">${fmtPrice(r.price)}</span>
-        <span style="font-size:11px;margin-left:5px;color:${chgColor(r.price_change_rate)}">${chgStr(r.price_change_rate)}</span>
+        <span style="font-size:calc(15px*var(--m-title));font-weight:700">${fmtPrice(r.price)}</span>
+        <span style="font-size:calc(11px*var(--m-label));margin-left:5px;color:${chgColor(r.price_change_rate)}">${chgStr(r.price_change_rate)}</span>
       </div>
-      <div style="font-size:11px;color:var(--text2);text-align:right">
+      <div style="font-size:calc(11px*var(--m-label));color:var(--text2);text-align:right">
         ${refLabel}<br>
         <span style="font-weight:600;color:${accentColor}">${fmtPrice(refPrice)}</span>
       </div>
     </div>
-    <div style="font-size:11px;color:var(--text2);margin-top:5px">${fmtCap(r.market_cap)}</div>
+    <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:5px">${fmtCap(r.market_cap)}</div>
   </div>`;
 }

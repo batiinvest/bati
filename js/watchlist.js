@@ -16,7 +16,7 @@ function pWatchlist() {
       <button class="chip"        data-group="보유중"    onclick="setWlGroup(this,'보유중')">보유중</button>
       <button class="chip"        data-group="pipeline"  onclick="setWlGroup(this,'pipeline')">파이프라인</button>
       <button class="chip"        data-group="청산"      onclick="setWlGroup(this,'청산')">청산</button>
-      <span id="wl-count" style="font-size:12px;color:var(--text2);margin-left:4px"></span>
+      <span id="wl-count" style="font-size:calc(12px*var(--m-sub));color:var(--text2);margin-left:4px"></span>
     </div>
     <button class="btn btn-primary" onclick="openWatchlistModal(null)">+ 종목 추가</button>
   </div>
@@ -233,11 +233,11 @@ async function loadWatchlist() {
     const itemRow = (accent, icon, code, ctxHtml, actionsHtml) => {
       const w = byCode[code]; if (!w) return '';
       return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-left:3px solid ${accent};border-radius:6px">
-        <span style="font-size:15px;line-height:1">${icon}</span>
+        <span style="font-size:calc(15px*var(--m-title));line-height:1">${icon}</span>
         <div style="min-width:0;flex:1">
-          <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(w.corp_name)}
-            <span style="font-size:11px;color:var(--text3);font-weight:400">${(w.stock_code||'').split('.')[0]}</span></div>
-          <div style="font-size:11px;color:var(--text2);line-height:1.4">${ctxHtml}</div>
+          <div style="font-size:calc(13px*var(--m-body));font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(w.corp_name)}
+            <span style="font-size:calc(11px*var(--m-label));color:var(--text3);font-weight:400">${(w.stock_code||'').split('.')[0]}</span></div>
+          <div style="font-size:calc(11px*var(--m-label));color:var(--text2);line-height:1.4">${ctxHtml}</div>
         </div>
         <div style="display:flex;gap:4px;align-items:center">${actionsHtml}</div>
       </div>`;
@@ -328,12 +328,12 @@ async function loadWatchlist() {
       const totalN = groups.reduce((s,g) => s + g.count, 0);
       const sections = groups.map(g => `
         <div style="margin-top:8px">
-          <div style="font-size:11px;font-weight:700;color:${g.color};margin-bottom:5px">${g.label} <span style="color:var(--text3);font-weight:600">${g.count}</span></div>
+          <div style="font-size:calc(11px*var(--m-label));font-weight:700;color:${g.color};margin-bottom:5px">${g.label} <span style="color:var(--text3);font-weight:600">${g.count}</span></div>
           <div style="display:flex;flex-direction:column;gap:6px">${g.rows}</div>
         </div>`).join('');
       todayEl.innerHTML = `
         <div style="background:var(--signal-hot);border:1px solid var(--accent);border-radius:10px;padding:12px 14px">
-          <div style="font-size:12px;font-weight:800;letter-spacing:.04em;color:var(--text1)">🔔 오늘 할 일 <span style="color:var(--accent)">${totalN}</span></div>
+          <div style="font-size:calc(12px*var(--m-sub));font-weight:800;letter-spacing:.04em;color:var(--text1)">🔔 오늘 할 일 <span style="color:var(--accent)">${totalN}</span></div>
           ${sections}
         </div>`;
     }
@@ -376,7 +376,7 @@ async function loadWatchlist() {
       `<div style="padding:12px 14px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
         <div style="font-size:var(--fs-label);color:var(--text1);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${label}</div>
         <div style="font-size:var(--fs-big);font-weight:700;color:${valueColor};font-variant-numeric:tabular-nums;line-height:1">${value}</div>
-        ${sub ? `<div style="font-size:11px;color:var(--text2);margin-top:4px">${sub}</div>` : ''}
+        ${sub ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:4px">${sub}</div>` : ''}
       </div>`;
     const statChip = (label, value, color='var(--text1)') =>
       `<span style="white-space:nowrap"><span style="color:var(--text2)">${label}</span> <b style="color:${color};font-weight:700">${value}</b></span>`;
@@ -392,9 +392,9 @@ async function loadWatchlist() {
             onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape')loadWatchlist()"
             title="클릭해서 현금 잔고 입력"
             style="width:100%;background:transparent;border:none;border-bottom:1px dashed var(--border2);color:var(--text);font-size:var(--fs-big);font-weight:700;font-variant-numeric:tabular-nums;padding:0 0 1px;outline:none">
-          <span style="font-size:13px;color:var(--text2);font-weight:600">원</span>
+          <span style="font-size:calc(13px*var(--m-body));color:var(--text2);font-weight:600">원</span>
         </div>
-        <div style="font-size:11px;color:var(--text2);margin-top:4px">기동률 ${cashRatio.toFixed(1)}%</div>
+        <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:4px">기동률 ${cashRatio.toFixed(1)}%</div>
       </div>`;
 
     // ── 집중도 (최대 단일 종목 / 상위 섹터) — 총자산 대비, 임계 초과 시 ⚠️ ──
@@ -461,17 +461,17 @@ async function loadWatchlist() {
 
       const dcard = (label, val, sub='', color='var(--text)') =>
         `<div style="padding:10px 12px;background:var(--bg2);border-radius:8px;border:1px solid var(--border);min-width:108px;flex:1">
-           <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.05em">${label}</div>
-           <div style="font-size:18px;font-weight:700;color:${color};line-height:1.1;margin-top:2px;font-variant-numeric:tabular-nums">${val}</div>
-           ${sub?`<div style="font-size:11px;color:var(--text2);margin-top:2px">${sub}</div>`:''}
+           <div style="font-size:calc(11px*var(--m-label));color:var(--text2);text-transform:uppercase;letter-spacing:.05em">${label}</div>
+           <div style="font-size:calc(18px*var(--m-title));font-weight:700;color:${color};line-height:1.1;margin-top:2px;font-variant-numeric:tabular-nums">${val}</div>
+           ${sub?`<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:2px">${sub}</div>`:''}
          </div>`;
 
       const dash = n === 0
-        ? `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;color:var(--text2);font-size:13px;margin-bottom:.6rem">
+        ? `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;color:var(--text2);font-size:calc(13px*var(--m-body));margin-bottom:.6rem">
              청산 종목을 복기하면 승률·수익률·보유기간·프로세스 통계가 쌓입니다.${needJournalCodes.size?` <b style="color:var(--accent)">미작성 ${needJournalCodes.size}건</b>`:''}
            </div>`
         : `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:.6rem">
-             <div style="font-size:11px;color:var(--text1);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">매매 복기 통계 <span style="color:var(--text2);font-weight:400;text-transform:none">· 복기 ${n}건${needJournalCodes.size?` · 미작성 ${needJournalCodes.size}`:''}</span></div>
+             <div style="font-size:calc(11px*var(--m-label));color:var(--text1);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">매매 복기 통계 <span style="color:var(--text2);font-weight:400;text-transform:none">· 복기 ${n}건${needJournalCodes.size?` · 미작성 ${needJournalCodes.size}`:''}</span></div>
              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:${reasonRows.length?'12px':'0'}">
                ${dcard('승률', winRate!=null?`${winRate.toFixed(0)}%`:'—', withRet.length?`승 ${wins.length} · 패 ${losses.length}`:'', winRate!=null?(winRate>=50?'var(--red)':'var(--blue)'):'var(--text)')}
                ${dcard('평균 수익률', avgRet!=null?`${avgRet>=0?'+':''}${avgRet.toFixed(1)}%`:'—', (avgWin!=null||avgLoss!=null)?`승 ${avgWin!=null?'+'+avgWin.toFixed(1):'—'}% · 패 ${avgLoss!=null?avgLoss.toFixed(1):'—'}%`:'', chgColor(avgRet))}
@@ -479,9 +479,9 @@ async function loadWatchlist() {
                ${dcard('평균 보유', avgHold!=null?`${avgHold}일`:'—')}
                ${dcard('평균 프로세스', avgScore!=null?`★ ${avgScore.toFixed(1)}`:'—', '', avgScore!=null?'var(--accent)':'var(--text)')}
              </div>
-             ${reasonRows.length?`<div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">매도 사유</div>
+             ${reasonRows.length?`<div style="font-size:calc(11px*var(--m-label));color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">매도 사유</div>
                <div style="display:flex;gap:6px;flex-wrap:wrap">
-                 ${reasonRows.map(([r,c])=>`<span style="font-size:11px;background:var(--bg3);border-radius:100px;padding:3px 9px;color:var(--text1)">${r} <b style="color:var(--tg)">${c}</b></span>`).join('')}
+                 ${reasonRows.map(([r,c])=>`<span style="font-size:calc(11px*var(--m-label));background:var(--bg3);border-radius:100px;padding:3px 9px;color:var(--text1)">${r} <b style="color:var(--tg)">${c}</b></span>`).join('')}
                </div>`:''}
            </div>`;
       summaryEl.innerHTML = dash;
@@ -514,11 +514,11 @@ async function loadWatchlist() {
       const head = label => `<td style="padding:3px 10px;color:var(--text2);white-space:nowrap">${label}</td>`;
       return `
         <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:.75rem">
-          <div style="font-size:11px;color:var(--text1);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">
+          <div style="font-size:calc(11px*var(--m-label));color:var(--text1);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">
             포트폴리오 vs 벤치마크
             <span style="color:var(--text2);font-weight:400;text-transform:none">· 보유 ${holding.length}종목 · 가치가중 · 시장 기간수익률(코스피/코스닥) 대비</span>
           </div>
-          <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub))">
             <thead><tr><td style="padding:3px 10px"></td>${cols.map(c => `<td style="text-align:right;padding:3px 10px;color:var(--text2);font-weight:600">${c.lbl}</td>`).join('')}</tr></thead>
             <tbody>
               <tr>${head('내 보유')}${cols.map(c => cell(pct(c.v ? c.v.port : null), c.v ? chgColor(c.v.port) : null)).join('')}</tr>
@@ -539,7 +539,7 @@ async function loadWatchlist() {
           chgColor(totalRealized+totalPnl)) : ''}
         ${cashCard}
       </div>
-      <div style="display:flex;gap:8px 18px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-bottom:.75rem;padding:0 2px">
+      <div style="display:flex;gap:8px 18px;flex-wrap:wrap;font-size:calc(12px*var(--m-sub));color:var(--text2);margin-bottom:.75rem;padding:0 2px">
         ${secondaryStats}
       </div>
       ${benchCard}
@@ -563,26 +563,26 @@ async function loadWatchlist() {
           const pnlColor = chgColor(pnl);
           return `
             <div style="display:grid;grid-template-columns:100px 1fr 60px 70px;align-items:center;gap:8px;padding:4px 0">
-              <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
+              <div style="font-size:calc(12px*var(--m-sub));font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
               <div style="background:var(--bg3);border-radius:4px;height:8px;overflow:hidden">
                 <div style="height:100%;width:${pct.toFixed(1)}%;background:${color};border-radius:4px;transition:width .3s"></div>
               </div>
-              <div style="font-size:12px;font-weight:700;text-align:right">${pct.toFixed(1)}%</div>
-              <div style="font-size:11px;font-weight:600;color:${pnlColor};text-align:right">${pnl>=0?'+':''}${pnlPct.toFixed(1)}%</div>
+              <div style="font-size:calc(12px*var(--m-sub));font-weight:700;text-align:right">${pct.toFixed(1)}%</div>
+              <div style="font-size:calc(11px*var(--m-label));font-weight:600;color:${pnlColor};text-align:right">${pnl>=0?'+':''}${pnlPct.toFixed(1)}%</div>
             </div>`;
         }).join('');
         const cashPct = denom > 0 ? cash / denom * 100 : 0;
         const cashRow = cash > 0 ? `
           <div style="display:grid;grid-template-columns:100px 1fr 60px 70px;align-items:center;gap:8px;padding:4px 0;border-top:1px dashed var(--border);margin-top:4px">
-            <div style="font-size:12px;font-weight:600;color:var(--text2)">💰 현금</div>
+            <div style="font-size:calc(12px*var(--m-sub));font-weight:600;color:var(--text2)">💰 현금</div>
             <div style="background:var(--bg3);border-radius:4px;height:8px;overflow:hidden">
               <div style="height:100%;width:${cashPct.toFixed(1)}%;background:repeating-linear-gradient(45deg,var(--text3),var(--text3) 4px,transparent 4px,transparent 8px);border-radius:4px"></div>
             </div>
-            <div style="font-size:12px;font-weight:700;text-align:right">${cashPct.toFixed(1)}%</div>
+            <div style="font-size:calc(12px*var(--m-sub));font-weight:700;text-align:right">${cashPct.toFixed(1)}%</div>
             <div></div>
           </div>` : '';
         return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:.75rem">
-          <div style="font-size:11px;color:var(--text1);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">자산 배분 <span style="color:var(--text2);font-weight:400;text-transform:none">(현금 포함 총자산 기준)</span></div>
+          <div style="font-size:calc(11px*var(--m-label));color:var(--text1);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">자산 배분 <span style="color:var(--text2);font-weight:400;text-transform:none">(현금 포함 총자산 기준)</span></div>
           ${rows}${cashRow}
         </div>`;
       })() : ''}`;
@@ -599,12 +599,12 @@ async function loadWatchlist() {
     const nCand  = portfolioRows.filter(w => wlCategory(w) === '후보').length;
     const subChip = (cat, n, color) => {
       const on = pipeFilter === cat;
-      return `<button onclick="wlSetPipeFilter('${cat}')" style="padding:3px 12px;font-size:12px;border-radius:100px;cursor:pointer;font-family:inherit;
+      return `<button onclick="wlSetPipeFilter('${cat}')" style="padding:3px 12px;font-size:calc(12px*var(--m-sub));border-radius:100px;cursor:pointer;font-family:inherit;
         border:1px solid ${on?color:'var(--border2)'};background:${on?color:'transparent'};color:${on?'#0f1117':'var(--text1)'};font-weight:${on?'700':'500'}">${cat} <b style="color:${on?'#0f1117':'var(--text2)'}">${n}</b></button>`;
     };
     pipeBar = `<div style="display:flex;gap:6px;align-items:center;margin-bottom:.6rem">
       ${subChip('관심', nWatch, '#4a9eff')}${subChip('후보', nCand, '#ffc107')}
-      ${pipeFilter?`<button onclick="wlSetPipeFilter('${pipeFilter}')" style="background:none;border:none;color:var(--text2);font-size:11px;cursor:pointer;text-decoration:underline">전체 보기</button>`:''}
+      ${pipeFilter?`<button onclick="wlSetPipeFilter('${pipeFilter}')" style="background:none;border:none;color:var(--text2);font-size:calc(11px*var(--m-label));cursor:pointer;text-decoration:underline">전체 보기</button>`:''}
     </div>`;
   }
 
@@ -664,7 +664,7 @@ async function loadWatchlist() {
   const cols = COLVIEWS[view];
 
   // ── 테이블 헤더 ───────────────────────────────────────────────────────────
-  const thBase = 'font-size:11px;color:var(--text2);font-weight:500;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none';
+  const thBase = 'font-size:calc(11px*var(--m-label));color:var(--text2);font-weight:500;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none';
   const thActive = 'color:var(--text1);font-weight:700';
   const arrow = (k) => sortKey === k ? (sortAsc ? ' ↑' : ' ↓') : '';
   const th = (k, label) => {
@@ -745,16 +745,16 @@ async function loadWatchlist() {
       const gap = watchGap != null ? Math.abs(watchGap).toFixed(1) + '%' : '—';
       const watchCapStr = capOfPrice(w.watch_price);
       if (isAtBuy) {
-        watchCell = `<div style="color:var(--buy);font-weight:700;font-size:12px">✅ 매수 구간</div>
-                     <div style="font-size:12px;font-weight:600"><span style="font-size:11px;font-weight:700;color:#4a9eff">진입 </span>${w.watch_price.toLocaleString()}원</div>
-                     ${watchCapStr ? `<div style="font-size:11px;color:var(--text1)">${watchCapStr}</div>` : ''}`;
+        watchCell = `<div style="color:var(--buy);font-weight:700;font-size:calc(12px*var(--m-sub))">✅ 매수 구간</div>
+                     <div style="font-size:calc(12px*var(--m-sub));font-weight:600"><span style="font-size:calc(11px*var(--m-label));font-weight:700;color:#4a9eff">진입 </span>${w.watch_price.toLocaleString()}원</div>
+                     ${watchCapStr ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text1)">${watchCapStr}</div>` : ''}`;
       } else {
-        watchCell = `<div style="font-size:12px;font-weight:600"><span style="font-size:11px;font-weight:700;color:#4a9eff">진입 </span>${w.watch_price.toLocaleString()}원</div>
-                     ${watchCapStr ? `<div style="font-size:11px;color:var(--text1)">${watchCapStr}</div>` : ''}
-                     <div style="font-size:11px;color:var(--blue)">▼ ${gap} 하락 시 진입</div>`;
+        watchCell = `<div style="font-size:calc(12px*var(--m-sub));font-weight:600"><span style="font-size:calc(11px*var(--m-label));font-weight:700;color:#4a9eff">진입 </span>${w.watch_price.toLocaleString()}원</div>
+                     ${watchCapStr ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text1)">${watchCapStr}</div>` : ''}
+                     <div style="font-size:calc(11px*var(--m-label));color:var(--blue)">▼ ${gap} 하락 시 진입</div>`;
       }
     } else {
-      watchCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
+      watchCell = `<span style="color:var(--text3);font-size:calc(12px*var(--m-sub))">—</span>`;
     }
 
     // ── 목표가 · 업사이드 (보유 중 목표 도달 시 🎯 익절 신호) ──────────────
@@ -765,18 +765,18 @@ async function loadWatchlist() {
       let upsideLine;
       if (isTargetHit) {
         const overPct = (price - w.target_price) / w.target_price * 100;
-        upsideLine = `<div style="font-size:12px;font-weight:700;color:var(--up)">🎯 목표 도달${overPct>0?` +${overPct.toFixed(1)}%`:''}</div>`;
+        upsideLine = `<div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--up)">🎯 목표 도달${overPct>0?` +${overPct.toFixed(1)}%`:''}</div>`;
       } else if (isTrimZone) {
-        upsideLine = `<div style="font-size:12px;font-weight:700;color:var(--accent)">✂️ 익절 구간 ${(price/w.target_price*100).toFixed(0)}%</div>
-                      <div style="font-size:11px;font-weight:600;color:${chgColor(upsidePct)}">남은 +${upsidePct.toFixed(1)}%</div>`;
+        upsideLine = `<div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--accent)">✂️ 익절 구간 ${(price/w.target_price*100).toFixed(0)}%</div>
+                      <div style="font-size:calc(11px*var(--m-label));font-weight:600;color:${chgColor(upsidePct)}">남은 +${upsidePct.toFixed(1)}%</div>`;
       } else {
-        upsideLine = `<div style="font-size:12px;font-weight:700;color:${chgColor(upsidePct)}">${upsidePct!=null?(upsidePct>0?'+':'')+upsidePct.toFixed(1)+'%':'—'}</div>`;
+        upsideLine = `<div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:${chgColor(upsidePct)}">${upsidePct!=null?(upsidePct>0?'+':'')+upsidePct.toFixed(1)+'%':'—'}</div>`;
       }
-      tgtCell = `<div style="font-size:12px;font-weight:600"><span style="font-size:11px;font-weight:700;color:#a78bfa">목표 </span>${w.target_price.toLocaleString()}원</div>
-                 ${tgtCapStr ? `<div style="font-size:11px;color:var(--text1)">${tgtCapStr}</div>` : ''}
+      tgtCell = `<div style="font-size:calc(12px*var(--m-sub));font-weight:600"><span style="font-size:calc(11px*var(--m-label));font-weight:700;color:#a78bfa">목표 </span>${w.target_price.toLocaleString()}원</div>
+                 ${tgtCapStr ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text1)">${tgtCapStr}</div>` : ''}
                  ${upsideLine}`;
     } else {
-      tgtCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
+      tgtCell = `<span style="color:var(--text3);font-size:calc(12px*var(--m-sub))">—</span>`;
     }
 
     // ── 매수가 · 평가손익 (거래기록 기반 effPos) ──────────────────────────
@@ -786,37 +786,37 @@ async function loadWatchlist() {
       const color  = chgColor(pnlPct);
       const pnlStr = (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(1) + '%';
       const stopPct = w.stop_price && price ? (w.stop_price - price) / price * 100 : null;
-      costCell = `<div style="font-size:12px"><span style="font-size:11px;font-weight:700;color:var(--accent)">평단 </span>${e.avg.toLocaleString()}원 <span style="color:var(--text2)">· ${e.qty.toLocaleString()}주</span></div>
-                  <div style="font-size:12px;font-weight:700;color:${color}">${pnlStr} · ${fmtWon((price-e.avg)*e.qty, true)}</div>
-                  ${e.realized ? `<div style="font-size:11px;color:${chgColor(e.realized)}">실현 ${fmtWon(e.realized, true)}</div>` : ''}
-                  ${e.creditLoan > 0 ? `<div style="font-size:11px;color:var(--accent)">🔻 신용 융자 ${fmtWon(e.creditLoan)}${e.creditQty?` (${e.creditQty.toLocaleString()}주)`:''}</div>` : ''}
-                  ${w.stop_price ? `<div style="font-size:11px;color:${isStopHit?'var(--down)':'var(--text2)'};font-weight:${isStopHit?'700':'400'}">${isStopHit?'⚠️ ':''}손절 ${w.stop_price.toLocaleString()}원${stopPct!=null?` (${stopPct.toFixed(1)}%)`:''}</div>` : ''}`;
+      costCell = `<div style="font-size:calc(12px*var(--m-sub))"><span style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--accent)">평단 </span>${e.avg.toLocaleString()}원 <span style="color:var(--text2)">· ${e.qty.toLocaleString()}주</span></div>
+                  <div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:${color}">${pnlStr} · ${fmtWon((price-e.avg)*e.qty, true)}</div>
+                  ${e.realized ? `<div style="font-size:calc(11px*var(--m-label));color:${chgColor(e.realized)}">실현 ${fmtWon(e.realized, true)}</div>` : ''}
+                  ${e.creditLoan > 0 ? `<div style="font-size:calc(11px*var(--m-label));color:var(--accent)">🔻 신용 융자 ${fmtWon(e.creditLoan)}${e.creditQty?` (${e.creditQty.toLocaleString()}주)`:''}</div>` : ''}
+                  ${w.stop_price ? `<div style="font-size:calc(11px*var(--m-label));color:${isStopHit?'var(--down)':'var(--text2)'};font-weight:${isStopHit?'700':'400'}">${isStopHit?'⚠️ ':''}손절 ${w.stop_price.toLocaleString()}원${stopPct!=null?` (${stopPct.toFixed(1)}%)`:''}</div>` : ''}`;
     } else if (e.closed) {
       const jr = _journalAvailable ? journalMap[w.stock_code] : null;
       const jName = escJsStr(w.corp_name);
       const jLine = !_journalAvailable ? ''
-        : jr ? `<div style="font-size:11px;color:var(--accent);cursor:pointer" title="복기 보기/수정" onclick="event.stopPropagation();openJournalModal('${w.stock_code}','${jName}')">${_ICO.pen}${'★'.repeat(jr.process_score||0)||'기록'}${jr.lesson?` · ${escapeHtml(jr.lesson.length>16?jr.lesson.slice(0,16)+'…':jr.lesson)}`:''}</div>`
-             : `<div style="font-size:11px;color:var(--text3);cursor:pointer" title="복기 작성" onclick="event.stopPropagation();openJournalModal('${w.stock_code}','${jName}')">${_ICO.pen}복기 필요</div>`;
-      costCell = `<div style="font-size:12px;color:var(--text2);font-weight:600">청산 완료</div>
-                  <div style="font-size:12px;font-weight:700;color:${chgColor(e.realized)}">실현 ${fmtWon(e.realized, true)}</div>
+        : jr ? `<div style="font-size:calc(11px*var(--m-label));color:var(--accent);cursor:pointer" title="복기 보기/수정" onclick="event.stopPropagation();openJournalModal('${w.stock_code}','${jName}')">${_ICO.pen}${'★'.repeat(jr.process_score||0)||'기록'}${jr.lesson?` · ${escapeHtml(jr.lesson.length>16?jr.lesson.slice(0,16)+'…':jr.lesson)}`:''}</div>`
+             : `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);cursor:pointer" title="복기 작성" onclick="event.stopPropagation();openJournalModal('${w.stock_code}','${jName}')">${_ICO.pen}복기 필요</div>`;
+      costCell = `<div style="font-size:calc(12px*var(--m-sub));color:var(--text2);font-weight:600">청산 완료</div>
+                  <div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:${chgColor(e.realized)}">실현 ${fmtWon(e.realized, true)}</div>
                   ${jLine}`;
     } else {
-      costCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
+      costCell = `<span style="color:var(--text3);font-size:calc(12px*var(--m-sub))">—</span>`;
     }
 
     // ── 투자포인트 (1개) ─────────────────────────────────────────────────
     const thesisCell = w.thesis_1
-      ? `<div style="font-size:12px;color:var(--text1);max-width:200px;white-space:normal;line-height:1.4">${escapeHtml(w.thesis_1)}</div>
-         ${w.thesis_2 ? `<div style="font-size:11px;color:var(--text2);margin-top:2px;max-width:200px;white-space:normal">${escapeHtml(w.thesis_2)}</div>` : ''}`
-      : `<span style="color:var(--text3);font-size:12px">—</span>`;
+      ? `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);max-width:200px;white-space:normal;line-height:1.4">${escapeHtml(w.thesis_1)}</div>
+         ${w.thesis_2 ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:2px;max-width:200px;white-space:normal">${escapeHtml(w.thesis_2)}</div>` : ''}`
+      : `<span style="color:var(--text3);font-size:calc(12px*var(--m-sub))">—</span>`;
 
     // ── 다음 점검일 ──────────────────────────────────────────────────────
-    let checkCell = `<span style="color:var(--text3);font-size:12px">—</span>`;
+    let checkCell = `<span style="color:var(--text3);font-size:calc(12px*var(--m-sub))">—</span>`;
     if (w.next_check_date) {
       const daysLeft = Math.ceil((new Date(w.next_check_date) - new Date()) / 86400000);
       const dateColor = daysLeft <= 3 ? 'var(--accent)' : daysLeft < 0 ? 'var(--down)' : 'var(--text2)';
-      checkCell = `<div style="font-size:12px;color:${dateColor};font-weight:${daysLeft<=3?'700':'400'}">${w.next_check_date}</div>
-                   <div style="font-size:11px;color:${dateColor}">${daysLeft<0?`${Math.abs(daysLeft)}일 초과`:daysLeft===0?'오늘':`D-${daysLeft}`}</div>`;
+      checkCell = `<div style="font-size:calc(12px*var(--m-sub));color:${dateColor};font-weight:${daysLeft<=3?'700':'400'}">${w.next_check_date}</div>
+                   <div style="font-size:calc(11px*var(--m-label));color:${dateColor}">${daysLeft<0?`${Math.abs(daysLeft)}일 초과`:daysLeft===0?'오늘':`D-${daysLeft}`}</div>`;
     }
 
     // ── 행 배경: 손절 도달(적색) > 목표 도달(호박색) > 매수 구간(녹색) ─────
@@ -833,48 +833,48 @@ async function loadWatchlist() {
     let weightCell;
     if (wPct == null) {
       weightCell = tw != null
-        ? `<div style="font-size:11px;color:var(--text2)">목표 ${tw.toFixed(1)}%</div><div style="font-size:11px;color:var(--text3)">미보유</div>`
-        : `<span style="color:var(--text3);font-size:12px">—</span>`;
+        ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text2)">목표 ${tw.toFixed(1)}%</div><div style="font-size:calc(11px*var(--m-label));color:var(--text3)">미보유</div>`
+        : `<span style="color:var(--text3);font-size:calc(12px*var(--m-sub))">—</span>`;
     } else if (tw != null) {
       const gap      = wPct - tw;                         // +면 초과, -면 미달
       const tradeAmt = (tw - wPct) / 100 * totalAssets;   // +면 매수, -면 매도 필요
       const balanced = Math.abs(gap) < 1;                 // 1%p 이내면 균형
       const action   = balanced ? '✓ 균형'
         : tradeAmt > 0 ? `매수 ${fmtWon(tradeAmt)}` : `매도 ${fmtWon(-tradeAmt)}`;
-      weightCell = `<div style="font-size:13px;font-weight:700">${wPct.toFixed(1)}%</div>
-        <div style="font-size:11px;color:var(--text2)">목표 ${tw.toFixed(1)}%</div>
-        <div style="font-size:11px;font-weight:600;color:${balanced?'var(--up)':'var(--accent)'}">${gap>=0?'+':''}${gap.toFixed(1)}%p · ${action}</div>`;
+      weightCell = `<div style="font-size:calc(13px*var(--m-body));font-weight:700">${wPct.toFixed(1)}%</div>
+        <div style="font-size:calc(11px*var(--m-label));color:var(--text2)">목표 ${tw.toFixed(1)}%</div>
+        <div style="font-size:calc(11px*var(--m-label));font-weight:600;color:${balanced?'var(--up)':'var(--accent)'}">${gap>=0?'+':''}${gap.toFixed(1)}%p · ${action}</div>`;
     } else {
-      weightCell = `<div style="font-size:13px;font-weight:700">${wPct.toFixed(1)}%</div>
-        <div style="font-size:11px;color:var(--text2)">총자산 대비</div>`;
+      weightCell = `<div style="font-size:calc(13px*var(--m-body));font-weight:700">${wPct.toFixed(1)}%</div>
+        <div style="font-size:calc(11px*var(--m-label));color:var(--text2)">총자산 대비</div>`;
     }
 
     const tdMap = {
       name: `<td style="${tdStyle}">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-          <span style="font-size:15px;font-weight:700">${escapeHtml(w.corp_name)}</span>
-          <span style="font-size:11px;padding:1px 6px;border-radius:100px;background:${groupColors[cat]||'#888'};color:${groupTextColors[cat]||'#111'};font-weight:700">${cat}</span>
+          <span style="font-size:calc(15px*var(--m-title));font-weight:700">${escapeHtml(w.corp_name)}</span>
+          <span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:100px;background:${groupColors[cat]||'#888'};color:${groupTextColors[cat]||'#111'};font-weight:700">${cat}</span>
         </div>
-        ${w.catalyst ? `<div style="font-size:11px;color:var(--tg);margin-top:2px">⚡ ${escapeHtml(w.catalyst)}</div>` : ''}
+        ${w.catalyst ? `<div style="font-size:calc(11px*var(--m-label));color:var(--tg);margin-top:2px">⚡ ${escapeHtml(w.catalyst)}</div>` : ''}
       </td>`,
-      industry: `<td style="${tdStyle}"><div style="font-size:12px;color:var(--text1)">${industryMap[w.stock_code] || w.industry || '—'}</div></td>`,
+      industry: `<td style="${tdStyle}"><div style="font-size:calc(12px*var(--m-sub));color:var(--text1)">${industryMap[w.stock_code] || w.industry || '—'}</div></td>`,
       price: `<td style="${tdStyle}">
-        <div style="font-size:13px;font-weight:700">${fmtPrice(price)}</div>
-        <div style="font-size:11px;font-weight:600;color:${chgColor(chg)}">${chg!=null?chgStr(chg):''}</div>
+        <div style="font-size:calc(13px*var(--m-body));font-weight:700">${fmtPrice(price)}</div>
+        <div style="font-size:calc(11px*var(--m-label));font-weight:600;color:${chgColor(chg)}">${chg!=null?chgStr(chg):''}</div>
       </td>`,
       ret: `<td style="${tdStyle}">
         ${[['1주',wkRet],['1개월',moRet],['3개월',qtRet]].map(([lbl,v]) =>
-          `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;line-height:1.6">
+          `<div style="display:flex;justify-content:space-between;gap:8px;font-size:calc(11px*var(--m-label));line-height:1.6">
              <span style="color:var(--text2)">${lbl}</span>
              ${v!=null ? `<span style="font-weight:600;color:${chgColor(v)}">${v>=0?'+':''}${v.toFixed(1)}%</span>` : `<span style="color:var(--text3)">—</span>`}
            </div>`
         ).join('')}
       </td>`,
-      rev: `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600">${rev!=null ? fmtEok(rev/1e8) : '—'}</div></td>`,
-      op:  `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${op!=null?chgColor(op):'inherit'}">${op!=null ? fmtEok(op/1e8) : '—'}</div></td>`,
-      roe: `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${roe!=null?chgColor(roe):'inherit'}">${roe!=null ? roe.toFixed(1)+'%' : '—'}</div></td>`,
-      opm: `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600;color:${opm!=null&&opm>=0?chgColor(opm):'inherit'}">${opm!=null&&opm>=0 ? opm.toFixed(1)+'%' : '—'}</div></td>`,
-      cap: `<td style="${tdStyle}"><div style="font-size:12px;font-weight:600">${capEok ? fmtEok(capEok) : '—'}</div></td>`,
+      rev: `<td style="${tdStyle}"><div style="font-size:calc(12px*var(--m-sub));font-weight:600">${rev!=null ? fmtEok(rev/1e8) : '—'}</div></td>`,
+      op:  `<td style="${tdStyle}"><div style="font-size:calc(12px*var(--m-sub));font-weight:600;color:${op!=null?chgColor(op):'inherit'}">${op!=null ? fmtEok(op/1e8) : '—'}</div></td>`,
+      roe: `<td style="${tdStyle}"><div style="font-size:calc(12px*var(--m-sub));font-weight:600;color:${roe!=null?chgColor(roe):'inherit'}">${roe!=null ? roe.toFixed(1)+'%' : '—'}</div></td>`,
+      opm: `<td style="${tdStyle}"><div style="font-size:calc(12px*var(--m-sub));font-weight:600;color:${opm!=null&&opm>=0?chgColor(opm):'inherit'}">${opm!=null&&opm>=0 ? opm.toFixed(1)+'%' : '—'}</div></td>`,
+      cap: `<td style="${tdStyle}"><div style="font-size:calc(12px*var(--m-sub));font-weight:600">${capEok ? fmtEok(capEok) : '—'}</div></td>`,
       watch: `<td class="wl-editable" style="${tdStyle};border-left:2px solid #4a9eff" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'watch_price',${w.watch_price||'null'},'number')">${watchCell}</td>`,
       target: `<td class="wl-editable" style="${tdStyle};border-left:2px solid #a78bfa" title="더블클릭으로 편집" ondblclick="wlInlineEdit(this,${w.id},'target_price',${w.target_price||'null'},'number')">${tgtCell}</td>`,
       cost: `<td class="${e.hasTx?'':'wl-editable'}" style="${tdStyle};border-left:2px solid var(--accent)" title="${e.hasTx?'거래기록으로 자동 계산 — 더블클릭 시 이력':'더블클릭으로 편집'}"
@@ -904,7 +904,7 @@ async function loadWatchlist() {
     cols.includes('cost')   ? '<span><span style="color:var(--accent)">●</span> 평단 · 보유 원가(손익)</span>' : '',
   ].filter(Boolean);
   const _legend = _legendItems.length
-    ? `<div style="display:flex;gap:14px;flex-wrap:wrap;padding:6px 4px 0;font-size:11px;color:var(--text3)">${_legendItems.join('')}</div>` : '';
+    ? `<div style="display:flex;gap:14px;flex-wrap:wrap;padding:6px 4px 0;font-size:calc(11px*var(--m-label));color:var(--text3)">${_legendItems.join('')}</div>` : '';
 
   listEl.innerHTML = `${pipeBar}
     <div class="card" style="overflow-x:auto;padding:0">
@@ -925,7 +925,7 @@ async function wlInlineEdit(td, id, field, curVal, type = 'number') {
   el.type = isDate ? 'date' : isText ? undefined : 'number';
   el.value = curVal ?? '';
   el.style.cssText = `width:100%;box-sizing:border-box;background:var(--bg2);color:var(--text1);
-    border:1px solid var(--tg);border-radius:4px;padding:4px 6px;font-size:12px;
+    border:1px solid var(--tg);border-radius:4px;padding:4px 6px;font-size:calc(12px*var(--m-sub));
     ${isText ? 'height:60px;resize:vertical' : ''}`;
 
   td.innerHTML = '';
@@ -961,8 +961,8 @@ async function wlEditTargetWeight(td, stockCode, curWeight) {
   const prev = td.innerHTML;
   td.innerHTML = `<div style="display:flex;align-items:center;gap:3px">
     <input id="_ieTw" type="number" step="0.5" min="0" max="100" value="${curWeight ?? ''}" placeholder="목표"
-      style="width:54px;box-sizing:border-box;background:var(--bg2);color:var(--text1);border:1px solid var(--tg);border-radius:4px;padding:3px 5px;font-size:12px">
-    <span style="font-size:11px;color:var(--text2)">%</span>
+      style="width:54px;box-sizing:border-box;background:var(--bg2);color:var(--text1);border:1px solid var(--tg);border-radius:4px;padding:3px 5px;font-size:calc(12px*var(--m-sub))">
+    <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">%</span>
   </div>`;
   const el = document.getElementById('_ieTw');
   el.focus(); el.select();
@@ -985,14 +985,14 @@ async function wlInlineEditCost(td, id, curAvg, curQty) {
   td.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:4px">
       <div>
-        <div style="font-size:11px;color:var(--text2);margin-bottom:2px">매수가 (원)</div>
+        <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:2px">매수가 (원)</div>
         <input id="_ieCost" type="number" value="${curAvg||''}" placeholder="매수가"
-          style="width:100%;box-sizing:border-box;background:var(--bg2);color:var(--text1);border:1px solid var(--tg);border-radius:4px;padding:3px 6px;font-size:12px">
+          style="width:100%;box-sizing:border-box;background:var(--bg2);color:var(--text1);border:1px solid var(--tg);border-radius:4px;padding:3px 6px;font-size:calc(12px*var(--m-sub))">
       </div>
       <div>
-        <div style="font-size:11px;color:var(--text2);margin-bottom:2px">수량 (주)</div>
+        <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:2px">수량 (주)</div>
         <input id="_ieQty" type="number" value="${curQty||''}" placeholder="수량"
-          style="width:100%;box-sizing:border-box;background:var(--bg2);color:var(--text1);border:1px solid var(--tg);border-radius:4px;padding:3px 6px;font-size:12px">
+          style="width:100%;box-sizing:border-box;background:var(--bg2);color:var(--text1);border:1px solid var(--tg);border-radius:4px;padding:3px 6px;font-size:calc(12px*var(--m-sub))">
       </div>
     </div>`;
   const costEl = document.getElementById('_ieCost');
@@ -1041,7 +1041,7 @@ function wlToggleRowMenu(btn, id, code, name, hasTx, isClosed) {
   menu.className = 'wl-rowmenu';
   menu.style.cssText = 'position:absolute;right:0;top:calc(100% + 4px);z-index:60;background:var(--bg1,var(--bg));border:1px solid var(--border2);border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,.4);min-width:120px;overflow:hidden';
   const item = (label, handler, color) =>
-    `<div onclick="${handler}" style="padding:9px 14px;font-size:12px;cursor:pointer;color:${color||'var(--text1)'};white-space:nowrap"
+    `<div onclick="${handler}" style="padding:9px 14px;font-size:calc(12px*var(--m-sub));cursor:pointer;color:${color||'var(--text1)'};white-space:nowrap"
        onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">${label}</div>`;
   menu.innerHTML =
     (hasTx ? item('거래 이력', `openTradeHistory('${code}','${name}')`) : '') +

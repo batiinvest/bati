@@ -45,7 +45,7 @@ async function loadEstimateOutlook() {
     renderEstimateOutlook(revRes.data || [], estRes.data || []);
   } catch (e) {
     console.warn('[전망] 추정치 로드 실패', e);
-    el.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:12px">
+    el.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">
       추정치 데이터 없음 — 백엔드 수집(매일 18:40) 후 표시됩니다</div>`;
   }
 }
@@ -55,8 +55,8 @@ function renderEstimateOutlook(revisions, estimates) {
   if (!el) return;
 
   const sectionHdr = (t, sub) => `
-    <div style="padding:6px 12px 4px;font-size:11px;font-weight:700;color:var(--text2);display:flex;gap:6px;align-items:baseline">
-      ${t}<span style="font-weight:400;font-size:11px">${sub}</span>
+    <div style="padding:6px 12px 4px;font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text2);display:flex;gap:6px;align-items:baseline">
+      ${t}<span style="font-weight:400;font-size:calc(11px*var(--m-label))">${sub}</span>
     </div>`;
 
   // ── ① 추정치 상향 — 종목당 최신 갱신 1건 (상향된 것만), 상향폭 큰 순 ──
@@ -80,14 +80,14 @@ function renderEstimateOutlook(revisions, estimates) {
     return `
     <div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.stock_name || r.stock_code)}" data-stock-tab="market"
       style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border)">
-      <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.stock_name || r.stock_code)}
-        <span style="font-size:11px;color:var(--text2);font-weight:600;margin-left:3px">${_estYearChip(r.fiscal_period)}</span></span>
-      <span style="font-size:11px;white-space:nowrap">매출 ${_estPct(r.revenue_change_pct)}</span>
-      <span style="font-size:11px;white-space:nowrap">영업익 ${_estPct(r.op_profit_change_pct)}</span>
-      <span style="font-size:11px;color:var(--text2);white-space:nowrap">${String(r.new_est_date).slice(5)}</span>
+      <span style="flex:1;font-size:calc(12px*var(--m-sub));font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.stock_name || r.stock_code)}
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text2);font-weight:600;margin-left:3px">${_estYearChip(r.fiscal_period)}</span></span>
+      <span style="font-size:calc(11px*var(--m-label));white-space:nowrap">매출 ${_estPct(r.revenue_change_pct)}</span>
+      <span style="font-size:calc(11px*var(--m-label));white-space:nowrap">영업익 ${_estPct(r.op_profit_change_pct)}</span>
+      <span style="font-size:calc(11px*var(--m-label));color:var(--text2);white-space:nowrap">${String(r.new_est_date).slice(5)}</span>
     </div>`;
   }).join('')
-  : `<div style="padding:.8rem 12px;color:var(--text2);font-size:11px">
+  : `<div style="padding:.8rem 12px;color:var(--text2);font-size:calc(11px*var(--m-label))">
        최근 60일 내 감지된 상향 조정 없음 — 애널리스트가 추정치를 올리면 자동 표시됩니다</div>`;
 
   // ── ② 고성장 전망 — 종목별 최신 추정(est_date 최대) 중 가장 가까운 미래 연도 ──
@@ -108,15 +108,15 @@ function renderEstimateOutlook(revisions, estimates) {
     return `
     <div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.stock_name || r.stock_code)}" data-stock-tab="market"
       style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border)">
-      <span style="width:16px;font-size:11px;color:var(--text2);font-weight:600;flex-shrink:0">${i + 1}</span>
-      <span style="flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.stock_name || r.stock_code)}
-        <span style="font-size:11px;color:var(--text2);font-weight:600;margin-left:3px">${_estYearChip(r.fiscal_period)}</span></span>
-      <span style="font-size:11px;color:var(--text2);white-space:nowrap">매출 ${_estWon(r.revenue)}</span>
-      <span style="font-size:11px;white-space:nowrap">${_estPct(r.revenue_yoy)}</span>
-      <span style="font-size:11px;white-space:nowrap">영업익 ${_estPct(r.op_profit_yoy)}</span>
+      <span style="width:16px;font-size:calc(11px*var(--m-label));color:var(--text2);font-weight:600;flex-shrink:0">${i + 1}</span>
+      <span style="flex:1;font-size:calc(12px*var(--m-sub));font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.stock_name || r.stock_code)}
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text2);font-weight:600;margin-left:3px">${_estYearChip(r.fiscal_period)}</span></span>
+      <span style="font-size:calc(11px*var(--m-label));color:var(--text2);white-space:nowrap">매출 ${_estWon(r.revenue)}</span>
+      <span style="font-size:calc(11px*var(--m-label));white-space:nowrap">${_estPct(r.revenue_yoy)}</span>
+      <span style="font-size:calc(11px*var(--m-label));white-space:nowrap">영업익 ${_estPct(r.op_profit_yoy)}</span>
     </div>`;
   }).join('')
-  : `<div style="padding:.8rem 12px;color:var(--text2);font-size:11px">추정치 데이터 수집 대기 중</div>`;
+  : `<div style="padding:.8rem 12px;color:var(--text2);font-size:calc(11px*var(--m-label))">추정치 데이터 수집 대기 중</div>`;
 
   el.innerHTML =
     sectionHdr('📈 추정치 상향', '최근 60일 · 상향폭 순 · 클릭→상세') + upHtml +

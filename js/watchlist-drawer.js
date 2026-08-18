@@ -60,16 +60,16 @@ function wlRenderDrawer(code) {
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
       <div style="min-width:0">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <span style="font-size:18px;font-weight:800">${escapeHtml(w.corp_name)}</span>
-          <span style="font-size:11px;padding:1px 7px;border-radius:100px;background:${grpColor};color:${grpText};font-weight:700">${cat}</span>
+          <span style="font-size:calc(18px*var(--m-title));font-weight:800">${escapeHtml(w.corp_name)}</span>
+          <span style="font-size:calc(11px*var(--m-label));padding:1px 7px;border-radius:100px;background:${grpColor};color:${grpText};font-weight:700">${cat}</span>
         </div>
-        <div style="font-size:12px;color:var(--text2);margin-top:2px">${(code||'').split('.')[0]} · ${C.industryMap?.[code] || w.industry || '—'}</div>
+        <div style="font-size:calc(12px*var(--m-sub));color:var(--text2);margin-top:2px">${(code||'').split('.')[0]} · ${C.industryMap?.[code] || w.industry || '—'}</div>
       </div>
       <button class="modal-close" onclick="wlCloseDrawer()">×</button>
     </div>
     <div style="display:flex;align-items:baseline;gap:8px;margin-top:8px">
-      <span style="font-size:22px;font-weight:800;font-variant-numeric:tabular-nums">${fmtPrice(price)}</span>
-      <span style="font-size:13px;font-weight:700;color:${chgColor(chg)}">${chg!=null ? chgStr(chg) : ''}</span>
+      <span style="font-size:calc(22px*var(--m-title));font-weight:800;font-variant-numeric:tabular-nums">${fmtPrice(price)}</span>
+      <span style="font-size:calc(13px*var(--m-body));font-weight:700;color:${chgColor(chg)}">${chg!=null ? chgStr(chg) : ''}</span>
     </div>
   </div>`;
 
@@ -77,8 +77,8 @@ function wlRenderDrawer(code) {
   const roe = C.roeMap?.[code], opm = C.opmMap?.[code], rev = C.revMap?.[code], op = C.opMap?.[code];
   const metric = (label, val, color) =>
     `<div style="background:var(--bg2);border-radius:6px;padding:7px 9px">
-       <div style="font-size:11px;color:var(--text2)">${label}</div>
-       <div style="font-size:13px;font-weight:700;color:${color||'var(--text)'};font-variant-numeric:tabular-nums">${val}</div></div>`;
+       <div style="font-size:calc(11px*var(--m-label));color:var(--text2)">${label}</div>
+       <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:${color||'var(--text)'};font-variant-numeric:tabular-nums">${val}</div></div>`;
   const metricsGrid = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
     ${metric('시총', cap ? fmtEok(cap/1e8) : '—')}
     ${metric('PER', mkt.per!=null ? mkt.per.toFixed(1) : '—')}
@@ -88,7 +88,7 @@ function wlRenderDrawer(code) {
     ${metric('매출', rev!=null ? fmtEok(rev/1e8) : '—')}
     ${metric('영업이익', op!=null ? fmtEok(op/1e8) : '—', op!=null?chgColor(op):null)}
   </div>`;
-  const retLine = `<div style="font-size:11px;color:var(--text2)">등락 ${
+  const retLine = `<div style="font-size:calc(11px*var(--m-label));color:var(--text2)">등락 ${
     [['1주',mkt.week_return],['1개월',mkt.month_return],['3개월',mkt.quarter_return]]
       .map(([l,v]) => `${l} <b style="color:${v!=null?chgColor(v):'var(--text3)'}">${v!=null?(v>=0?'+':'')+v.toFixed(1)+'%':'—'}</b>`).join(' · ')}</div>`;
 
@@ -105,8 +105,8 @@ function wlRenderDrawer(code) {
     const wPct = (C.valMap?.[code] && C.totalAssets) ? C.valMap[code] / C.totalAssets * 100 : null;
     const isStopHit = w.stop_price && price <= w.stop_price;
     posHtml = `<div>
-      <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">포지션</div>
-      <div style="background:var(--bg2);border-radius:8px;padding:10px 12px;display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;font-size:12px">
+      <div style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">포지션</div>
+      <div style="background:var(--bg2);border-radius:8px;padding:10px 12px;display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;font-size:calc(12px*var(--m-sub))">
         <div><span style="color:var(--text2)">평단·수량</span><br><b>${e.avg.toLocaleString()}원 · ${e.qty.toLocaleString()}주</b></div>
         <div><span style="color:var(--text2)">평가손익</span><br><b style="color:${chgColor(pnlPct)}">${pnlPct>=0?'+':''}${pnlPct.toFixed(1)}% · ${fmtWon(pnl,true)}</b></div>
         ${e.realized ? `<div><span style="color:var(--text2)">실현손익</span><br><b style="color:${chgColor(e.realized)}">${fmtWon(e.realized,true)}</b></div>` : ''}
@@ -117,8 +117,8 @@ function wlRenderDrawer(code) {
     </div>`;
   } else if (e.closed) {
     posHtml = `<div>
-      <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">청산</div>
-      <div style="background:var(--bg2);border-radius:8px;padding:10px 12px;font-size:13px">
+      <div style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">청산</div>
+      <div style="background:var(--bg2);border-radius:8px;padding:10px 12px;font-size:calc(13px*var(--m-body))">
         실현손익 <b style="color:${chgColor(e.realized)}">${fmtWon(e.realized,true)}</b></div>${acts}
     </div>`;
   } else {
@@ -127,8 +127,8 @@ function wlRenderDrawer(code) {
 
   // ── 계획 (직접 편집) ──
   const av = s => (s==null?'':String(s)).replace(/"/g,'&quot;');
-  const iS = 'background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:6px 8px;color:var(--text);font-size:13px;width:100%;box-sizing:border-box';
-  const lbl = t => `<span style="font-size:11px;color:var(--text2)">${t}</span>`;
+  const iS = 'background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:6px 8px;color:var(--text);font-size:calc(13px*var(--m-body));width:100%;box-sizing:border-box';
+  const lbl = t => `<span style="font-size:calc(11px*var(--m-label));color:var(--text2)">${t}</span>`;
   const fNum = (field,label,ph='') => `<label style="display:flex;flex-direction:column;gap:3px">${lbl(label)}<input type="number" value="${av(w[field])}" placeholder="${ph}" onkeydown="if(event.key==='Enter')this.blur()" onblur="wlDrawerEdit(event,'${code}','${field}','num')" style="${iS}"></label>`;
   const fDate = (field,label) => `<label style="display:flex;flex-direction:column;gap:3px">${lbl(label)}<input type="date" value="${av(w[field])}" onchange="wlDrawerEdit(event,'${code}','${field}','date')" style="${iS}"></label>`;
   const fWeight = () => `<label style="display:flex;flex-direction:column;gap:3px">${lbl('목표 비중 %')}<input type="number" step="0.5" min="0" max="100" value="${av(tw)}" placeholder="목표%" onkeydown="if(event.key==='Enter')this.blur()" onblur="wlDrawerEditWeight(event,'${code}')" style="${iS}"></label>`;
@@ -149,15 +149,15 @@ function wlRenderDrawer(code) {
   ].filter(Boolean).join(' · ');
 
   const planSection = `<div>
-    <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">계획 <span style="font-weight:400;text-transform:none">· 클릭해서 바로 편집</span></div>
+    <div style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">계획 <span style="font-weight:400;text-transform:none">· 클릭해서 바로 편집</span></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       ${fNum('watch_price','관심가(진입)')}${fNum('target_price','목표가')}${fNum('stop_price','🛑 손절가')}${fWeight()}${fDate('next_check_date','📅 다음 점검일')}
     </div>
-    ${derived ? `<div style="font-size:11px;color:var(--text2);margin-top:8px">${derived}</div>` : ''}
+    ${derived ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:8px">${derived}</div>` : ''}
   </div>`;
 
   const logicSection = `<div>
-    <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">투자 논리</div>
+    <div style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">투자 논리</div>
     <div style="display:flex;flex-direction:column;gap:8px">
       ${fText('thesis_1','💡 투자 근거')}
       ${fText('risk_1','⚠️ 핵심 리스크')}

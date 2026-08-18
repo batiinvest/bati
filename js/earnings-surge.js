@@ -40,7 +40,7 @@ function renderSurgeList() {
     : _surgeAllResults.filter(r => r.grade === _surgeGradeFilter);
 
   if (!filtered.length) {
-    el.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:12px">${_surgeGradeFilter} 등급 종목 없음</div>`;
+    el.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">${_surgeGradeFilter} 등급 종목 없음</div>`;
     return;
   }
 
@@ -56,7 +56,7 @@ function renderSurgeList() {
 async function loadEarningsSurge() {
   const el = document.getElementById('inv-earnings-list');
   if (!el) return;
-  el.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:12px"><span class="loading"></span></div>`;
+  el.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))"><span class="loading"></span></div>`;
 
   // ── 1. 분기 목록 (최초 1회) ──
   const qSelect = document.getElementById('inv-earnings-quarter');
@@ -96,7 +96,7 @@ async function loadEarningsSurge() {
   const { data: gradeRows } = await gradeQuery;
 
   if (!gradeRows?.length) {
-    el.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:12px">등급 데이터 없음 — 18:30 재무수집 후 갱신됩니다</div>`;
+    el.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">등급 데이터 없음 — 18:30 재무수집 후 갱신됩니다</div>`;
     return;
   }
 
@@ -179,13 +179,13 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
     let statusBadge = '', histLine = '';
 
     if (!hist.length) {
-      statusBadge = `<span style="font-size:11px;padding:1px 6px;border-radius:4px;background:rgba(45,206,137,.2);color:#2dce89;font-weight:600">신규진입</span>`;
+      statusBadge = `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:4px;background:rgba(45,206,137,.2);color:#2dce89;font-weight:600">신규진입</span>`;
     } else if (curRank > prevRank) {
-      statusBadge = `<span style="font-size:11px;padding:1px 6px;border-radius:4px;background:rgba(255,214,0,.2);color:#ffd600;font-weight:600">등급향상 ↑</span>`;
+      statusBadge = `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:4px;background:rgba(255,214,0,.2);color:#ffd600;font-weight:600">등급향상 ↑</span>`;
     } else if (curRank < prevRank) {
-      statusBadge = `<span style="font-size:11px;padding:1px 6px;border-radius:4px;background:rgba(245,54,92,.15);color:#f5365c;font-weight:600">등급하락 ↓</span>`;
+      statusBadge = `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:4px;background:rgba(245,54,92,.15);color:#f5365c;font-weight:600">등급하락 ↓</span>`;
     } else if (streak >= 3) {
-      statusBadge = `<span style="font-size:11px;padding:1px 6px;border-radius:4px;background:rgba(42,171,238,.15);color:#2AABEE;font-weight:600">${streak}분기 연속</span>`;
+      statusBadge = `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:4px;background:rgba(42,171,238,.15);color:#2AABEE;font-weight:600">${streak}분기 연속</span>`;
     }
 
     const recentHist = hist.slice(0, 2).reverse();
@@ -196,12 +196,12 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
         ${flowItems.map((h, i) => {
           const c = GRADE_COLORS[h.grade] || '#8b90a7';
           const qLabel = h.bsns_year.slice(2) + h.quarter;
-          return `${i > 0 ? '<span style="color:var(--text2);font-size:11px;margin:0 1px">→</span>' : ''}
-            <span style="font-size:11px;font-weight:600;padding:0px 5px;border-radius:3px;
+          return `${i > 0 ? '<span style="color:var(--text2);font-size:calc(11px*var(--m-label));margin:0 1px">→</span>' : ''}
+            <span style="font-size:calc(11px*var(--m-label));font-weight:600;padding:0px 5px;border-radius:3px;
               background:${h.isCurrent ? c + '30' : 'transparent'};
               color:${h.isCurrent ? c : 'var(--text2)'};
               border:1px solid ${h.isCurrent ? c + '60' : 'var(--border)'}">
-            ${h.grade}급<span style="font-size:11px;color:${h.isCurrent ? c + 'bb' : 'var(--text3)'};margin-left:2px">${qLabel}</span></span>`;
+            ${h.grade}급<span style="font-size:calc(11px*var(--m-label));color:${h.isCurrent ? c + 'bb' : 'var(--text3)'};margin-left:2px">${qLabel}</span></span>`;
         }).join('')}
       </div>`;
     }
@@ -215,11 +215,11 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
       const pct   = Math.abs(val) / maxVal * 100;
       const color = val >= 0 ? (colors || '#2AABEE') : '#f5365c';
       return `<div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex:1;min-width:0">
-        <div style="font-size:8px;color:var(--text2);white-space:nowrap">${lbl}</div>
+        <div style="font-size:calc(8px*var(--m-label));color:var(--text2);white-space:nowrap">${lbl}</div>
         <div style="width:100%;background:var(--bg3);border-radius:2px;height:24px;display:flex;align-items:flex-end">
           <div style="width:100%;background:${color};border-radius:2px;height:${Math.max(pct, 3)}%;opacity:0.85"></div>
         </div>
-        <div style="font-size:8px;color:var(--text1);white-space:nowrap">${fmtCap(val)}</div>
+        <div style="font-size:calc(8px*var(--m-label));color:var(--text1);white-space:nowrap">${fmtCap(val)}</div>
       </div>`;
     }).join('');
   };
@@ -245,9 +245,9 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
     return `
     <div style="border-bottom:2px solid var(--border)">
       <div style="padding:6px 14px;background:var(--bg3);display:flex;align-items:center;gap:8px">
-        <span style="font-size:13px;font-weight:800;padding:2px 10px;border-radius:4px;background:${GRADE_BG[grade]};color:${GRADE_COLOR[grade]}">${grade}급</span>
-        <span style="font-size:12px;color:${GRADE_COLOR[grade]};font-weight:600">${GRADE_LABELS[grade]}</span>
-        <span style="font-size:11px;color:var(--text2);margin-left:auto">${items.length}개</span>
+        <span style="font-size:calc(13px*var(--m-body));font-weight:800;padding:2px 10px;border-radius:4px;background:${GRADE_BG[grade]};color:${GRADE_COLOR[grade]}">${grade}급</span>
+        <span style="font-size:calc(12px*var(--m-sub));color:${GRADE_COLOR[grade]};font-weight:600">${GRADE_LABELS[grade]}</span>
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:auto">${items.length}개</span>
       </div>
       ${items.map(r => {
         const hist = histMap[r.stock_code] || [];
@@ -273,9 +273,9 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
         const gradeMeta = getGradeMeta(r);
         const trendFlags = (SURGE.trendFlagMap || {})[r.stock_code] || {};
         const trendBadges = [
-          trendFlags.rev_slowdown     && `<span style="font-size:11px;padding:1px 5px;border-radius:3px;background:rgba(245,158,11,.15);color:#f59e0b;font-weight:600" title="매출 성장 둔화 3분기 연속">⚠️성장둔화</span>`,
-          trendFlags.op_leverage_fail && `<span style="font-size:11px;padding:1px 5px;border-radius:3px;background:rgba(245,54,92,.12);color:#f5365c;font-weight:600" title="매출↑ 영업이익↓ (레버리지 역전)">🔴레버리지역전</span>`,
-          trendFlags.debt_surge       && `<span style="font-size:11px;padding:1px 5px;border-radius:3px;background:rgba(139,144,167,.15);color:#8b90a7;font-weight:600" title="부채비율 급증 (+30%p↑)">📛부채급증</span>`,
+          trendFlags.rev_slowdown     && `<span style="font-size:calc(11px*var(--m-label));padding:1px 5px;border-radius:3px;background:rgba(245,158,11,.15);color:#f59e0b;font-weight:600" title="매출 성장 둔화 3분기 연속">⚠️성장둔화</span>`,
+          trendFlags.op_leverage_fail && `<span style="font-size:calc(11px*var(--m-label));padding:1px 5px;border-radius:3px;background:rgba(245,54,92,.12);color:#f5365c;font-weight:600" title="매출↑ 영업이익↓ (레버리지 역전)">🔴레버리지역전</span>`,
+          trendFlags.debt_surge       && `<span style="font-size:calc(11px*var(--m-label));padding:1px 5px;border-radius:3px;background:rgba(139,144,167,.15);color:#8b90a7;font-weight:600" title="부채비율 급증 (+30%p↑)">📛부채급증</span>`,
         ].filter(Boolean).join('');
 
         return `<div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||'')}" data-stock-tab="financial"
@@ -283,37 +283,37 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
 
           <div style="padding-right:12px;border-right:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;gap:3px">
             <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-              <span style="font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:${GRADE_BG[r.grade]};color:${GRADE_COLOR[r.grade]}">${r.grade}급</span>
-              <span style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.corp_name)}</span>
+              <span style="font-size:calc(11px*var(--m-label));font-weight:700;padding:1px 6px;border-radius:4px;background:${GRADE_BG[r.grade]};color:${GRADE_COLOR[r.grade]}">${r.grade}급</span>
+              <span style="font-size:calc(13px*var(--m-body));font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.corp_name)}</span>
               ${gradeMeta.statusBadge}
             </div>
             ${trendBadges ? `<div style="display:flex;gap:3px;flex-wrap:wrap">${trendBadges}</div>` : ''}
-            <div style="font-size:11px;color:var(--text2)">${r.bsns_year} ${r.quarter}</div>
+            <div style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.bsns_year} ${r.quarter}</div>
             ${gradeMeta.histLine}
             <div style="display:flex;flex-direction:column;gap:2px;margin-top:2px">
-              <div style="font-size:11px">
+              <div style="font-size:calc(11px*var(--m-label))">
                 <span style="color:var(--text2)">매출</span> <b>${fmtCap(r.revenue)}</b>
                 ${r.rev_yoy != null ? `<span style="color:${r.rev_yoy > 0 ? 'var(--red)' : 'var(--blue)'}"> ${r.rev_yoy > 0 ? '▲' : '▼'}${Math.abs(r.rev_yoy).toFixed(1)}%</span>` : ''}
                 ${qoqSig}${yoySig}
               </div>
-              <div style="font-size:11px">
+              <div style="font-size:calc(11px*var(--m-label))">
                 <span style="color:var(--text2)">영업익</span>
                 <b style="color:${(r.operating_profit || 0) >= 0 ? 'var(--green)' : 'var(--red)'}">${fmtCap(r.operating_profit)}</b>
                 ${r.op_yoy != null ? `<span style="color:${r.op_yoy > 0 ? 'var(--red)' : 'var(--blue)'}"> ${r.op_yoy > 0 ? '▲' : '▼'}${Math.abs(r.op_yoy).toFixed(1)}%</span>` : ''}
-                <span style="color:var(--text2);font-size:11px">${r.operating_margin != null ? r.operating_margin.toFixed(1) + '%' : ''}</span>
+                <span style="color:var(--text2);font-size:calc(11px*var(--m-label))">${r.operating_margin != null ? r.operating_margin.toFixed(1) + '%' : ''}</span>
               </div>
             </div>
           </div>
 
           <div style="padding:4px 10px;border-right:1px solid var(--border)">
-            <div style="font-size:11px;color:var(--text2);margin-bottom:3px">매출액</div>
+            <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:3px">매출액</div>
             <div style="display:flex;gap:2px;align-items:flex-end;height:42px">
               ${renderMiniBar(revVals, revMax, '#2AABEE')}
             </div>
           </div>
 
           <div style="padding:4px 10px">
-            <div style="font-size:11px;color:var(--text2);margin-bottom:3px">영업이익</div>
+            <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:3px">영업이익</div>
             <div style="display:flex;gap:2px;align-items:flex-end;height:42px">
               ${renderMiniBar(opVals, opMax, '#2dce89')}
             </div>
@@ -321,5 +321,5 @@ function renderSurgeHTML(surges, gradesToShow, histMap) {
         </div>`;
       }).join('')}
     </div>`;
-  }).join('') + `<div style="padding:6px 12px;font-size:11px;color:var(--text2)">매출 50억↑ · S/A/B/관찰 등급 · 클릭 시 재무 추이</div>`;
+  }).join('') + `<div style="padding:6px 12px;font-size:calc(11px*var(--m-label));color:var(--text2)">매출 50억↑ · S/A/B/관찰 등급 · 클릭 시 재무 추이</div>`;
 }

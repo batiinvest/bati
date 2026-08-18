@@ -94,7 +94,7 @@ async function loadSectorRotation() {
     renderSectorRotation();
   } catch (e) {
     console.error('[SectorRotation]', e);
-    if (el) el.innerHTML = `<div style="padding:1rem;color:var(--text2);font-size:12px">집계 실패: ${e.message}</div>`;
+    if (el) el.innerHTML = `<div style="padding:1rem;color:var(--text2);font-size:calc(12px*var(--m-sub))">집계 실패: ${e.message}</div>`;
   }
 }
 
@@ -245,9 +245,9 @@ function _srSummary(rows, pk, mkt) {
 function _srQuadrant(rows, pk, mkt) {
   const pts = rows.filter(r => r[pk].ret != null && r[pk].flow != null);
   if (pts.length < 2)
-    return `<div style="padding:2.5rem 1rem;text-align:center;color:var(--text2);font-size:12px">
+    return `<div style="padding:2.5rem 1rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">
       로테이션 맵 — 수급 추세 데이터 집계 대기<br>
-      <span style="font-size:11px;color:var(--text3)">장 마감 후 자동 집계됩니다</span></div>`;
+      <span style="font-size:calc(11px*var(--m-label));color:var(--text3)">장 마감 후 자동 집계됩니다</span></div>`;
 
   const W = 420, H = 320, ML = 64, MR = 64, MT = 18, MB = 22;
   const pw = W - ML - MR, ph = H - MT - MB;
@@ -333,8 +333,8 @@ function _srQuadrant(rows, pk, mkt) {
     </g>`;
   }).join('');
 
-  return `<div style="font-size:11px;font-weight:600;color:var(--text1);padding:2px 2px 6px">
-      로테이션 맵 <span style="font-weight:400;color:var(--text2);font-size:11px">세로=시장대비 · 가로=수급순위 · 버블=거래대금 · 클릭→표 강조</span>
+  return `<div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text1);padding:2px 2px 6px">
+      로테이션 맵 <span style="font-weight:400;color:var(--text2);font-size:calc(11px*var(--m-label))">세로=시장대비 · 가로=수급순위 · 버블=거래대금 · 클릭→표 강조</span>
     </div>
     <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:560px;display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg">
       ${bg}${cross}${corners}${axes}${bubbles}
@@ -394,10 +394,10 @@ function _srTable(rows, pk, mkt) {
     // 오늘 등락 + 시장대비 RS
     const retCell = t.ret != null
       ? `<div style="text-align:right">
-           <div style="font-size:14px;font-weight:700;color:${chgColor(t.ret)}">${chgStr(t.ret)}</div>
+           <div style="font-size:calc(14px*var(--m-body));font-weight:700;color:${chgColor(t.ret)}">${chgStr(t.ret)}</div>
            <div style="font-size:9.5px;color:var(--text2)">α ${t.rs >= 0 ? '+' : ''}${t.rs != null ? t.rs.toFixed(1) : '—'}</div>
          </div>`
-      : `<div style="text-align:right;color:var(--text3);font-size:12px">—</div>`;
+      : `<div style="text-align:right;color:var(--text3);font-size:calc(12px*var(--m-sub))">—</div>`;
 
     // breadth: ▲r ▼f + 비율 바
     const tot = t.total || 0;
@@ -405,7 +405,7 @@ function _srTable(rows, pk, mkt) {
     const dnPct = tot ? (t.fall / tot * 100) : 0;
     const breadthCell = tot
       ? `<div>
-           <div style="font-size:11px;text-align:center;margin-bottom:2px">
+           <div style="font-size:calc(11px*var(--m-label));text-align:center;margin-bottom:2px">
              <span style="color:var(--red);font-weight:600">▲${t.rise}</span>
              <span style="color:var(--text3);margin:0 2px">·</span>
              <span style="color:var(--blue);font-weight:600">▼${t.fall}</span>
@@ -416,7 +416,7 @@ function _srTable(rows, pk, mkt) {
              <div style="width:${dnPct}%;background:var(--blue)"></div>
            </div>
          </div>`
-      : `<div style="text-align:center;color:var(--text3);font-size:11px">—</div>`;
+      : `<div style="text-align:center;color:var(--text3);font-size:calc(11px*var(--m-label))">—</div>`;
 
     // 거래대금 + 비중 바
     const tvPct = tvTotal ? (t.tv / tvTotal * 100) : 0;
@@ -431,7 +431,7 @@ function _srTable(rows, pk, mkt) {
              <div style="width:${tvBar}%;height:100%;background:${r.color};opacity:.8"></div>
            </div>
          </div>`
-      : `<div style="color:var(--text3);font-size:11px">—</div>`;
+      : `<div style="color:var(--text3);font-size:calc(11px*var(--m-label))">—</div>`;
 
     // 수급(외+기) + 외/기 분해 배지
     let flowCell;
@@ -446,11 +446,11 @@ function _srTable(rows, pk, mkt) {
         return '';
       })();
       flowCell = `<div style="text-align:right">
-          <div style="font-size:13px;font-weight:700;color:${fc}">${fmtNet(fp.flow)}</div>
+          <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:${fc}">${fmtNet(fp.flow)}</div>
           <div style="line-height:1">${splitBadge}</div>
         </div>`;
     } else {
-      flowCell = `<div style="text-align:right;color:var(--text3);font-size:11px">집계중</div>`;
+      flowCell = `<div style="text-align:right;color:var(--text3);font-size:calc(11px*var(--m-label))">집계중</div>`;
     }
 
     // US·KR n일 등락 + 선행 신호 (산업 강도 매트릭스 통합 컬럼)
@@ -464,18 +464,18 @@ function _srTable(rows, pk, mkt) {
            </div>
            ${sig ? `<div title="${sig.tip}" style="font-size:9.5px;color:${sig.color}">${sig.icon} ${sig.label}</div>` : ''}
          </div>`
-      : `<div style="text-align:right;color:var(--text3);font-size:11px">—</div>`;
+      : `<div style="text-align:right;color:var(--text3);font-size:calc(11px*var(--m-label))">—</div>`;
 
     // 국면 배지
     const phaseCell = `<div style="text-align:center" title="${ph.tip}">
-        <span style="font-size:11px;font-weight:700;color:${ph.color};background:${ph.bg};border-radius:4px;padding:1px 6px;white-space:nowrap">${ph.label}</span>
+        <span style="font-size:calc(11px*var(--m-label));font-weight:700;color:${ph.color};background:${ph.bg};border-radius:4px;padding:1px 6px;white-space:nowrap">${ph.label}</span>
       </div>`;
 
     return `<div id="sr-row-${r.ind}" style="display:grid;grid-template-columns:${COLS};gap:6px;align-items:center;padding:9px 12px;background:${i % 2 ? 'rgba(255,255,255,.03)' : 'transparent'};transition:background .25s">
         <div style="display:flex;align-items:center;gap:4px;min-width:0">
           <span style="width:6px;height:6px;border-radius:50%;background:${r.color};flex-shrink:0"></span>
-          <span style="font-size:12px;font-weight:600;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.ind}</span>
-          <span style="font-size:11px;color:var(--text3);flex-shrink:0">${r.n}</span>
+          <span style="font-size:calc(12px*var(--m-sub));font-weight:600;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.ind}</span>
+          <span style="font-size:calc(11px*var(--m-label));color:var(--text3);flex-shrink:0">${r.n}</span>
         </div>
         ${retCell}
         ${breadthCell}

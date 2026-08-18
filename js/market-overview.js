@@ -95,8 +95,8 @@ async function loadMarketOverview(maxDate) {
         '<canvas id="ind-bar-chart" style="width:100%;height:' + bHeight + 'px"></canvas>' +
       '</div>' +
       '<div id="ind-right" style="overflow-y:auto;max-height:520px">' +
-        '<div style="display:flex;align-items:center;justify-content:center;height:100%;min-height:200px;color:var(--text2);font-size:13px;flex-direction:column;gap:8px">' +
-          '<div style="font-size:22px">←</div>' +
+        '<div style="display:flex;align-items:center;justify-content:center;height:100%;min-height:200px;color:var(--text2);font-size:calc(13px*var(--m-body));flex-direction:column;gap:8px">' +
+          '<div style="font-size:calc(22px*var(--m-title))">←</div>' +
           '<div>막대를 클릭하면 세부 섹터를 볼 수 있습니다</div>' +
         '</div>' +
       '</div>' +
@@ -235,12 +235,12 @@ async function loadMarketOverview(maxDate) {
 
     let leftHtml =
       '<div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--bg2);z-index:1">' +
-        '<div style="font-size:14px;font-weight:700">' + indName + '</div>' +
+        '<div style="font-size:calc(14px*var(--m-body));font-weight:700">' + indName + '</div>' +
         '<div style="display:flex;align-items:center;gap:10px">' +
-          '<span style="font-size:14px;font-weight:800;color:' + avgClr + '">' + avgStr + '</span>' +
-          '<span style="color:var(--red);font-size:12px;font-weight:600">▲ ' + d.rise + '</span>' +
-          '<span style="color:var(--blue);font-size:12px;font-weight:600">▼ ' + d.fall + '</span>' +
-          (d.flat ? '<span style="color:var(--text2);font-size:12px">━ ' + d.flat + '</span>' : '') +
+          '<span style="font-size:calc(14px*var(--m-body));font-weight:800;color:' + avgClr + '">' + avgStr + '</span>' +
+          '<span style="color:var(--red);font-size:calc(12px*var(--m-sub));font-weight:600">▲ ' + d.rise + '</span>' +
+          '<span style="color:var(--blue);font-size:calc(12px*var(--m-sub));font-weight:600">▼ ' + d.fall + '</span>' +
+          (d.flat ? '<span style="color:var(--text2);font-size:calc(12px*var(--m-sub))">━ ' + d.flat + '</span>' : '') +
         '</div>' +
       '</div>';
 
@@ -252,15 +252,15 @@ async function loadMarketOverview(maxDate) {
         .filter(x => x.price_change_rate < 0 && !top3Codes.has(x.stock_code))
         .sort((a,b) => a.price_change_rate - b.price_change_rate).slice(0,2);
       const mkTag = (st, clr) =>
-        '<span style="font-size:11px;padding:2px 7px;border-radius:4px;background:var(--bg3);color:var(--text1);white-space:nowrap">' +
+        '<span style="font-size:calc(11px*var(--m-label));padding:2px 7px;border-radius:4px;background:var(--bg3);color:var(--text1);white-space:nowrap">' +
         escapeHtml(st.corp_name) + ' <span style="color:' + clr + ';font-weight:600">' + chgStr(st.price_change_rate) + '</span></span>';
 
       leftHtml +=
         '<div class="sub-sector-row" data-si="' + si + '" style="padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer">' +
           '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">' +
-            '<span style="font-size:12px;font-weight:700">' + s.sub + '</span>' +
-            '<span style="font-size:13px;font-weight:800;color:' + chgColor(s.avg) + '">' + chgStr(s.avg) + '</span>' +
-            '<span style="font-size:11px;color:var(--text2)">▲' + s.rise + ' ▼' + s.fall + ' · ' + s.total + '개</span>' +
+            '<span style="font-size:calc(12px*var(--m-sub));font-weight:700">' + s.sub + '</span>' +
+            '<span style="font-size:calc(13px*var(--m-body));font-weight:800;color:' + chgColor(s.avg) + '">' + chgStr(s.avg) + '</span>' +
+            '<span style="font-size:calc(11px*var(--m-label));color:var(--text2)">▲' + s.rise + ' ▼' + s.fall + ' · ' + s.total + '개</span>' +
           '</div>' +
           '<div style="display:flex;gap:3px;flex-wrap:wrap">' +
             top3.map(st => mkTag(st, chgColor(st.price_change_rate))).join('') +
@@ -277,7 +277,7 @@ async function loadMarketOverview(maxDate) {
     const retStr = v => v != null
       ? '<span style="color:' + (v>=0?'var(--red)':'var(--blue)') + '">' + (v>=0?'+':'') + v.toFixed(1) + '%</span>'
       : '<span style="color:var(--text2)">—</span>';
-    const thStyle = col => 'cursor:pointer;text-align:right;font-size:11px;padding:4px 4px;color:' +
+    const thStyle = col => 'cursor:pointer;text-align:right;font-size:calc(11px*var(--m-label));padding:4px 4px;color:' +
       (col===_sortCol?'var(--tg)':'var(--text2)') + ';white-space:nowrap;user-select:none';
     const th = (col, label) =>
       '<span style="' + thStyle(col) + '" onclick="INV.moSort(\'' + col + '\')">' + label + sortIcon(col) + '</span>';
@@ -296,16 +296,16 @@ async function loadMarketOverview(maxDate) {
       // 패널(#sub-stock-panel)은 가로 스크롤, 내용은 최소폭 확보 (.ind-stock-panel-inner)
       return '<div class="ind-stock-panel-inner">' +
         '<div style="padding:10px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1;display:flex;justify-content:space-between;align-items:center">' +
-          '<span style="font-size:13px;font-weight:700">' + title + '</span>' +
+          '<span style="font-size:calc(13px*var(--m-body));font-weight:700">' + title + '</span>' +
           '<div style="display:flex;align-items:center;gap:10px">' +
-            '<span style="color:var(--red);font-size:12px;font-weight:600">▲ ' + r + '</span>' +
-            '<span style="color:var(--blue);font-size:12px;font-weight:600">▼ ' + f + '</span>' +
-            (fl ? '<span style="color:var(--text2);font-size:12px">━ ' + fl + '</span>' : '') +
+            '<span style="color:var(--red);font-size:calc(12px*var(--m-sub));font-weight:600">▲ ' + r + '</span>' +
+            '<span style="color:var(--blue);font-size:calc(12px*var(--m-sub));font-weight:600">▼ ' + f + '</span>' +
+            (fl ? '<span style="color:var(--text2);font-size:calc(12px*var(--m-sub))">━ ' + fl + '</span>' : '') +
           '</div>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:' + COLS + ';gap:0;padding:4px 14px;border-bottom:1px solid var(--border);background:var(--bg3)">' +
           '<span></span>' +
-          '<span style="font-size:11px;color:var(--text1)">종목</span>' +
+          '<span style="font-size:calc(11px*var(--m-label));color:var(--text1)">종목</span>' +
           th('price', '현재가') +
           th('price_change_rate', '등락률') +
           th('market_cap', '시총') +
@@ -315,19 +315,19 @@ async function loadMarketOverview(maxDate) {
         all.map((st, i) =>
           '<div class="stock-row" data-stock-open="' + st.stock_code + '" data-stock-name="' + escAttr(st.corp_name || '') + '" ' +
             'style="display:grid;grid-template-columns:' + COLS + ';align-items:center;gap:0;padding:6px 14px;border-bottom:1px solid var(--border)">' +
-            '<span style="font-size:11px;color:var(--text2)">' + (i+1) + '</span>' +
-            '<span style="font-size:13px">' + escapeHtml(st.corp_name) + '</span>' +
-            '<span style="font-size:12px;color:var(--text1);text-align:right;padding-right:8px">' +
+            '<span style="font-size:calc(11px*var(--m-label));color:var(--text2)">' + (i+1) + '</span>' +
+            '<span style="font-size:calc(13px*var(--m-body))">' + escapeHtml(st.corp_name) + '</span>' +
+            '<span style="font-size:calc(12px*var(--m-sub));color:var(--text1);text-align:right;padding-right:8px">' +
               fmtPrice(st.price) +
             '</span>' +
-            '<span style="font-size:13px;font-weight:700;color:' + chgColor(st.price_change_rate) + ';text-align:right">' +
+            '<span style="font-size:calc(13px*var(--m-body));font-weight:700;color:' + chgColor(st.price_change_rate) + ';text-align:right">' +
               chgStr(st.price_change_rate) +
             '</span>' +
-            '<span style="font-size:11px;color:var(--text1);text-align:right;padding-right:6px">' +
+            '<span style="font-size:calc(11px*var(--m-label));color:var(--text1);text-align:right;padding-right:6px">' +
               (st.market_cap != null ? fmtCap(st.market_cap) : '—') +
             '</span>' +
-            '<span style="font-size:11px;text-align:right;padding-right:4px;color:' + ((st.foreign_net_buy||0)<0?'var(--blue)':'var(--red)') + '">' + (st.foreign_net_buy!=null?st.foreign_net_buy.toLocaleString():'—') + '</span>' +
-            '<span style="font-size:11px;text-align:right;color:var(--text1)">' + (st.foreign_hold_rate!=null?st.foreign_hold_rate.toFixed(1)+'%':'—') + '</span>' +
+            '<span style="font-size:calc(11px*var(--m-label));text-align:right;padding-right:4px;color:' + ((st.foreign_net_buy||0)<0?'var(--blue)':'var(--red)') + '">' + (st.foreign_net_buy!=null?st.foreign_net_buy.toLocaleString():'—') + '</span>' +
+            '<span style="font-size:calc(11px*var(--m-label));text-align:right;color:var(--text1)">' + (st.foreign_hold_rate!=null?st.foreign_hold_rate.toFixed(1)+'%':'—') + '</span>' +
           '</div>'
         ).join('') +
         '</div>';   // /.ind-stock-panel-inner
@@ -434,7 +434,7 @@ async function loadNewHighStocks() {
       .select('base_date').in('hgpr_cls_code', _HGPR_VALS)
       .order('base_date', { ascending: false }).limit(1);
     if (!latest?.length) {
-      body.innerHTML = '<div style="padding:1rem;color:var(--text2);font-size:12px;text-align:center">신고가 데이터 없음 — 장 마감 후 수집됩니다</div>';
+      body.innerHTML = '<div style="padding:1rem;color:var(--text2);font-size:calc(12px*var(--m-sub));text-align:center">신고가 데이터 없음 — 장 마감 후 수집됩니다</div>';
       return;
     }
     targetDate = latest[0].base_date;
@@ -552,7 +552,7 @@ function renderHgprTab(tab) {
   const rows = _hgprData[tab] || [];
 
   if (!rows.length) {
-    body.innerHTML = '<div style="padding:1rem;color:var(--text2);font-size:12px;text-align:center">해당 신고가 종목 없음</div>';
+    body.innerHTML = '<div style="padding:1rem;color:var(--text2);font-size:calc(12px*var(--m-sub));text-align:center">해당 신고가 종목 없음</div>';
     return;
   }
 
@@ -575,11 +575,11 @@ function renderHgprTab(tab) {
     });
 
     const streakBadge = r => {
-      if (r.streak >= 3)  return `<span style="display:inline-block;min-width:52px;text-align:center;font-size:11px;padding:1px 5px;border-radius:10px;background:rgba(245,54,92,.18);color:var(--red);font-weight:700">🔥${r.streak}일 연속</span>`;
-      if (r.streak === 2) return `<span style="display:inline-block;min-width:52px;text-align:center;font-size:11px;padding:1px 5px;border-radius:10px;background:rgba(251,99,64,.15);color:var(--yellow);font-weight:700">🔥2일 연속</span>`;
-      if (r.isFirst)      return `<span style="display:inline-block;min-width:52px;text-align:center;font-size:11px;padding:1px 5px;border-radius:10px;background:rgba(42,171,238,.15);color:var(--tg);font-weight:700">🎯 첫 신고가</span>`;
-      if (r.count7 >= 3)  return `<span style="display:inline-block;min-width:52px;text-align:center;font-size:11px;padding:1px 5px;border-radius:10px;background:rgba(45,206,137,.12);color:var(--green);font-weight:700">📈${r.count7}회</span>`;
-      return `<span style="display:inline-block;min-width:52px;font-size:11px;padding:1px 5px;color:var(--text2)">—</span>`;
+      if (r.streak >= 3)  return `<span style="display:inline-block;min-width:52px;text-align:center;font-size:calc(11px*var(--m-label));padding:1px 5px;border-radius:10px;background:rgba(245,54,92,.18);color:var(--red);font-weight:700">🔥${r.streak}일 연속</span>`;
+      if (r.streak === 2) return `<span style="display:inline-block;min-width:52px;text-align:center;font-size:calc(11px*var(--m-label));padding:1px 5px;border-radius:10px;background:rgba(251,99,64,.15);color:var(--yellow);font-weight:700">🔥2일 연속</span>`;
+      if (r.isFirst)      return `<span style="display:inline-block;min-width:52px;text-align:center;font-size:calc(11px*var(--m-label));padding:1px 5px;border-radius:10px;background:rgba(42,171,238,.15);color:var(--tg);font-weight:700">🎯 첫 신고가</span>`;
+      if (r.count7 >= 3)  return `<span style="display:inline-block;min-width:52px;text-align:center;font-size:calc(11px*var(--m-label));padding:1px 5px;border-radius:10px;background:rgba(45,206,137,.12);color:var(--green);font-weight:700">📈${r.count7}회</span>`;
+      return `<span style="display:inline-block;min-width:52px;font-size:calc(11px*var(--m-label));padding:1px 5px;color:var(--text2)">—</span>`;
     };
 
     const makeRow = r => {
@@ -588,27 +588,27 @@ function renderHgprTab(tab) {
 
       // ── Phase 2: 거래대금 + 외국인 배지 ──────────────────────
       const tvStr = r.tv >= 1e10
-        ? '<span style="font-size:11px;padding:1px 4px;border-radius:3px;background:rgba(245,158,11,.12);color:#f59e0b;font-weight:600">' +
+        ? '<span style="font-size:calc(11px*var(--m-label));padding:1px 4px;border-radius:3px;background:rgba(245,158,11,.12);color:#f59e0b;font-weight:600">' +
           fmtTV(r.tv) + '</span>'
         : '';
       const frgnBadge = r.foreign_net_buy != null && r.foreign_net_buy !== 0
         ? (r.foreign_net_buy > 0
-            ? '<span style="font-size:11px;padding:1px 4px;border-radius:3px;background:rgba(42,171,238,.12);color:var(--tg);font-weight:600">외↑</span>'
-            : '<span style="font-size:11px;padding:1px 4px;border-radius:3px;background:rgba(74,158,255,.10);color:var(--blue);font-weight:600">외↓</span>')
+            ? '<span style="font-size:calc(11px*var(--m-label));padding:1px 4px;border-radius:3px;background:rgba(42,171,238,.12);color:var(--tg);font-weight:600">외↑</span>'
+            : '<span style="font-size:calc(11px*var(--m-label));padding:1px 4px;border-radius:3px;background:rgba(74,158,255,.10);color:var(--blue);font-weight:600">외↓</span>')
         : '';
 
       return `<div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||r.stock_code)}"
         style="display:grid;grid-template-columns:1fr auto 52px 70px;align-items:center;gap:6px;
           padding:5px 10px;border-bottom:1px solid var(--border);
           border-left:2px solid ${bClr}">
-        <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+        <div style="font-size:calc(12px*var(--m-sub));font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
           ${escapeHtml(r.corp_name||r.stock_code)}
         </div>
         <div style="display:flex;align-items:center;gap:3px;flex-wrap:nowrap">
           ${streakBadge(r)}${tvStr}${frgnBadge}
         </div>
-        <div style="text-align:right;font-size:12px;font-weight:700;color:${chgColor(chg)}">${chgStr(chg)}</div>
-        <div style="text-align:right;font-size:11px;color:var(--text2)">${r.market_cap?fmtCap(r.market_cap):'—'}</div>
+        <div style="text-align:right;font-size:calc(12px*var(--m-sub));font-weight:700;color:${chgColor(chg)}">${chgStr(chg)}</div>
+        <div style="text-align:right;font-size:calc(11px*var(--m-label));color:var(--text2)">${r.market_cap?fmtCap(r.market_cap):'—'}</div>
       </div>`;
     };
 
@@ -621,18 +621,18 @@ function renderHgprTab(tab) {
       const rows_html = indRows.map(makeRow).join('');
       return `<div style="min-width:0;background:var(--bg3);border-radius:8px;
         border:1px solid var(--border);overflow:hidden">
-        <div style="padding:6px 10px;font-size:11px;font-weight:700;color:var(--tg);
+        <div style="padding:6px 10px;font-size:calc(11px*var(--m-label));font-weight:700;color:var(--tg);
           background:rgba(42,171,238,.06);border-bottom:1px solid var(--border);
           display:flex;align-items:center;justify-content:space-between">
           <span>${ind}</span>
-          <span style="font-weight:400;color:var(--text2);font-size:11px">${indRows.length}개</span>
+          <span style="font-weight:400;color:var(--text2);font-size:calc(11px*var(--m-label))">${indRows.length}개</span>
         </div>
         <div style="display:grid;grid-template-columns:1fr 90px 52px 70px;
           padding:4px 10px 3px;background:var(--bg2);border-bottom:1px solid var(--border)">
-          <span style="font-size:11px;color:var(--text2)">종목</span>
-          <span style="font-size:11px;color:var(--text2);text-align:center">연속/첫신고가</span>
-          <span style="font-size:11px;color:var(--text2);text-align:right">등락률</span>
-          <span style="font-size:11px;color:var(--text2);text-align:right">시총</span>
+          <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">종목</span>
+          <span style="font-size:calc(11px*var(--m-label));color:var(--text2);text-align:center">연속/첫신고가</span>
+          <span style="font-size:calc(11px*var(--m-label));color:var(--text2);text-align:right">등락률</span>
+          <span style="font-size:calc(11px*var(--m-label));color:var(--text2);text-align:right">시총</span>
         </div>
         ${rows_html}
       </div>`;
@@ -708,16 +708,16 @@ function renderHgprTab(tab) {
             padding:5px 10px;border-bottom:1px solid var(--border);
             border-left:2px solid ${bClr}">
           <div style="min-width:0">
-            <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.corp_name||r.stock_code)}</div>
-            <div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.industry||'')}</div>
+            <div style="font-size:calc(12px*var(--m-sub));font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.corp_name||r.stock_code)}</div>
+            <div style="font-size:calc(11px*var(--m-label));color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.industry||'')}</div>
           </div>
-          <div style="font-size:12px;font-weight:700;color:${chgColor(chg)};white-space:nowrap">${chgStr(chg)}</div>
-          <div style="font-size:11px;color:var(--text2);white-space:nowrap;text-align:right">${r.market_cap?fmtCap(r.market_cap):'—'}</div>
+          <div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:${chgColor(chg)};white-space:nowrap">${chgStr(chg)}</div>
+          <div style="font-size:calc(11px*var(--m-label));color:var(--text2);white-space:nowrap;text-align:right">${r.market_cap?fmtCap(r.market_cap):'—'}</div>
         </div>`;
       }).join('');
 
       const moreHtml = extra > 0
-        ? `<div style="padding:6px 10px;text-align:center;font-size:11px;color:var(--text2);
+        ? `<div style="padding:6px 10px;text-align:center;font-size:calc(11px*var(--m-label));color:var(--text2);
             border-top:1px solid var(--border)">+${extra}개 더</div>`
         : '';
 
@@ -725,14 +725,14 @@ function renderHgprTab(tab) {
         background:var(--bg3);border-radius:8px;border:1px solid var(--border);overflow:hidden">
         <div style="padding:7px 10px;background:${g.hdrBg};border-bottom:1px solid var(--border);
           display:flex;align-items:center;justify-content:space-between">
-          <span style="font-size:11px;font-weight:700;color:${g.textColor}">${g.icon}${g.icon?' ':''}${g.title}</span>
+          <span style="font-size:calc(11px*var(--m-label));font-weight:700;color:${g.textColor}">${g.icon}${g.icon?' ':''}${g.title}</span>
           <span class="card-sub">${g.members.length}개</span>
         </div>
         <div style="display:grid;grid-template-columns:1fr auto auto;gap:6px;
           padding:3px 10px;background:var(--bg2);border-bottom:1px solid var(--border)">
-          <span style="font-size:11px;color:var(--text2)">종목</span>
-          <span style="font-size:11px;color:var(--text2)">등락</span>
-          <span style="font-size:11px;color:var(--text2);text-align:right">시총</span>
+          <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">종목</span>
+          <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">등락</span>
+          <span style="font-size:calc(11px*var(--m-label));color:var(--text2);text-align:right">시총</span>
         </div>
         ${itemsHtml}${moreHtml}
       </div>`;
@@ -779,7 +779,7 @@ async function loadFlowData() {
     if (!maxDate) {
       ['flow-body-both','flow-body-frgn','flow-body-orgn'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:12px">데이터 없음</div>';
+        if (el) el.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">데이터 없음</div>';
       });
       return;
     }
@@ -825,7 +825,7 @@ async function loadFlowData() {
     console.error('[FlowData] 최종 오류:', e?.message || e);
     ['flow-body-both','flow-body-frgn','flow-body-orgn'].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:12px">로드 실패</div>';
+      if (el) el.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">로드 실패</div>';
     });
   }
 }
@@ -878,9 +878,9 @@ function _renderFlowCol(tab, bodyId) {
 
   if (!rows.length) {
     const msg = tab === 'both'
-      ? '오늘 외국인·기관 동시 순매수 종목 없음<br><span style="font-size:11px">외국인↔기관 매수 방향 상이</span>'
-      : tab === 'orgn' ? '기관 집계 전<br><span style="font-size:11px">09:35·11:25·13:25·14:35</span>' : '데이터 없음';
-    body.innerHTML = `<div style="padding:1.5rem;color:var(--text2);font-size:12px;text-align:center">${msg}</div>`;
+      ? '오늘 외국인·기관 동시 순매수 종목 없음<br><span style="font-size:calc(11px*var(--m-label))">외국인↔기관 매수 방향 상이</span>'
+      : tab === 'orgn' ? '기관 집계 전<br><span style="font-size:calc(11px*var(--m-label))">09:35·11:25·13:25·14:35</span>' : '데이터 없음';
+    body.innerHTML = `<div style="padding:1.5rem;color:var(--text2);font-size:calc(12px*var(--m-sub));text-align:center">${msg}</div>`;
     return;
   }
 
@@ -890,18 +890,18 @@ function _renderFlowCol(tab, bodyId) {
   // orgn: 종목 | 등락 | 금액
   const CFG = {
     both: { cols: '1fr 44px 82px',
-            hdr: `<span style="font-size:11px;color:var(--text2)">종목</span>
-                  <span style="font-size:11px;color:var(--text2);text-align:right">등락</span>
-                  <span style="font-size:11px;text-align:right"><span style="color:var(--tg)">외</span><span style="color:var(--text2)">/</span><span style="color:var(--yellow)">기</span>(억)</span>` },
+            hdr: `<span style="font-size:calc(11px*var(--m-label));color:var(--text2)">종목</span>
+                  <span style="font-size:calc(11px*var(--m-label));color:var(--text2);text-align:right">등락</span>
+                  <span style="font-size:calc(11px*var(--m-label));text-align:right"><span style="color:var(--tg)">외</span><span style="color:var(--text2)">/</span><span style="color:var(--yellow)">기</span>(억)</span>` },
     frgn: { cols: '1fr 44px 52px 44px',
-            hdr: `<span style="font-size:11px;color:var(--text2)">종목</span>
-                  <span style="font-size:11px;color:var(--text2);text-align:right">등락</span>
-                  <span style="font-size:11px;color:${_frgnSellMode?'var(--blue)':'var(--tg)'};text-align:right">금액(억)</span>
-                  <span style="font-size:11px;color:var(--text2);text-align:right">보유율</span>` },
+            hdr: `<span style="font-size:calc(11px*var(--m-label));color:var(--text2)">종목</span>
+                  <span style="font-size:calc(11px*var(--m-label));color:var(--text2);text-align:right">등락</span>
+                  <span style="font-size:calc(11px*var(--m-label));color:${_frgnSellMode?'var(--blue)':'var(--tg)'};text-align:right">금액(억)</span>
+                  <span style="font-size:calc(11px*var(--m-label));color:var(--text2);text-align:right">보유율</span>` },
     orgn: { cols: '1fr 44px 52px',
-            hdr: `<span style="font-size:11px;color:var(--text2)">종목</span>
-                  <span style="font-size:11px;color:var(--text2);text-align:right">등락</span>
-                  <span style="font-size:11px;color:var(--yellow);text-align:right">금액(억)</span>` },
+            hdr: `<span style="font-size:calc(11px*var(--m-label));color:var(--text2)">종목</span>
+                  <span style="font-size:calc(11px*var(--m-label));color:var(--text2);text-align:right">등락</span>
+                  <span style="font-size:calc(11px*var(--m-label));color:var(--yellow);text-align:right">금액(억)</span>` },
   };
   const { cols, hdr } = CFG[tab];
 
@@ -909,9 +909,9 @@ function _renderFlowCol(tab, bodyId) {
   const frgnToggle = tab === 'frgn'
     ? `<div style="display:flex;gap:4px;padding:4px 8px;border-bottom:1px solid var(--border);background:var(--bg2)">
          <button class="chip ${!_frgnSellMode?'active':''}" onclick="_setFlowMode(false)"
-           style="font-size:11px;padding:2px 8px;flex:1">순매수 ▲</button>
+           style="font-size:calc(11px*var(--m-label));padding:2px 8px;flex:1">순매수 ▲</button>
          <button class="chip ${_frgnSellMode?'active':''}" onclick="_setFlowMode(true)"
-           style="font-size:11px;padding:2px 8px;flex:1;${_frgnSellMode?'color:var(--blue)':''}">순매도 ▼</button>
+           style="font-size:calc(11px*var(--m-label));padding:2px 8px;flex:1;${_frgnSellMode?'color:var(--blue)':''}">순매도 ▼</button>
        </div>`
     : '';
 
@@ -927,7 +927,7 @@ function _renderFlowCol(tab, bodyId) {
     if (tab === 'both') {
       const fAmt = _flowAmtFmt(r.foreign_net_buy, r.price);
       const oAmt = _flowAmtFmt(r.institution_net_buy, r.price);
-      cells = `<span style="font-size:11px;font-weight:600;text-align:right">` +
+      cells = `<span style="font-size:calc(11px*var(--m-label));font-weight:600;text-align:right">` +
         `<span style="color:var(--tg)">${fAmt}</span>` +
         `<span style="color:var(--text2)">/</span>` +
         `<span style="color:var(--yellow)">${oAmt}</span></span>`;
@@ -935,18 +935,18 @@ function _renderFlowCol(tab, bodyId) {
       const amtClr = _frgnSellMode ? 'var(--blue)' : 'var(--tg)';
       const amt    = _flowAmtFmt(r.foreign_net_buy, r.price);
       const holdRate = r.foreign_hold_rate != null
-        ? `<span style="font-size:11px;color:var(--text2);text-align:right">${r.foreign_hold_rate.toFixed(1)}%</span>`
-        : `<span style="font-size:11px;color:var(--text2);text-align:right">—</span>`;
-      cells = `<span style="font-size:11px;font-weight:600;text-align:right;color:${amtClr}">${amt}</span>${holdRate}`;
+        ? `<span style="font-size:calc(11px*var(--m-label));color:var(--text2);text-align:right">${r.foreign_hold_rate.toFixed(1)}%</span>`
+        : `<span style="font-size:calc(11px*var(--m-label));color:var(--text2);text-align:right">—</span>`;
+      cells = `<span style="font-size:calc(11px*var(--m-label));font-weight:600;text-align:right;color:${amtClr}">${amt}</span>${holdRate}`;
     } else {
       const amt = _flowAmtFmt(r.institution_net_buy, r.price);
-      cells = `<span style="font-size:11px;font-weight:600;text-align:right;color:var(--yellow)">${amt}</span>`;
+      cells = `<span style="font-size:calc(11px*var(--m-label));font-weight:600;text-align:right;color:var(--yellow)">${amt}</span>`;
     }
 
     return `<div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(name)}"
       style="display:grid;grid-template-columns:${cols};align-items:center;padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.04)">
-      <span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escAttr(name)}">${dispName}</span>
-      <span style="font-size:11px;font-weight:700;color:${chgColor(r.price_change_rate)};text-align:right">${chgStr(r.price_change_rate)}</span>
+      <span style="font-size:calc(12px*var(--m-sub));overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escAttr(name)}">${dispName}</span>
+      <span style="font-size:calc(11px*var(--m-label));font-weight:700;color:${chgColor(r.price_change_rate)};text-align:right">${chgStr(r.price_change_rate)}</span>
       ${cells}
     </div>`;
   };
@@ -955,7 +955,7 @@ function _renderFlowCol(tab, bodyId) {
   const extraRows = rows.slice(TOP_N);
   const moreHtml  = extraRows.length
     ? `<div id="flow-more-${tab}" style="display:none">${extraRows.map(mkRow).join('')}</div>
-       <div style="padding:5px 8px;text-align:center;cursor:pointer;font-size:11px;color:var(--text2);
+       <div style="padding:5px 8px;text-align:center;cursor:pointer;font-size:calc(11px*var(--m-label));color:var(--text2);
          border-top:1px solid var(--border)" onclick="toggleFlowMore('${tab}')">
          <span id="flow-more-btn-${tab}">더보기 ▾ (${extraRows.length}개)</span>
        </div>`

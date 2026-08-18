@@ -29,7 +29,7 @@ function pStocks() {
         <option value="true">활성화</option>
         <option value="false">비활성화</option>
       </select>
-      <span style="font-size:12px;color:var(--text2)" id="stock-count"></span>
+      <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)" id="stock-count"></span>
       <div style="margin-left:auto;display:flex;gap:8px">
         <button class="btn btn-sm" onclick="openModal('m-stock-add')">+ 종목 추가</button>
         <button class="btn btn-sm btn-primary" id="reload-btn" onclick="requestBotReload()" title="DB 변경사항을 봇에 반영합니다">
@@ -49,7 +49,7 @@ function pStocks() {
       <select class="form-select" id="sub-industry-select" onchange="loadSubIndustryPanel()" style="width:140px;padding:6px 10px">
         ${INDUSTRIES.map(i=>`<option value="${i}">${i}</option>`).join('')}
       </select>
-      <span style="font-size:12px;color:var(--text2)" id="sub-panel-count"></span>
+      <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)" id="sub-panel-count"></span>
       <div style="margin-left:auto;display:flex;gap:8px">
         <button class="btn btn-sm btn-primary" onclick="openAddSubIndustry()">+ 세부분야 추가</button>
         <button class="btn btn-sm" id="reload-btn-sub" onclick="requestBotReload('reload-btn-sub')" title="DB 변경사항을 봇에 반영합니다">
@@ -114,7 +114,7 @@ async function loadSubIndustryPanel() {
     <div class="card" style="margin-bottom:.75rem">
       <div class="card-header" style="gap:8px">
         <span class="card-title" style="flex:1">${escapeHtml(sub)}
-          <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">${stocks.length}개</span>
+          <span style="font-size:calc(11px*var(--m-label));font-weight:400;color:var(--text2);margin-left:6px">${stocks.length}개</span>
         </span>
         ${sub !== '(미분류)' && canEdit() ? `
         <button class="btn btn-sm" onclick="openRenameSubIndustry('${escJsStr(industry)}','${escJsStr(sub)}')">이름 변경</button>
@@ -125,12 +125,12 @@ async function loadSubIndustryPanel() {
       </div>
       <div style="padding:.5rem 1rem .75rem;display:flex;flex-wrap:wrap;gap:6px">
         ${stocks.map(s => `
-        <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:3px 10px;border-radius:100px;background:var(--bg3);border:1px solid var(--border)">
+        <span style="display:inline-flex;align-items:center;gap:5px;font-size:calc(12px*var(--m-sub));padding:3px 10px;border-radius:100px;background:var(--bg3);border:1px solid var(--border)">
           <span style="color:var(--text)">${escapeHtml(s.name)}</span>
-          <span style="color:var(--text2);font-size:11px">${s.code||''}</span>
-          ${canEdit() && sub !== '(미분류)' ? `<button onclick="removeFromSubIndustry(${s.id},'${escJsStr(s.name)}','${escJsStr(sub)}')" style="background:none;border:none;color:var(--text2);cursor:pointer;padding:0;font-size:13px;line-height:1;margin-left:2px" title="이 세부분야에서 제외">×</button>` : ''}
+          <span style="color:var(--text2);font-size:calc(11px*var(--m-label))">${s.code||''}</span>
+          ${canEdit() && sub !== '(미분류)' ? `<button onclick="removeFromSubIndustry(${s.id},'${escJsStr(s.name)}','${escJsStr(sub)}')" style="background:none;border:none;color:var(--text2);cursor:pointer;padding:0;font-size:calc(13px*var(--m-body));line-height:1;margin-left:2px" title="이 세부분야에서 제외">×</button>` : ''}
         </span>`).join('')}
-        ${stocks.length === 0 ? '<span style="font-size:12px;color:var(--text2)">종목 없음</span>' : ''}
+        ${stocks.length === 0 ? '<span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">종목 없음</span>' : ''}
       </div>
     </div>`).join('');
 }
@@ -224,19 +224,19 @@ function renderAssignList(q) {
     <label style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer">
       <input type="checkbox" value="${s.id}" ${inSub?'checked':''}
         style="width:15px;height:15px;flex-shrink:0">
-      <span style="flex:1;font-size:13px">${escapeHtml(s.name)}</span>
-      <span style="font-size:11px;font-family:monospace;color:var(--text2)">${s.code||''}</span>
+      <span style="flex:1;font-size:calc(13px*var(--m-body))">${escapeHtml(s.name)}</span>
+      <span style="font-size:calc(11px*var(--m-label));font-family:monospace;color:var(--text2)">${s.code||''}</span>
       ${isUnassigned
-        ? `<span style="font-size:11px;padding:1px 6px;border-radius:100px;background:rgba(255,255,255,.06);color:var(--text2)">미분류</span>`
+        ? `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:100px;background:rgba(255,255,255,.06);color:var(--text2)">미분류</span>`
         : isDiffIndustry
-        ? `<span style="font-size:11px;padding:1px 6px;border-radius:100px;background:rgba(255,255,255,.06);color:var(--text2)">${s.industry}</span>`
+        ? `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:100px;background:rgba(255,255,255,.06);color:var(--text2)">${s.industry}</span>`
         : isOtherSub
-        ? `<span style="font-size:11px;padding:1px 6px;border-radius:100px;background:rgba(251,99,64,.15);color:var(--yellow)">${s.sub_industry}</span>`
+        ? `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:100px;background:rgba(251,99,64,.15);color:var(--yellow)">${s.sub_industry}</span>`
         : inSub
-        ? `<span style="font-size:11px;padding:1px 6px;border-radius:100px;background:rgba(42,171,238,.12);color:var(--tg)">현재</span>`
+        ? `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:100px;background:rgba(42,171,238,.12);color:var(--tg)">현재</span>`
         : ''}
     </label>`;
-  }).join('') || '<div style="padding:1rem;color:var(--text2);font-size:13px;text-align:center">종목 없음</div>';
+  }).join('') || '<div style="padding:1rem;color:var(--text2);font-size:calc(13px*var(--m-body));text-align:center">종목 없음</div>';
 }
 
 
@@ -382,7 +382,7 @@ function renderStocks(list) {
   if (!el) return;
   const cnt = document.getElementById('stock-count');
   if (cnt) cnt.textContent = `${list.length}개`;
-  if (!list.length) { el.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:13px">종목 없음</div>'; return; }
+  if (!list.length) { el.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:calc(13px*var(--m-body))">종목 없음</div>'; return; }
 
   el.innerHTML = `<div class="table-wrap"><table>
     <thead><tr>
@@ -390,14 +390,14 @@ function renderStocks(list) {
       <th class="stock-col-keyword">키워드</th><th>모니터링</th><th>관리</th>
     </tr></thead>
     <tbody>${list.map(s => `<tr>
-      <td style="font-weight:600;font-size:13px">${escapeHtml(s.name)}</td>
-      <td style="font-size:12px;font-family:monospace;color:var(--text1)">${s.code||'—'}</td>
+      <td style="font-weight:600;font-size:calc(13px*var(--m-body))">${escapeHtml(s.name)}</td>
+      <td style="font-size:calc(12px*var(--m-sub));font-family:monospace;color:var(--text1)">${s.code||'—'}</td>
       <td><span class="badge badge-cat">${s.industry||'—'}</span></td>
-      <td style="font-size:12px;color:var(--text1)">${s.sub_industry||'—'}</td>
-      <td style="font-size:11px;color:var(--text1);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escAttr(s.sector||'')}">${escapeHtml(s.sector||'—')}</td>
-      <td class="stock-col-keyword" style="font-size:12px;color:var(--text1);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(s.keywords||'—')}</td>
+      <td style="font-size:calc(12px*var(--m-sub));color:var(--text1)">${s.sub_industry||'—'}</td>
+      <td style="font-size:calc(11px*var(--m-label));color:var(--text1);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escAttr(s.sector||'')}">${escapeHtml(s.sector||'—')}</td>
+      <td class="stock-col-keyword" style="font-size:calc(12px*var(--m-sub));color:var(--text1);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(s.keywords||'—')}</td>
       <td>
-        <span style="font-size:11px;font-weight:500;padding:3px 8px;border-radius:100px;background:${
+        <span style="font-size:calc(11px*var(--m-label));font-weight:500;padding:3px 8px;border-radius:100px;background:${
           s.monitoring_level==='full'?'rgba(42,171,238,.15)':
           s.monitoring_level==='news'?'rgba(45,206,137,.12)':
           'rgba(255,255,255,.04)'};color:${

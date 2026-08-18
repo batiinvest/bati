@@ -79,9 +79,9 @@ function renderCreditBalance() {
       const pdLbl  = { 90: '3달', 180: '6달', 365: '1년', 0: '전체' }[CB.period] ?? CB.period + '일';
       return `
       <div style="padding:8px 12px;border-left:3px solid ${s.color}">
-        <div style="font-size:11px;color:var(--text2)">${s.name}</div>
-        <div style="font-size:15px;font-weight:700;font-variant-numeric:tabular-nums">${fmtTV(cur * 1e6)}원</div>
-        <div style="font-size:11px;margin-top:2px">
+        <div style="font-size:calc(11px*var(--m-label));color:var(--text2)">${s.name}</div>
+        <div style="font-size:calc(15px*var(--m-title));font-weight:700;font-variant-numeric:tabular-nums">${fmtTV(cur * 1e6)}원</div>
+        <div style="font-size:calc(11px*var(--m-label));margin-top:2px">
           <span style="color:${chgColor(d1Pct)}">전일 ${d1 != null ? fmtNet(d1) : '—'}${d1Pct != null ? ` (${d1Pct > 0 ? '+' : ''}${d1Pct.toFixed(1)}%)` : ''}</span>
           <span style="color:var(--border);margin:0 4px">·</span>
           <span style="color:${chgColor(pdPct)}">${pdLbl} ${pdPct != null ? (pdPct > 0 ? '+' : '') + pdPct.toFixed(1) + '%' : '—'}</span>
