@@ -674,11 +674,11 @@ function _rpSegInner(cache, selected, mode) {
       <div style="display:flex;align-items:center;gap:7px">
         <span style="font-size:calc(11px*var(--m-label));font-weight:800;color:${color};min-width:18px;text-align:center;
           background:${color}22;border-radius:3px;padding:1px 4px">${si + 1}</span>
-        <span style="font-size:${isTop ? '13px' : '12px'};font-weight:${isTop || isSel ? 700 : 500};color:var(--text1);
+        <span style="font-size:${isTop ? 'calc(13px*var(--m-body))' : 'calc(12px*var(--m-sub))'};font-weight:${isTop || isSel ? 700 : 500};color:var(--text1);
           flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}</span>
         ${sparkline(name, color)}
         <span style="font-size:calc(12px*var(--m-sub));color:var(--text1);white-space:nowrap">${fmtCap(revenue * 1e6)}</span>
-        <span style="font-size:${isTop ? '13px' : '12px'};font-weight:700;color:${color};min-width:40px;text-align:right">${pct.toFixed(1)}%</span>
+        <span style="font-size:${isTop ? 'calc(13px*var(--m-body))' : 'calc(12px*var(--m-sub))'};font-weight:700;color:${color};min-width:40px;text-align:right">${pct.toFixed(1)}%</span>
         <span style="font-size:calc(12px*var(--m-sub));font-weight:700;color:${chgCol};min-width:58px;text-align:right;white-space:nowrap">${icon} ${chgStr}</span>
       </div>
       <div style="height:3px;border-radius:2px;background:${color}22;overflow:hidden;margin-top:5px">
@@ -889,11 +889,11 @@ function _rpBacklogInner(cache, selected, mode) {
       <div style="display:flex;align-items:center;gap:7px">
         <span style="font-size:calc(11px*var(--m-label));font-weight:800;color:${color};min-width:18px;text-align:center;
           background:${color}22;border-radius:3px;padding:1px 4px">${si + 1}</span>
-        <span style="font-size:${isTop ? '13px' : '12px'};font-weight:${isTop || isSel ? 700 : 500};color:var(--text1);
+        <span style="font-size:${isTop ? 'calc(13px*var(--m-body))' : 'calc(12px*var(--m-sub))'};font-weight:${isTop || isSel ? 700 : 500};color:var(--text1);
           flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}</span>
         ${sparkline(name, color)}
         <span style="font-size:calc(12px*var(--m-sub));color:var(--text1);white-space:nowrap">${fmtCap(bal * 1e6)}</span>
-        <span style="font-size:${isTop ? '13px' : '12px'};font-weight:700;color:${color};min-width:40px;text-align:right">${pct.toFixed(1)}%</span>
+        <span style="font-size:${isTop ? 'calc(13px*var(--m-body))' : 'calc(12px*var(--m-sub))'};font-weight:700;color:${color};min-width:40px;text-align:right">${pct.toFixed(1)}%</span>
         <span style="font-size:calc(12px*var(--m-sub));font-weight:700;color:${chgCol};min-width:58px;text-align:right;white-space:nowrap">${icon} ${chgStr}</span>
       </div>
       <div style="height:3px;border-radius:2px;background:${color}22;overflow:hidden;margin-top:5px">

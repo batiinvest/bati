@@ -126,7 +126,7 @@ function renderLeadingStocks() {
       style="display:flex;align-items:flex-start;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border)">
       <!-- 순위 -->
       <div style="min-width:20px;padding-top:3px;flex-shrink:0">
-        <span style="font-size:${i < 3 ? '13' : '11'}px;font-weight:700;color:${i < 3 ? scoreColor : 'var(--text3)'}">${r.rank}</span>
+        <span style="font-size:${i < 3 ? 'calc(13px*var(--m-body))' : 'calc(11px*var(--m-label))'};font-weight:700;color:${i < 3 ? scoreColor : 'var(--text3)'}">${r.rank}</span>
       </div>
       <!-- 종목 정보 + 스코어 바 -->
       <div style="flex:1;min-width:0">
@@ -425,7 +425,7 @@ async function loadLeadingBacktest() {
 // ── 백테스트 결과 렌더링 ──────────────────────────────────────────────────────
 function _renderBacktest(el, { windowStart, latestDate, results, total, avgRet, winRate, excess }) {
   const fmtRet = (v, size = 13) => v == null ? '—'
-    : `<span style="font-size:${size}px;font-weight:700;color:${v >= 0 ? 'var(--red)' : 'var(--blue)'}">
+    : `<span style="font-size:calc(${size}px*var(--m-${size >= 15 ? 'title' : 'body'}));font-weight:700;color:${v >= 0 ? 'var(--red)' : 'var(--blue)'}">
         ${v >= 0 ? '+' : ''}${v.toFixed(2)}%</span>`;
 
   const excessColor = excess == null ? 'var(--text3)'
