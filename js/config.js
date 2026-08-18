@@ -167,6 +167,42 @@ const errorHTML = (msg = '') =>
   </div>`;
 
 // ══════════════════════════════════════════
+//  화면 글자 크기(배율) 설정 — 기기별 저장(localStorage), 로그인 전부터 적용
+//  CSS가 px 기반이라 root font-size로는 하위 요소가 안 커짐 → 전체 UI를 zoom 배율로 확대/축소
+//  (박스까지 함께 스케일돼 레이아웃이 깨지지 않음). 설정 UI는 pSettings(bots.js).
+// ══════════════════════════════════════════
+const FONT_SCALE_KEY = 'bati-font-scale';
+const FONT_SCALE_PRESETS = [90, 100, 110, 125, 140];   // %
+const FONT_SCALE_MIN = 80, FONT_SCALE_MAX = 150, FONT_SCALE_DEFAULT = 100;
+
+const _clampScale = pct => {
+  const v = Math.round(Number(pct));
+  return Number.isFinite(v) ? Math.min(FONT_SCALE_MAX, Math.max(FONT_SCALE_MIN, v)) : FONT_SCALE_DEFAULT;
+};
+
+// 저장된 배율(%) — 없거나 이상값이면 기본 100
+function getFontScale() {
+  return _clampScale(localStorage.getItem(FONT_SCALE_KEY) ?? FONT_SCALE_DEFAULT);
+}
+
+// 배율 즉시 적용 (저장은 하지 않음). 100%는 zoom 해제(''), 그 외는 소수 비율.
+function applyFontScale(pct) {
+  const v = _clampScale(pct);
+  document.documentElement.style.zoom = v === 100 ? '' : String(v / 100);
+  return v;
+}
+
+// 배율 저장 + 적용 — 반환: 실제 적용된 값(clamp 후)
+function setFontScale(pct) {
+  const v = _clampScale(pct);
+  localStorage.setItem(FONT_SCALE_KEY, String(v));
+  return applyFontScale(v);
+}
+
+// 로드 즉시 적용 — config.js는 bootAuth()보다 먼저 실행되므로 깜빡임 최소화
+applyFontScale(getFontScale());
+
+// ══════════════════════════════════════════
 //  공통 페이징 유틸
 //  사용법:
 //    const data = await fetchAllPages(

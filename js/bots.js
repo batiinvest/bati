@@ -750,9 +750,37 @@ async function saveAlertThresholds() {
 
 const saveAlertConfig = saveConfigKey;
 
-function pSettings() {
-  if (!isAdmin()) return `<div style="padding:2rem;text-align:center;color:var(--text2);font-size:13px">admin만 설정 변경 가능합니다.</div>`;
+// 화면 글자 크기(배율) 카드 — 기기별 개인 설정이라 admin/일반 공통 노출.
+// 상태·적용 로직은 config.js(getFontScale/setFontScale/FONT_SCALE_PRESETS).
+function _fontScaleCard() {
+  const cur = getFontScale();
+  const LABELS = { 90:'작게', 100:'기본', 110:'크게', 125:'더 크게', 140:'아주 크게' };
+  const btns = FONT_SCALE_PRESETS.map(p =>
+    `<button class="btn btn-sm${p === cur ? ' btn-primary' : ''}" data-fontscale="${p}" onclick="onPickFontScale(${p})">`
+    + `${LABELS[p] || p + '%'}<span style="opacity:.55;margin-left:5px">${p}%</span></button>`
+  ).join('');
   return `
+  <div class="card" style="max-width:560px;margin-bottom:1rem"><div class="card-header"><span class="card-title">화면 글자 크기</span></div><div class="card-body">
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:.75rem">
+      이 기기에서만 적용됩니다. 화면 전체 배율을 조절해 글자·표를 키우거나 줄입니다.
+    </div>
+    <div id="fontscale-btns" style="display:flex;flex-wrap:wrap;gap:8px">${btns}</div>
+  </div></div>`;
+}
+
+// 프리셋 클릭 — 저장·적용 후 활성 버튼 갱신
+function onPickFontScale(pct) {
+  const v = setFontScale(pct);
+  document.querySelectorAll('#fontscale-btns [data-fontscale]').forEach(b =>
+    b.classList.toggle('btn-primary', Number(b.dataset.fontscale) === v)
+  );
+  if (typeof toast === 'function') toast(`글자 크기 ${v}%`, 'info');
+}
+
+function pSettings() {
+  const fontCard = _fontScaleCard();   // 글자 크기는 누구나 조절 가능
+  if (!isAdmin()) return fontCard;
+  return fontCard + `
   <div class="card" style="max-width:560px;margin-bottom:1rem"><div class="card-header"><span class="card-title">텔레그램 봇</span></div><div class="card-body">
     <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:.75rem">
       봇 토큰은 백엔드 서버(.env)에만 보관됩니다 — 대시보드는 토큰을 갖지 않으며,
