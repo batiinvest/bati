@@ -17,15 +17,16 @@ const INV_ALL_METRICS = [
   { col:'us10y',   name:'미 금리',  group:'기타',   color:'#94a3b8' },  // 연회
 ];
 
-const INV = {
-  selected: new Set(['sp500','nasdaq','kospi','kosdaq']),
-  period:   7,
-  // ── 구 window._* 수렴 (런타임 대입) ──
-  // tab·highlighted·hovered: 시황 페이지 UI 상태
-  // allMarketRows·macroData·macroRows·marketBreadth·tempScore·indMapData:
-  //   market-overview/-insight/-temperature/sector-rotation/chart-macro가 공유하는 시장 데이터 캐시
-  // moSort·indBarChart·insightSaveDB·insightCurrentData·lsPollTimer·lsAllData: 섹션별 상태
-};
+// INV 네임스페이스 자체는 config.js에서 먼저 선언(로드 순서 문제 — market-overview/-insight 등이
+// investment.js보다 먼저 로드되며 최상위에서 INV에 접근). 여기서는 시황 페이지 기본값만 주입한다.
+//   selected·period: 지표 선택/기간 UI 상태
+//   ── 구 window._* 수렴 (런타임 대입) ──
+//   tab·highlighted·hovered: 시황 페이지 UI 상태
+//   allMarketRows·macroData·macroRows·marketBreadth·tempScore·indMapData:
+//     market-overview/-insight/-temperature/sector-rotation/chart-macro가 공유하는 시장 데이터 캐시
+//   moSort·indBarChart·insightSaveDB·insightCurrentData·lsPollTimer·lsAllData: 섹션별 상태
+INV.selected = new Set(['sp500','nasdaq','kospi','kosdaq']);
+INV.period   = 7;
 
 // (카드 SVG 아이콘 맵 _ICO → config.js로 이동 — 상세 모달 등 다른 파일도 공용 사용)
 

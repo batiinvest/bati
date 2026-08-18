@@ -45,9 +45,15 @@ async function loadFinPreferred(code, cols, { limit = 24, asc = false } = {}) {
 // ══════════════════════════════════════════
 //  전역 데이터 캐시 네임스페이스 — 구 window._* 수렴
 //  industryMap(산업맵)·subIndustryMap(세부분야)·wlCodesLoaded(투자노트 코드셋)
-//  ※ 페이지 상태는 각 페이지 파일의 const 네임스페이스(WL·FIN·CMP·SCR·INV·IND·USKR·SURGE) 사용
+//  ※ 페이지 상태는 각 페이지 파일의 const 네임스페이스(WL·FIN·CMP·SCR·IND·USKR·SURGE) 사용
 // ══════════════════════════════════════════
 const CACHE = {};
+
+// INV(오늘의 시황 + 공유 시장캐시) 네임스페이스만은 여기서 선언한다 — investment.js는 로드 순서상
+// 맨 마지막이지만, 그보다 먼저 로드되는 market-overview/-insight 등이 최상위에서 INV에 접근하기
+// 때문(예: market-insight.js `INV.insightSaveDB = ...`). 여기서 빈 객체로 먼저 만들고
+// investment.js가 기본값(selected·period)을 주입한다. (구 investment.js `const INV` → 이 선언으로 이동)
+const INV = {};
 
 // ══════════════════════════════════════════
 //  산업 목록 — 단일 정의, 전체 파일 참조
