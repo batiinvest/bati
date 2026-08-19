@@ -19,6 +19,7 @@ function pSectorEarn() {
   </div>
   <div id="sec-desc" style="font-size:calc(12px*var(--m-sub));color:var(--text2);margin-bottom:.75rem"></div>
   <div id="sec-head"></div>
+  <div id="sec-chart"></div>
   <div id="sec-body">${loadingHTML('집계 중...')}</div>`;
 }
 
@@ -178,6 +179,79 @@ function _secTags(r) {
   return t.slice(0, 3);
 }
 
+// 성장×수익성 버블맵 (SVG) — 소섹터를 매출성장(x)·영익률(y)에 배치, 크기=종목수.
+// 극단 아웃라이어(IQR 상단 초과) 소섹터는 축 밖 칩으로 분리(예: 반도체 메모리). 차트라 폰트는 bare px(배율 예외).
+function _secScatter(d) {
+  const rows = d.rows;
+  if (!rows || rows.length < 2) return '';
+
+  const fenceHi = vals => {
+    const s = [...vals].sort((a, b) => a - b), n = s.length;
+    const Q = p => { const i = (n - 1) * p, lo = Math.floor(i); return s[lo] + (s[Math.ceil(i)] - s[lo]) * (i - lo); };
+    const q1 = Q(0.25), q3 = Q(0.75); return q3 + 1.5 * (q3 - q1);
+  };
+  let plotted = rows, offChart = [];
+  if (rows.length >= 6) {
+    const fx = fenceHi(rows.map(r => r.medRevYoY)), fy = fenceHi(rows.map(r => r.medMarg));
+    const off = rows.filter(r => r.medRevYoY > fx || r.medMarg > fy);
+    const keep = rows.filter(r => !off.includes(r));
+    if (keep.length >= 3 && off.length >= 1 && off.length <= 3) { plotted = keep; offChart = off; }
+  }
+
+  const W = 760, H = 430, ml = 52, mr = 24, mt = 22, mb = 52, pw = W - ml - mr, ph = H - mt - mb;
+  const xs = plotted.map(r => r.medRevYoY), ys = plotted.map(r => r.medMarg);
+  let xMin = Math.min(0, ...xs), xMax = Math.max(...xs, 1);
+  let yMin = Math.min(0, ...ys), yMax = Math.max(0, ...ys);
+  const xpad = Math.max((xMax - xMin) * 0.1, 3), ypad = Math.max((yMax - yMin) * 0.12, 2);
+  xMin -= xpad; xMax += xpad; yMin -= ypad; yMax += ypad;
+  const X = v => ml + (v - xMin) / (xMax - xMin) * pw;
+  const Y = v => mt + (yMax - v) / (yMax - yMin) * ph;
+  const maxN = Math.max(...plotted.map(r => r.n), 1);
+  const R = n => 9 + Math.sqrt(n) / Math.sqrt(maxN) * 17;
+  const ticks = (min, max, k) => { const o = []; for (let i = 0; i <= k; i++) o.push(min + (max - min) * i / k); return o; };
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="소섹터 성장률 대 영업이익률 버블맵">`;
+  svg += `<rect x="${ml}" y="${Y(0)}" width="${pw}" height="${mt + ph - Y(0)}" style="fill:var(--blue);opacity:.06"/>`;
+  ticks(yMin, yMax, 4).forEach(t => {
+    const yy = Y(t);
+    svg += `<line x1="${ml}" y1="${yy}" x2="${W - mr}" y2="${yy}" style="stroke:var(--border);stroke-width:1"/>`;
+    svg += `<text x="${ml - 8}" y="${yy + 4}" text-anchor="end" style="fill:var(--text3);font-size:11px">${t.toFixed(0)}%</text>`;
+  });
+  ticks(xMin, xMax, 4).forEach(t => {
+    svg += `<text x="${X(t)}" y="${mt + ph + 20}" text-anchor="middle" style="fill:var(--text3);font-size:11px">${t.toFixed(0)}%</text>`;
+  });
+  svg += `<line x1="${ml}" y1="${Y(0)}" x2="${W - mr}" y2="${Y(0)}" style="stroke:var(--text3);stroke-width:1.3;stroke-dasharray:4 4;opacity:.65"/>`;
+  svg += `<text x="${W - mr}" y="${Y(0) - 6}" text-anchor="end" style="fill:var(--text3);font-size:10.5px;opacity:.85">손익분기</text>`;
+  svg += `<text x="${ml + pw / 2}" y="${H - 6}" text-anchor="middle" style="fill:var(--text3);font-size:11.5px;font-weight:600">매출 성장률 (중앙값, YoY)</text>`;
+  svg += `<text transform="translate(13,${mt + ph / 2}) rotate(-90)" text-anchor="middle" style="fill:var(--text3);font-size:11.5px;font-weight:600">영업이익률 (중앙값)</text>`;
+  plotted.forEach(r => {
+    const cx = X(r.medRevYoY), cy = Y(r.medMarg), rr = R(r.n);
+    const col = r.medMarg >= 0 ? 'var(--red)' : 'var(--blue)';
+    svg += `<circle cx="${cx}" cy="${cy}" r="${rr}" style="fill:${col};fill-opacity:.62;stroke:var(--bg2);stroke-width:2"><title>${escapeHtml(r.sub)} · 매출 ${_secPct(r.medRevYoY)} · 영익률 ${r.medMarg.toFixed(1)}% · ${r.n}종</title></circle>`;
+    if (r.n >= maxN * 0.5) svg += `<text x="${cx}" y="${cy + 3.5}" text-anchor="middle" style="fill:var(--bg2);font-size:10px;font-weight:700">${r.n}</text>`;
+    const right = cx < ml + pw * 0.62, lx = right ? cx + rr + 5 : cx - rr - 5;
+    svg += `<text x="${lx}" y="${cy + 4}" text-anchor="${right ? 'start' : 'end'}" style="paint-order:stroke;stroke:var(--bg2);stroke-width:3px;stroke-linejoin:round;fill:var(--text);font-size:11.5px;font-weight:600">${escapeHtml(r.sub)}</text>`;
+  });
+  svg += `</svg>`;
+
+  const pills = offChart.map(r => {
+    const col = r.medMarg >= 0 ? 'var(--red)' : 'var(--blue)';
+    return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:calc(11px*var(--m-label));font-weight:600;color:${col};background:var(--bg2);border:1px solid var(--border2);padding:4px 9px;border-radius:100px">${escapeHtml(r.sub)} ↗ 매출 ${_secPct(r.medRevYoY)} · 영익률 ${r.medMarg.toFixed(1)}%</span>`;
+  }).join(' ');
+  const pillRow = offChart.length
+    ? `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:0 4px 10px">${pills}</div>` : '';
+
+  return `
+  <div class="card" style="margin-bottom:1rem"><div class="card-body" style="padding:14px 12px 8px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:0 4px 8px;flex-wrap:wrap">
+      <span style="font-size:calc(13px*var(--m-body));font-weight:700">성장 × 수익성 지도</span>
+      <span style="font-size:calc(11px*var(--m-label));color:var(--text3)">버블 크기=종목수 · 색=<span style="color:var(--red)">흑자</span>/<span style="color:var(--blue)">적자</span> · 세로 0=손익분기</span>
+    </div>
+    ${pillRow}
+    ${svg}
+  </div></div>`;
+}
+
 function _secRender(d) {
   const body = document.getElementById('sec-body');
   const head = document.getElementById('sec-head');
@@ -203,6 +277,10 @@ function _secRender(d) {
     <div class="metric-card"><div class="metric-label">영업이익 YoY(합산)</div><div class="metric-value" style="color:${chgColor(opY)}">${opY == null ? (T.sOn > 0 ? '흑자전환' : '—') : _secPct(opY)}</div><div class="metric-sub">전년동기 대비</div></div>
     <div class="metric-card"><div class="metric-label">영업이익률(합산)</div><div class="metric-value">${marg == null ? '—' : marg.toFixed(1) + '%'}</div><div class="metric-sub">전년 ${margP == null ? '—' : margP.toFixed(1) + '%'}</div></div>
   </div>`;
+
+  // 성장×수익성 버블맵
+  const chartEl = document.getElementById('sec-chart');
+  if (chartEl) chartEl.innerHTML = _secScatter(d);
 
   // 표
   const th = (t, al) => `<th style="text-align:${al || 'right'};padding:10px 12px;font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text3);border-bottom:1px solid var(--border2);white-space:nowrap">${t}</th>`;
