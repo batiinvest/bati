@@ -198,7 +198,7 @@ function _secScatter(d) {
     if (keep.length >= 3 && off.length >= 1 && off.length <= 3) { plotted = keep; offChart = off; }
   }
 
-  const W = 760, H = 430, ml = 52, mr = 24, mt = 22, mb = 52, pw = W - ml - mr, ph = H - mt - mb;
+  const W = 760, H = 380, ml = 52, mr = 24, mt = 20, mb = 48, pw = W - ml - mr, ph = H - mt - mb;
   const xs = plotted.map(r => r.medRevYoY), ys = plotted.map(r => r.medMarg);
   let xMin = Math.min(0, ...xs), xMax = Math.max(...xs, 1);
   let yMin = Math.min(0, ...ys), yMax = Math.max(0, ...ys);
@@ -210,7 +210,7 @@ function _secScatter(d) {
   const R = n => 9 + Math.sqrt(n) / Math.sqrt(maxN) * 17;
   const ticks = (min, max, k) => { const o = []; for (let i = 0; i <= k; i++) o.push(min + (max - min) * i / k); return o; };
 
-  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="소섹터 성장률 대 영업이익률 버블맵">`;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="display:block;width:100%;max-width:600px;height:auto;margin:2px auto 0" role="img" aria-label="소섹터 성장률 대 영업이익률 버블맵">`;
   svg += `<rect x="${ml}" y="${Y(0)}" width="${pw}" height="${mt + ph - Y(0)}" style="fill:var(--blue);opacity:.06"/>`;
   ticks(yMin, yMax, 4).forEach(t => {
     const yy = Y(t);
