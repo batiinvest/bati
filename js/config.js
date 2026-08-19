@@ -263,6 +263,62 @@ function resetFontRoles() {
 applyFontRoles(getFontRoles());
 
 // ══════════════════════════════════════════
+//  글자색(텍스트 밝기 4단계) 설정 — 기기별 저장(localStorage), 로그인 전부터 적용
+//  --text/--text1/--text2/--text3(밝기 계층, 전 파일 1,200여 곳에서 var()로 사용)만 덮어씀.
+//  등락(--red/--blue/--up/--down)·강조(--tg/--accent) 등 의미색은 건드리지 않음(의미 보존).
+//  값을 documentElement inline으로 세팅해 :root 규칙을 오버라이드. 설정 UI는 pSettings(bots.js).
+// ══════════════════════════════════════════
+const TEXT_COLOR_KEY = 'bati-text-colors';
+const TEXT_COLOR_KEYS = ['text', 'text1', 'text2', 'text3'];
+const TEXT_COLOR_LABELS = { text: '기본', text1: '본문', text2: '보조', text3: '라벨' };
+// :root 기본값과 정확히 일치해야 함(기본값이면 오버라이드 제거 → :root 상속)
+const TEXT_COLOR_DEFAULTS = { text: '#f0f2f8', text1: '#cfd4e4', text2: '#a8adc4', text3: '#8590ad' };
+
+// #rrggbb 만 허용(소문자 정규화). 그 외는 null.
+const _normHex = h => {
+  const s = String(h || '').trim().toLowerCase();
+  return /^#[0-9a-f]{6}$/.test(s) ? s : null;
+};
+
+// 저장된 글자색 { text, text1, text2, text3 } — 없거나 이상값이면 각 기본값
+function getTextColors() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(TEXT_COLOR_KEY)) || {}; } catch { saved = {}; }
+  const out = {};
+  for (const k of TEXT_COLOR_KEYS) out[k] = _normHex(saved[k]) || TEXT_COLOR_DEFAULTS[k];
+  return out;
+}
+
+// 즉시 적용(저장 안 함) — 기본값이면 inline 제거(:root 상속), 아니면 documentElement에 세팅
+function applyTextColors(colors) {
+  const c = { ...getTextColors(), ...(colors || {}) };
+  for (const k of TEXT_COLOR_KEYS) {
+    const v = _normHex(c[k]);
+    if (!v || v === TEXT_COLOR_DEFAULTS[k]) document.documentElement.style.removeProperty(`--${k}`);
+    else document.documentElement.style.setProperty(`--${k}`, v);
+  }
+  return c;
+}
+
+// 단일 단계 색 저장 + 적용 — 반환: 적용된 전체 색맵
+function setTextColor(key, hex) {
+  if (!TEXT_COLOR_KEYS.includes(key)) return getTextColors();
+  const next = { ...getTextColors(), [key]: _normHex(hex) || TEXT_COLOR_DEFAULTS[key] };
+  localStorage.setItem(TEXT_COLOR_KEY, JSON.stringify(next));
+  applyTextColors(next);
+  return next;
+}
+
+// 전체 초기화(기본값) + 적용
+function resetTextColors() {
+  localStorage.removeItem(TEXT_COLOR_KEY);
+  return applyTextColors({ ...TEXT_COLOR_DEFAULTS });
+}
+
+// 로드 즉시 적용
+applyTextColors(getTextColors());
+
+// ══════════════════════════════════════════
 //  공통 페이징 유틸
 //  사용법:
 //    const data = await fetchAllPages(

@@ -825,8 +825,51 @@ function onFontRoleReset() {
   if (typeof toast === 'function') toast('역할별 글자 크기 초기화', 'info');
 }
 
+// 글자색(텍스트 밝기 4단계) 카드 — 색상 선택기 4 + 라이브 미리보기 + 초기화.
+// --text/text1/text2/text3만 대상(의미색 고정). 상태·적용은 config.js(getTextColors/setTextColor/resetTextColors).
+function _textColorCard() {
+  const cur = getTextColors();
+  const row = k => {
+    const v = cur[k];
+    return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:9px">
+      <div style="width:52px;flex-shrink:0;font-size:calc(13px*var(--m-body));color:var(--text1)">${TEXT_COLOR_LABELS[k]}</div>
+      <input type="color" value="${v}" data-textcolor="${k}" oninput="onPickTextColor('${k}', this.value)"
+             style="width:42px;height:28px;padding:0;border:1px solid var(--border2);border-radius:6px;background:transparent;cursor:pointer">
+      <div id="textcolor-hex-${k}" style="width:72px;font-size:calc(12px*var(--m-sub));color:var(--text2);font-variant-numeric:tabular-nums">${v}</div>
+      <span style="flex:1;text-align:right;font-size:calc(13px*var(--m-body));color:var(--${k});overflow:hidden;text-overflow:ellipsis;white-space:nowrap">가나다 AaBb 0123</span>
+    </div>`;
+  };
+  return `
+  <div class="card" id="textcolor-card" style="max-width:560px;margin-bottom:1rem"><div class="card-header"><span class="card-title">글자색</span></div><div class="card-body">
+    <div style="font-size:calc(12px*var(--m-sub));color:var(--text2);line-height:1.7;margin-bottom:.85rem">
+      이 기기에서만 적용됩니다. 텍스트 밝기 4단계 색을 지정합니다. (상승·하락 빨강/파랑 등 의미색은 그대로) 어두운 배경이라 너무 어두운 색은 가독성이 떨어질 수 있습니다.
+    </div>
+    ${TEXT_COLOR_KEYS.map(row).join('')}
+    <button class="btn btn-sm" onclick="onResetTextColors()" style="margin-top:.6rem">기본값으로 되돌리기</button>
+  </div></div>`;
+}
+
+// 색 선택 — 저장·적용 후 hex 라벨 갱신(미리보기·전 화면은 CSS 변수로 자동 반영)
+function onPickTextColor(key, hex) {
+  const next = setTextColor(key, hex);
+  const el = document.getElementById('textcolor-hex-' + key);
+  if (el) el.textContent = next[key];
+}
+
+// 글자색 전체 초기화 — 선택기·hex 라벨 기본값으로
+function onResetTextColors() {
+  resetTextColors();
+  document.querySelectorAll('#textcolor-card [data-textcolor]').forEach(inp => {
+    const k = inp.dataset.textcolor;
+    inp.value = TEXT_COLOR_DEFAULTS[k];
+    const el = document.getElementById('textcolor-hex-' + k);
+    if (el) el.textContent = TEXT_COLOR_DEFAULTS[k];
+  });
+  if (typeof toast === 'function') toast('글자색 초기화', 'info');
+}
+
 function pSettings() {
-  const prefCards = _fontScaleCard() + _fontRoleCard();   // 글자 크기는 누구나 조절 가능
+  const prefCards = _fontScaleCard() + _fontRoleCard() + _textColorCard();   // 글자 크기·색은 누구나 조절 가능
   if (!isAdmin()) return prefCards;
   return prefCards + `
   <div class="card" style="max-width:560px;margin-bottom:1rem"><div class="card-header"><span class="card-title">텔레그램 봇</span></div><div class="card-body">
