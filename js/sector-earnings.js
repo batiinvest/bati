@@ -7,7 +7,7 @@
 // 합산과 함께 '중앙값(대표기업)'을 병기한다. 최근 분기가 덜 수집됐으면 자동으로 직전 분기를 사용.
 // 페이지 상태 네임스페이스 = SEC (window._* 금지 규약)
 
-const SEC = { ind: '반도체', cache: {}, sort: { key: 'medRevYoY', dir: -1 } };
+const SEC = { ind: '반도체', mode: 'q', raw: {}, current: null, sort: { key: 'medRevYoY', dir: -1 } };
 
 function pSectorEarn() {
   return `
@@ -15,7 +15,11 @@ function pSectorEarn() {
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
       ${INDUSTRIES.map(i => `<button class="chip${i === SEC.ind ? ' active' : ''}" data-sec-ind="${i}" onclick="switchSecInd(this,'${i}')">${i}</button>`).join('')}
     </div>
-    <span id="sec-period" style="font-size:calc(11px*var(--m-label));color:var(--text2)"></span>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button class="chip${SEC.mode === 'q' ? ' active' : ''}" data-sec-mode="q" onclick="switchSecMode('q')">분기</button>
+      <button class="chip${SEC.mode === 'ttm' ? ' active' : ''}" data-sec-mode="ttm" onclick="switchSecMode('ttm')">TTM</button>
+      <span id="sec-period" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:4px"></span>
+    </div>
   </div>
   <div id="sec-desc" style="font-size:calc(12px*var(--m-sub));color:var(--text2);margin-bottom:.75rem"></div>
   <div id="sec-head"></div>
@@ -31,6 +35,15 @@ function switchSecInd(el, ind) {
   loadSectorEarn();
 }
 
+// 기준 모드 전환 (분기 YoY ↔ TTM YoY) — 재조회 없이 원자료에서 재집계
+function switchSecMode(m) {
+  if (SEC.mode === m) return;
+  SEC.mode = m;
+  document.querySelectorAll('[data-sec-mode]').forEach(b =>
+    b.classList.toggle('active', b.dataset.secMode === m));
+  if (SEC.raw[SEC.ind]) _secCompute(SEC.ind); else loadSectorEarn();
+}
+
 // 분기 라벨/키 헬퍼
 const _secQn = q => { const n = parseInt(String(q).replace(/\D/g, ''), 10); return (n >= 1 && n <= 4) ? n : null; };
 const _secMed = arr => {
@@ -43,151 +56,166 @@ const _secPct = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
 async function loadSectorEarn() {
   const body = document.getElementById('sec-body');
   const head = document.getElementById('sec-head');
-  const desc = document.getElementById('sec-desc');
-  const per  = document.getElementById('sec-period');
   if (!body) return;
   head.innerHTML = '';
   body.innerHTML = loadingHTML('집계 중...');
 
   const ind = SEC.ind;
   try {
-    if (SEC.cache[ind]) { _secRender(SEC.cache[ind]); return; }
+    if (!SEC.raw[ind]) {
+      // 1) 산업 종목 목록
+      const { data: comps, error: e1 } = await sb.from('companies')
+        .select('code,name,sub_industry').eq('industry', ind);
+      if (e1) throw e1;
+      if (!comps || !comps.length) { body.innerHTML = emptyHTML(ind + ' 산업 종목 없음'); return; }
 
-    // 1) 산업 종목 목록
-    const { data: comps, error: e1 } = await sb.from('companies')
-      .select('code,name,sub_industry').eq('industry', ind);
-    if (e1) throw e1;
-    if (!comps || !comps.length) { body.innerHTML = emptyHTML(ind + ' 산업 종목 없음'); return; }
+      const clean = c => (c || '').replace(/\.(KS|KQ)$/, '');
+      const subOf = {}, nameOf = {}, codes = [];
+      for (const c of comps) {
+        const cd = clean(c.code);
+        if (!cd) continue;
+        codes.push(cd); subOf[cd] = c.sub_industry || '기타'; nameOf[cd] = c.name;
+      }
 
-    const clean = c => (c || '').replace(/\.(KS|KQ)$/, '');
-    const subOf = {}, nameOf = {}, codes = [];
-    for (const c of comps) {
-      const cd = clean(c.code);
-      if (!cd) continue;
-      codes.push(cd); subOf[cd] = c.sub_industry || '기타'; nameOf[cd] = c.name;
-    }
+      // 2) 재무 (최근 3년 — TTM/추세 스파크라인용, CFS 우선·OFS 폴백)
+      const year = new Date().getFullYear();
+      let rawRows = [];
+      for (let i = 0; i < codes.length; i += 300) {
+        const data = await fetchAllPages((s, e) => sb.from('financials')
+          .select('stock_code,bsns_year,quarter,revenue,operating_profit,fs_div')
+          .in('stock_code', codes.slice(i, i + 300))
+          .gte('bsns_year', String(year - 2))
+          .order('stock_code', { ascending: true })
+          .range(s, e));
+        rawRows.push(...data);
+      }
+      const rows = finPreferFs(rawRows);
+      if (!rows.length) { body.innerHTML = emptyHTML(ind + ' 산업 재무데이터 없음'); return; }
 
-    // 2) 재무 (최근 2년, CFS 우선·OFS 폴백)
-    const year = new Date().getFullYear();
-    let rawRows = [];
-    for (let i = 0; i < codes.length; i += 300) {
-      const slice = codes.slice(i, i + 300);
-      const data = await fetchAllPages((s, e) => sb.from('financials')
-        .select('stock_code,bsns_year,quarter,revenue,operating_profit,fs_div')
-        .in('stock_code', slice)
-        .gte('bsns_year', String(year - 1))
-        .order('stock_code', { ascending: true })
-        .range(s, e));
-      rawRows.push(...data);
-    }
-    const rows = finPreferFs(rawRows);
-    if (!rows.length) { body.innerHTML = emptyHTML(ind + ' 산업 재무데이터 없음'); return; }
-
-    // 2b) 시장데이터(밸류·시총·외국인) — 최신 거래일 (수익률/순매수는 커버리지 낮아 제외)
-    const mdOf = {};
-    try {
-      const mdDate = await getLatestMarketDate();
-      if (mdDate) {
-        for (let i = 0; i < codes.length; i += 300) {
+      // 2b) 시장데이터(밸류·시총·외국인) — 최신 거래일 (수익률/순매수는 커버리지 낮아 제외)
+      const mdOf = {};
+      try {
+        const mdDate = await getLatestMarketDate();
+        if (mdDate) for (let i = 0; i < codes.length; i += 300) {
           const { data: md } = await sb.from('market_data')
             .select('stock_code,per,pbr,market_cap,foreign_hold_rate')
             .eq('base_date', mdDate).in('stock_code', codes.slice(i, i + 300));
           for (const m of (md || [])) mdOf[m.stock_code] = m;
         }
+      } catch (e) { console.warn('[SectorEarn] market_data', e); }
+
+      // 3) 종목×기간 인덱스 + 기간별 커버리지
+      const byStock = {}, periodCnt = {};
+      for (const r of rows) {
+        const qn = _secQn(r.quarter); if (!qn) continue;
+        const key = r.bsns_year + '-' + qn;
+        (byStock[r.stock_code] || (byStock[r.stock_code] = {}))[key] = { rev: +r.revenue, op: +r.operating_profit };
+        if (r.revenue != null && +r.revenue > 0) periodCnt[key] = (periodCnt[key] || 0) + 1;
       }
-    } catch (e) { console.warn('[SectorEarn] market_data', e); }
-
-    // 3) 종목×기간 인덱스 + 기간별 커버리지
-    const byStock = {};            // code -> { 'Y-Q': {rev, op} }
-    const periodCnt = {};          // 'Y-Q' -> 매출 유효 종목수
-    for (const r of rows) {
-      const qn = _secQn(r.quarter); if (!qn) continue;
-      const key = r.bsns_year + '-' + qn;
-      const cd = r.stock_code;
-      (byStock[cd] || (byStock[cd] = {}))[key] = { rev: +r.revenue, op: +r.operating_profit };
-      if (r.revenue != null && +r.revenue > 0) periodCnt[key] = (periodCnt[key] || 0) + 1;
-    }
-
-    // 4) 기준 분기 선택 — 최근 분기가 덜 수집됐으면(만수 대비 70% 미만) 직전 분기로
-    const periods = Object.keys(periodCnt).sort((a, b) => {
-      const [ay, aq] = a.split('-').map(Number), [by, bq] = b.split('-').map(Number);
-      return by - ay || bq - aq;
-    });
-    const maxCnt = Math.max(...periods.map(p => periodCnt[p]));
-    let nowKey = null;
-    for (const p of periods) {
-      const [y, q] = p.split('-').map(Number);
-      const prev = (y - 1) + '-' + q;
-      if (periodCnt[p] >= maxCnt * 0.7 && periodCnt[prev]) { nowKey = p; break; }
-    }
-    if (!nowKey) { body.innerHTML = emptyHTML('YoY 비교 가능한 분기 없음'); return; }
-    const [ny, nq] = nowKey.split('-').map(Number);
-    const prevKey = (ny - 1) + '-' + nq;
-
-    // 5) 종목별 YoY → 버킷 집계
-    const buckets = {};   // sub -> {name, items:[{revYoY, marg, improved, rn, on, rp, op, code, nm}]}
-    let usable = 0;
-    for (const cd in byStock) {
-      const now = byStock[cd][nowKey], prv = byStock[cd][prevKey];
-      if (!now || !prv || !(prv.rev > 0) || !(now.rev > 0)) continue;
-      const sub = subOf[cd] || '기타';
-      const md = mdOf[cd] || {};
-      (buckets[sub] || (buckets[sub] = { sub, items: [] })).items.push({
-        code: cd, nm: nameOf[cd] || cd,
-        revYoY: (now.rev - prv.rev) / prv.rev * 100,
-        marg: now.op / now.rev * 100,
-        improved: now.op > prv.op,
-        rn: now.rev, on: now.op, rp: prv.rev, op: prv.op,
-        per: md.per, pbr: md.pbr, cap: md.market_cap, fhr: md.foreign_hold_rate,
+      const periods = Object.keys(periodCnt).sort((a, b) => {
+        const [ay, aq] = a.split('-').map(Number), [by, bq] = b.split('-').map(Number);
+        return by - ay || bq - aq;
       });
-      usable++;
+      SEC.raw[ind] = { byStock, periodCnt, periods, subOf, nameOf, mdOf, total: comps.length };
     }
-    if (!usable) { body.innerHTML = emptyHTML('YoY 계산 가능한 종목 없음'); return; }
-
-    // 6) 버킷 지표 계산
-    const rowsOut = Object.values(buckets).map(b => {
-      const it = b.items;
-      const sRn = it.reduce((s, x) => s + x.rn, 0), sOn = it.reduce((s, x) => s + x.on, 0);
-      const sRp = it.reduce((s, x) => s + x.rp, 0), sOp = it.reduce((s, x) => s + x.op, 0);
-      const top = it.reduce((a, x) => x.rn > a.rn ? x : a, it[0]);
-      const impN = it.filter(x => x.improved).length;
-      const posPer = it.map(x => x.per).filter(v => v != null && v > 0);
-      const posPbr = it.map(x => x.pbr).filter(v => v != null && v > 0);
-      const fhrs = it.map(x => x.fhr).filter(v => v != null);
-      return {
-        sub: b.sub, n: it.length,
-        medRevYoY: _secMed(it.map(x => x.revYoY)),
-        medMarg: _secMed(it.map(x => x.marg)),
-        aggRevYoY: sRp > 0 ? (sRn - sRp) / sRp * 100 : null,
-        aggMarg: sRn > 0 ? sOn / sRn * 100 : null,
-        aggOpYoY: sOp > 0 ? (sOn - sOp) / sOp * 100 : null,
-        turnaround: sOp <= 0 && sOn > 0,
-        impN, impRatio: impN / it.length,
-        topName: top.nm, topShare: sRn > 0 ? top.rn / sRn * 100 : 0,
-        medPer: posPer.length ? _secMed(posPer) : null,
-        medPbr: posPbr.length ? _secMed(posPbr) : null,
-        sumCap: it.reduce((s, x) => s + (x.cap || 0), 0),
-        medFhr: fhrs.length ? _secMed(fhrs) : null,
-        sRn, sOn, sRp, sOp,
-      };
-    }).sort((a, b) => b.medRevYoY - a.medRevYoY);
-
-    // 7) 섹터 총계
-    const T = rowsOut.reduce((t, r) => {
-      t.sRn += r.sRn; t.sOn += r.sOn; t.sRp += r.sRp; t.sOp += r.sOp; t.n += r.n; t.imp += r.impN; return t;
-    }, { sRn: 0, sOn: 0, sRp: 0, sOp: 0, n: 0, imp: 0 });
-
-    const result = {
-      ind, rows: rowsOut, T,
-      periodLabel: ny + '년 ' + nq + '분기',
-      total: comps.length, usable,
-    };
-    SEC.cache[ind] = result;
-    _secRender(result);
+    _secCompute(ind);
   } catch (err) {
     console.error('[SectorEarn]', err);
     body.innerHTML = emptyHTML('집계 실패: ' + (err.message || err));
   }
+}
+
+// 원자료(SEC.raw)에서 현재 모드(분기/TTM)로 집계 → 렌더. 모드/재정렬 시 재조회 없이 재호출.
+function _secCompute(ind) {
+  const body = document.getElementById('sec-body');
+  const raw = SEC.raw[ind];
+  if (!raw || !body) return;
+  const { byStock, periodCnt, periods, subOf, nameOf, mdOf, total } = raw;
+  const ttm = SEC.mode === 'ttm';
+
+  // 기준 분기 선택 — 최근 분기 커버리지 70% 미만이면 직전 분기
+  const maxCnt = Math.max(...periods.map(p => periodCnt[p] || 0), 1);
+  let nowKey = null;
+  for (const p of periods) {
+    const [y, q] = p.split('-').map(Number);
+    if ((periodCnt[p] || 0) >= maxCnt * 0.7 && periodCnt[(y - 1) + '-' + q]) { nowKey = p; break; }
+  }
+  if (!nowKey) { body.innerHTML = emptyHTML('YoY 비교 가능한 분기 없음'); return; }
+  const [ny, nq] = nowKey.split('-').map(Number);
+  const agoKey = (ny - 1) + '-' + nq;
+  const win = end => { const i = periods.indexOf(end); return i < 0 ? [] : periods.slice(i, i + 4); };
+  const nowWin = win(nowKey), agoWin = win(agoKey);
+
+  // 종목별 now/prev (모드별: 분기=단일분기, TTM=최근 4분기 합)
+  const vals = code => {
+    if (!ttm) {
+      const n = byStock[code][nowKey], p = byStock[code][agoKey];
+      return (n && p) ? { nr: n.rev, no: n.op, pr: p.rev, po: p.op } : null;
+    }
+    if (nowWin.length < 4 || agoWin.length < 4) return null;
+    let nr = 0, no = 0, pr = 0, po = 0;
+    for (const k of nowWin) { const v = byStock[code][k]; if (!v) return null; nr += v.rev; no += v.op; }
+    for (const k of agoWin) { const v = byStock[code][k]; if (!v) return null; pr += v.rev; po += v.op; }
+    return { nr, no, pr, po };
+  };
+
+  const sparkQs = periods.slice(0, 6).reverse();   // 추세 스파크라인: 최근 6분기(오름차순)
+  const buckets = {};
+  let usable = 0;
+  for (const cd in byStock) {
+    const v = vals(cd);
+    if (!v || !(v.pr > 0) || !(v.nr > 0)) continue;
+    const sub = subOf[cd] || '기타';
+    const md = mdOf[cd] || {};
+    (buckets[sub] || (buckets[sub] = { sub, items: [] })).items.push({
+      code: cd, nm: nameOf[cd] || cd,
+      revYoY: (v.nr - v.pr) / v.pr * 100,
+      marg: v.no / v.nr * 100,
+      improved: v.no > v.po,
+      rn: v.nr, on: v.no, rp: v.pr, op: v.po,
+      per: md.per, pbr: md.pbr, cap: md.market_cap, fhr: md.foreign_hold_rate,
+    });
+    usable++;
+  }
+  if (!usable) { body.innerHTML = emptyHTML('비교 가능한 종목 없음'); return; }
+
+  const rowsOut = Object.values(buckets).map(b => {
+    const it = b.items;
+    const sRn = it.reduce((s, x) => s + x.rn, 0), sOn = it.reduce((s, x) => s + x.on, 0);
+    const sRp = it.reduce((s, x) => s + x.rp, 0), sOp = it.reduce((s, x) => s + x.op, 0);
+    const top = it.reduce((a, x) => x.rn > a.rn ? x : a, it[0]);
+    const impN = it.filter(x => x.improved).length;
+    const posPer = it.map(x => x.per).filter(v => v != null && v > 0);
+    const posPbr = it.map(x => x.pbr).filter(v => v != null && v > 0);
+    const fhrs = it.map(x => x.fhr).filter(v => v != null);
+    const spark = sparkQs.map(q => it.reduce((s, x) => s + (((byStock[x.code] || {})[q] || {}).rev || 0), 0));
+    return {
+      sub: b.sub, n: it.length, items: it,
+      medRevYoY: _secMed(it.map(x => x.revYoY)),
+      medMarg: _secMed(it.map(x => x.marg)),
+      aggRevYoY: sRp > 0 ? (sRn - sRp) / sRp * 100 : null,
+      aggMarg: sRn > 0 ? sOn / sRn * 100 : null,
+      turnaround: sOp <= 0 && sOn > 0,
+      impN, impRatio: impN / it.length,
+      topName: top.nm, topShare: sRn > 0 ? top.rn / sRn * 100 : 0,
+      medPer: posPer.length ? _secMed(posPer) : null,
+      medPbr: posPbr.length ? _secMed(posPbr) : null,
+      sumCap: it.reduce((s, x) => s + (x.cap || 0), 0),
+      medFhr: fhrs.length ? _secMed(fhrs) : null,
+      spark,
+      sRn, sOn, sRp, sOp,
+    };
+  });
+
+  const T = rowsOut.reduce((t, r) => {
+    t.sRn += r.sRn; t.sOn += r.sOn; t.sRp += r.sRp; t.sOp += r.sOp; t.n += r.n; t.imp += r.impN; return t;
+  }, { sRn: 0, sOn: 0, sRp: 0, sOp: 0, n: 0, imp: 0 });
+
+  SEC.current = {
+    ind, rows: rowsOut, T, ttm, sparkQs, total, usable,
+    periodLabel: ttm ? (ny + '년 ' + nq + '분기 TTM') : (ny + '년 ' + nq + '분기'),
+  };
+  _secRender(SEC.current);
 }
 
 // 소섹터 특징 태그 (지표 규칙 기반)
@@ -315,8 +343,8 @@ function _secRender(d) {
 
   if (per)  per.textContent = d.periodLabel + ' 기준';
   if (desc) desc.innerHTML =
-    `${escapeHtml(d.ind)} 소섹터별 분기 실적 · 전년동기 대비(YoY) · 집계 ${d.usable}/${d.total}종. ` +
-    `<b style="color:var(--text)">중앙값</b>=대표기업(거대·유통주 왜곡 제외), 작은 글씨=합산. 재무는 연결(CFS) 우선. PER·PBR·외국인=최신 시장데이터 중앙값. 헤더 클릭으로 정렬.`;
+    `${escapeHtml(d.ind)} 소섹터별 ${d.ttm ? 'TTM(최근 4분기)' : '분기'} 실적 · 전년동기 대비(YoY) · 집계 ${d.usable}/${d.total}종. ` +
+    `<b style="color:var(--text)">중앙값</b>=대표기업(거대·유통주 왜곡 제외), 작은 글씨=합산. 재무는 연결(CFS) 우선. PER·PBR·외국인=최신 시장데이터 중앙값. 헤더 클릭 정렬 · <b style="color:var(--text)">소섹터 클릭 시 구성종목</b>.`;
 
   // 헤드라인 (섹터 합산)
   const T = d.T;
@@ -340,6 +368,39 @@ function _secRender(d) {
   _secBody(d);
 }
 
+// 추세 스파크라인 (최근 6분기 매출) — 마지막≥처음이면 빨강, 아니면 파랑
+function _secSpark(arr) {
+  if (!arr || arr.length < 2 || arr.every(v => !v)) return '<span style="color:var(--text3)">—</span>';
+  const w = 58, h = 18, mn = Math.min(...arr), mx = Math.max(...arr), rng = (mx - mn) || 1;
+  const px = i => (i / (arr.length - 1) * (w - 2) + 1).toFixed(1);
+  const py = v => (h - 2 - ((v - mn) / rng) * (h - 4)).toFixed(1);
+  const pts = arr.map((v, i) => `${px(i)},${py(v)}`).join(' ');
+  const col = arr[arr.length - 1] >= arr[0] ? 'var(--red)' : 'var(--blue)';
+  return `<svg width="${w}" height="${h}" style="vertical-align:middle"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${px(arr.length - 1)}" cy="${py(arr[arr.length - 1])}" r="2" style="fill:${col}"/></svg>`;
+}
+
+// 드릴다운: 소섹터 구성 종목 (시총순, data-stock-open으로 상세 모달)
+function _secDrillHtml(r) {
+  const escA = typeof escAttr === 'function' ? escAttr : escapeHtml;
+  const cell = 'padding:6px 10px;font-size:calc(12px*var(--m-sub))';
+  const rows = [...r.items].sort((a, b) => (b.cap || 0) - (a.cap || 0)).map(x => `
+    <tr>
+      <td style="${cell};text-align:left"><span class="stock-row" data-stock-open="${x.code}" data-stock-name="${escA(x.nm)}" style="cursor:pointer;font-weight:600;color:var(--text)">${escapeHtml(x.nm)}</span> <span style="color:var(--text3);font-size:calc(10px*var(--m-label))">${x.code}</span></td>
+      <td style="${cell};text-align:right;color:${chgColor(x.revYoY)}">${_secPct(x.revYoY)}</td>
+      <td style="${cell};text-align:right;color:${x.marg < 0 ? 'var(--blue)' : 'inherit'}">${x.marg.toFixed(1)}%</td>
+      <td style="${cell};text-align:right;color:var(--text2)">${x.per != null && x.per > 0 ? x.per.toFixed(1) : '—'}</td>
+      <td style="${cell};text-align:right;color:var(--text2)">${fmtCap(x.cap || 0)}</td>
+      <td style="${cell};text-align:right;color:var(--text2)">${x.fhr != null ? x.fhr.toFixed(1) + '%' : '—'}</td>
+    </tr>`).join('');
+  const hd = ['종목', '매출YoY', '영익률', 'PER', '시총', '외국인'];
+  return `<div style="padding:6px 12px 12px;background:var(--bg2)">
+    <div style="font-size:calc(11px*var(--m-label));color:var(--text3);padding:4px 10px 6px">구성 종목 ${r.items.length} · 시총순 (클릭 시 종목 상세)</div>
+    <table style="border-collapse:collapse;width:100%;min-width:520px">
+      <thead><tr>${hd.map((h, i) => `<th style="text-align:${i === 0 ? 'left' : 'right'};padding:4px 10px;font-size:calc(10px*var(--m-label));color:var(--text3);font-weight:600;border-bottom:1px solid var(--border)">${h}</th>`).join('')}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+}
+
 // 표 본문 렌더 (헤더 클릭 정렬 시 재호출)
 function _secBody(d) {
   const body = document.getElementById('sec-body');
@@ -357,7 +418,7 @@ function _secBody(d) {
   const th  = (t, al) => `<th style="text-align:${al || 'right'};padding:10px 12px;font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text3);border-bottom:1px solid var(--border2);white-space:nowrap">${t}</th>`;
   const thS = (t, k, al) => `<th onclick="secSort('${k}')" title="클릭하여 정렬" style="cursor:pointer;user-select:none;text-align:${al || 'right'};padding:10px 12px;font-size:calc(11px*var(--m-label));font-weight:600;color:${SEC.sort.key === k ? 'var(--text)' : 'var(--text3)'};border-bottom:1px solid var(--border2);white-space:nowrap">${t}${arrow(k)}</th>`;
 
-  const trs = sorted.map(r => {
+  const trs = sorted.map((r, i) => {
     const tags = _secTags(r).map(t =>
       `<span style="display:inline-block;font-size:calc(10px*var(--m-label));padding:1px 6px;border-radius:100px;background:var(--bg2);color:var(--text2);margin:1px 2px 1px 0">${t}</span>`).join('');
     const margCol = r.medMarg < 0 ? 'var(--blue)' : 'inherit';
@@ -365,7 +426,7 @@ function _secBody(d) {
     const aggRevTxt  = r.aggRevYoY == null ? '' : `합산 ${_secPct(r.aggRevYoY)}`;
     return `
     <tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:11px 12px;text-align:left"><span style="font-weight:700;font-size:calc(13px*var(--m-body))">${escapeHtml(r.sub)}</span></td>
+      <td onclick="secDrill(${i})" style="padding:11px 12px;text-align:left;cursor:pointer"><span id="secArr-${i}" style="color:var(--text3);font-size:calc(10px*var(--m-label));margin-right:4px">▸</span><span style="font-weight:700;font-size:calc(13px*var(--m-body))">${escapeHtml(r.sub)}</span></td>
       <td style="padding:11px 12px;text-align:right"><span style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.n}종</span></td>
       <td style="padding:11px 12px;text-align:right">
         <div style="font-weight:700;font-size:calc(13.5px*var(--m-body));color:${chgColor(r.medRevYoY)}">${_secPct(r.medRevYoY)}</div>
@@ -389,17 +450,19 @@ function _secBody(d) {
           </span>
         </div>
       </td>
+      <td style="padding:11px 12px;text-align:center" title="최근 6분기 매출 추세">${_secSpark(r.spark)}</td>
       <td style="padding:11px 12px;text-align:right"><span style="font-size:calc(12px*var(--m-sub));color:var(--text2);white-space:nowrap">${escapeHtml(r.topName)} <span style="color:var(--text3)">${Math.round(r.topShare)}%</span></span></td>
       <td style="padding:11px 12px;text-align:left">${tags || '<span style="color:var(--text3)">—</span>'}</td>
-    </tr>`;
+    </tr>
+    <tr id="secd-${i}" style="display:none"><td colspan="11" style="padding:0">${_secDrillHtml(r)}</td></tr>`;
   }).join('');
 
   body.innerHTML = `
   <div class="card"><div class="card-body" style="padding:0">
     <div style="overflow-x:auto">
-      <table style="border-collapse:collapse;width:100%;min-width:940px">
+      <table style="border-collapse:collapse;width:100%;min-width:1000px">
         <thead><tr>
-          ${th('소섹터', 'left')}${thS('종목수', 'n')}${thS('매출 YoY', 'medRevYoY')}${thS('영업이익률', 'medMarg')}${thS('PER', 'medPer')}${thS('시총', 'sumCap')}${thS('외국인', 'medFhr')}${thS('영익 개선', 'impRatio')}${th('집중 종목')}${th('특징', 'left')}
+          ${th('소섹터', 'left')}${thS('종목수', 'n')}${thS('매출 YoY', 'medRevYoY')}${thS('영업이익률', 'medMarg')}${thS('PER', 'medPer')}${thS('시총', 'sumCap')}${thS('외국인', 'medFhr')}${thS('영익 개선', 'impRatio')}${th('추세')}${th('집중 종목')}${th('특징', 'left')}
         </tr></thead>
         <tbody>${trs}</tbody>
       </table>
@@ -411,6 +474,15 @@ function _secBody(d) {
 function secSort(key) {
   if (SEC.sort.key === key) SEC.sort.dir *= -1;
   else { SEC.sort.key = key; SEC.sort.dir = -1; }
-  const d = SEC.cache[SEC.ind];
-  if (d) _secBody(d);
+  if (SEC.current) _secBody(SEC.current);
+}
+
+// 소섹터 드릴다운 토글 (구성 종목 펼침/접힘)
+function secDrill(i) {
+  const row = document.getElementById('secd-' + i);
+  const arr = document.getElementById('secArr-' + i);
+  if (!row) return;
+  const open = row.style.display === 'none';
+  row.style.display = open ? '' : 'none';
+  if (arr) arr.textContent = open ? '▾' : '▸';
 }
