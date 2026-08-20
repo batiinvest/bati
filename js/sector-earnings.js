@@ -197,6 +197,9 @@ function _secScatter(d) {
     const keep = rows.filter(r => !off.includes(r));
     if (keep.length >= 3 && off.length >= 1 && off.length <= 3) { plotted = keep; offChart = off; }
   }
+  // 소규모 소섹터(n<3)는 중앙값 신뢰도 낮아 지도에서 제외 (표에는 유지)
+  const omitted = plotted.filter(r => r.n < 3);
+  if (omitted.length && plotted.length - omitted.length >= 3) plotted = plotted.filter(r => r.n >= 3);
 
   const W = 760, H = 380, ml = 52, mr = 24, mt = 20, mb = 48, pw = W - ml - mr, ph = H - mt - mb;
   const xs = plotted.map(r => r.medRevYoY), ys = plotted.map(r => r.medMarg);
@@ -207,7 +210,7 @@ function _secScatter(d) {
   const X = v => ml + (v - xMin) / (xMax - xMin) * pw;
   const Y = v => mt + (yMax - v) / (yMax - yMin) * ph;
   const maxN = Math.max(...plotted.map(r => r.n), 1);
-  const R = n => 9 + Math.sqrt(n) / Math.sqrt(maxN) * 17;
+  const R = n => 7 + Math.sqrt(n) / Math.sqrt(maxN) * 12;
   const ticks = (min, max, k) => { const o = []; for (let i = 0; i <= k; i++) o.push(min + (max - min) * i / k); return o; };
 
   let svg = `<svg viewBox="0 0 ${W} ${H}" style="display:block;width:100%;max-width:600px;height:auto;margin:2px auto 0" role="img" aria-label="소섹터 성장률 대 영업이익률 버블맵">`;
@@ -224,13 +227,25 @@ function _secScatter(d) {
   svg += `<text x="${W - mr}" y="${Y(0) - 6}" text-anchor="end" style="fill:var(--text3);font-size:10.5px;opacity:.85">손익분기</text>`;
   svg += `<text x="${ml + pw / 2}" y="${H - 6}" text-anchor="middle" style="fill:var(--text3);font-size:11.5px;font-weight:600">매출 성장률 (중앙값, YoY)</text>`;
   svg += `<text transform="translate(13,${mt + ph / 2}) rotate(-90)" text-anchor="middle" style="fill:var(--text3);font-size:11.5px;font-weight:600">영업이익률 (중앙값)</text>`;
-  plotted.forEach(r => {
+  // 버블 + 라벨(세로 충돌 회피 + 연결선)
+  const labs = plotted.map(r => {
     const cx = X(r.medRevYoY), cy = Y(r.medMarg), rr = R(r.n);
-    const col = r.medMarg >= 0 ? 'var(--red)' : 'var(--blue)';
-    svg += `<circle cx="${cx}" cy="${cy}" r="${rr}" style="fill:${col};fill-opacity:.62;stroke:var(--bg2);stroke-width:2"><title>${escapeHtml(r.sub)} · 매출 ${_secPct(r.medRevYoY)} · 영익률 ${r.medMarg.toFixed(1)}% · ${r.n}종</title></circle>`;
-    if (r.n >= maxN * 0.5) svg += `<text x="${cx}" y="${cy + 3.5}" text-anchor="middle" style="fill:var(--bg2);font-size:10px;font-weight:700">${r.n}</text>`;
-    const right = cx < ml + pw * 0.62, lx = right ? cx + rr + 5 : cx - rr - 5;
-    svg += `<text x="${lx}" y="${cy + 4}" text-anchor="${right ? 'start' : 'end'}" style="paint-order:stroke;stroke:var(--bg2);stroke-width:3px;stroke-linejoin:round;fill:var(--text);font-size:11.5px;font-weight:600">${escapeHtml(r.sub)}</text>`;
+    return { r, cx, cy, rr, right: cx < ml + pw * 0.5, ly: cy + 4 };
+  });
+  [true, false].forEach(side => {
+    const g = labs.filter(l => l.right === side).sort((a, b) => a.ly - b.ly);
+    for (let i = 1; i < g.length; i++) if (g[i].ly - g[i - 1].ly < 13) g[i].ly = g[i - 1].ly + 13;
+    const ov = g.length ? Math.max(0, g[g.length - 1].ly - (mt + ph - 2)) : 0;
+    if (ov) g.forEach(l => l.ly -= ov);
+  });
+  labs.forEach(L => {
+    const col = L.r.medMarg >= 0 ? 'var(--red)' : 'var(--blue)';
+    svg += `<circle cx="${L.cx}" cy="${L.cy}" r="${L.rr}" style="fill:${col};fill-opacity:.58;stroke:var(--bg2);stroke-width:1.6"><title>${escapeHtml(L.r.sub)} · 매출 ${_secPct(L.r.medRevYoY)} · 영익률 ${L.r.medMarg.toFixed(1)}% · ${L.r.n}종</title></circle>`;
+    if (L.r.n >= maxN * 0.55) svg += `<text x="${L.cx}" y="${L.cy + 3}" text-anchor="middle" style="fill:var(--bg2);font-size:9px;font-weight:700">${L.r.n}</text>`;
+    const lx = L.right ? L.cx + L.rr + 4 : L.cx - L.rr - 4;
+    if (Math.abs(L.ly - L.cy - 4) > L.rr + 3)
+      svg += `<line x1="${L.right ? L.cx + L.rr : L.cx - L.rr}" y1="${L.cy}" x2="${lx}" y2="${L.ly - 3}" style="stroke:var(--text3);stroke-width:.8;opacity:.45"/>`;
+    svg += `<text x="${lx}" y="${L.ly}" text-anchor="${L.right ? 'start' : 'end'}" style="paint-order:stroke;stroke:var(--bg2);stroke-width:2.6px;stroke-linejoin:round;fill:var(--text);font-size:10.5px;font-weight:600">${escapeHtml(L.r.sub)}</text>`;
   });
   svg += `</svg>`;
 
@@ -240,6 +255,8 @@ function _secScatter(d) {
   }).join(' ');
   const pillRow = offChart.length
     ? `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:0 4px 10px">${pills}</div>` : '';
+  const omitNote = omitted.length
+    ? `<div style="font-size:calc(10.5px*var(--m-label));color:var(--text3);padding:0 4px 8px">지도 제외(소규모 n&lt;3): ${omitted.map(r => escapeHtml(r.sub)).join(', ')}</div>` : '';
 
   return `
   <div class="card" style="margin-bottom:1rem"><div class="card-body" style="padding:14px 12px 8px">
@@ -248,6 +265,7 @@ function _secScatter(d) {
       <span style="font-size:calc(11px*var(--m-label));color:var(--text3)">버블 크기=종목수 · 색=<span style="color:var(--red)">흑자</span>/<span style="color:var(--blue)">적자</span> · 세로 0=손익분기</span>
     </div>
     ${pillRow}
+    ${omitNote}
     ${svg}
   </div></div>`;
 }
