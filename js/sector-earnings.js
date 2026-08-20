@@ -7,7 +7,7 @@
 // 합산과 함께 '중앙값(대표기업)'을 병기한다. 최근 분기가 덜 수집됐으면 자동으로 직전 분기를 사용.
 // 페이지 상태 네임스페이스 = SEC (window._* 금지 규약)
 
-const SEC = { ind: '반도체', cache: {} };
+const SEC = { ind: '반도체', cache: {}, sort: { key: 'medRevYoY', dir: -1 } };
 
 function pSectorEarn() {
   return `
@@ -83,6 +83,20 @@ async function loadSectorEarn() {
     const rows = finPreferFs(rawRows);
     if (!rows.length) { body.innerHTML = emptyHTML(ind + ' 산업 재무데이터 없음'); return; }
 
+    // 2b) 시장데이터(밸류·시총·외국인) — 최신 거래일 (수익률/순매수는 커버리지 낮아 제외)
+    const mdOf = {};
+    try {
+      const mdDate = await getLatestMarketDate();
+      if (mdDate) {
+        for (let i = 0; i < codes.length; i += 300) {
+          const { data: md } = await sb.from('market_data')
+            .select('stock_code,per,pbr,market_cap,foreign_hold_rate')
+            .eq('base_date', mdDate).in('stock_code', codes.slice(i, i + 300));
+          for (const m of (md || [])) mdOf[m.stock_code] = m;
+        }
+      }
+    } catch (e) { console.warn('[SectorEarn] market_data', e); }
+
     // 3) 종목×기간 인덱스 + 기간별 커버리지
     const byStock = {};            // code -> { 'Y-Q': {rev, op} }
     const periodCnt = {};          // 'Y-Q' -> 매출 유효 종목수
@@ -117,12 +131,14 @@ async function loadSectorEarn() {
       const now = byStock[cd][nowKey], prv = byStock[cd][prevKey];
       if (!now || !prv || !(prv.rev > 0) || !(now.rev > 0)) continue;
       const sub = subOf[cd] || '기타';
+      const md = mdOf[cd] || {};
       (buckets[sub] || (buckets[sub] = { sub, items: [] })).items.push({
         code: cd, nm: nameOf[cd] || cd,
         revYoY: (now.rev - prv.rev) / prv.rev * 100,
         marg: now.op / now.rev * 100,
         improved: now.op > prv.op,
         rn: now.rev, on: now.op, rp: prv.rev, op: prv.op,
+        per: md.per, pbr: md.pbr, cap: md.market_cap, fhr: md.foreign_hold_rate,
       });
       usable++;
     }
@@ -135,6 +151,9 @@ async function loadSectorEarn() {
       const sRp = it.reduce((s, x) => s + x.rp, 0), sOp = it.reduce((s, x) => s + x.op, 0);
       const top = it.reduce((a, x) => x.rn > a.rn ? x : a, it[0]);
       const impN = it.filter(x => x.improved).length;
+      const posPer = it.map(x => x.per).filter(v => v != null && v > 0);
+      const posPbr = it.map(x => x.pbr).filter(v => v != null && v > 0);
+      const fhrs = it.map(x => x.fhr).filter(v => v != null);
       return {
         sub: b.sub, n: it.length,
         medRevYoY: _secMed(it.map(x => x.revYoY)),
@@ -145,6 +164,10 @@ async function loadSectorEarn() {
         turnaround: sOp <= 0 && sOn > 0,
         impN, impRatio: impN / it.length,
         topName: top.nm, topShare: sRn > 0 ? top.rn / sRn * 100 : 0,
+        medPer: posPer.length ? _secMed(posPer) : null,
+        medPbr: posPbr.length ? _secMed(posPbr) : null,
+        sumCap: it.reduce((s, x) => s + (x.cap || 0), 0),
+        medFhr: fhrs.length ? _secMed(fhrs) : null,
         sRn, sOn, sRp, sOp,
       };
     }).sort((a, b) => b.medRevYoY - a.medRevYoY);
@@ -213,7 +236,7 @@ function _secScatter(d) {
   const R = n => 7 + Math.sqrt(n) / Math.sqrt(maxN) * 12;
   const ticks = (min, max, k) => { const o = []; for (let i = 0; i <= k; i++) o.push(min + (max - min) * i / k); return o; };
 
-  let svg = `<svg viewBox="0 0 ${W} ${H}" style="display:block;width:100%;max-width:1120px;height:auto;margin:2px auto 0" role="img" aria-label="소섹터 성장률 대 영업이익률 버블맵">`;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="display:block;width:100%;min-width:640px;max-width:1120px;height:auto;margin:2px auto 0" role="img" aria-label="소섹터 성장률 대 영업이익률 버블맵">`;
   svg += `<rect x="${ml}" y="${Y(0)}" width="${pw}" height="${mt + ph - Y(0)}" style="fill:var(--blue);opacity:.06"/>`;
   ticks(yMin, yMax, 4).forEach(t => {
     const yy = Y(t);
@@ -232,12 +255,25 @@ function _secScatter(d) {
     const cx = X(r.medRevYoY), cy = Y(r.medMarg), rr = R(r.n);
     return { r, cx, cy, rr, right: cx < ml + pw * 0.5, ly: cy + 4 };
   });
-  [true, false].forEach(side => {
-    const g = labs.filter(l => l.right === side).sort((a, b) => a.ly - b.ly);
-    for (let i = 1; i < g.length; i++) if (g[i].ly - g[i - 1].ly < 13) g[i].ly = g[i - 1].ly + 13;
-    const ov = g.length ? Math.max(0, g[g.length - 1].ly - (mt + ph - 2)) : 0;
-    if (ov) g.forEach(l => l.ly -= ov);
+  // 라벨 세로 충돌 회피 — 양쪽(좌/우) 통합, 가로로 겹치는 라벨만 세로로 밀어냄
+  labs.forEach(L => {
+    L.w = L.r.sub.length * 8 + 6;
+    L.x1 = L.right ? L.cx + L.rr + 4 : L.cx - L.rr - 4 - L.w;
+    L.x2 = L.x1 + L.w;
   });
+  for (let pass = 0; pass < 3; pass++) {
+    labs.sort((a, b) => a.ly - b.ly);
+    for (let i = 1; i < labs.length; i++) {
+      const A = labs[i];
+      for (let j = 0; j < i; j++) {
+        const B = labs[j];
+        const xover = A.x1 < B.x2 + 3 && B.x1 < A.x2 + 3;
+        if (xover && A.ly - B.ly < 12 && A.ly - B.ly > -12) A.ly = B.ly + 12;
+      }
+    }
+  }
+  const loLim = mt + 6, hiLim = mt + ph - 2;
+  labs.forEach(L => { L.ly = Math.max(loLim, Math.min(hiLim, L.ly)); });
   labs.forEach(L => {
     const col = L.r.medMarg >= 0 ? 'var(--red)' : 'var(--blue)';
     svg += `<circle cx="${L.cx}" cy="${L.cy}" r="${L.rr}" style="fill:${col};fill-opacity:.58;stroke:var(--bg2);stroke-width:1.6"><title>${escapeHtml(L.r.sub)} · 매출 ${_secPct(L.r.medRevYoY)} · 영익률 ${L.r.medMarg.toFixed(1)}% · ${L.r.n}종</title></circle>`;
@@ -245,7 +281,7 @@ function _secScatter(d) {
     const lx = L.right ? L.cx + L.rr + 4 : L.cx - L.rr - 4;
     if (Math.abs(L.ly - L.cy - 4) > L.rr + 3)
       svg += `<line x1="${L.right ? L.cx + L.rr : L.cx - L.rr}" y1="${L.cy}" x2="${lx}" y2="${L.ly - 3}" style="stroke:var(--text3);stroke-width:.8;opacity:.45"/>`;
-    svg += `<text x="${lx}" y="${L.ly}" text-anchor="${L.right ? 'start' : 'end'}" style="paint-order:stroke;stroke:var(--bg2);stroke-width:2.6px;stroke-linejoin:round;fill:var(--text);font-size:10.5px;font-weight:600">${escapeHtml(L.r.sub)}</text>`;
+    svg += `<text x="${lx}" y="${L.ly}" text-anchor="${L.right ? 'start' : 'end'}" style="paint-order:stroke;stroke:var(--bg2);stroke-width:2.8px;stroke-linejoin:round;fill:var(--text);font-size:11.5px;font-weight:600">${escapeHtml(L.r.sub)}</text>`;
   });
   svg += `</svg>`;
 
@@ -266,7 +302,7 @@ function _secScatter(d) {
     </div>
     ${pillRow}
     ${omitNote}
-    ${svg}
+    <div style="overflow-x:auto;padding-bottom:2px">${svg}</div>
   </div></div>`;
 }
 
@@ -280,7 +316,7 @@ function _secRender(d) {
   if (per)  per.textContent = d.periodLabel + ' 기준';
   if (desc) desc.innerHTML =
     `${escapeHtml(d.ind)} 소섹터별 분기 실적 · 전년동기 대비(YoY) · 집계 ${d.usable}/${d.total}종. ` +
-    `<b style="color:var(--text)">중앙값</b>=대표기업(거대·유통주 왜곡 제외), 작은 글씨=합산. 재무는 연결(CFS) 우선.`;
+    `<b style="color:var(--text)">중앙값</b>=대표기업(거대·유통주 왜곡 제외), 작은 글씨=합산. 재무는 연결(CFS) 우선. PER·PBR·외국인=최신 시장데이터 중앙값. 헤더 클릭으로 정렬.`;
 
   // 헤드라인 (섹터 합산)
   const T = d.T;
@@ -300,9 +336,28 @@ function _secRender(d) {
   const chartEl = document.getElementById('sec-chart');
   if (chartEl) chartEl.innerHTML = _secScatter(d);
 
-  // 표
-  const th = (t, al) => `<th style="text-align:${al || 'right'};padding:10px 12px;font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text3);border-bottom:1px solid var(--border2);white-space:nowrap">${t}</th>`;
-  const trs = d.rows.map(r => {
+  // 표 (정렬 가능 — SEC.sort 기준)
+  _secBody(d);
+}
+
+// 표 본문 렌더 (헤더 클릭 정렬 시 재호출)
+function _secBody(d) {
+  const body = document.getElementById('sec-body');
+  if (!body) return;
+  const { key, dir } = SEC.sort;
+  const sorted = [...d.rows].sort((a, b) => {
+    const va = a[key], vb = b[key];
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    return (va - vb) * dir;
+  });
+
+  const arrow = k => SEC.sort.key === k ? (dir < 0 ? ' ▾' : ' ▴') : '';
+  const th  = (t, al) => `<th style="text-align:${al || 'right'};padding:10px 12px;font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text3);border-bottom:1px solid var(--border2);white-space:nowrap">${t}</th>`;
+  const thS = (t, k, al) => `<th onclick="secSort('${k}')" title="클릭하여 정렬" style="cursor:pointer;user-select:none;text-align:${al || 'right'};padding:10px 12px;font-size:calc(11px*var(--m-label));font-weight:600;color:${SEC.sort.key === k ? 'var(--text)' : 'var(--text3)'};border-bottom:1px solid var(--border2);white-space:nowrap">${t}${arrow(k)}</th>`;
+
+  const trs = sorted.map(r => {
     const tags = _secTags(r).map(t =>
       `<span style="display:inline-block;font-size:calc(10px*var(--m-label));padding:1px 6px;border-radius:100px;background:var(--bg2);color:var(--text2);margin:1px 2px 1px 0">${t}</span>`).join('');
     const margCol = r.medMarg < 0 ? 'var(--blue)' : 'inherit';
@@ -321,6 +376,12 @@ function _secRender(d) {
         <div style="font-size:calc(10px*var(--m-label));color:var(--text3)">${aggMargTxt}</div>
       </td>
       <td style="padding:11px 12px;text-align:right">
+        <div style="font-size:calc(12.5px*var(--m-sub))">${r.medPer == null ? '—' : r.medPer.toFixed(1)}</div>
+        <div style="font-size:calc(10px*var(--m-label));color:var(--text3)">PBR ${r.medPbr == null ? '—' : r.medPbr.toFixed(2)}</div>
+      </td>
+      <td style="padding:11px 12px;text-align:right"><span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">${fmtCap(r.sumCap)}</span></td>
+      <td style="padding:11px 12px;text-align:right"><span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">${r.medFhr == null ? '—' : r.medFhr.toFixed(1) + '%'}</span></td>
+      <td style="padding:11px 12px;text-align:right">
         <div style="display:inline-flex;align-items:center;gap:8px;justify-content:flex-end">
           <span style="font-size:calc(12px*var(--m-sub));color:var(--text2);min-width:38px;text-align:right">${r.impN}/${r.n}</span>
           <span style="width:46px;height:6px;border-radius:100px;background:var(--border2);overflow:hidden;display:inline-block">
@@ -336,12 +397,20 @@ function _secRender(d) {
   body.innerHTML = `
   <div class="card"><div class="card-body" style="padding:0">
     <div style="overflow-x:auto">
-      <table style="border-collapse:collapse;width:100%;min-width:720px">
+      <table style="border-collapse:collapse;width:100%;min-width:940px">
         <thead><tr>
-          ${th('소섹터', 'left')}${th('종목수')}${th('매출 YoY')}${th('영업이익률')}${th('영익 개선')}${th('집중 종목')}${th('특징', 'left')}
+          ${th('소섹터', 'left')}${thS('종목수', 'n')}${thS('매출 YoY', 'medRevYoY')}${thS('영업이익률', 'medMarg')}${thS('PER', 'medPer')}${thS('시총', 'sumCap')}${thS('외국인', 'medFhr')}${thS('영익 개선', 'impRatio')}${th('집중 종목')}${th('특징', 'left')}
         </tr></thead>
         <tbody>${trs}</tbody>
       </table>
     </div>
   </div></div>`;
+}
+
+// 헤더 클릭 정렬 토글
+function secSort(key) {
+  if (SEC.sort.key === key) SEC.sort.dir *= -1;
+  else { SEC.sort.key = key; SEC.sort.dir = -1; }
+  const d = SEC.cache[SEC.ind];
+  if (d) _secBody(d);
 }
