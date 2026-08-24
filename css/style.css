@@ -12,9 +12,15 @@
   --down: #4a9eff;
   --blue: #4a9eff;   /* 하락색 별칭 (구 index.html 인라인 정의를 이동) */
   --buy: #00c087;
-  --sell: #f5365c;
+  /* 매도 '행동'색 — 상승 빨강(--up)과 분리. 구 --sell:#f5365c 는 상승색과 동일해
+     '매도=긍정'처럼 읽히는 문제가 있었음 → 하락 valence의 파랑 계열로 통일. */
+  --sell: #4a9eff;
   --neutral: #8898aa;
   --accent: #f0a500;
+  /* 상태색 — 등락 팔레트(빨강=상승) '밖'에서 정의. 위험/에러가 상승 빨강과 겹치지 않도록.
+     --danger: 파괴적 액션·에러(상승 빨강보다 살짝 깊은 톤) / --warn: 경고·정원초과(금색) */
+  --danger: #e5484d;
+  --warn: #f0a500;
   --signal-hot: rgba(240,165,0,.12);
   --signal-cold: rgba(0,192,135,.08);
 
@@ -99,8 +105,8 @@ body { background:var(--bg); color:var(--text); font-family:'Pretendard','Apple 
 .btn-primary { background:var(--tg); color:#fff; border-color:var(--tg); font-weight:500; }
 .btn-primary:hover { background:var(--tg2); color:#fff; }
 .btn-sm { padding:4px 10px; font-size:calc(12px*var(--m-sub)); }
-.btn-danger { border-color:rgba(245,54,92,.4); color:var(--red); }
-.btn-danger:hover { background:rgba(245,54,92,.1); }
+.btn-danger { border-color:rgba(229,72,77,.45); color:var(--danger); }
+.btn-danger:hover { background:rgba(229,72,77,.12); }
 .btn-success { border-color:rgba(45,206,137,.4); color:var(--green); }
 .btn-success:hover { background:rgba(45,206,137,.1); }
 
@@ -130,14 +136,14 @@ body { background:var(--bg); color:var(--text); font-family:'Pretendard','Apple 
 .table-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,.22); border-radius: 3px; }
 .table-wrap::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.38); }
 table { width:100%; border-collapse:collapse; font-size:calc(13px*var(--m-body)); }
-th { text-align:left; padding:9px 12px; font-size:calc(11px*var(--m-label)); font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:.06em; border-bottom:1px solid var(--border); white-space:nowrap; }
+th { text-align:left; padding:9px 12px; font-size:calc(11px*var(--m-label)); font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:0; border-bottom:1px solid var(--border); white-space:nowrap; }
 td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; white-space:nowrap; }
 tr:last-child td { border-bottom:none; }
 tr:hover td { background:rgba(255,255,255,.04); }
 
 /* ── Misc ── */
 .badge { display:inline-flex; padding:2px 8px; border-radius:100px; font-size:calc(11px*var(--m-label)); font-weight:500; }
-.badge-full { background:rgba(245,54,92,.15); color:var(--red); }
+.badge-full { background:rgba(240,165,0,.15); color:var(--warn); }
 .badge-open { background:rgba(45,206,137,.15); color:var(--green); }
 .badge-paid { background:rgba(255,171,0,.15); color:#ffab00; }
 .badge-cat { background:rgba(42,171,238,.12); color:var(--tg); }
@@ -243,7 +249,7 @@ textarea.form-input { resize:vertical; min-height:100px; }
 .toast-container { position:fixed; bottom:1.5rem; right:1.5rem; z-index:var(--z-toast); display:flex; flex-direction:column; gap:8px; }
 .toast { background:var(--bg2); border:1px solid var(--border2); border-radius:var(--radius); padding:10px 14px; font-size:calc(13px*var(--m-body)); min-width:260px; animation:slideUp .25s ease; }
 .toast-success { border-left:3px solid var(--green); }
-.toast-error { border-left:3px solid var(--red); }
+.toast-error { border-left:3px solid var(--danger); }
 .toast-info { border-left:3px solid var(--tg); }
 @keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
 .loading { display:inline-block; width:14px; height:14px; border:2px solid var(--border2); border-top-color:var(--tg); border-radius:50%; animation:spin .6s linear infinite; vertical-align:middle; margin-right:6px; }
@@ -313,8 +319,8 @@ textarea.form-input { resize:vertical; min-height:100px; }
   /* ── 마켓 스트립 — 4개 이상 숨김 ── */
   .market-strip-item:nth-child(n+4) { display:none; }
 
-  /* ── 테이블 밀도 ── */
-  td, th { padding:6px 8px; font-size:calc(11px*var(--m-label)); }
+  /* ── 테이블 밀도 (모바일 최소 12px — 숫자 밀집 화면 가독성) ── */
+  td, th { padding:7px 8px; font-size:calc(12px*var(--m-sub)); }
 
   /* ── 버튼 레이블 숨김 ── */
   .btn-label { display:none; }
@@ -477,8 +483,9 @@ tbody tr { transition:background .1s; }
 tbody tr:hover td { background:rgba(255,255,255,.04) !important; }
 td:first-child { color:var(--text); }
 
-/* ── 숫자 컬럼 우측 정렬 ── */
+/* ── 숫자 컬럼 우측 정렬 / 가운데 정렬 유틸 ── */
 td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+td.ctr, th.ctr { text-align:center; }
 
 /* ── 기업 분석 테이블 헤더 고정 ── */
 #fin-table { position:relative; }
@@ -666,7 +673,7 @@ td { padding:7px 10px; font-size:var(--fs-data); }
 /* 신호 배지 */
 .sig { display:inline-flex; align-items:center; gap:3px; padding:2px 7px; border-radius:4px; font-size:calc(11px*var(--m-label)); font-weight:600; }
 .sig-buy    { background:rgba(0,192,135,.15); color:var(--buy);    border:1px solid rgba(0,192,135,.25); }
-.sig-sell   { background:rgba(255,59,92,.12);  color:var(--sell);   border:1px solid rgba(255,59,92,.2); }
+.sig-sell   { background:rgba(240,165,0,.12);  color:var(--warn);   border:1px solid rgba(240,165,0,.25); }
 .sig-watch  { background:rgba(240,165,0,.12);  color:var(--accent); border:1px solid rgba(240,165,0,.2); }
 .sig-neutral{ background:rgba(136,152,170,.1); color:var(--neutral); border:1px solid var(--border); }
 .grade-s { background:rgba(240,165,0,.2);   color:#f0a500; font-weight:700; }

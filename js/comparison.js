@@ -479,21 +479,21 @@ async function runComparison() {
           <span class="card-title">주가 동향</span>
           <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">기준: ${maxDate || '—'}</span>
         </div>
-        <div style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse;font-size:calc(13px*var(--m-body))">
+        <div class="table-wrap">
+          <table>
             <thead>
               <tr>
-                <th style="padding:8px 12px;text-align:left;font-size:calc(11px*var(--m-label));color:var(--text2);border-bottom:1px solid var(--border)">종목</th>
-                <th style="padding:8px 12px;text-align:right;font-size:calc(11px*var(--m-label));color:var(--text2);border-bottom:1px solid var(--border)">현재가</th>
-                <th style="padding:8px 12px;text-align:right;font-size:calc(11px*var(--m-label));color:var(--text2);border-bottom:1px solid var(--border)">등락률</th>
-                <th style="padding:8px 12px;text-align:right;font-size:calc(11px*var(--m-label));color:var(--text2);border-bottom:1px solid var(--border)">5일선</th>
-                <th style="padding:8px 12px;text-align:right;font-size:calc(11px*var(--m-label));color:var(--text2);border-bottom:1px solid var(--border)">20일선</th>
-                <th style="padding:8px 12px;text-align:right;font-size:calc(11px*var(--m-label));color:var(--text2);border-bottom:1px solid var(--border)">60일선</th>
-                <th style="padding:8px 12px;text-align:right;font-size:calc(11px*var(--m-label));color:var(--text2);border-bottom:1px solid var(--border)">시총</th>
-                <th style="padding:8px 12px;text-align:right;font-size:calc(11px*var(--m-label));color:var(--text2);border-bottom:1px solid var(--border)">PER</th>
-                <th style="padding:8px 12px;text-align:right;font-size:calc(11px*var(--m-label));color:var(--text2);border-bottom:1px solid var(--border)">PBR</th>
-                <th style="padding:8px 12px;text-align:center;font-size:calc(11px*var(--m-label));color:var(--text2);border-bottom:1px solid var(--border)">52주 위치</th>
-                <th style="padding:8px 12px;text-align:center;font-size:calc(11px*var(--m-label));color:var(--text2);border-bottom:1px solid var(--border)">액션</th>
+                <th>종목</th>
+                <th class="num">현재가</th>
+                <th class="num">등락률</th>
+                <th class="num">5일선</th>
+                <th class="num">20일선</th>
+                <th class="num">60일선</th>
+                <th class="num">시총</th>
+                <th class="num">PER</th>
+                <th class="num">PBR</th>
+                <th class="ctr">52주 위치</th>
+                <th class="ctr">액션</th>
               </tr>
             </thead>
             <tbody>
@@ -523,7 +523,7 @@ async function runComparison() {
                 // 모니터링 여부
                 const isMonitored = A.monitoredSet?.has(s.code);
                 return `<tr style="border-bottom:1px solid var(--border)">
-                  <td style="padding:8px 12px">
+                  <td>
                     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
                       <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></span>
                       <span style="font-weight:500">${s.name}</span>
@@ -533,16 +533,16 @@ async function runComparison() {
                         font-weight:600;white-space:nowrap">${ma.newHigh}</span>` : ''}
                     </div>
                   </td>
-                  <td style="padding:8px 12px;text-align:right;font-weight:500">${fmtPrice(price)}</td>
-                  <td style="padding:8px 12px;text-align:right;color:${chgColor(chg)};font-weight:500">${chg != null ? chgStr(chg) : '—'}</td>
-                  <td style="padding:8px 12px;text-align:right;color:${ma5pos}">${fmtPrice(ma?.ma5)}</td>
-                  <td style="padding:8px 12px;text-align:right;color:${ma20pos}">${fmtPrice(ma?.ma20)}</td>
-                  <td style="padding:8px 12px;text-align:right;color:${ma60pos}">${fmtPrice(ma?.ma60)}</td>
-                  <td style="padding:8px 12px;text-align:right">${mkt?.market_cap ? fmtCap(mkt.market_cap) : '—'}</td>
-                  <td style="padding:8px 12px;text-align:right">${mkt?.per ? mkt.per.toFixed(1) : '—'}</td>
-                  <td style="padding:8px 12px;text-align:right">${mkt?.pbr ? mkt.pbr.toFixed(2) : '—'}</td>
-                  <td style="padding:8px 12px;text-align:center">${w52bar || '—'}</td>
-                  <td style="padding:8px 12px;text-align:center">
+                  <td class="num" style="font-weight:500">${fmtPrice(price)}</td>
+                  <td class="num" style="color:${chgColor(chg)};font-weight:500">${chg != null ? chgStr(chg) : '—'}</td>
+                  <td class="num" style="color:${ma5pos}">${fmtPrice(ma?.ma5)}</td>
+                  <td class="num" style="color:${ma20pos}">${fmtPrice(ma?.ma20)}</td>
+                  <td class="num" style="color:${ma60pos}">${fmtPrice(ma?.ma60)}</td>
+                  <td class="num">${mkt?.market_cap ? fmtCap(mkt.market_cap) : '—'}</td>
+                  <td class="num">${mkt?.per ? mkt.per.toFixed(1) : '—'}</td>
+                  <td class="num">${mkt?.pbr ? mkt.pbr.toFixed(2) : '—'}</td>
+                  <td class="ctr">${w52bar || '—'}</td>
+                  <td class="ctr">
                     <button onclick="cmpAddToMonitor('${s.code}','${s.name}')"
                       style="font-size:calc(11px*var(--m-label));padding:3px 8px;border-radius:4px;border:1px solid ${isMonitored?'var(--green)':'var(--border)'};
                         background:${isMonitored?'rgba(45,206,137,.1)':'none'};color:${isMonitored?'var(--green)':'var(--text3)'};cursor:pointer">
@@ -613,7 +613,7 @@ async function runComparison() {
           <span class="card-title" id="cmp-detail-title">분기별 상세</span>
           <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">위 지표 탭 클릭 시 전환</span>
         </div>
-        <div id="cmp-detail-body" style="overflow-x:auto"></div>
+        <div id="cmp-detail-body" class="table-wrap"></div>
       </div>`;
 
     // stockDataMap 전역 저장
