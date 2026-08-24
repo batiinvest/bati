@@ -14,45 +14,34 @@ async function openStockDetail(code, name, initTab = 'overview') {
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:var(--z-modal-top);display:flex;align-items:center;justify-content:center;padding:12px;backdrop-filter:blur(3px)';
 
   modal.innerHTML = `
-    <div style="background:var(--bg2);border-radius:14px;width:100%;max-width:1100px;
-      height:90vh;overflow:hidden;display:flex;flex-direction:column;
-      box-shadow:0 16px 64px rgba(0,0,0,.7);border:1px solid var(--border2)">
+    <div class="modal-lg">
 
       <!-- 헤더 -->
-      <div style="padding:14px 20px 10px;border-bottom:1px solid var(--border);flex-shrink:0;
-        background:linear-gradient(135deg,var(--bg2) 0%,var(--bg3) 100%)">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between">
+      <div class="modal-lg-head">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
           <div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap">
               <span style="font-size:calc(20px*var(--m-title));font-weight:700">${escapeHtml(name)}</span>
-              <span style="font-size:calc(11px*var(--m-label));color:var(--text2);padding:2px 7px;background:var(--bg3);
-                border-radius:4px;border:1px solid var(--border);font-family:monospace">${escapeHtml(code)}</span>
+              <span class="sd-code">${escapeHtml(code)}</span>
               <span id="sd-industry-badge" style="font-size:calc(11px*var(--m-label));color:var(--tg)"></span>
             </div>
             <div id="sd-sub-info" style="font-size:calc(11px*var(--m-label));color:var(--text2)"></div>
           </div>
-          <div style="display:flex;align-items:center;gap:12px">
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
             <div id="sd-price-badge" style="text-align:right"></div>
-            ${_canEditSD ? `<button onclick="document.getElementById('m-stock-detail').remove();openReportFor('${code}','${_sdSafeName}')"
-              style="background:var(--bg3);border:1px solid var(--border);cursor:pointer;color:var(--tg);
-                font-size:calc(12px*var(--m-sub));font-weight:600;padding:6px 12px;line-height:1;border-radius:6px;transition:.15s;white-space:nowrap"
+            ${_canEditSD ? `<button class="btn btn-sm" style="color:var(--tg);white-space:nowrap"
+              onclick="document.getElementById('m-stock-detail').remove();openReportFor('${code}','${_sdSafeName}')"
               title="종목 리포트 전체 보기">전체 리포트 →</button>
-            <button id="sd-watch-btn" onclick="window.sdToggleWatch('${code}','${_sdSafeName}')"
-              style="background:var(--bg3);border:1px solid var(--border);cursor:pointer;color:var(--text1);
-                font-size:calc(12px*var(--m-sub));font-weight:600;padding:6px 12px;line-height:1;border-radius:6px;transition:.15s;white-space:nowrap"
+            <button id="sd-watch-btn" class="btn btn-sm" style="white-space:nowrap"
+              onclick="window.sdToggleWatch('${code}','${_sdSafeName}')"
               title="관심종목 추가/해제">⭐ 관심</button>` : ''}
-            <button onclick="document.getElementById('m-stock-detail').remove()"
-              style="background:var(--bg3);border:1px solid var(--border);cursor:pointer;
-                color:var(--text2);font-size:calc(18px*var(--m-title));padding:2px 8px;line-height:1;
-                border-radius:6px;transition:.15s" onmouseover="this.style.color='var(--text)'"
-              onmouseout="this.style.color='var(--text3)'">×</button>
+            <button class="modal-close" onclick="document.getElementById('m-stock-detail').remove()" aria-label="닫기">×</button>
           </div>
         </div>
       </div>
 
       <!-- 탭 -->
-      <div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0;padding:0 20px;
-        background:var(--bg2);overflow-x:auto;scrollbar-width:none">
+      <div class="modal-lg-tabs">
         ${[
           ['overview',  _ICO.doc,     '종합'],
           ['market',    _ICO.bar,     '시장 데이터'],
@@ -60,16 +49,11 @@ async function openStockDetail(code, name, initTab = 'overview') {
           ['supply',    _ICO.shuffle, '수급'],
           ['opinion',   _ICO.target,  '증권사 의견'],
         ].map(([id, ic, lb]) => `
-          <button id="sd-tab-${id}" onclick="window.sdSwitchTab('${id}')"
-            style="background:none;border:none;border-bottom:2px solid transparent;
-              padding:10px 16px;cursor:pointer;font-size:calc(13px*var(--m-body));font-weight:600;
-              color:var(--text2);white-space:nowrap;transition:.15s;flex-shrink:0">
-            ${ic}${lb}
-          </button>`).join('')}
+          <button id="sd-tab-${id}" class="tab" onclick="window.sdSwitchTab('${id}')">${ic}${lb}</button>`).join('')}
       </div>
 
       <!-- 콘텐츠 -->
-      <div id="sd-body" style="overflow-y:auto;padding:20px;flex:1;min-height:0">
+      <div id="sd-body" class="modal-lg-body">
         <div style="text-align:center;color:var(--text2);padding:60px">
           <span class="loading"></span> 로딩 중...
         </div>
@@ -126,10 +110,7 @@ async function openStockDetail(code, name, initTab = 'overview') {
   window.sdSwitchTab = async (tab) => {
     ['overview','market','financial','supply','opinion'].forEach(t => {
       const btn = document.getElementById('sd-tab-'+t);
-      if (btn) {
-        btn.style.color = t===tab ? 'var(--tg)' : 'var(--text3)';
-        btn.style.borderBottomColor = t===tab ? 'var(--tg)' : 'transparent';
-      }
+      if (btn) btn.classList.toggle('active', t === tab);
     });
     const body = document.getElementById('sd-body');
     if (!body) return;

@@ -65,7 +65,7 @@ function pInvestment() {
   </div>
 
   <!-- 상단: 오늘의 시장 판단 — 온도계(환경)+투자포인트(전략) 통합 카드. 환경→전략→근거 수직 흐름 -->
-  <div class="card insight-card" style="margin-bottom:1rem">
+  <div class="card insight-card card--hero" style="margin-bottom:1rem">
     <div class="card-header" style="flex-wrap:wrap;gap:6px">
       <span class="card-title">${_ICO.temp}오늘의 시장 판단</span>
       <span class="card-sub">지금 들어가도 되나 → 무엇을 할까</span>

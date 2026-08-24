@@ -228,6 +228,39 @@ a:hover { text-decoration:underline; }
 .modal-close:hover { color:var(--text); }
 .modal-footer { display:flex; justify-content:flex-end; gap:8px; margin-top:1.25rem; padding-top:1rem; border-top:1px solid var(--border); }
 
+/* ── 넓은 데이터 모달(.modal-lg) — 종목 상세 등 탭+스크롤 대형 모달 ──
+   기본 .modal 은 .modal-overlay.open 애니메이션(translateY)에 결합돼 있어 단독 사용 시
+   위치가 어긋난다. 그래서 대형 모달은 독립 클래스로 정의하고, 내부는 공통 .tab/.btn/.modal-close 를 재사용. */
+.modal-lg {
+  background:var(--bg2); border:1px solid var(--border2); border-radius:14px;
+  width:100%; max-width:1100px; height:90vh; overflow:hidden;
+  display:flex; flex-direction:column; box-shadow:0 16px 64px rgba(0,0,0,.7);
+}
+.modal-lg-head {
+  padding:14px 20px 10px; border-bottom:1px solid var(--border); flex-shrink:0; position:relative;
+  background:linear-gradient(135deg,var(--bg2) 0%,var(--bg3) 100%);
+}
+.modal-lg-tabs {
+  display:flex; border-bottom:1px solid var(--border); flex-shrink:0;
+  padding:0 20px; overflow-x:auto; scrollbar-width:none;
+}
+.modal-lg-tabs::-webkit-scrollbar { display:none; }
+.modal-lg-tabs .tab { flex-shrink:0; white-space:nowrap; }
+.modal-lg-body { overflow-y:auto; padding:20px; flex:1; min-height:0; }
+/* 헤더 종목코드 뱃지 (인라인 반복 대체) */
+.sd-code {
+  font-size:calc(11px*var(--m-label)); color:var(--text2); padding:2px 7px;
+  background:var(--bg3); border-radius:4px; border:1px solid var(--border); font-family:monospace;
+}
+/* 모바일 바텀시트: 상단 드래그 핸들 — 시트를 아래로 내리는 어포던스 */
+@media(max-width:600px){
+  .modal-lg-head { padding-top:16px; }
+  .modal-lg-head::before {
+    content:''; position:absolute; top:6px; left:50%; transform:translateX(-50%);
+    width:36px; height:4px; border-radius:2px; background:var(--border2);
+  }
+}
+
 /* ── Forms ── */
 .form-group { margin-bottom:1rem; }
 .form-label { display:block; font-size:calc(12px*var(--m-sub)); color:var(--text); margin-bottom:6px; font-weight:500; }
@@ -455,6 +488,14 @@ textarea.form-input { resize:vertical; min-height:100px; }
 .card        { box-shadow: var(--shadow-sm); }
 .metric-card { box-shadow: var(--shadow-sm); position:relative; overflow:hidden; transition:box-shadow .15s, transform .15s; }
 .metric-card:hover { box-shadow: var(--shadow-md); transform:translateY(-1px); }
+
+/* ── 카드 위계 2단 — 강조(hero) vs 보조(기본 .card = baseline) ──
+   시황 등 카드가 여럿 쌓이는 화면에서 '오늘의 핵심' 1개만 hero로 띄우고
+   나머지는 기본 .card(shadow-sm)로 두어 시선의 우선순위를 만든다.
+   .card--sub 는 각주성 카드를 완전히 평평하게 눕히고 싶을 때 선택적으로 사용. */
+.card--hero { box-shadow: var(--shadow-md); border-color: var(--border2); }
+.card--hero .card-title { font-size: calc(16px*var(--m-title)); }
+.card--sub  { box-shadow: none; }
 
 /* metric-card 좌측 포인트 바 */
 .metric-card::before {
