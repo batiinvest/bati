@@ -357,19 +357,13 @@ function pInvestment() {
 
     <div id="inv-zonec" style="display:none">
 
-    <!-- ③-b 종목별 수급 순위 (외국인/기관 10거래일 누적) -->
+    <!-- ③-b 수급 지도 (찬집/빈집 사분면 — 종목별 누적 순매수÷시총, 지연 로드) -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="flex-wrap:wrap;gap:6px">
-        <span class="card-title">${_ICO.bank}종목별 수급 순위 <span class="card-sub">(10거래일 누적)</span></span>
-        <span style="font-size:calc(11px*var(--m-label));color:var(--text2)" id="stockflow-date"></span>
-        <div style="display:flex;gap:4px;margin-left:auto">
-          <button class="chip chip-sm active" data-sflow-type="foreign" onclick="switchStockFlowType('foreign')">외국인</button>
-          <button class="chip chip-sm"        data-sflow-type="inst"    onclick="switchStockFlowType('inst')"   >기관</button>
-          <button class="chip chip-sm"        data-sflow-type="combined" onclick="switchStockFlowType('combined')">합산</button>
-        </div>
+        <span class="card-title">${_ICO.bank}수급 지도 <span class="card-sub">(찬집·빈집 사분면 · 누적 순매수÷시총)</span></span>
       </div>
-      <div id="stockflow-body" style="padding:.25rem 0">
-        ${_skelList(6, true)}
+      <div style="padding:.75rem 1rem 0">
+        ${typeof pFlowMap === 'function' ? pFlowMap() : ''}
       </div>
     </div>
 
@@ -707,7 +701,7 @@ async function loadInvestment() {
   loadLeadingStocks();
   loadLeadingBacktest();
   loadSectorRotation();  // 산업별 수급동향(로테이션 맵+보드, US·KR·선행 컬럼 통합) — INV.indMapData(신선)+sector_daily_summary
-  loadStockFlow();
+  // 수급 지도(종목별 찬집/빈집)는 Zone C를 펼칠 때만 지연 로드 — toggleZoneC 참조
 
   // 매크로 의존 위젯 — 병렬 로드 완료 후 실행 (구: 직렬 await + setTimeout 1500ms 지연 호출)
   // loadMarketInsight 의존(INV.macroData·IND.krDates·USKR_MAP)은 위 loadMarketOverview가
@@ -863,6 +857,7 @@ function toggleZoneC() {
     try { if (typeof loadTrendChart    === 'function') loadTrendChart();    } catch(e) { console.warn('[ZoneC] trend', e); }
     try { if (typeof loadIndTrendChart === 'function') loadIndTrendChart(); } catch(e) { console.warn('[ZoneC] indTrend', e); }
     try { if (typeof loadUskrChart     === 'function') loadUskrChart();     } catch(e) { console.warn('[ZoneC] uskr', e); }
+    try { if (typeof loadFlowMap       === 'function') loadFlowMap();       } catch(e) { console.warn('[ZoneC] flowmap', e); }
   });
 }
 
