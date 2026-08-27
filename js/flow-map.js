@@ -136,7 +136,11 @@ async function loadFlowMap() {
         .in('stock_code', chunk)
         .gte('base_date', cutoff)
         .not('foreign_net_buy', 'is', null)
+        // 정렬은 (base_date, stock_code) 총순서 — PK 기준이라 페이지네이션이 결정적.
+        // base_date 단독 정렬 시 동일일자 타이가 range 페이지 경계에서 뒤섞여 행 누락/중복 발생
+        // (반도체 등 >1000행 산업에서 실측 29행 유실). PK 타이브레이커로 방지.
         .order('base_date', { ascending: true })
+        .order('stock_code', { ascending: true })
         .range(s, e));
       rows.push(...part);
     }
