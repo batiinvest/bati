@@ -23,6 +23,7 @@ const PAGE_META = {
   report:     { title: '종목 리포트',   fn: 'pReport',      onLoad: null },
   comparison: { title: '기업 비교 분석',fn: 'pComparison',  onLoad: 'initCmpPage' },
   sectorearn: { title: '섹터 실적',     fn: 'pSectorEarn',  onLoad: 'loadSectorEarn' },
+  flowmap:    { title: '수급 지도',     fn: 'pFlowMap',     onLoad: 'loadFlowMap' },
   stocks:     { title: '종목 관리',     fn: 'pStocks',      onLoad: 'loadStocks' },
   pro:        { title: '프로 채널',     fn: 'pPro',         onLoad: 'initPro' },
   team:       { title: '팀원 관리',     fn: 'pTeam',        onLoad: 'loadTeam' },
