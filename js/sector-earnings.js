@@ -82,7 +82,7 @@ async function loadSectorEarn() {
       let rawRows = [];
       for (let i = 0; i < codes.length; i += 300) {
         const data = await fetchAllPages((s, e) => sb.from('financials')
-          .select('stock_code,bsns_year,quarter,revenue,operating_profit,fs_div')
+          .select('stock_code,bsns_year,quarter,revenue,operating_profit,debt_ratio,finance_cost,fs_div')
           .in('stock_code', codes.slice(i, i + 300))
           .gte('bsns_year', String(year - 2))
           .order('stock_code', { ascending: true })
@@ -109,7 +109,7 @@ async function loadSectorEarn() {
       for (const r of rows) {
         const qn = _secQn(r.quarter); if (!qn) continue;
         const key = r.bsns_year + '-' + qn;
-        (byStock[r.stock_code] || (byStock[r.stock_code] = {}))[key] = { rev: +r.revenue, op: +r.operating_profit };
+        (byStock[r.stock_code] || (byStock[r.stock_code] = {}))[key] = { rev: +r.revenue, op: +r.operating_profit, dr: r.debt_ratio, fc: r.finance_cost };
         if (r.revenue != null && +r.revenue > 0) periodCnt[key] = (periodCnt[key] || 0) + 1;
       }
       const periods = Object.keys(periodCnt).sort((a, b) => {
@@ -148,15 +148,16 @@ function _secCompute(ind) {
 
   // 종목별 now/prev (모드별: 분기=단일분기, TTM=최근 4분기 합)
   const vals = code => {
+    const dr = (byStock[code][nowKey] || {}).dr;   // 부채율=현재분기 스냅샷(잔액 지표라 합산 안 함)
     if (!ttm) {
       const n = byStock[code][nowKey], p = byStock[code][agoKey];
-      return (n && p) ? { nr: n.rev, no: n.op, pr: p.rev, po: p.op } : null;
+      return (n && p) ? { nr: n.rev, no: n.op, pr: p.rev, po: p.op, nfc: n.fc, dr } : null;
     }
     if (nowWin.length < 4 || agoWin.length < 4) return null;
-    let nr = 0, no = 0, pr = 0, po = 0;
-    for (const k of nowWin) { const v = byStock[code][k]; if (!v) return null; nr += v.rev; no += v.op; }
+    let nr = 0, no = 0, pr = 0, po = 0, nfc = 0, fcOk = true;
+    for (const k of nowWin) { const v = byStock[code][k]; if (!v) return null; nr += v.rev; no += v.op; if (v.fc == null) fcOk = false; else nfc += v.fc; }
     for (const k of agoWin) { const v = byStock[code][k]; if (!v) return null; pr += v.rev; po += v.op; }
-    return { nr, no, pr, po };
+    return { nr, no, pr, po, nfc: fcOk ? nfc : null, dr };
   };
 
   const sparkQs = periods.slice(0, 6).reverse();   // 추세 스파크라인: 최근 6분기(오름차순)
@@ -174,6 +175,7 @@ function _secCompute(ind) {
       improved: v.no > v.po,
       rn: v.nr, on: v.no, rp: v.pr, op: v.po,
       per: md.per, pbr: md.pbr, cap: md.market_cap, fhr: md.foreign_hold_rate,
+      dr: v.dr, ic: (v.nfc != null && v.nfc > 0) ? v.no / v.nfc : null,
     });
     usable++;
   }
@@ -188,6 +190,8 @@ function _secCompute(ind) {
     const posPer = it.map(x => x.per).filter(v => v != null && v > 0);
     const posPbr = it.map(x => x.pbr).filter(v => v != null && v > 0);
     const fhrs = it.map(x => x.fhr).filter(v => v != null);
+    const drs = it.map(x => x.dr).filter(v => v != null);
+    const ics = it.map(x => x.ic).filter(v => v != null && isFinite(v));
     const spark = sparkQs.map(q => it.reduce((s, x) => s + (((byStock[x.code] || {})[q] || {}).rev || 0), 0));
     return {
       sub: b.sub, n: it.length, items: it,
@@ -202,6 +206,8 @@ function _secCompute(ind) {
       medPbr: posPbr.length ? _secMed(posPbr) : null,
       sumCap: it.reduce((s, x) => s + (x.cap || 0), 0),
       medFhr: fhrs.length ? _secMed(fhrs) : null,
+      medDebt: drs.length ? _secMed(drs) : null,
+      medIC: ics.length ? _secMed(ics) : null,
       spark,
       sRn, sOn, sRp, sOp,
     };
@@ -344,7 +350,7 @@ function _secRender(d) {
   if (per)  per.textContent = d.periodLabel + ' 기준';
   if (desc) desc.innerHTML =
     `${escapeHtml(d.ind)} 소섹터별 ${d.ttm ? 'TTM(최근 4분기)' : '분기'} 실적 · 전년동기 대비(YoY) · 집계 ${d.usable}/${d.total}종. ` +
-    `<b style="color:var(--text)">중앙값</b>=대표기업(거대·유통주 왜곡 제외), 작은 글씨=합산. 재무는 연결(CFS) 우선. PER·PBR·외국인=최신 시장데이터 중앙값. 헤더 클릭 정렬 · <b style="color:var(--text)">소섹터 클릭 시 구성종목</b>.`;
+    `<b style="color:var(--text)">중앙값</b>=대표기업(거대·유통주 왜곡 제외), 작은 글씨=합산. 재무는 연결(CFS) 우선. PER·PBR·외국인=최신 시장데이터 중앙값. 헤더 클릭 정렬 · <b style="color:var(--text)">소섹터 클릭 시 구성종목</b>. 이자보상=영업이익÷금융비용(금융비용=이자+환차손 등 집계 프록시).`;
 
   // 헤드라인 (섹터 합산)
   const T = d.T;
@@ -391,11 +397,13 @@ function _secDrillHtml(r) {
       <td style="${cell};text-align:right;color:var(--text2)">${x.per != null && x.per > 0 ? x.per.toFixed(1) : '—'}</td>
       <td style="${cell};text-align:right;color:var(--text2)">${fmtCap(x.cap || 0)}</td>
       <td style="${cell};text-align:right;color:var(--text2)">${x.fhr != null ? x.fhr.toFixed(1) + '%' : '—'}</td>
+      <td style="${cell};text-align:right;color:${x.dr != null && x.dr > 200 ? 'var(--yellow)' : 'var(--text2)'}">${x.dr != null ? x.dr.toFixed(0) + '%' : '—'}</td>
+      <td style="${cell};text-align:right;color:var(--text2)">${x.ic != null && isFinite(x.ic) ? (x.ic >= 100 ? '100+' : x.ic.toFixed(1)) + '배' : '—'}</td>
     </tr>`).join('');
-  const hd = ['종목', '매출YoY', '영익률', 'PER', '시총', '외국인'];
+  const hd = ['종목', '매출YoY', '영익률', 'PER', '시총', '외국인', '부채율', '이자보상'];
   return `<div style="padding:6px 12px 12px;background:var(--bg2)">
     <div style="font-size:calc(11px*var(--m-label));color:var(--text3);padding:4px 10px 6px">구성 종목 ${r.items.length} · 시총순 (클릭 시 종목 상세)</div>
-    <table style="border-collapse:collapse;width:100%;min-width:520px">
+    <table style="border-collapse:collapse;width:100%;min-width:640px">
       <thead><tr>${hd.map((h, i) => `<th style="text-align:${i === 0 ? 'left' : 'right'};padding:4px 10px;font-size:calc(10px*var(--m-label));color:var(--text3);font-weight:600;border-bottom:1px solid var(--border)">${h}</th>`).join('')}</tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
@@ -442,6 +450,10 @@ function _secBody(d) {
       </td>
       <td style="padding:11px 12px;text-align:right"><span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">${fmtCap(r.sumCap)}</span></td>
       <td style="padding:11px 12px;text-align:right"><span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">${r.medFhr == null ? '—' : r.medFhr.toFixed(1) + '%'}</span></td>
+      <td style="padding:11px 12px;text-align:right" title="부채율(중앙) / 이자보상배율(중앙) · 이자보상은 금융비용 기준 프록시(환차손 등 포함)">
+        <div style="font-size:calc(12.5px*var(--m-sub));color:${r.medDebt != null && r.medDebt > 200 ? 'var(--yellow)' : 'inherit'}">${r.medDebt == null ? '—' : r.medDebt.toFixed(0) + '%'}</div>
+        <div style="font-size:calc(10px*var(--m-label));color:var(--text3)">이자 ${r.medIC == null ? '—' : (r.medIC >= 100 ? '100+' : r.medIC.toFixed(1)) + '배'}</div>
+      </td>
       <td style="padding:11px 12px;text-align:right">
         <div style="display:inline-flex;align-items:center;gap:8px;justify-content:flex-end">
           <span style="font-size:calc(12px*var(--m-sub));color:var(--text2);min-width:38px;text-align:right">${r.impN}/${r.n}</span>
@@ -454,15 +466,15 @@ function _secBody(d) {
       <td style="padding:11px 12px;text-align:right"><span style="font-size:calc(12px*var(--m-sub));color:var(--text2);white-space:nowrap">${escapeHtml(r.topName)} <span style="color:var(--text3)">${Math.round(r.topShare)}%</span></span></td>
       <td style="padding:11px 12px;text-align:left">${tags || '<span style="color:var(--text3)">—</span>'}</td>
     </tr>
-    <tr id="secd-${i}" style="display:none"><td colspan="11" style="padding:0">${_secDrillHtml(r)}</td></tr>`;
+    <tr id="secd-${i}" style="display:none"><td colspan="12" style="padding:0">${_secDrillHtml(r)}</td></tr>`;
   }).join('');
 
   body.innerHTML = `
   <div class="card"><div class="card-body" style="padding:0">
     <div style="overflow-x:auto">
-      <table style="border-collapse:collapse;width:100%;min-width:1000px">
+      <table style="border-collapse:collapse;width:100%;min-width:1080px">
         <thead><tr>
-          ${th('소섹터', 'left')}${thS('종목수', 'n')}${thS('매출 YoY', 'medRevYoY')}${thS('영업이익률', 'medMarg')}${thS('PER', 'medPer')}${thS('시총', 'sumCap')}${thS('외국인', 'medFhr')}${thS('영익 개선', 'impRatio')}${th('추세')}${th('집중 종목')}${th('특징', 'left')}
+          ${th('소섹터', 'left')}${thS('종목수', 'n')}${thS('매출 YoY', 'medRevYoY')}${thS('영업이익률', 'medMarg')}${thS('PER', 'medPer')}${thS('시총', 'sumCap')}${thS('외국인', 'medFhr')}${thS('부채율', 'medDebt')}${thS('영익 개선', 'impRatio')}${th('추세')}${th('집중 종목')}${th('특징', 'left')}
         </tr></thead>
         <tbody>${trs}</tbody>
       </table>
