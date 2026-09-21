@@ -16,13 +16,31 @@
  *     · 좌상 빈집·담기 시작      (이전 유출 but 최근 매수 전환 — 저점 매집 관찰)
  *     · 좌하 빈집·계속 비우는 중 (이전 유출 + 최근도 매도 — 소외)
  *
- * 값 = Σ(일별 순매수 주식수 × 일별 종가) ÷ 현재 시총.
+ * 값 = Σ(일별 순매수 주식수 × 일별 종가) ÷ 시총.
  *   market_data.foreign_net_buy / institution_net_buy 는 **주식수** 단위라 종가를 곱해
  *   원화로 환산한 뒤 시총으로 정규화(참고 사이트와 동일 방식, 확정대금과 소수 오차 존재).
- *   ⚠ 순매수 데이터는 is_monitored 종목 + 2026-05-26 이후에만 존재 → 현재 1M·3M 창만 유효,
- *     이력이 쌓이면 6M·12M 칩이 자동 노출된다.
+ *   분모는 gap 모드=현재 시총, empty 모드=당일 시총(기간 중 주가 급변 왜곡 제거).
+ *   ⚠ 순매수는 is_monitored 종목만 수집되고, 서버 job_cleanup_market_data 가
+ *     KEEP_MON=90일로 롤링 삭제한다 → 보유 이력은 영구히 61~63거래일이 천장.
+ *     따라서 _FM_WINS 의 6M(th=80)·12M(th=170) 칩은 **절대 열리지 않는다**(실측 확인).
+ *     살리려면 순매수 전용 경량 장기 테이블을 따로 보존해야 한다.
  *
  * 산업 필터(기본 반도체) 단위로 ~20~60종목만 찍어 사분면이 또렷하게 읽히도록 한다.
+ *
+ * ── 모드 2종 ────────────────────────────────────────────────────────────────
+ *  ① empty(빈집)  — 유튜브 '태린이아빠'(@Taerins_Dad) "수급빈집" 로직
+ *     https://www.youtube.com/watch?v=AvXIhX7VlH4
+ *     원 정의(영상 육성 + 엑셀 시트):
+ *       1. 유동성 공급이 되는 컨셉(업종)을 분류한다 — 이때 매수만 본다.
+ *       2. 수출데이터·미국시장·선행지표·컨센서스로 공급이 약해질지 본다(하자 있으면 매도압력↑).
+ *       3. 하자가 없는데 수급 강도가 "비워져" 있으면 금방 채워질 가능성에 베팅한다.
+ *          (모멘텀 로테이션=덜 오른 종목 사기 와 달리, 주도주도 잡히는 게 장점)
+ *     수급오실레이터 = 외국인+투신+연기금 **매수금액**의 5일 롤링 합 ÷ 시가총액 × 100(%).
+ *     ⚠ 우리 데이터 한계: market_data는 KIS inquire-investor(FHKST01010900) 기반이라
+ *       **순매수 수량**만 있고 투신/연기금 분리가 없다 → 외국인+기관계 **순매수**대금으로 대체.
+ *       5일 롤링·÷시가총액·% 변환·자기 이력 대비 위치는 원 정의 그대로.
+ *       (총매수·투신/연금 분리를 쓰려면 KRX 투자자별 거래실적 수집기 신설 필요)
+ *  ② gap(전환)   — 이전 구간 누적 vs 최근 구간. 기존 사분면 지도(위 설명).
  *
  * 의존: sb, INDUSTRIES, IND_COLORS, getIndustryMap, getLatestMarketDate, fetchAllPages,
  *       fmtCap, fmtWon, fmtPct, wlBadge, escAttr, loadingHTML, setAsOf (config.js)
@@ -31,9 +49,10 @@
 // ── 상태 네임스페이스 (window._* 금지 규약) ─────────────────────────────────
 const FM = {
   ind:     '반도체',   // 선택 산업
+  mode:    'empty',    // 지도 모드 (empty=빈집 · gap=전환)
   win:     '3M',       // 기간 창 (1M | 3M | 6M | 12M)
   inv:     'both',     // 투자자 (both | foreign | inst)
-  sortCol: 'med',      // 표 정렬 컬럼
+  sortCol: 'quad',     // 표 정렬 컬럼 (기본 모드가 empty라 빈집이 위로 — switchFmMode가 모드별로 재설정)
   sortDir: -1,         // -1 내림차순, 1 오름차순
   raw:     {},         // 산업별 원자료 캐시 { ind: { dates, byCode } }
   latest:  null,       // 최신 거래일
@@ -57,6 +76,45 @@ const _FM_Q = {
 };
 const _fmQuad = (x, y) => x >= 0 ? (y >= 0 ? _FM_Q.ff : _FM_Q.fe) : (y >= 0 ? _FM_Q.ef : _FM_Q.ee);
 
+// ── 빈집 모드 ───────────────────────────────────────────────────────────────
+// 수급오실레이터 롤링 창 — 태린이아빠 원 정의 5거래일 고정("5일 롤로 하루씩 이연되면서 합산").
+const _FM_OSC_N = 5;
+// ★(진짜 비었다) 기준 백분위 — 사분면은 중앙값으로 가르되, 이 선 아래만 강조한다.
+// 중앙값 바로 아래(하위 46% 등)까지 '빈집'으로 부르면 과장이라 표/차트에서 눈에 띄게 분리.
+const _FM_EMPTY_TH = 30;
+
+// 빈집 사분면 — 가로=유동성 공급 강도(오실레이터 평균), 세로=자기 이력 대비 현재 위치
+const _FM_QE = {
+  fill: { key: 'fill', label: '빈집 · 채워질 자리', short: '빈집',     color: '#f59e0b', bg: 'rgba(245,158,11,.16)', prio: 3, tip: '유동성이 공급되는 종목인데 최근 5일 수급 강도가 자기 이력 하위 — 태린이아빠가 말하는 빈집' },
+  full: { key: 'full', label: '이미 채워짐',        short: '채워짐',   color: '#2dce89', bg: 'rgba(45,206,137,.13)', prio: 2, tip: '유동성 공급 + 현재 수급 강도도 상위 — 이미 붐비는 집' },
+  bnce: { key: 'bnce', label: '유출 중 일시 유입',  short: '일시유입', color: '#fb6340', bg: 'rgba(251,99,64,.13)',  prio: 1, tip: '기간 평균은 유출인데 최근만 상위 — 공급 컨셉인지 확인 필요' },
+  cold: { key: 'cold', label: '소외 · 공급 없음',   short: '소외',     color: '#8898aa', bg: 'rgba(136,152,170,.12)', prio: 0, tip: '기간 평균 유출 + 현재도 하위 — 유동성 공급 컨셉이 아님(빈집 아님)' },
+};
+const _fmQuadE = (x, y) => x >= 0 ? (y < 0 ? _FM_QE.fill : _FM_QE.full) : (y < 0 ? _FM_QE.cold : _FM_QE.bnce);
+
+/**
+ * 종목의 수급오실레이터 시계열 — osc(d) = Σ(d-4..d) 순매수대금 ÷ 당일 시가총액 × 100(%)
+ * 분모를 '당일' 시총으로 잡아 기간 중 주가가 크게 변한 종목의 왜곡을 없앤다(전환 모드의 한계 ②).
+ * 창이 덜 찬 날(결측 포함)은 버려 5일 합산의 의미를 지킨다.
+ */
+function _fmOscSeries(s, dates, netOf) {
+  const out = [];
+  for (let i = _FM_OSC_N - 1; i < dates.length; i++) {
+    const cap = s.days[dates[i]]?.cap;
+    if (!cap || cap <= 0) continue;
+    let sum = 0, hit = 0;
+    for (let k = i - _FM_OSC_N + 1; k <= i; k++) {
+      const d = s.days[dates[k]];
+      const n = netOf(d);
+      if (n == null || d.p == null) continue;
+      sum += n * d.p; hit++;
+    }
+    if (hit < _FM_OSC_N) continue;
+    out.push({ d: dates[i], v: sum / cap * 100 });
+  }
+  return out;
+}
+
 // 수급 유입/유출 색 (녹=담기, 적=비우기)
 const _fmFlowColor = v => v > 0 ? '#2dce89' : v < 0 ? '#f5365c' : 'var(--text3)';
 
@@ -75,7 +133,13 @@ function pFlowMap() {
   </div>
   <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:.75rem">
     <div style="display:flex;gap:4px;align-items:center">
-      <span style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-right:2px">기간</span>
+      <span style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-right:2px">지도</span>
+      ${[['empty','빈집','유동성은 공급되는데 최근 5일 수급 강도가 비워진 종목 (태린이아빠 로직)'],
+         ['gap','전환','이전 구간 누적 vs 최근 구간 — 담다가 비우기 시작한 전환 포착']].map(([k,l,t]) =>
+        `<button class="chip${FM.mode === k ? ' active' : ''}" data-fm-mode="${k}" title="${t}" onclick="switchFmMode('${k}')">${l}</button>`).join('')}
+    </div>
+    <div style="display:flex;gap:4px;align-items:center">
+      <span id="fm-win-label" style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-right:2px">기간</span>
       <span id="fm-win-chips" style="display:flex;gap:4px"></span>
     </div>
     <div style="display:flex;gap:4px;align-items:center">
@@ -94,6 +158,15 @@ function switchFmInd(el, ind) {
   document.querySelectorAll('[data-fm-ind]').forEach(b =>
     b.classList.toggle('active', b.dataset.fmInd === ind));
   loadFlowMap();
+}
+function switchFmMode(k) {
+  if (FM.mode === k) return;
+  FM.mode = k;
+  FM.sortCol = (k === 'empty') ? 'quad' : 'med';   // 빈집 모드는 빈집이 위로
+  FM.sortDir = -1;
+  document.querySelectorAll('[data-fm-mode]').forEach(b =>
+    b.classList.toggle('active', b.dataset.fmMode === k));
+  _fmRender();   // 재조회 없이 재집계 — 원자료는 동일
 }
 function switchFmInv(k) {
   if (FM.inv === k) return;
@@ -204,6 +277,8 @@ function _fmRender() {
   const winChips = document.getElementById('fm-win-chips');
   if (winChips) winChips.innerHTML = wins.map(w =>
     `<button class="chip${w.k === FM.win ? ' active' : ''}" data-fm-win="${w.k}" onclick="switchFmWin('${w.k}')">${w.k}</button>`).join('');
+  const winLbl = document.getElementById('fm-win-label');
+  if (winLbl) winLbl.textContent = (FM.mode === 'empty') ? '비교이력' : '기간';
 
   if (availDays < 2) { el.innerHTML = _fmEmpty(`${FM.ind} — 수급 이력이 2거래일 미만입니다`); return; }
 
@@ -226,6 +301,8 @@ function _fmRender() {
     if (f == null && i == null) return null;
     return (f || 0) + (i || 0);
   };
+
+  if (FM.mode === 'empty') { _fmRenderEmpty(el, raw, availDays, spanN, netOf); return; }
 
   const pts = [];
   for (const s of Object.values(raw.byCode)) {
@@ -266,43 +343,101 @@ function _fmRender() {
 
   if (!pts.length) { el.innerHTML = _fmEmpty(`${FM.ind} — 선택 조건에 표시할 종목이 없습니다`); return; }
 
-  el.innerHTML =
-    _fmSummary(pts) +
-    `<div style="display:flex;flex-wrap:wrap;gap:0;align-items:stretch">
-       <div style="flex:2 1 380px;min-width:320px;padding:4px 8px 8px;box-sizing:border-box">
-         ${_fmScatter(pts, preN, shN)}
-       </div>
-       <div style="flex:3 1 460px;min-width:330px;border-left:1px solid var(--border);box-sizing:border-box">
-         ${_fmTable(pts, preN, shN)}
-       </div>
-     </div>` +
-    _fmFootnotes(spanN, preN, shN);
-}
-
-// ── ① 요약 타일 (사분면 분포 + 최다 담김/비움) ───────────────────────────────
-function _fmSummary(pts) {
-  const cnt = { ff: 0, fe: 0, ef: 0, ee: 0 };
-  pts.forEach(p => cnt[p.q.key]++);
-
-  const tile = (q, n) => `
-    <div style="flex:1 1 120px;min-width:112px;padding:8px 10px;border-radius:8px;background:${q.bg};border:1px solid ${q.color}33" title="${q.tip}">
-      <div style="font-size:calc(11px*var(--m-label));color:${q.color};font-weight:700;margin-bottom:1px">${q.short}</div>
-      <div style="font-size:calc(18px*var(--m-title));font-weight:800;color:var(--text1);line-height:1.1">${n}<span style="font-size:calc(11px*var(--m-label));color:var(--text3);font-weight:500">종목</span></div>
-    </div>`;
-
   const topIn  = pts.slice().sort((a, b) => b.x - a.x)[0];
   const topOut = pts.slice().sort((a, b) => a.x - b.x)[0];
   const hi = [];
   if (topIn && topIn.x > 0)
-    hi.push(`<span style="color:var(--text2)">가장 많이 담긴</span> <b style="color:var(--text1)">${escAttr(topIn.name)}</b> <span style="color:#2dce89;font-weight:700">${fmtPct(topIn.x)}</span>`);
+    hi.push(`<span style="color:var(--text2)">가장 많이 담긴</span> <b style="color:var(--text1)">${escapeHtml(topIn.name)}</b> <span style="color:#2dce89;font-weight:700">${fmtPct(topIn.x)}</span>`);
   if (topOut && topOut.x < 0)
-    hi.push(`<span style="color:var(--text2)">가장 많이 비워진</span> <b style="color:var(--text1)">${escAttr(topOut.name)}</b> <span style="color:#f5365c;font-weight:700">${fmtPct(topOut.x)}</span>`);
+    hi.push(`<span style="color:var(--text2)">가장 많이 비워진</span> <b style="color:var(--text1)">${escapeHtml(topOut.name)}</b> <span style="color:#f5365c;font-weight:700">${fmtPct(topOut.x)}</span>`);
+
+  const L = {
+    quads: [_FM_Q.ff, _FM_Q.fe, _FM_Q.ef, _FM_Q.ee],
+    hi,
+    sub:   `가로=이전 ${preN}일 누적÷시총(최근 ${shN}일 제외) · 세로=최근 ${shN}일 · 버블=시총 · 클릭→종목 상세`,
+    xAxis: `← 빈집 (순유출)   ·   이전 ${preN}일 누적 ÷ 시총   ·   (순유입) 찬집 →`,
+    yAxis: `← 비우기   최근 ${shN}일   담기 →`,
+    corners: [
+      { txt: '찬집·담는중 ▲', color: _FM_Q.ff.color },   // 우상
+      { txt: '찬집·비우기 ▼', color: _FM_Q.fe.color },   // 우하
+      { txt: '▲ 빈집·담기',   color: _FM_Q.ef.color },   // 좌상
+      { txt: '▼ 빈집·비우기', color: _FM_Q.ee.color },   // 좌하
+    ],
+    tipOf: p => `${p.name} · 이전 ${preN}일 ${fmtPct(p.x)} (${fmtWon(p.preWon, true)}) · 최근 ${shN}일 ${fmtPct(p.y)} · ${p.q.short}`,
+    cols: [
+      { key: 'name', label: '종목', align: 'left', w: 'minmax(96px,1.3fr)', val: p => p.name, cell: _fmNameCell },
+      { key: 'cap', label: '시총', align: 'right', w: 'minmax(64px,0.8fr)', val: p => p.cap,
+        cell: p => `<div style="text-align:right;font-size:calc(11px*var(--m-label));color:var(--text2)">${fmtCap(p.cap)}</div>` },
+      { key: 'med', label: `이전 ${preN}일 ÷시총`, align: 'right', w: 'minmax(96px,1.15fr)', val: p => p.x,
+        cell: p => `<div style="text-align:right">
+            <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:${_fmFlowColor(p.x)}">${fmtPct(p.x)}</div>
+            <div style="font-size:calc(10px*var(--m-label));color:var(--text3)">${fmtWon(p.preWon, true)}</div>
+          </div>` },
+      { key: 'sh', label: `최근 ${shN}일 ÷시총`, align: 'right', w: 'minmax(96px,1.15fr)', val: p => p.y,
+        cell: p => `<div style="text-align:right">
+            <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:${_fmFlowColor(p.y)}">${fmtPct(p.y)}</div>
+            <div style="font-size:calc(10px*var(--m-label));color:var(--text3)">${fmtWon(p.shWon, true)}</div>
+          </div>` },
+      // 같은 사분면 안에서는 누적이 큰 종목이 위로 (prio 간격 1000 > |x| 범위)
+      { key: 'quad', label: '구분', align: 'center', w: 'minmax(88px,1.05fr)', val: p => p.q.prio * 1000 + p.x,
+        cell: p => `<div style="text-align:center">
+            <span title="${escAttr(p.q.tip)}" style="font-size:calc(10.5px*var(--m-label));font-weight:700;color:${p.q.color};background:${p.q.bg};border-radius:4px;padding:2px 6px;white-space:nowrap">${p.q.short}</span>
+          </div>` },
+    ],
+    notes: [
+      `순매매 <b>수량 × 종가</b> 환산이라 확정 대금과 소수 % 오차가 있습니다. 시총 대비 비율(순위)로만 씁니다.`,
+      `분모는 <b>현재 시총</b> — 기간 중 크게 오른 종목은 비율이 과소평가됩니다. (빈집 모드는 당일 시총을 씁니다)`,
+      `가로=<b>이전 ${preN}거래일</b>(${spanN}일 창에서 최근 ${shN}일을 뺀 구간) 누적, 세로=<b>최근 ${shN}거래일</b>. 두 축은 기간이 겹치지 않아 "이전에 찼는데 지금 비운다"가 독립적으로 읽힙니다.`,
+      `원점 근처 종목은 이름표가 겹쳐 생략됩니다 — 점에 올리면 뜨고, 표에는 전부 있습니다. 이름 옆 <b>nd</b> 는 데이터가 가로 구간보다 짧다는 표시.`,
+      `순매수는 <b>모니터링 종목</b>만 수집되고 market_data 보존이 <b>90일</b>이라 창은 최대 ${availDays}거래일입니다.`,
+    ],
+  };
+
+  el.innerHTML =
+    _fmSummary(pts, L) +
+    `<div style="display:flex;flex-wrap:wrap;gap:0;align-items:stretch">
+       <div style="flex:2 1 380px;min-width:320px;padding:4px 8px 8px;box-sizing:border-box">
+         ${_fmScatter(pts, L)}
+       </div>
+       <div style="flex:3 1 460px;min-width:330px;border-left:1px solid var(--border);box-sizing:border-box">
+         ${_fmTable(pts, L)}
+       </div>
+     </div>` +
+    _fmFootnotes(L.notes);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  렌더 공통부 — 모드는 라벨 묶음(L)만 갈아끼우고 요약·산점도·표는 공유한다.
+//  L = { quads, hi, sub, xAxis, yAxis, corners, yMax, tipOf, cols, notes }
+// ══════════════════════════════════════════════════════════════════════════════
+
+// 오실레이터는 ±0.5% 스케일이라 fmtPct(소수1)로는 전부 0.0%로 뭉갠다 → 소수 2자리 전용
+const _fmPct2 = v => (v == null || isNaN(v)) ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
+
+// 표 첫 칸(종목명 + 보유/관심 배지 + 데이터 짧음 표시) — 모드 공용
+const _fmNameCell = p => `
+  <div style="min-width:0;display:flex;align-items:center;gap:5px">
+    <span style="font-size:calc(12px*var(--m-sub));font-weight:600;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(p.name)}</span>
+    ${typeof wlBadge === 'function' ? wlBadge(p.code) : ''}
+    ${p.short ? `<span title="데이터 ${p.hit}거래일 — 비교 구간보다 짧음" style="font-size:calc(10px*var(--m-label));color:#f5a623;flex-shrink:0">${p.hit}d</span>` : ''}
+  </div>`;
+
+// ── ① 요약 타일 (사분면 분포 + 하이라이트) ───────────────────────────────────
+function _fmSummary(pts, L) {
+  const cnt = {};
+  pts.forEach(p => { cnt[p.q.key] = (cnt[p.q.key] || 0) + 1; });
+
+  const tile = q => `
+    <div style="flex:1 1 120px;min-width:112px;padding:8px 10px;border-radius:8px;background:${q.bg};border:1px solid ${q.color}33" title="${escAttr(q.tip)}">
+      <div style="font-size:calc(11px*var(--m-label));color:${q.color};font-weight:700;margin-bottom:1px">${q.short}</div>
+      <div style="font-size:calc(18px*var(--m-title));font-weight:800;color:var(--text1);line-height:1.1">${cnt[q.key] || 0}<span style="font-size:calc(11px*var(--m-label));color:var(--text3);font-weight:500">종목</span></div>
+    </div>`;
 
   return `
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:.5rem">
-    ${tile(_FM_Q.ff, cnt.ff)}${tile(_FM_Q.fe, cnt.fe)}${tile(_FM_Q.ef, cnt.ef)}${tile(_FM_Q.ee, cnt.ee)}
+    ${L.quads.map(tile).join('')}
   </div>
-  ${hi.length ? `<div style="font-size:calc(12px*var(--m-sub));color:var(--text2);margin-bottom:.5rem;display:flex;flex-wrap:wrap;gap:14px">${hi.join('<span style="color:var(--border)">·</span>')}</div>` : ''}`;
+  ${L.hi.length ? `<div style="font-size:calc(12px*var(--m-sub));color:var(--text2);margin-bottom:.5rem;display:flex;flex-wrap:wrap;gap:14px">${L.hi.join('<span style="color:var(--border)">·</span>')}</div>` : ''}`;
 }
 
 // ── ② 사분면 산점도 (SVG) — 차트라 폰트 bare px ─────────────────────────────
@@ -314,14 +449,14 @@ function _fmAxisMax(vals) {
   return Math.max(q90 * 1.15, mx * 0.5, 0.3);   // 이상치 1개가 구름을 뭉개지 않게 p90 기준
 }
 
-function _fmScatter(pts, preN, shN) {
+function _fmScatter(pts, L) {
   const W = 470, H = 360, ML = 30, MR = 30, MT = 30, MB = 34;
   const pw = W - ML - MR, ph = H - MT - MB;
   const x0 = ML, x1 = W - MR, y0 = MT, y1 = H - MB;
   const cx = x0 + pw / 2, cy = y0 + ph / 2;
 
   const xMax = _fmAxisMax(pts.map(p => p.x));
-  const yMax = _fmAxisMax(pts.map(p => p.y));
+  const yMax = L.yMax || _fmAxisMax(pts.map(p => p.y));
   const clamp = (v, m) => Math.max(-m, Math.min(m, v));
   const mapX = v => cx + clamp(v, xMax) / xMax * (pw / 2);
   const mapY = v => cy - clamp(v, yMax) / yMax * (ph / 2);
@@ -329,13 +464,14 @@ function _fmScatter(pts, preN, shN) {
   const capMax = Math.max(...pts.map(p => p.cap || 0), 1);
   const rOf = c => 3 + Math.sqrt((c || 0) / capMax) * 9;
 
-  // 사분면 배경 틴트
-  const q = (x, y, w, h, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`;
+  // 사분면 배경 틴트 — corners(우상·우하·좌상·좌하) 색을 그대로 옅게 깐다
+  const [TR, BR, TL, BL] = L.corners;
+  const q = (x, y, w, h, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}" fill-opacity=".055"/>`;
   const bg =
-    q(cx, y0, x1 - cx, cy - y0, 'rgba(45,206,137,.05)') +   // 우상 찬집·담는중
-    q(cx, cy, x1 - cx, y1 - cy, 'rgba(251,99,64,.05)')  +   // 우하 찬집·비우기
-    q(x0, y0, cx - x0, cy - y0, 'rgba(245,158,11,.05)') +   // 좌상 빈집·담기
-    q(x0, cy, cx - x0, y1 - cy, 'rgba(136,152,170,.05)');   // 좌하 빈집·비우기
+    q(cx, y0, x1 - cx, cy - y0, TR.color) +
+    q(cx, cy, x1 - cx, y1 - cy, BR.color) +
+    q(x0, y0, cx - x0, cy - y0, TL.color) +
+    q(x0, cy, cx - x0, y1 - cy, BL.color);
 
   // 중심 십자선
   const cross =
@@ -344,20 +480,28 @@ function _fmScatter(pts, preN, shN) {
 
   // 코너 라벨
   const corner = (x, y, anchor, txt, c) =>
-    `<text x="${x}" y="${y}" font-size="10" font-weight="700" fill="${c}" text-anchor="${anchor}" opacity=".8">${txt}</text>`;
+    `<text x="${x}" y="${y}" font-size="10" font-weight="700" fill="${c}" text-anchor="${anchor}" opacity=".85">${escAttr(txt)}</text>`;
   const corners =
-    corner(x1 - 3, y0 + 11, 'end',   '찬집·담는중 ▲', '#2dce89') +
-    corner(x1 - 3, y1 - 4,  'end',   '찬집·비우기 ▼', '#fb6340') +
-    corner(x0 + 3, y0 + 11, 'start', '▲ 빈집·담기',   '#f59e0b') +
-    corner(x0 + 3, y1 - 4,  'start', '▼ 빈집·비우기', '#8898aa');
+    corner(x1 - 3, y0 + 11, 'end',   TR.txt, TR.color) +
+    corner(x1 - 3, y1 - 4,  'end',   BR.txt, BR.color) +
+    corner(x0 + 3, y0 + 11, 'start', TL.txt, TL.color) +
+    corner(x0 + 3, y1 - 4,  'start', BL.txt, BL.color);
+
+  // 보조선 (빈집권 임계 등) — 중심 십자선과 구분되게 색을 준다
+  const guides = (L.guides || []).map(g =>
+    `<line x1="${x0}" y1="${mapY(g.y).toFixed(1)}" x2="${x1}" y2="${mapY(g.y).toFixed(1)}" stroke="${g.color}" stroke-width="1" stroke-dasharray="5 4" opacity=".5"/>` +
+    `<text x="${x1 - 3}" y="${(mapY(g.y) - 3).toFixed(1)}" font-size="8.5" fill="${g.color}" text-anchor="end" opacity=".85">${escAttr(g.txt)}</text>`).join('');
 
   // 축 라벨
   const axes =
-    `<text x="${cx}" y="${y1 + 24}" font-size="9.5" fill="#8b91a7" text-anchor="middle">← 빈집 (순유출)   ·   이전 ${preN}일 누적 ÷ 시총   ·   (순유입) 찬집 →</text>` +
-    `<text x="${x0 - 4}" y="${cy}" font-size="9.5" fill="#8b91a7" text-anchor="middle" transform="rotate(-90 ${x0 - 4} ${cy})">← 비우기   최근 ${shN}일   담기 →</text>`;
+    `<text x="${cx}" y="${y1 + 24}" font-size="9.5" fill="#8b91a7" text-anchor="middle">${escAttr(L.xAxis)}</text>` +
+    `<text x="${x0 - 4}" y="${cy}" font-size="9.5" fill="#8b91a7" text-anchor="middle" transform="rotate(-90 ${x0 - 4} ${cy})">${escAttr(L.yAxis)}</text>`;
 
   // 라벨 슬롯팅 — 원점에서 먼 순으로 최대 18개, 세로 겹침 회피
-  pts.forEach(p => { p._px = mapX(p.x); p._py = mapY(p.y); p._d2 = p.x * p.x + p.y * p.y; });
+  pts.forEach(p => {
+    p._px = mapX(p.x); p._py = mapY(p.y);
+    p._d2 = (p.x / xMax) * (p.x / xMax) + (p.y / yMax) * (p.y / yMax);   // 축 스케일 정규화 거리
+  });
   const cand = pts.slice().sort((a, b) => b._d2 - a._d2);
   const occ = { L: [], R: [] };
   const SLOT = 12, maxLbl = Math.min(18, cand.length);
@@ -380,7 +524,6 @@ function _fmScatter(pts, preN, shN) {
   const bubbles = pts.map(p => {
     const r = rOf(p.cap);
     const outX = Math.abs(p.x) > xMax, outY = Math.abs(p.y) > yMax;   // 축 밖 이상치
-    const tip = `${p.name} · 이전 ${preN}일 ${fmtPct(p.x)} (${fmtWon(p.preWon, true)}) · 최근 ${shN}일 ${fmtPct(p.y)} · ${p.q.short}`;
     let lbl = '';
     if (p._ly != null) {
       const anchor = p._side === 'L' ? 'end' : 'start';
@@ -392,91 +535,165 @@ function _fmScatter(pts, preN, shN) {
     }
     const edge = (outX || outY)
       ? `<circle cx="${p._px.toFixed(1)}" cy="${p._py.toFixed(1)}" r="${(r + 2).toFixed(1)}" fill="none" stroke="${p.q.color}" stroke-width="1" stroke-dasharray="2 2" opacity=".7"/>` : '';
-    return `<g data-stock-open="${p.code}" data-stock-name="${escAttr(p.name)}" data-stock-tab="market" style="cursor:pointer"><title>${tip}</title>
+    return `<g data-stock-open="${p.code}" data-stock-name="${escAttr(p.name)}" data-stock-tab="market" style="cursor:pointer"><title>${escAttr(L.tipOf(p))}</title>
       ${edge}<circle cx="${p._px.toFixed(1)}" cy="${p._py.toFixed(1)}" r="${r.toFixed(1)}" fill="${p.q.color}" fill-opacity=".82" stroke="${p.q.color}" stroke-width="1.1"/>
       ${lbl}</g>`;
   }).join('');
 
   return `<div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text1);padding:2px 2px 4px">
-      수급 지도 <span style="font-weight:400;color:var(--text2)">가로=이전 ${preN}일 누적÷시총(최근 ${shN}일 제외) · 세로=최근 ${shN}일 · 버블=시총 · 클릭→종목 상세</span>
+      수급 지도 <span style="font-weight:400;color:var(--text2)">${L.sub}</span>
     </div>
     <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:560px;display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg">
-      ${bg}${cross}${corners}${axes}${bubbles}
+      ${bg}${cross}${guides}${corners}${axes}${bubbles}
     </svg>`;
 }
 
 // ── ③ 정렬 가능 표 ───────────────────────────────────────────────────────────
-function _fmTable(pts, preN, shN) {
-  const keyOf = p => {
-    switch (FM.sortCol) {
-      case 'name':   return p.name;
-      case 'cap':    return p.cap;
-      case 'med':    return p.x;
-      case 'prew':   return p.preWon;
-      case 'sh':     return p.y;
-      case 'shw':    return p.shWon;
-      case 'quad':   return p.q.prio;
-      default:       return p.x;
-    }
-  };
+function _fmTable(pts, L) {
+  const cols = L.cols;
+  const col  = cols.find(c => c.key === FM.sortCol) || cols[0];
   const sorted = pts.slice().sort((a, b) => {
-    const ka = keyOf(a), kb = keyOf(b);
+    const ka = col.val(a), kb = col.val(b);
     if (typeof ka === 'string') return FM.sortDir === 1 ? ka.localeCompare(kb) : kb.localeCompare(ka);
     return FM.sortDir === -1 ? (kb - ka) : (ka - kb);
   });
 
-  const arrow = c => FM.sortCol === c ? (FM.sortDir === -1 ? ' ▼' : ' ▲') : '';
-  const th = (c, label, align) =>
-    `<span onclick="_fmSort('${c}')" style="cursor:pointer;user-select:none;font-size:10.5px;text-align:${align};color:${FM.sortCol === c ? 'var(--tg)' : 'var(--text2)'}">${label}${arrow(c)}</span>`;
-
-  const COLS = 'minmax(96px,1.3fr) minmax(64px,0.8fr) minmax(96px,1.15fr) minmax(96px,1.15fr) minmax(88px,1.05fr)';
+  const arrow = k => FM.sortCol === k ? (FM.sortDir === -1 ? ' ▼' : ' ▲') : '';
+  const COLS  = cols.map(c => c.w).join(' ');
 
   const header =
     `<div style="display:grid;grid-template-columns:${COLS};gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg2)">
-      ${th('name', '종목', 'left')}
-      ${th('cap',  '시총', 'right')}
-      ${th('med',  `이전 ${preN}일 ÷시총`, 'right')}
-      ${th('sh',   `최근 ${shN}일 ÷시총`, 'right')}
-      ${th('quad', '구분', 'center')}
+      ${cols.map(c => `<span onclick="_fmSort('${c.key}')" title="${escAttr(c.tip || '')}" style="cursor:pointer;user-select:none;font-size:10.5px;text-align:${c.align};color:${FM.sortCol === c.key ? 'var(--tg)' : 'var(--text2)'}">${escapeHtml(c.label)}${arrow(c.key)}</span>`).join('')}
     </div>`;
 
-  const body = sorted.map((p, idx) => {
-    const xc = _fmFlowColor(p.x), yc = _fmFlowColor(p.y);
-    return `<div class="stock-row" data-stock-open="${p.code}" data-stock-name="${escAttr(p.name)}" data-stock-tab="market"
+  const body = sorted.map((p, idx) =>
+    `<div class="stock-row" data-stock-open="${p.code}" data-stock-name="${escAttr(p.name)}" data-stock-tab="market"
         style="display:grid;grid-template-columns:${COLS};gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);background:${idx % 2 ? 'rgba(255,255,255,.02)' : 'transparent'}">
-        <div style="min-width:0;display:flex;align-items:center;gap:5px">
-          <span style="font-size:calc(12px*var(--m-sub));font-weight:600;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escAttr(p.name)}</span>
-          ${typeof wlBadge === 'function' ? wlBadge(p.code) : ''}
-          ${p.short ? `<span title="편입/데이터 ${p.hit}거래일 — 구간보다 짧음" style="font-size:calc(10px*var(--m-label));color:#f5a623;flex-shrink:0">${p.hit}d</span>` : ''}
-        </div>
-        <div style="text-align:right;font-size:calc(11px*var(--m-label));color:var(--text2)">${fmtCap(p.cap)}</div>
-        <div style="text-align:right">
-          <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:${xc}">${fmtPct(p.x)}</div>
-          <div style="font-size:calc(10px*var(--m-label));color:var(--text3)">${fmtWon(p.preWon, true)}</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:${yc}">${fmtPct(p.y)}</div>
-          <div style="font-size:calc(10px*var(--m-label));color:var(--text3)">${fmtWon(p.shWon, true)}</div>
-        </div>
-        <div style="text-align:center">
-          <span title="${p.q.tip}" style="font-size:calc(10.5px*var(--m-label));font-weight:700;color:${p.q.color};background:${p.q.bg};border-radius:4px;padding:2px 6px;white-space:nowrap">${p.q.short}</span>
-        </div>
-      </div>`;
-  }).join('');
+        ${cols.map(c => c.cell(p)).join('')}
+      </div>`).join('');
 
   return header + body;
 }
 
 // ── ④ 각주 (한계 명시) ───────────────────────────────────────────────────────
-function _fmFootnotes(spanN, preN, shN) {
-  const notes = [
-    `순매매 <b>수량 × 종가</b> 환산이라 확정 대금과 소수 % 오차가 있습니다. 시총 대비 비율(순위)로만 씁니다.`,
-    `분모는 <b>현재 시총</b> — 기간 중 크게 오른 종목은 비율이 과소평가됩니다.`,
-    `가로=<b>이전 ${preN}거래일</b>(${spanN}일 창에서 최근 ${shN}일을 뺀 구간) 누적, 세로=<b>최근 ${shN}거래일</b>. 두 축은 기간이 겹치지 않아 "이전에 찼는데 지금 비운다"가 독립적으로 읽힙니다.`,
-    `원점 근처 종목은 이름표가 겹쳐 생략됩니다 — 점에 올리면 뜨고, 표에는 전부 있습니다. 이름 옆 <b>nd</b> 는 데이터가 가로 구간보다 짧다는 표시.`,
-    `순매수는 <b>모니터링 종목 + 2026-05-26 이후</b>만 수집됩니다. 이력이 쌓이면 6M·12M 창이 자동 열립니다.`,
-  ];
-  return `<div style="padding:10px 12px;border-top:1px solid var(--border);font-size:calc(10.5px*var(--m-label));color:var(--text3);line-height:1.7">
+const _fmFootnotes = notes =>
+  `<div style="padding:10px 12px;border-top:1px solid var(--border);font-size:calc(10.5px*var(--m-label));color:var(--text3);line-height:1.7">
     ${notes.map(n => `<div>※ ${n}</div>`).join('')}
   </div>`;
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  빈집 모드 — 태린이아빠 "수급빈집" 로직
+//    가로(X) = 유동성 공급 강도 : 비교 이력 구간의 수급오실레이터 평균(%)
+//              → 이 종목에 평소 돈이 들어오는가 (그의 1단계 '유동성 공급 컨셉')
+//    세로(Y) = 현재 채움도      : 오늘 오실레이터가 자기 이력에서 놓인 백분위 − 50
+//              → 0 아래면 "비워져 있다"(3단계). 절대값이 아니라 자기 과거 대비로 본다.
+//    ★ 우하(공급 O · 지금 빔) = 빈집. 하자만 없으면 채워질 자리.
+// ══════════════════════════════════════════════════════════════════════════════
+function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
+  if (availDays < _FM_OSC_N + 3) {
+    el.innerHTML = _fmEmpty(`${FM.ind} — ${_FM_OSC_N}일 오실레이터를 만들 이력이 부족합니다 (보유 ${availDays}거래일)`);
+    return;
+  }
+  const cutIdx  = Math.max(0, raw.dates.length - spanN);
+  const cutDate = raw.dates[cutIdx];
+  // 이 구간에서 기대되는 오실레이터 점 수 — 앞쪽 4일은 창이 덜 차 값이 안 나온다
+  const expect  = raw.dates.length - Math.max(cutIdx, _FM_OSC_N - 1);
+
+  const pts = [];
+  for (const s of Object.values(raw.byCode)) {
+    const ser = _fmOscSeries(s, raw.dates, netOf).filter(o => o.d >= cutDate);
+    if (ser.length < 8) continue;                                      // 백분위를 말할 표본이 안 됨
+    const cur = ser[ser.length - 1].v;
+    const avg = ser.reduce((a, o) => a + o.v, 0) / ser.length;
+    const pct = ser.filter(o => o.v < cur).length / ser.length * 100;   // 0~100
+    pts.push({
+      code: s.code, name: s.name, cap: s.cap,
+      x: avg,           // 유동성 공급 강도
+      y: pct - 50,      // 현재 채움도 (음수 = 비어 있음)
+      cur, avg, pct,
+      q: _fmQuadE(avg, pct - 50),
+      short: ser.length < expect * 0.9,
+      hit: ser.length,
+    });
+  }
+
+  // 기준일 배지 — 비교 이력 구간을 그대로 노출
+  const dEl = document.getElementById('fm-date');
+  if (dEl) dEl.innerHTML =
+    `<span style="color:var(--text3)">${cutDate} ~ ${FM.latest}</span> · ${_FM_OSC_N}일 롤링 · 비교이력 ${Math.min(spanN, availDays)}거래일 · <span style="color:var(--text2)">보유 ${availDays}거래일</span>`;
+
+  if (!pts.length) { el.innerHTML = _fmEmpty(`${FM.ind} — 선택 조건에 표시할 종목이 없습니다`); return; }
+
+  // 업종 단위 유동성 공급 여부 (그의 1단계) — 업종 평균 오실레이터의 부호
+  const indAvg   = pts.reduce((a, p) => a + p.x, 0) / pts.length;
+  const supplied = indAvg >= 0;
+  const hi = [
+    `<span style="color:var(--text2)">${escapeHtml(FM.ind)} 유동성</span> <b style="color:${supplied ? '#2dce89' : '#f5365c'}">${supplied ? '공급 중' : '유출 중'}</b> <span style="color:var(--text3)">(업종 평균 ${_fmPct2(indAvg)})</span>`,
+  ];
+  const best = pts.filter(p => p.q.key === 'fill').sort((a, b) => a.y - b.y)[0];
+  if (best)
+    hi.push(`<span style="color:var(--text2)">가장 비어 있는 빈집</span> <b style="color:var(--text1)">${escapeHtml(best.name)}</b> <span style="color:#f59e0b;font-weight:700">하위 ${Math.round(best.pct)}%</span>`);
+
+  const L = {
+    quads: [_FM_QE.fill, _FM_QE.full, _FM_QE.bnce, _FM_QE.cold],
+    hi,
+    sub:   `가로=유동성 공급 강도(${_FM_OSC_N}일 오실레이터 평균) · 세로=자기 이력 대비 현재 채움도 · 버블=시총 · 클릭→종목 상세`,
+    xAxis: `← 유출   ·   유동성 공급 강도 (${_FM_OSC_N}일 수급 ÷ 시총, 평균)   ·   공급 →`,
+    yAxis: `← 비어있음   자기 이력 대비   꽉참 →`,
+    yMax:  50,
+    guides: [{ y: _FM_EMPTY_TH - 50, txt: `하위 ${_FM_EMPTY_TH}% — 빈집권`, color: _FM_QE.fill.color }],
+    corners: [
+      { txt: '채워짐 ▲',   color: _FM_QE.full.color },   // 우상
+      { txt: '빈집 ▼',      color: _FM_QE.fill.color },   // 우하
+      { txt: '▲ 일시유입', color: _FM_QE.bnce.color },   // 좌상
+      { txt: '▼ 소외',     color: _FM_QE.cold.color },   // 좌하
+    ],
+    tipOf: p => `${p.name} · 공급강도 ${_fmPct2(p.x)} · 현재 ${_fmPct2(p.cur)} (이력 하위 ${Math.round(p.pct)}%) · ${p.q.short}`,
+    cols: [
+      { key: 'name', label: '종목', align: 'left', w: 'minmax(96px,1.3fr)', val: p => p.name, cell: _fmNameCell },
+      { key: 'cap', label: '시총', align: 'right', w: 'minmax(60px,0.75fr)', val: p => p.cap,
+        cell: p => `<div style="text-align:right;font-size:calc(11px*var(--m-label));color:var(--text2)">${fmtCap(p.cap)}</div>` },
+      { key: 'med', label: '공급강도', align: 'right', w: 'minmax(88px,1.05fr)', val: p => p.x,
+        tip: `비교 이력 구간의 ${_FM_OSC_N}일 오실레이터 평균 — 이 종목에 평소 돈이 들어오는가`,
+        cell: p => `<div style="text-align:right">
+            <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:${_fmFlowColor(p.x)}">${_fmPct2(p.x)}</div>
+            <div style="font-size:calc(10px*var(--m-label));color:var(--text3)">평균</div>
+          </div>` },
+      { key: 'sh', label: '현재 채움도', align: 'right', w: 'minmax(96px,1.15fr)', val: p => p.y,
+        tip: '오늘 오실레이터가 자기 이력에서 놓인 위치 — 하위일수록 빈집',
+        cell: p => {
+          const deep = p.pct <= _FM_EMPTY_TH;   // 충분히 비었다 — ★
+          return `<div style="text-align:right">
+            <div style="font-size:calc(13px*var(--m-body));font-weight:${deep ? 800 : 700};color:${p.y < 0 ? '#f59e0b' : '#2dce89'}">${deep ? '★ ' : ''}하위 ${Math.round(p.pct)}%</div>
+            <div style="font-size:calc(10px*var(--m-label));color:var(--text3)">${_fmPct2(p.cur)}</div>
+          </div>`;
+        } },
+      // 같은 사분면 안에서는 더 비워진 종목이 위로 (prio 간격 1000 > |y| 최대 50)
+      { key: 'quad', label: '구분', align: 'center', w: 'minmax(84px,1fr)', val: p => p.q.prio * 1000 - p.y,
+        cell: p => `<div style="text-align:center">
+            <span title="${escAttr(p.q.tip)}" style="font-size:calc(10.5px*var(--m-label));font-weight:700;color:${p.q.color};background:${p.q.bg};border-radius:4px;padding:2px 6px;white-space:nowrap">${p.q.short}</span>
+          </div>` },
+    ],
+    notes: [
+      `<b>출처</b> — 유튜브 <b>태린이아빠</b> '수급빈집'. ① 유동성이 공급되는 컨셉을 고르고 ② 수출데이터·미국시장·선행지표·컨센서스에 하자가 없는지 보고 ③ 그런데도 수급이 비워져 있으면 채워질 자리로 본다. ②는 사람이 판단할 몫이라 이 지도는 ①③만 계산합니다.`,
+      `<b>원 정의와 다른 점</b> — 원본은 <b>외국인+투신+연기금의 매수(총매수) 금액</b>입니다. 우리 수급 원천(KIS inquire-investor)은 <b>순매수 수량</b>만 주고 투신/연기금이 분리되지 않아 <b>외국인+기관계 순매수 × 종가</b>로 대체했습니다. ${_FM_OSC_N}일 롤링·÷시가총액·% 변환·자기 이력 대비 위치는 원 정의 그대로입니다.`,
+      `사분면은 <b>중앙값(하위 50%)</b>으로 가르지만, 실제로 "비었다"고 부를 만한 건 <b>하위 ${_FM_EMPTY_TH}% 이하</b>입니다 — 표의 <b>★</b>와 차트 점선이 그 선입니다. 중앙값 바로 아래는 빈집권일 뿐 신호가 약합니다.`,
+      `세로는 절대 수치가 아니라 <b>그 종목 자신의 이력 백분위</b>입니다. 대형주일수록 시총 대비 비중이 작아 종목 간 절대값 비교는 의미가 없습니다.`,
+      `분모가 <b>당일 시가총액</b>이라 기간 중 주가가 크게 오른 종목도 왜곡되지 않습니다(전환 모드와 다른 점).`,
+      `빈집은 <b>채워질 가능성에 거는 것</b>이지 확정이 아닙니다. 원저자도 시장 리스크는 업종쏠림지수·코스닥 3/5/10일선 이탈로 따로 관리하라고 말합니다.`,
+      `수급은 <b>모니터링 종목</b>만 수집되고 market_data 보존이 <b>90일</b>이라 비교 이력은 최대 ${availDays}거래일입니다.`,
+    ],
+  };
+
+  el.innerHTML =
+    _fmSummary(pts, L) +
+    `<div style="display:flex;flex-wrap:wrap;gap:0;align-items:stretch">
+       <div style="flex:2 1 380px;min-width:320px;padding:4px 8px 8px;box-sizing:border-box">
+         ${_fmScatter(pts, L)}
+       </div>
+       <div style="flex:3 1 460px;min-width:330px;border-left:1px solid var(--border);box-sizing:border-box">
+         ${_fmTable(pts, L)}
+       </div>
+     </div>` +
+    _fmFootnotes(L.notes);
 }
