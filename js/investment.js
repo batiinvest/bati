@@ -547,6 +547,7 @@ function _clearInvRefreshTimers() {
 function unloadInvestment() {
   _clearInvRefreshTimers();
   if (INV.lsPollTimer) { clearInterval(INV.lsPollTimer); INV.lsPollTimer = null; }
+  if (typeof resetFlowMap === 'function') resetFlowMap();   // 수급 지도 원자료 폐기
 }
 
 async function refreshInvestment() {
@@ -701,7 +702,10 @@ async function loadInvestment() {
   loadLeadingStocks();
   loadLeadingBacktest();
   loadSectorRotation();  // 산업별 수급동향(로테이션 맵+보드, US·KR·선행 컬럼 통합) — INV.indMapData(신선)+sector_daily_summary
-  // 수급 지도(종목별 찬집/빈집)는 Zone C를 펼칠 때만 지연 로드 — toggleZoneC 참조
+  // 수급 지도(종목별 찬집/빈집)는 Zone C를 펼칠 때만 지연 로드 — toggleZoneC 참조.
+  // 단 새로고침 경로(refreshInvestment→finish→loadInvestment)는 셸을 다시 그리지 않아
+  // 펼쳐둔 지도가 캐시(FM.raw)에 묶인 채 남는다 → 캐시를 버리고 열려 있으면 재조회.
+  if (typeof resetFlowMap === 'function') resetFlowMap(true);
 
   // 매크로 의존 위젯 — 병렬 로드 완료 후 실행 (구: 직렬 await + setTimeout 1500ms 지연 호출)
   // loadMarketInsight 의존(INV.macroData·IND.krDates·USKR_MAP)은 위 loadMarketOverview가

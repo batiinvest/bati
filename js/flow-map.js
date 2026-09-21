@@ -2,14 +2,19 @@
  * flow-map.js — 수급 지도 (Accumulation / Distribution Map)
  *
  * 종목별 "찬집 / 빈집" 사분면 지도. 참고: DAOL 커버리지 대시보드 #flowmap.
- *   ├ 가로축(X) = 중기 누적 순매수 ÷ 시가총액  → 얼마나 "찼나"(찬집) / "비었나"(빈집)
- *   └ 세로축(Y) = 최근 단기 순매수 ÷ 시가총액  → 지금 담나 / 비우나
+ *   ├ 가로축(X) = 이전 구간 누적 순매수 ÷ 시가총액 → 얼마나 "찼나"(찬집) / "비었나"(빈집)
+ *   └ 세로축(Y) = 최근 구간 순매수 ÷ 시가총액      → 지금 담나 / 비우나
+ *
+ *   ⚠ 두 축의 기간은 겹치지 않는다. 가로 = 창 전체에서 세로(최근) 구간을 뺀 앞부분.
+ *     겹치면 y ⊂ x 가 되어 실측 corr +0.55 — 우상/좌하 대각선으로 구조적 쏠림이 생기고,
+ *     "최근 20일에만 담긴" 종목이 '이전부터 찬 집'으로 둔갑한다(반도체 67종 중 14종은
+ *     |y| > |x|였다). 비중첩으로 바꾸면 corr -0.02, 75종 중 15종이 사분면을 옮겼다.
  *
  *   4사분면:
- *     · 우상 찬집·계속 담는 중  (중기 유입 + 최근도 매수)
- *     · 우하 찬집·비우기 시작    (중기 유입 but 최근 매도 전환 — 차익실현 경계)
- *     · 좌상 빈집·담기 시작      (중기 유출 but 최근 매수 전환 — 저점 매집 관찰)
- *     · 좌하 빈집·계속 비우는 중 (중기 유출 + 최근도 매도 — 소외)
+ *     · 우상 찬집·계속 담는 중  (이전 유입 + 최근도 매수)
+ *     · 우하 찬집·비우기 시작    (이전 유입 but 최근 매도 전환 — 차익실현 경계)
+ *     · 좌상 빈집·담기 시작      (이전 유출 but 최근 매수 전환 — 저점 매집 관찰)
+ *     · 좌하 빈집·계속 비우는 중 (이전 유출 + 최근도 매도 — 소외)
  *
  * 값 = Σ(일별 순매수 주식수 × 일별 종가) ÷ 현재 시총.
  *   market_data.foreign_net_buy / institution_net_buy 는 **주식수** 단위라 종가를 곱해
@@ -34,7 +39,8 @@ const FM = {
   latest:  null,       // 최신 거래일
 };
 
-// 기간 창 정의 — med=중기(가로) 거래일수, sh=단기(세로) 거래일수, th=노출 최소 거래일수
+// 기간 창 정의 — med=창 전체 거래일수, sh=최근(세로) 거래일수, th=칩 노출 최소 거래일수
+//   가로축은 med - sh 거래일. 창 전체에서 세로 구간을 떼어내 두 축이 겹치지 않게 한다.
 const _FM_WINS = [
   { k: '1M',  med: 20,  sh: 5,  th: 10  },
   { k: '3M',  med: 63,  sh: 20, th: 35  },
@@ -44,10 +50,10 @@ const _FM_WINS = [
 
 // 사분면 정의 (색 언어: 가격 빨/파와 분리 — 수급 전용 팔레트)
 const _FM_Q = {
-  ff: { key: 'ff', label: '찬집 · 계속 담는 중',  short: '찬집·담는중', color: '#2dce89', bg: 'rgba(45,206,137,.14)', prio: 3, tip: '중기 순유입 + 최근도 매수 지속 — 강한 축적' },
-  fe: { key: 'fe', label: '찬집 · 비우기 시작',    short: '찬집·비우기', color: '#fb6340', bg: 'rgba(251,99,64,.13)',  prio: 2, tip: '중기 순유입했지만 최근 순매도 전환 — 차익실현 경계' },
-  ef: { key: 'ef', label: '빈집 · 담기 시작',      short: '빈집·담기',   color: '#f59e0b', bg: 'rgba(245,158,11,.13)', prio: 1, tip: '중기 순유출이나 최근 매수 전환 — 저점 매집 관찰' },
-  ee: { key: 'ee', label: '빈집 · 계속 비우는 중', short: '빈집·비우기', color: '#8898aa', bg: 'rgba(136,152,170,.12)', prio: 0, tip: '중기 순유출 + 최근도 매도 지속 — 소외·회피' },
+  ff: { key: 'ff', label: '찬집 · 계속 담는 중',  short: '찬집·담는중', color: '#2dce89', bg: 'rgba(45,206,137,.14)', prio: 3, tip: '이전 구간 순유입 + 최근도 매수 지속 — 강한 축적' },
+  fe: { key: 'fe', label: '찬집 · 비우기 시작',    short: '찬집·비우기', color: '#fb6340', bg: 'rgba(251,99,64,.13)',  prio: 2, tip: '이전 구간 순유입했지만 최근 순매도 전환 — 차익실현 경계' },
+  ef: { key: 'ef', label: '빈집 · 담기 시작',      short: '빈집·담기',   color: '#f59e0b', bg: 'rgba(245,158,11,.13)', prio: 1, tip: '이전 구간 순유출이나 최근 매수 전환 — 저점 매집 관찰' },
+  ee: { key: 'ee', label: '빈집 · 계속 비우는 중', short: '빈집·비우기', color: '#8898aa', bg: 'rgba(136,152,170,.12)', prio: 0, tip: '이전 구간 순유출 + 최근도 매도 지속 — 소외·회피' },
 };
 const _fmQuad = (x, y) => x >= 0 ? (y >= 0 ? _FM_Q.ff : _FM_Q.fe) : (y >= 0 ? _FM_Q.ef : _FM_Q.ee);
 
@@ -168,6 +174,18 @@ async function loadFlowMap() {
   }
 }
 
+// 캐시 무효화 — 시황 새로고침(refreshInvestment→loadInvestment)·페이지 이탈에서 호출.
+// loadInvestment는 Zone C 내용을 다시 그리지 않으므로(수급 지도는 펼칠 때만 지연 로드),
+// 펼쳐진 상태면 여기서 직접 재조회해야 새로고침 후에도 어제 집계가 남는 일이 없다.
+// 산업/기간/투자자 선택은 사용자 의도라 유지하고, 원자료와 기준일만 버린다.
+function resetFlowMap(reload = false) {
+  FM.raw    = {};
+  FM.latest = null;
+  if (!reload) return;
+  const zone = document.getElementById('inv-zonec');
+  if (zone && zone.style.display !== 'none' && document.getElementById('fm-body')) loadFlowMap();
+}
+
 const _fmEmpty = msg =>
   `<div style="padding:2rem 1rem;text-align:center;color:var(--text2);font-size:calc(13px*var(--m-body))">${escAttr(msg)}</div>`;
 
@@ -187,12 +205,17 @@ function _fmRender() {
   if (winChips) winChips.innerHTML = wins.map(w =>
     `<button class="chip${w.k === FM.win ? ' active' : ''}" data-fm-win="${w.k}" onclick="switchFmWin('${w.k}')">${w.k}</button>`).join('');
 
+  if (availDays < 2) { el.innerHTML = _fmEmpty(`${FM.ind} — 수급 이력이 2거래일 미만입니다`); return; }
+
+  // 창 전체(spanN)에서 최근 구간(shN)을 떼어내 가로축 구간(preN)을 만든다 — 두 축 비중첩.
+  // shN은 창을 넘을 수 없고, 가로가 0일이 되지 않도록 최소 1거래일은 남긴다.
   const winDef = _FM_WINS.find(w => w.k === FM.win) || _FM_WINS[1];
-  const medN = Math.min(winDef.med, availDays);
-  const shN  = Math.min(winDef.sh,  availDays);
-  const medDates = raw.dates.slice(-medN);
-  const shDates  = raw.dates.slice(-shN);
-  const startDate = medDates[0];
+  const spanN = Math.min(winDef.med, availDays);
+  const shN   = Math.min(winDef.sh, Math.max(1, spanN - 1));
+  const preN  = spanN - shN;
+  const preDates = raw.dates.slice(-spanN, -shN);   // 가로축 — 이전 구간
+  const shDates  = raw.dates.slice(-shN);           // 세로축 — 최근 구간
+  const startDate = preDates[0];
 
   // 투자자별 순매수 주식수 선택
   const netOf = d => {
@@ -209,12 +232,12 @@ function _fmRender() {
     const cap = s.cap;
     if (!cap || cap <= 0) continue;
 
-    let medWon = 0, shWon = 0, medHit = 0;
-    for (const dt of medDates) {
+    let preWon = 0, shWon = 0, preHit = 0;
+    for (const dt of preDates) {
       const d = s.days[dt];
       const n = netOf(d);
       if (n == null || d.p == null) continue;
-      medWon += n * d.p; medHit++;
+      preWon += n * d.p; preHit++;
     }
     for (const dt of shDates) {
       const d = s.days[dt];
@@ -222,16 +245,16 @@ function _fmRender() {
       if (n == null || d.p == null) continue;
       shWon += n * d.p;
     }
-    if (medHit === 0) continue;   // 이 창에 데이터 없음
+    if (preHit === 0) continue;   // 이 구간에 데이터 없음
 
-    const x = medWon / cap * 100;   // 중기 ÷ 시총 (%)
-    const y = shWon  / cap * 100;   // 단기 ÷ 시총 (%)
+    const x = preWon / cap * 100;   // 이전 구간 ÷ 시총 (%)
+    const y = shWon  / cap * 100;   // 최근 구간 ÷ 시총 (%)
     const q = _fmQuad(x, y);
     pts.push({
       code: s.code, name: s.name, cap,
-      medWon, shWon, x, y, q,
-      short: medHit < medN * 0.9,   // 창보다 데이터가 뚜렷이 짧음(늦게 편입/상장) — 하루치 결측은 무시
-      hit: medHit,
+      preWon, shWon, x, y, q,
+      short: preHit < preN * 0.9,   // 구간보다 데이터가 뚜렷이 짧음(늦게 편입/상장) — 하루치 결측은 무시
+      hit: preHit,
     });
   }
 
@@ -239,7 +262,7 @@ function _fmRender() {
   setAsOf('fm-date', FM.latest);
   const dEl = document.getElementById('fm-date');
   if (dEl) dEl.innerHTML =
-    `<span style="color:var(--text3)">${startDate} ~ ${FM.latest}</span> · ${availDays}거래일 · <span style="color:var(--text2)">${FM.latest} 기준</span>`;
+    `<span style="color:var(--text3)">${startDate} ~ ${FM.latest}</span> · 이전 ${preN}일 + 최근 ${shN}일 · <span style="color:var(--text2)">보유 ${availDays}거래일</span>`;
 
   if (!pts.length) { el.innerHTML = _fmEmpty(`${FM.ind} — 선택 조건에 표시할 종목이 없습니다`); return; }
 
@@ -247,13 +270,13 @@ function _fmRender() {
     _fmSummary(pts) +
     `<div style="display:flex;flex-wrap:wrap;gap:0;align-items:stretch">
        <div style="flex:2 1 380px;min-width:320px;padding:4px 8px 8px;box-sizing:border-box">
-         ${_fmScatter(pts, winDef, shN)}
+         ${_fmScatter(pts, preN, shN)}
        </div>
        <div style="flex:3 1 460px;min-width:330px;border-left:1px solid var(--border);box-sizing:border-box">
-         ${_fmTable(pts, winDef, shN)}
+         ${_fmTable(pts, preN, shN)}
        </div>
      </div>` +
-    _fmFootnotes(winDef, medN, shN);
+    _fmFootnotes(spanN, preN, shN);
 }
 
 // ── ① 요약 타일 (사분면 분포 + 최다 담김/비움) ───────────────────────────────
@@ -291,7 +314,7 @@ function _fmAxisMax(vals) {
   return Math.max(q90 * 1.15, mx * 0.5, 0.3);   // 이상치 1개가 구름을 뭉개지 않게 p90 기준
 }
 
-function _fmScatter(pts, winDef, shN) {
+function _fmScatter(pts, preN, shN) {
   const W = 470, H = 360, ML = 30, MR = 30, MT = 30, MB = 34;
   const pw = W - ML - MR, ph = H - MT - MB;
   const x0 = ML, x1 = W - MR, y0 = MT, y1 = H - MB;
@@ -330,7 +353,7 @@ function _fmScatter(pts, winDef, shN) {
 
   // 축 라벨
   const axes =
-    `<text x="${cx}" y="${y1 + 24}" font-size="9.5" fill="#8b91a7" text-anchor="middle">← 빈집 (중기 순유출)   ·   중기 누적 ÷ 시총   ·   (중기 순유입) 찬집 →</text>` +
+    `<text x="${cx}" y="${y1 + 24}" font-size="9.5" fill="#8b91a7" text-anchor="middle">← 빈집 (순유출)   ·   이전 ${preN}일 누적 ÷ 시총   ·   (순유입) 찬집 →</text>` +
     `<text x="${x0 - 4}" y="${cy}" font-size="9.5" fill="#8b91a7" text-anchor="middle" transform="rotate(-90 ${x0 - 4} ${cy})">← 비우기   최근 ${shN}일   담기 →</text>`;
 
   // 라벨 슬롯팅 — 원점에서 먼 순으로 최대 18개, 세로 겹침 회피
@@ -357,7 +380,7 @@ function _fmScatter(pts, winDef, shN) {
   const bubbles = pts.map(p => {
     const r = rOf(p.cap);
     const outX = Math.abs(p.x) > xMax, outY = Math.abs(p.y) > yMax;   // 축 밖 이상치
-    const tip = `${p.name} · 중기 ${fmtPct(p.x)} (${fmtWon(p.medWon, true)}) · 최근 ${fmtPct(p.y)} · ${p.q.short}`;
+    const tip = `${p.name} · 이전 ${preN}일 ${fmtPct(p.x)} (${fmtWon(p.preWon, true)}) · 최근 ${shN}일 ${fmtPct(p.y)} · ${p.q.short}`;
     let lbl = '';
     if (p._ly != null) {
       const anchor = p._side === 'L' ? 'end' : 'start';
@@ -375,7 +398,7 @@ function _fmScatter(pts, winDef, shN) {
   }).join('');
 
   return `<div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text1);padding:2px 2px 4px">
-      수급 지도 <span style="font-weight:400;color:var(--text2)">가로=중기 누적÷시총 · 세로=최근 ${shN}일 · 버블=시총 · 클릭→종목 상세</span>
+      수급 지도 <span style="font-weight:400;color:var(--text2)">가로=이전 ${preN}일 누적÷시총(최근 ${shN}일 제외) · 세로=최근 ${shN}일 · 버블=시총 · 클릭→종목 상세</span>
     </div>
     <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:560px;display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg">
       ${bg}${cross}${corners}${axes}${bubbles}
@@ -383,13 +406,13 @@ function _fmScatter(pts, winDef, shN) {
 }
 
 // ── ③ 정렬 가능 표 ───────────────────────────────────────────────────────────
-function _fmTable(pts, winDef, shN) {
+function _fmTable(pts, preN, shN) {
   const keyOf = p => {
     switch (FM.sortCol) {
       case 'name':   return p.name;
       case 'cap':    return p.cap;
       case 'med':    return p.x;
-      case 'medw':   return p.medWon;
+      case 'prew':   return p.preWon;
       case 'sh':     return p.y;
       case 'shw':    return p.shWon;
       case 'quad':   return p.q.prio;
@@ -407,14 +430,13 @@ function _fmTable(pts, winDef, shN) {
     `<span onclick="_fmSort('${c}')" style="cursor:pointer;user-select:none;font-size:10.5px;text-align:${align};color:${FM.sortCol === c ? 'var(--tg)' : 'var(--text2)'}">${label}${arrow(c)}</span>`;
 
   const COLS = 'minmax(96px,1.3fr) minmax(64px,0.8fr) minmax(96px,1.15fr) minmax(96px,1.15fr) minmax(88px,1.05fr)';
-  const medLbl = FM.win;
 
   const header =
     `<div style="display:grid;grid-template-columns:${COLS};gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg2)">
       ${th('name', '종목', 'left')}
       ${th('cap',  '시총', 'right')}
-      ${th('med',  `${medLbl} ÷시총`, 'right')}
-      ${th('sh',   `${shN}일 ÷시총`, 'right')}
+      ${th('med',  `이전 ${preN}일 ÷시총`, 'right')}
+      ${th('sh',   `최근 ${shN}일 ÷시총`, 'right')}
       ${th('quad', '구분', 'center')}
     </div>`;
 
@@ -425,12 +447,12 @@ function _fmTable(pts, winDef, shN) {
         <div style="min-width:0;display:flex;align-items:center;gap:5px">
           <span style="font-size:calc(12px*var(--m-sub));font-weight:600;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escAttr(p.name)}</span>
           ${typeof wlBadge === 'function' ? wlBadge(p.code) : ''}
-          ${p.short ? `<span title="편입/데이터 ${p.hit}거래일 — 창보다 짧음" style="font-size:calc(10px*var(--m-label));color:#f5a623;flex-shrink:0">${p.hit}d</span>` : ''}
+          ${p.short ? `<span title="편입/데이터 ${p.hit}거래일 — 구간보다 짧음" style="font-size:calc(10px*var(--m-label));color:#f5a623;flex-shrink:0">${p.hit}d</span>` : ''}
         </div>
         <div style="text-align:right;font-size:calc(11px*var(--m-label));color:var(--text2)">${fmtCap(p.cap)}</div>
         <div style="text-align:right">
           <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:${xc}">${fmtPct(p.x)}</div>
-          <div style="font-size:calc(10px*var(--m-label));color:var(--text3)">${fmtWon(p.medWon, true)}</div>
+          <div style="font-size:calc(10px*var(--m-label));color:var(--text3)">${fmtWon(p.preWon, true)}</div>
         </div>
         <div style="text-align:right">
           <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:${yc}">${fmtPct(p.y)}</div>
@@ -446,12 +468,12 @@ function _fmTable(pts, winDef, shN) {
 }
 
 // ── ④ 각주 (한계 명시) ───────────────────────────────────────────────────────
-function _fmFootnotes(winDef, medN, shN) {
+function _fmFootnotes(spanN, preN, shN) {
   const notes = [
     `순매매 <b>수량 × 종가</b> 환산이라 확정 대금과 소수 % 오차가 있습니다. 시총 대비 비율(순위)로만 씁니다.`,
     `분모는 <b>현재 시총</b> — 기간 중 크게 오른 종목은 비율이 과소평가됩니다.`,
-    `가로=최근 <b>${medN}거래일</b> 누적, 세로=최근 <b>${shN}거래일</b>. 세로는 가로의 최근 구간이라, 찬집이어도 최근 매도면 '비우기 시작'입니다.`,
-    `원점 근처 종목은 이름표가 겹쳐 생략됩니다 — 점에 올리면 뜨고, 표에는 전부 있습니다. 이름 옆 <b>nd</b> 는 데이터가 창보다 짧다는 표시.`,
+    `가로=<b>이전 ${preN}거래일</b>(${spanN}일 창에서 최근 ${shN}일을 뺀 구간) 누적, 세로=<b>최근 ${shN}거래일</b>. 두 축은 기간이 겹치지 않아 "이전에 찼는데 지금 비운다"가 독립적으로 읽힙니다.`,
+    `원점 근처 종목은 이름표가 겹쳐 생략됩니다 — 점에 올리면 뜨고, 표에는 전부 있습니다. 이름 옆 <b>nd</b> 는 데이터가 가로 구간보다 짧다는 표시.`,
     `순매수는 <b>모니터링 종목 + 2026-05-26 이후</b>만 수집됩니다. 이력이 쌓이면 6M·12M 창이 자동 열립니다.`,
   ];
   return `<div style="padding:10px 12px;border-top:1px solid var(--border);font-size:calc(10.5px*var(--m-label));color:var(--text3);line-height:1.7">
