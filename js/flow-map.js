@@ -49,7 +49,8 @@
  *  ② gap(전환)   — 이전 구간 누적 vs 최근 구간. 기존 사분면 지도(위 설명).
  *
  * 의존: sb, INDUSTRIES, IND_COLORS, getIndustryMap, getLatestMarketDate, fetchAllPages,
- *       fmtCap, fmtWon, fmtPct, wlBadge, escAttr, loadingHTML, setAsOf (config.js)
+ *       fmtCap, fmtWon, fmtPct, wlBadge, escapeHtml, escAttr, loadingHTML (config.js)
+ *       ※ 기준일 배지는 setAsOf가 아니라 직접 innerHTML로 그린다(구간 표기가 필요해서).
  */
 
 // ── 상태 네임스페이스 (window._* 금지 규약) ─────────────────────────────────
@@ -59,6 +60,7 @@ const FM = {
   win:     '3M',       // 기간 창 (1M | 3M | 6M | 12M)
   inv:     'both',     // 투자자 (both | foreign | inst)
   sortCol: 'quad',     // 표 정렬 컬럼 (기본 모드가 empty라 빈집이 위로 — switchFmMode가 모드별로 재설정)
+  sel:     null,       // 빈집 모드 추이 차트에 띄울 종목코드 (null이면 가장 비워진 빈집)
   sortDir: -1,         // -1 내림차순, 1 오름차순
   raw:     {},         // 산업별 원자료 캐시 { ind: { dates, byCode } }
   latest:  null,       // 최신 거래일
@@ -116,7 +118,7 @@ function _fmOscSeries(s, dates, netOf) {
       sum += n * d.p; hit++;
     }
     if (hit < _FM_OSC_N) continue;
-    out.push({ d: dates[i], v: sum / cap * 100 });
+    out.push({ d: dates[i], v: sum / cap * 100, cap });   // cap = 추이 차트의 시가총액 선
   }
   return out;
 }
@@ -161,6 +163,7 @@ function pFlowMap() {
 function switchFmInd(el, ind) {
   if (FM.ind === ind) return;
   FM.ind = ind;
+  FM.sel = null;                      // 추이 차트 선택 초기화 — 다른 업종 코드를 들고 있을 이유가 없다
   document.querySelectorAll('[data-fm-ind]').forEach(b =>
     b.classList.toggle('active', b.dataset.fmInd === ind));
   loadFlowMap();
@@ -260,6 +263,7 @@ async function loadFlowMap() {
 function resetFlowMap(reload = false) {
   FM.raw    = {};
   FM.latest = null;
+  FM.sel    = null;
   if (!reload) return;
   const zone = document.getElementById('inv-zonec');
   if (zone && zone.style.display !== 'none' && document.getElementById('fm-body')) loadFlowMap();
@@ -341,11 +345,14 @@ function _fmRender() {
     });
   }
 
-  // 기준일 배지
-  setAsOf('fm-date', FM.latest);
+  // 기준일 배지 — 수급이 실제로 있는 마지막 날을 쓴다.
+  // FM.latest(getLatestMarketDate)는 market_data 전체의 max라, collect_market이 장중에 쓴
+  // 오늘 행 때문에 오늘을 가리킨다. 그런데 수급 컬럼은 16:45 job_collect_investor_trend가
+  // 채우므로 그 전까지는 계산이 어제까지다 → FM.latest를 쓰면 매 거래일 하루 앞당겨 표기된다.
+  const lastFlow = raw.dates[raw.dates.length - 1];
   const dEl = document.getElementById('fm-date');
   if (dEl) dEl.innerHTML =
-    `<span style="color:var(--text3)">${startDate} ~ ${FM.latest}</span> · 이전 ${preN}일 + 최근 ${shN}일 · <span style="color:var(--text2)">보유 ${availDays}거래일</span>`;
+    `<span style="color:var(--text3)">${startDate} ~ ${lastFlow}</span> · 이전 ${preN}일 + 최근 ${shN}일 · <span style="color:var(--text2)">보유 ${availDays}거래일</span>`;
 
   if (!pts.length) { el.innerHTML = _fmEmpty(`${FM.ind} — 선택 조건에 표시할 종목이 없습니다`); return; }
 
@@ -461,7 +468,7 @@ function _fmScatter(pts, L) {
   const x0 = ML, x1 = W - MR, y0 = MT, y1 = H - MB;
   const cx = x0 + pw / 2, cy = y0 + ph / 2;
 
-  const xMax = _fmAxisMax(pts.map(p => p.x));
+  const xMax = L.xMax || _fmAxisMax(pts.map(p => p.x));
   const yMax = L.yMax || _fmAxisMax(pts.map(p => p.y));
   const clamp = (v, m) => Math.max(-m, Math.min(m, v));
   const mapX = v => cx + clamp(v, xMax) / xMax * (pw / 2);
@@ -512,9 +519,15 @@ function _fmScatter(pts, L) {
   const occ = { L: [], R: [] };
   const SLOT = 12, maxLbl = Math.min(18, cand.length);
   let placed = 0;
+  // 이름표는 버블 바깥쪽에 붙인다. 다만 가장자리 점은 그쪽에 자리가 없어 잘리므로
+  // (순위 축은 점이 양끝까지 고르게 퍼져 특히 자주 발생) 폭을 재고 반대쪽으로 넘긴다.
+  const lblW = p => p.name.length * 9.5 + (p.short ? 16 : 0) + 6;
   for (const p of cand) {
     if (placed >= maxLbl) break;
-    const side = p._px < cx ? 'L' : 'R';
+    let side = p._px < cx ? 'L' : 'R';
+    const w = lblW(p), r0 = rOf(p.cap) + 3;
+    if (side === 'L' && p._px - r0 - w < x0 - ML + 2) side = 'R';
+    else if (side === 'R' && p._px + r0 + w > x1 + MR - 2) side = 'L';
     let ly = null;
     for (let step = 0; step <= 9 && ly === null; step++) {
       for (const dir of (step === 0 ? [0] : [-1, 1])) {
@@ -587,6 +600,69 @@ const _fmFootnotes = notes =>
     ${notes.map(n => `<div>※ ${n}</div>`).join('')}
   </div>`;
 
+// ── ⑤ 선택 종목 추이 (2축 라인) — 원본 영상의 차트 형식 ─────────────────────
+// 좌축 = 시가총액(구간 첫날 = 1.00 정규화), 우축 = 수급오실레이터(%).
+// 원본은 "시가총액 vs 수급오실레이터" 2축 라인으로 빈집이 실제로 채워지는지를 따라간다.
+// 점선 2종: 0% 선과 빈집권(하위 _FM_EMPTY_TH%에 해당하는 오실레이터 값).
+function _fmOscChart(p) {
+  const ser = p.ser;
+  if (!ser || ser.length < 2) return '';
+  const W = 470, H = 172, ML = 40, MR = 44, MT = 26, MB = 26;
+  const x0 = ML, x1 = W - MR, y0 = MT, y1 = H - MB;
+  const n = ser.length;
+
+  const base = ser[0].cap || 1;
+  const caps = ser.map(o => (o.cap || base) / base);
+  const oscs = ser.map(o => o.v);
+
+  const pad = (lo, hi) => { const d = (hi - lo) || Math.abs(hi) || 1; return [lo - d * 0.12, hi + d * 0.12]; };
+  const [cLo, cHi] = pad(Math.min(...caps), Math.max(...caps));
+  const [oLo, oHi] = pad(Math.min(...oscs, 0), Math.max(...oscs, 0));
+
+  const X  = i => x0 + (n === 1 ? 0 : i / (n - 1) * (x1 - x0));
+  const YC = v => y1 - (v - cLo) / (cHi - cLo) * (y1 - y0);
+  const YO = v => y1 - (v - oLo) / (oHi - oLo) * (y1 - y0);
+
+  const path = (vals, Y) => vals.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join('');
+
+  // 빈집권 임계 = 이 종목 이력의 하위 _FM_EMPTY_TH 백분위 값
+  const sorted = oscs.slice().sort((a, b) => a - b);
+  const thVal  = sorted[Math.max(0, Math.min(sorted.length - 1, Math.floor(sorted.length * _FM_EMPTY_TH / 100)))];
+
+  const gl = (v, c, dash, txt) =>
+    `<line x1="${x0}" y1="${YO(v).toFixed(1)}" x2="${x1}" y2="${YO(v).toFixed(1)}" stroke="${c}" stroke-width="1" stroke-dasharray="${dash}" opacity=".5"/>` +
+    `<text x="${x1 + 3}" y="${(YO(v) + 3).toFixed(1)}" font-size="8" fill="${c}" opacity=".9">${txt}</text>`;
+
+  const tickC = [cLo + (cHi - cLo) * 0.15, cHi - (cHi - cLo) * 0.15]
+    .map(v => `<text x="${x0 - 4}" y="${(YC(v) + 3).toFixed(1)}" font-size="8" fill="#8b91a7" text-anchor="end">${v.toFixed(2)}</text>`).join('');
+
+  const md = Math.floor((n - 1) / 2);
+  const dl = i => `<text x="${X(i).toFixed(1)}" y="${y1 + 15}" font-size="8" fill="#8b91a7" text-anchor="${i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}">${ser[i].d.slice(5)}</text>`;
+
+  const last = ser[n - 1];
+  return `<div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text1);padding:8px 2px 2px;border-top:1px solid var(--border);margin-top:6px">
+      ${escapeHtml(p.name)} 추이 <span style="font-weight:400;color:var(--text2)">시가총액(좌·정규화) vs 수급오실레이터(우·%)</span>
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:560px;display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg">
+      <rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="rgba(255,255,255,.02)"/>
+      ${gl(0, '#8b91a7', '4 3', '0%')}
+      ${gl(thVal, _FM_QE.fill.color, '5 4', `하위${_FM_EMPTY_TH}%`)}
+      ${tickC}
+      <path d="${path(caps, YC)}" fill="none" stroke="#e8ebf2" stroke-width="1.6"/>
+      <path d="${path(oscs, YO)}" fill="none" stroke="${_FM_QE.fill.color}" stroke-width="1.6"/>
+      <circle cx="${X(n - 1).toFixed(1)}" cy="${YO(last.v).toFixed(1)}" r="3" fill="${_FM_QE.fill.color}"/>
+      ${dl(0)}${dl(md)}${dl(n - 1)}
+      <text x="${x0}" y="${y0 - 8}" font-size="8.5" fill="#e8ebf2">— 시가총액</text>
+      <text x="${x0 + 58}" y="${y0 - 8}" font-size="8.5" fill="${_FM_QE.fill.color}">— 수급오실레이터 (현재 ${_fmPct2(last.v)})</text>
+    </svg>`;
+}
+
+// 추이 차트에 띄울 종목 교체 — 원자료는 그대로라 재집계만
+function switchFmSel(code) {
+  FM.sel = (FM.sel === code) ? null : code;
+  _fmRender();
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 //  빈집 모드 — 태린이아빠 "수급빈집" 로직
 //    가로(X) = 유동성 공급 강도 : 비교 이력 구간의 수급오실레이터 평균(%)
@@ -605,33 +681,43 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
   // 이 구간에서 기대되는 오실레이터 점 수 — 앞쪽 4일은 창이 덜 차 값이 안 나온다
   const expect  = raw.dates.length - Math.max(cutIdx, _FM_OSC_N - 1);
 
-  const pts = [];
+  // ── 1차: 종목별 오실레이터 시계열 → 현재값 / 평균 / 자기 이력 백분위 ──
+  const base = [];
   for (const s of Object.values(raw.byCode)) {
     const ser = _fmOscSeries(s, raw.dates, netOf).filter(o => o.d >= cutDate);
     if (ser.length < 8) continue;                                      // 백분위를 말할 표본이 안 됨
     const cur = ser[ser.length - 1].v;
     const avg = ser.reduce((a, o) => a + o.v, 0) / ser.length;
     const pct = ser.filter(o => o.v < cur).length / ser.length * 100;   // 0~100
-    pts.push({
-      code: s.code, name: s.name, cap: s.cap,
-      x: avg,           // 유동성 공급 강도
-      y: pct - 50,      // 현재 채움도 (음수 = 비어 있음)
-      cur, avg, pct,
-      q: _fmQuadE(avg, pct - 50),
+    base.push({
+      code: s.code, name: s.name, cap: s.cap, ser, cur, avg, pct,
       short: ser.length < expect * 0.9,
       hit: ser.length,
     });
   }
 
-  // 기준일 배지 — 비교 이력 구간을 그대로 노출
+  // ── 2차: 가로축을 '업종 내 공급강도 순위'로 환산 ──
+  // 평균 오실레이터의 절대 부호로 가르면 |평균| < 0.02%p 구간에 전 종목의 18%가 몰려(실측)
+  // 좌/우 배치가 사실상 잡음으로 갈린다. 원저자도 컨셉(업종)을 먼저 고른 뒤 그 안에서
+  // 비교하므로 업종 내 상대 순위가 의도에 가깝다. 절대 수준은 아래 요약줄이 그대로 노출.
+  const nB = base.length;
+  const pts = base.map(p => {
+    const supPct = nB > 1 ? base.filter(o => o.avg < p.avg).length / nB * 100 : 50;
+    const x = supPct - 50;
+    const y = p.pct - 50;
+    return Object.assign({}, p, { x, y, supPct, q: _fmQuadE(x, y) });
+  });
+
+  // 기준일 배지 — 수급이 실제로 있는 마지막 날 (FM.latest는 장중 오늘을 가리켜 하루 앞섬)
+  const lastFlow = raw.dates[raw.dates.length - 1];
   const dEl = document.getElementById('fm-date');
   if (dEl) dEl.innerHTML =
-    `<span style="color:var(--text3)">${cutDate} ~ ${FM.latest}</span> · ${_FM_OSC_N}일 롤링 · 비교이력 ${Math.min(spanN, availDays)}거래일 · <span style="color:var(--text2)">보유 ${availDays}거래일</span>`;
+    `<span style="color:var(--text3)">${cutDate} ~ ${lastFlow}</span> · ${_FM_OSC_N}일 롤링 · 비교이력 ${Math.min(spanN, availDays)}거래일 · <span style="color:var(--text2)">보유 ${availDays}거래일</span>`;
 
   if (!pts.length) { el.innerHTML = _fmEmpty(`${FM.ind} — 선택 조건에 표시할 종목이 없습니다`); return; }
 
-  // 업종 단위 유동성 공급 여부 (그의 1단계) — 업종 평균 오실레이터의 부호
-  const indAvg   = pts.reduce((a, p) => a + p.x, 0) / pts.length;
+  // 업종 단위 유동성 공급 여부 (그의 1단계) — 업종 평균 오실레이터의 부호(절대값)
+  const indAvg   = pts.reduce((a, p) => a + p.avg, 0) / pts.length;
   const supplied = indAvg >= 0;
   const hi = [
     `<span style="color:var(--text2)">${escapeHtml(FM.ind)} 유동성</span> <b style="color:${supplied ? '#2dce89' : '#f5365c'}">${supplied ? '공급 중' : '유출 중'}</b> <span style="color:var(--text3)">(업종 평균 ${_fmPct2(indAvg)})</span>`,
@@ -640,12 +726,17 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
   if (best)
     hi.push(`<span style="color:var(--text2)">가장 비어 있는 빈집</span> <b style="color:var(--text1)">${escapeHtml(best.name)}</b> <span style="color:#f59e0b;font-weight:700">하위 ${Math.round(best.pct)}%</span>`);
 
+  // 추이 차트 대상 — 사용자가 고른 종목, 없으면 가장 비어 있는 빈집(없으면 첫 행)
+  const selPt   = pts.find(p => p.code === FM.sel) || best || pts[0];
+  const selCode = selPt ? selPt.code : null;
+
   const L = {
     quads: [_FM_QE.fill, _FM_QE.full, _FM_QE.bnce, _FM_QE.cold],
     hi,
-    sub:   `가로=유동성 공급 강도(${_FM_OSC_N}일 오실레이터 평균) · 세로=자기 이력 대비 현재 채움도 · 버블=시총 · 클릭→종목 상세`,
-    xAxis: `← 유출   ·   유동성 공급 강도 (${_FM_OSC_N}일 수급 ÷ 시총, 평균)   ·   공급 →`,
+    sub:   `가로=업종 내 공급강도 순위 · 세로=자기 이력 대비 현재 채움도 · 버블=시총 · 클릭→종목 상세`,
+    xAxis: `← 업종 내 하위   ·   유동성 공급 강도 (${_FM_OSC_N}일 오실레이터 평균, 업종 내 순위)   ·   상위 →`,
     yAxis: `← 비어있음   자기 이력 대비   꽉참 →`,
+    xMax:  50,
     yMax:  50,
     guides: [{ y: _FM_EMPTY_TH - 50, txt: `하위 ${_FM_EMPTY_TH}% — 빈집권`, color: _FM_QE.fill.color }],
     corners: [
@@ -654,16 +745,23 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
       { txt: '▲ 일시유입', color: _FM_QE.bnce.color },   // 좌상
       { txt: '▼ 소외',     color: _FM_QE.cold.color },   // 좌하
     ],
-    tipOf: p => `${p.name} · 공급강도 ${_fmPct2(p.x)} · 현재 ${_fmPct2(p.cur)} (이력 하위 ${Math.round(p.pct)}%) · ${p.q.short}`,
+    tipOf: p => `${p.name} · 공급강도 업종 상위 ${Math.round(100 - p.supPct)}% (${_fmPct2(p.avg)}) · 현재 ${_fmPct2(p.cur)} (이력 하위 ${Math.round(p.pct)}%) · ${p.q.short}`,
     cols: [
-      { key: 'name', label: '종목', align: 'left', w: 'minmax(96px,1.3fr)', val: p => p.name, cell: _fmNameCell },
-      { key: 'cap', label: '시총', align: 'right', w: 'minmax(60px,0.75fr)', val: p => p.cap,
+      { key: 'name', label: '종목', align: 'left', w: 'minmax(104px,1.35fr)', val: p => p.name,
+        // 행 클릭은 종목 상세(위임). 추이 버튼은 <button>이라 위임에서 제외된다.
+        cell: p => `<div style="min-width:0;display:flex;align-items:center;gap:5px">
+            <button onclick="switchFmSel('${p.code}')" title="추이 차트 보기"
+              style="flex-shrink:0;border:none;cursor:pointer;border-radius:4px;padding:1px 4px;line-height:1.2;font-size:calc(10px*var(--m-label));
+              background:${p.code === selCode ? _FM_QE.fill.color : 'var(--bg2)'};color:${p.code === selCode ? '#141414' : 'var(--text2)'}">추이</button>
+            ${_fmNameCell(p)}
+          </div>` },
+      { key: 'cap', label: '시총', align: 'right', w: 'minmax(56px,0.7fr)', val: p => p.cap,
         cell: p => `<div style="text-align:right;font-size:calc(11px*var(--m-label));color:var(--text2)">${fmtCap(p.cap)}</div>` },
       { key: 'med', label: '공급강도', align: 'right', w: 'minmax(88px,1.05fr)', val: p => p.x,
-        tip: `비교 이력 구간의 ${_FM_OSC_N}일 오실레이터 평균 — 이 종목에 평소 돈이 들어오는가`,
+        tip: `${_FM_OSC_N}일 오실레이터 평균의 업종 내 순위 — 이 업종 안에서 평소 돈을 더 받는 편인가 (절대 부호로 가르면 0 근처 18%가 잡음으로 갈려 순위로 바꿈)`,
         cell: p => `<div style="text-align:right">
-            <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:${_fmFlowColor(p.x)}">${_fmPct2(p.x)}</div>
-            <div style="font-size:calc(10px*var(--m-label));color:var(--text3)">평균</div>
+            <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:${p.x >= 0 ? '#2dce89' : 'var(--text2)'}">업종 상위 ${Math.round(100 - p.supPct)}%</div>
+            <div style="font-size:calc(10px*var(--m-label));color:${_fmFlowColor(p.avg)}">${_fmPct2(p.avg)}</div>
           </div>` },
       { key: 'sh', label: '현재 채움도', align: 'right', w: 'minmax(96px,1.15fr)', val: p => p.y,
         tip: '오늘 오실레이터가 자기 이력에서 놓인 위치 — 하위일수록 빈집',
@@ -685,7 +783,8 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
       `<b>원본과의 일치</b> — 투자자 분류(외인+기관)·<b>순매수</b>·${_FM_OSC_N}일 롤링·÷시가총액·% 변환이 모두 원본과 같습니다. 원 영상의 오실레이터가 음수로 내려가고(유한양행 −0.38%), 워크북 시트가 <b>외인·기관·기외·시기외</b>로만 구성된 것을 화면에서 확인했습니다.`,
       `<b>남은 차이 한 가지</b> — 금액 산출입니다. 원본은 거래소 <b>순매수 금액</b>을 직접 쓰고, 우리 원천(KIS inquire-investor)은 수량만 주므로 <b>순매수 수량 × 종가</b>로 환산합니다 — 확정 대금과 소수 % 오차가 납니다.`,
       `사분면은 <b>중앙값(하위 50%)</b>으로 가르지만, 실제로 "비었다"고 부를 만한 건 <b>하위 ${_FM_EMPTY_TH}% 이하</b>입니다 — 표의 <b>★</b>와 차트 점선이 그 선입니다. 중앙값 바로 아래는 빈집권일 뿐 신호가 약합니다.`,
-      `세로는 절대 수치가 아니라 <b>그 종목 자신의 이력 백분위</b>입니다. 대형주일수록 시총 대비 비중이 작아 종목 간 절대값 비교는 의미가 없습니다.`,
+      `<b>두 축 모두 순위입니다.</b> 가로는 오실레이터 평균의 <b>업종 내</b> 순위, 세로는 <b>그 종목 자신의 이력</b> 백분위. 가로를 평균값의 부호(0 기준)로 가르던 방식은 |평균| &lt; 0.02%p 구간에 전 종목의 18%가 몰려(실측) 좌/우가 잡음으로 갈려서 순위로 바꿨습니다. 절대 수준은 위 <b>업종 평균</b>이 말해 줍니다.`,
+      `종목 간 <b>절대값 비교는 의미가 없습니다</b> — 대형주일수록 시총 대비 수급 비중이 작습니다(실측 10조+ 중앙 0.11% vs 2~10조 0.26%).`,
       `분모가 <b>당일 시가총액</b>이라 기간 중 주가가 크게 오른 종목도 왜곡되지 않습니다(전환 모드와 다른 점).`,
       `빈집은 <b>채워질 가능성에 거는 것</b>이지 확정이 아닙니다. 원저자도 시장 리스크는 업종쏠림지수·코스닥 3/5/10일선 이탈로 따로 관리하라고 말합니다.`,
       `수급은 <b>모니터링 종목</b>만 수집되고 market_data 보존이 <b>90일</b>이라 비교 이력은 최대 ${availDays}거래일입니다.`,
@@ -697,6 +796,7 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
     `<div style="display:flex;flex-wrap:wrap;gap:0;align-items:stretch">
        <div style="flex:2 1 380px;min-width:320px;padding:4px 8px 8px;box-sizing:border-box">
          ${_fmScatter(pts, L)}
+         ${selPt ? _fmOscChart(selPt) : ''}
        </div>
        <div style="flex:3 1 460px;min-width:330px;border-left:1px solid var(--border);box-sizing:border-box">
          ${_fmTable(pts, L)}
