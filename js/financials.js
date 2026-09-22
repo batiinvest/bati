@@ -664,7 +664,12 @@ async function loadMarketData(el) {
         sb.from('market_data').select(COLS).eq('base_date', maxDate)
           .order('stock_code')   // 페이지 경계 결정성 (무정렬 페이징은 누락/중복 가능)
       ) : [];
-      const data = monitoredCodes ? all.filter(r => monitoredCodes.has(r.stock_code)) : all;
+      // companies(active)에 없는 종목은 제외 — 스팩·상장폐지분이 market_data에는
+      // 과거 수집분으로 남아 있어 비활성화만으로는 표에서 사라지지 않는다.
+      // meta가 비면(로드 실패) 거르지 않는다 — 표가 통째로 비는 것보다 낫다.
+      const listed = Object.keys(meta).length ? new Set(Object.keys(meta)) : null;
+      let data = monitoredCodes ? all.filter(r => monitoredCodes.has(r.stock_code)) : all;
+      if (listed) data = data.filter(r => listed.has(r.stock_code));
       const latest = {};
       data.forEach(r => { if (!latest[r.stock_code]) latest[r.stock_code] = r; });
       const out = Object.values(latest);
@@ -912,7 +917,11 @@ async function loadFinancialData(el) {
           .order('quarter',   { ascending: false })
           .order('stock_code')   // 페이지 경계 결정성 (동순위 다수 → 누락/중복 방지)
       );
-      const data = monitoredCodes ? all.filter(r => monitoredCodes.has(r.stock_code)) : all;
+      // 시장 현황 탭과 동일 기준 — companies(active)에 없는 종목은 제외
+      const meta = await _getCompanyMetaMap();
+      const listed = Object.keys(meta).length ? new Set(Object.keys(meta)) : null;
+      let data = monitoredCodes ? all.filter(r => monitoredCodes.has(r.stock_code)) : all;
+      if (listed) data = data.filter(r => listed.has(r.stock_code));
       return Object.values(_pickLatestFin(data));
     },
     headers: () => [
