@@ -421,6 +421,61 @@ const FIN_COL_GROUPS = {
 
 const FIN_COLS_LS = 'bati-fin-cols';
 
+// ── 헤더 '+' 로 펼치는 상세 컬럼 ────────────────────────────────────────────
+// 컬럼 칩과 층위가 다르다:
+//   칩  = 용도별 묶음을 통째로 켜고 끄기 (수급을 볼지 말지)
+//   '+' = 켜진 묶음 안에서 상세를 펼지 말지 (현재가는 보되 고가·저가까지 볼지)
+// 대표 컬럼 하나만 남기고 부속은 기본 접힘 — 36열 중 8열이 접혀 28열로 시작한다.
+const FIN_EXPAND_GROUPS = {
+  market: [
+    { key: 'price', lead: '현재가',
+      cols: ['전일대비', '고가', '저가'] },
+    { key: 'w52',   lead: '52주고가',
+      // 52주 고가 셀에 이미 위치 프로그레스 바가 있어 대표값으로 충분하다
+      cols: ['52주저가', '52주고가일', '52주저가일', '52주고가대비%', '52주저가대비%'] },
+  ],
+  financial: [],
+};
+const FIN_EXPAND_LS = 'bati-fin-expand';
+
+function _finExpandGroups() {
+  return FIN_EXPAND_GROUPS[F.mode === 'financial' ? 'financial' : 'market'] || [];
+}
+
+/** 펼쳐둔 그룹 키 Set (기본: 전부 접힘) */
+function _finExpanded() {
+  const m = F.mode === 'financial' ? 'financial' : 'market';
+  FIN.expanded = FIN.expanded || {};
+  if (!FIN.expanded[m]) {
+    let saved = [];
+    try { saved = (JSON.parse(localStorage.getItem(FIN_EXPAND_LS)) || {})[m] || []; } catch (e) {}
+    FIN.expanded[m] = new Set(saved);
+  }
+  return FIN.expanded[m];
+}
+
+function toggleFinExpand(key) {
+  const s = _finExpanded();
+  s.has(key) ? s.delete(key) : s.add(key);
+  try {
+    const all = {};
+    Object.entries(FIN.expanded || {}).forEach(([m, v]) => { all[m] = [...v]; });
+    localStorage.setItem(FIN_EXPAND_LS, JSON.stringify(all));
+  } catch (e) { /* 사생활 모드 */ }
+  _renderFinView();   // 헤더 기호·숨김이 함께 바뀌므로 통째로 다시 그린다
+}
+
+/**
+ * 대표 컬럼 헤더 뒤에 붙는 펼침 버튼.
+ * _sortBtn이 만든 정렬 span **밖에** 두어 클릭이 정렬로 새지 않게 한다.
+ */
+function _expandBtn(key, n) {
+  const on = _finExpanded().has(key);
+  return `<span onclick="toggleFinExpand('${key}')" title="${on ? '상세 접기' : `상세 ${n}열 펼치기`}"
+    style="cursor:pointer;user-select:none;margin-left:4px;padding:0 3px;border-radius:3px;
+    border:1px solid var(--border);color:var(--text2);font-weight:700">${on ? '−' : '+'}</span>`;
+}
+
 // ── 표 글자 크기 ────────────────────────────────────────────────────────────
 // 전역 조절(설정 페이지)은 document 전체 zoom이라 사이드바까지 같이 커진다.
 // 표는 36열짜리라 "더 많이 보려고 줄이거나" "읽으려고 키우는" 요구가 따로 있어,
@@ -498,17 +553,26 @@ function _saveFinCols() {
   } catch (e) { /* 사생활 모드 등 — 저장 실패해도 화면은 정상 */ }
 }
 
+/** th 텍스트 → 순수 컬럼 라벨 (정렬 화살표·출처 배지·펼침 기호 제거) */
+function _finThLabel(th) {
+  return th.textContent.trim().replace(/[↓↑]/g, '').replace(/[+−]\s*$/, '')
+           .replace(/[DCK]$/, '').trim();
+}
+
 /** 꺼둔 그룹의 컬럼을 nth-child 규칙으로 숨긴다 */
 function _applyFinColVisibility() {
   const off = _finColsOff();
   const hidden = new Set();
   _finGroups().forEach(g => { if (!g.always && off.has(g.key)) g.cols.forEach(c => hidden.add(c)); });
+  // 접어둔 상세 컬럼도 같은 방식으로 숨긴다 (칩과 독립 — 둘 중 하나라도 끄면 숨김)
+  const exp = _finExpanded();
+  _finExpandGroups().forEach(g => { if (!exp.has(g.key)) g.cols.forEach(c => hidden.add(c)); });
 
   // textContent 사용: 이미 display:none인 th는 innerText가 빈 문자열이라 라벨을 잃는다
   const ths = Array.from(document.querySelectorAll('#fin-table thead th'));
   const nth = [];
   ths.forEach((th, i) => {
-    const label = th.textContent.trim().replace(/[↓↑]/g, '').replace(/[DCK]$/, '').trim();
+    const label = _finThLabel(th);
     if (hidden.has(label)) nth.push(i + 1);   // nth-child는 1부터
   });
 
@@ -752,7 +816,7 @@ async function loadMarketData(el) {
       _sortBtn('corp_name','종목명'), _sortBtn('stock_code','코드'),
       _sortBtn('market','시장'), _sortBtn('_wics','업종'), _sortBtn('_ind','테마'),
       _sortBtn('market_cap','시가총액'),
-      _sortBtn('price','현재가'),
+      _sortBtn('price','현재가') + _expandBtn('price', 3),
       _sortBtn('price_change','전일대비'),
       _sortBtn('price_change_rate','등락률'),
       _sortBtn('volume_change_rate','거래량증감률'),
@@ -764,7 +828,7 @@ async function loadMarketData(el) {
       _sortBtn('foreign_hold_rate','외국인보유율'), _sortBtn('foreign_hold_qty','외국인보유수'),
       _sortBtn('foreign_net_buy','외국인순매수'), _sortBtn('program_net_buy','프로그램순매수'),
       _sortBtn('loan_balance_rate','융자잔고율'), _sortBtn('short_sell_qty','공매도수량'),
-      _sortBtn('w52_high','52주고가'), _sortBtn('w52_low','52주저가'),
+      _sortBtn('w52_high','52주고가') + _expandBtn('w52', 5), _sortBtn('w52_low','52주저가'),
       _sortBtn('w52_high_date','52주고가일'), _sortBtn('w52_low_date','52주저가일'),
       _sortBtn('_w52HighPct','52주고가대비%'), _sortBtn('_w52LowPct','52주저가대비%'),
 
