@@ -532,6 +532,17 @@ td.ctr, th.ctr { text-align:center; }
 #fin-table { position:relative; }
 #fin-table thead th { position:sticky; top:0; background:var(--bg2); z-index:2; box-shadow:0 1px 0 var(--border); }
 
+/* 가로 스크롤 시 종목명(첫 열) 고정 — 40여 개 컬럼을 훑어도 어느 종목인지 잃지 않게.
+   z-index: 헤더 2 < 좌상단 모서리 3, 본문 첫 열 1 (헤더가 항상 위로 지나가도록) */
+#fin-table thead th:first-child { left:0; z-index:3; box-shadow:1px 1px 0 var(--border); }
+#fin-table tbody td:first-child {
+  position:sticky; left:0; z-index:1;
+  background:var(--bg2);            /* 불투명 배경 없으면 뒤 셀이 비쳐 지나간다 */
+  box-shadow:1px 0 0 var(--border);
+}
+/* 위 규칙이 ID 특이도로 .stock-row:hover(반투명)를 눌러버려 hover가 죽으므로 같은 층위에서 재지정 */
+#fin-table tbody td.stock-row:hover { background:var(--bg3); }
+
 /* ── 탭 버튼 ── */
 .tab { font-size:calc(13px*var(--m-body)); padding:9px 16px; font-weight:500; }
 .tab.active { font-weight:700; }

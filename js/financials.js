@@ -261,8 +261,8 @@ function _renderTable(headers, bodyRows) {
     <table style="border-collapse:collapse;width:max-content;min-width:100%;font-size:calc(13px*var(--m-body))">
       <thead>
         <tr>
-          ${headers.map(h => `<th style="
-            position:sticky;top:0;z-index:2;
+          ${headers.map((h, i) => `<th style="
+            position:sticky;top:0;z-index:${i === 0 ? 3 : 2};
             background:var(--bg2);
             border-bottom:2px solid var(--border2);
             text-align:left;padding:9px 12px;
