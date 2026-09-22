@@ -9,7 +9,16 @@ let _finSearchTimer = null;
 function _finSearchDebounce() {
   F.q = document.getElementById('fin-q')?.value ?? '';
   clearTimeout(_finSearchTimer);
-  _finSearchTimer = setTimeout(() => loadFinancials(), 300);
+  // 검색은 캐시된 행만 다시 거르면 된다 — 재조회 불필요
+  _finSearchTimer = setTimeout(() => _renderFinView(), 200);
+}
+
+/** 새로고침 버튼 — 캐시를 버리고 서버에서 다시 받는다 */
+function reloadFinancials() {
+  FIN.raw = null;
+  FIN.rawKey = null;
+  _latestMarketDate = null;   // market_data 최신일 캐시도 함께 무효화
+  loadFinancials();
 }
 
 /** 종목별 최신 분기 데이터 1건 추출 — { stock_code: row } 맵 반환 */
@@ -50,16 +59,16 @@ function pFinancials() {
     <!-- 산업·세부산업 옵션은 로드된 데이터에서 _syncFinSectorOptions()가 다시 채운다
          (INDUSTRIES 상수만 쓰면 금융·건설·기타 등 상수 밖 산업을 고를 수 없음) -->
     <select class="form-select" id="fin-ind"
-      onchange="F.industry=this.value;F.subIndustry='전체';loadFinancials()" style="width:130px;padding:6px 10px">
+      onchange="F.industry=this.value;F.subIndustry='전체';_renderFinView()" style="width:130px;padding:6px 10px">
       ${industries.map(i=>`<option value="${i}" ${F.industry===i?'selected':''}>${i}</option>`).join('')}
     </select>
-    <select class="form-select" id="fin-sub" onchange="F.subIndustry=this.value;loadFinancials()"
+    <select class="form-select" id="fin-sub" onchange="F.subIndustry=this.value;_renderFinView()"
       style="width:150px;padding:6px 10px">
       <option value="전체">세부산업 전체</option>
     </select>
     <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)" id="fin-count"></span>
     <div style="margin-left:auto;display:flex;gap:6px">
-      <button class="btn btn-sm" onclick="loadFinancials()">새로고침</button>
+      <button class="btn btn-sm" onclick="reloadFinancials()">새로고침</button>
       <button class="btn btn-sm" onclick="exportFinancials()">CSV 다운로드</button>
     </div>
   </div>
@@ -161,8 +170,20 @@ function _sortBtn(col, label, src) {
   const clr    = active ? 'color:var(--tg);' : '';
   const badge  = src ? (_SRC[src] || '') : '';
   return `<span style="cursor:pointer;white-space:nowrap;${clr}user-select:none"
-    onclick="F.sortBy='${col}';F.sortDir=(F.sortBy==='${col}'&&F.sortDir==='desc')?'asc':'desc';loadFinancials()"
+    onclick="_sortFin('${col}')"
   >${label}${badge}${icon}</span>`;
+}
+
+/**
+ * 정렬 토글 — 다른 컬럼을 누르면 내림차순부터, 같은 컬럼을 다시 누르면 방향 전환.
+ * (구 인라인 코드는 F.sortBy를 먼저 대입한 뒤 비교해 조건이 항상 참 → 새 컬럼을 눌러도
+ *  직전 방향을 물려받았다. 비교를 대입보다 앞에 둬 바로잡음.)
+ * 재조회 없이 캐시된 행만 다시 정렬·렌더한다.
+ */
+function _sortFin(col) {
+  F.sortDir = (F.sortBy === col && F.sortDir === 'desc') ? 'asc' : 'desc';
+  F.sortBy  = col;
+  _renderFinView();
 }
 
 /**
@@ -173,10 +194,21 @@ function _sortBtn(col, label, src) {
  */
 function _sortRows(rows, defaultCol = 'market_cap') {
   const col = F.sortBy || defaultCol;
+  const dir = F.sortDir === 'asc' ? 1 : -1;
+  // 빈 값은 방향과 무관하게 항상 뒤로 — 구현이 `?? -Infinity`라 오름차순에서
+  // 데이터 없는 종목이 맨 앞을 차지하던 문제를 함께 해소
+  const isEmpty = v => v == null || v === '';
   return rows.sort((a, b) => {
-    const av = a[col] ?? -Infinity;
-    const bv = b[col] ?? -Infinity;
-    return F.sortDir === 'desc' ? bv - av : av - bv;
+    const av = a[col], bv = b[col];
+    if (isEmpty(av) || isEmpty(bv)) {
+      if (isEmpty(av) && isEmpty(bv)) return 0;
+      return isEmpty(av) ? 1 : -1;
+    }
+    // 문자열(종목명·산업·날짜·코드)은 한국어 정렬, 그 외 숫자·불리언은 수치 비교
+    if (typeof av === 'string' || typeof bv === 'string') {
+      return String(av).localeCompare(String(bv), 'ko') * dir;
+    }
+    return ((+av) - (+bv)) * dir;
   });
 }
 
@@ -285,23 +317,67 @@ function _renderTable(headers, bodyRows) {
  *   .headers           → (rows)=>Array    헤더 배열 반환 함수
  *   .rowTemplate       → (row)=>string    행 HTML 반환 함수
  */
+/** 한 번에 그리는 행 수 — 2,600행을 통째로 그리면 셀 11만 개라 첫 렌더가 수 초 걸린다 */
+const FIN_CHUNK = 150;
+
+/** 조회 조건 키 — 같으면 네트워크 재조회 없이 캐시(FIN.raw)를 쓴다 */
+function _finCacheKey() {
+  return `${F.mode}|${F.scope}`;
+}
+
 async function _loadTabData(el, config) {
-  const { fetchRows, defaultSort = 'market_cap', headers, rowTemplate } = config;
+  FIN.cfg = config;
+  FIN.el  = el;
 
-  let rows = await fetchRows();
-  _syncFinSectorOptions(rows);   // 필터 걸기 전 전체 기준으로 옵션·건수 갱신
-  rows = _applyFinFilter(rows);
-  rows = _sortRows(rows, defaultSort);
+  const key = _finCacheKey();
+  if (FIN.rawKey !== key || !FIN.raw) {
+    FIN.raw    = await config.fetchRows();
+    FIN.rawKey = key;
+  }
+  _renderFinView();
+}
 
-  _finData = rows;
+/**
+ * 캐시된 행으로 필터·정렬·렌더만 다시 수행 — 네트워크 호출 0회.
+ * 정렬/검색/산업 필터는 모두 이 경로를 탄다(구: loadFinancials()로 매번 전량 재조회,
+ * 정렬 한 번에 REST 3회·2MB·4.7초였음).
+ */
+function _renderFinView() {
+  const cfg = FIN.cfg;
+  const el  = FIN.el || document.getElementById('fin-table-inner') || document.getElementById('fin-table');
+  if (!cfg || !FIN.raw || !el) return;
+
+  _syncFinSectorOptions(FIN.raw);   // 선택된 산업에 맞춰 세부산업 목록·건수 갱신
+
+  // slice(): _sortRows가 제자리 정렬이라 캐시 원본이 뒤섞이지 않게 사본에서 정렬
+  const rows = _sortRows(_applyFinFilter(FIN.raw).slice(), cfg.defaultSort || 'market_cap');
+  _finData = rows;   // CSV 내보내기는 렌더된 일부가 아니라 이 전체 집합을 쓴다
+
   const cnt = document.getElementById('fin-count');
   if (cnt) cnt.textContent = `${rows.length}개`;
 
+  FIN.rendered = Math.min(FIN_CHUNK, rows.length);
   el.innerHTML = _renderTable(
-    typeof headers === 'function' ? headers(rows) : headers,
-    rows.map(config.rowTemplate)
+    typeof cfg.headers === 'function' ? cfg.headers(rows) : cfg.headers,
+    rows.slice(0, FIN.rendered).map(cfg.rowTemplate)
   );
   _setFinTableHeight();
+  _bindFinLazyRows();
+}
+
+/** 아래로 스크롤하면 다음 묶음을 이어 붙인다 (행 높이가 제각각이라 가상 스크롤 대신 점진 렌더) */
+function _bindFinLazyRows() {
+  const wrap = document.getElementById('fin-table');
+  if (!wrap) return;
+  wrap.onscroll = () => {
+    if (!FIN.cfg || FIN.rendered >= (_finData?.length || 0)) return;
+    if (wrap.scrollTop + wrap.clientHeight < wrap.scrollHeight - 400) return;
+    const tbody = wrap.querySelector('tbody');
+    if (!tbody) return;
+    const next = _finData.slice(FIN.rendered, FIN.rendered + FIN_CHUNK);
+    tbody.insertAdjacentHTML('beforeend', next.map(FIN.cfg.rowTemplate).join(''));
+    FIN.rendered += next.length;
+  };
 }
 
 function _setFinTableHeight() {
@@ -409,11 +485,20 @@ async function loadMarketData(el) {
       const latest = {};
       data.forEach(r => { if (!latest[r.stock_code]) latest[r.stock_code] = r; });
       const out = Object.values(latest);
-      out.forEach(r => { r._meta = meta[r.stock_code]; });  // 산업 컬럼용
+      // 표시용 메타 + 정렬 키. 52주 대비율은 행에서 즉석 계산하던 값이라 정렬할 수 없었다
+      // → 미리 필드로 만들어 표시·정렬이 같은 값을 쓰게 한다.
+      out.forEach(r => {
+        const m = meta[r.stock_code];
+        r._meta = m;
+        r._ind  = m?.ind || '';
+        r._w52HighPct = (r.price != null && r.w52_high) ? (r.price - r.w52_high) / r.w52_high * 100 : null;
+        r._w52LowPct  = (r.price != null && r.w52_low)  ? (r.price - r.w52_low)  / r.w52_low  * 100 : null;
+      });
       return out;
     },
     headers: () => [
-      '종목명', '코드', '시장', '산업',
+      _sortBtn('corp_name','종목명'), _sortBtn('stock_code','코드'),
+      _sortBtn('market','시장'), _sortBtn('_ind','산업'),
       _sortBtn('market_cap','시가총액'),
       _sortBtn('price','현재가'),
       _sortBtn('price_change','전일대비'),
@@ -424,15 +509,19 @@ async function loadMarketData(el) {
       _sortBtn('volume','거래량'), _sortBtn('trading_value','거래대금'),
       _sortBtn('listing_shares','상장주수'), _sortBtn('vol_turnover','거래량회전율'),
       _sortBtn('per','PER'), _sortBtn('pbr','PBR'),
-      _sortBtn('eps','EPS'), _sortBtn('bps','BPS'), '결산월',
+      _sortBtn('eps','EPS'), _sortBtn('bps','BPS'), _sortBtn('fiscal_month','결산월'),
       _sortBtn('foreign_hold_rate','외국인보유율'), _sortBtn('foreign_hold_qty','외국인보유수'),
       _sortBtn('foreign_net_buy','외국인순매수'), _sortBtn('program_net_buy','프로그램순매수'),
       _sortBtn('loan_balance_rate','융자잔고율'), _sortBtn('short_sell_qty','공매도수량'),
       _sortBtn('w52_high','52주고가'), _sortBtn('w52_low','52주저가'),
-      '52주고가일', '52주저가일',
-      '52주고가대비%', '52주저가대비%',
+      _sortBtn('w52_high_date','52주고가일'), _sortBtn('w52_low_date','52주저가일'),
+      _sortBtn('_w52HighPct','52주고가대비%'), _sortBtn('_w52LowPct','52주저가대비%'),
 
-      '전일부호', '시장경고', '투자유의', '관리종목', '단기과열', '정리매매', '신고가구분', '신고가코드', '기준일',
+      _sortBtn('price_change_sign','전일부호'), _sortBtn('market_warn_code','시장경고'),
+      _sortBtn('is_caution','투자유의'), _sortBtn('manage_issue_code','관리종목'),
+      _sortBtn('is_short_over','단기과열'), _sortBtn('is_liquidation','정리매매'),
+      _sortBtn('hgpr_cls','신고가구분'), _sortBtn('hgpr_cls_code','신고가코드'),
+      _sortBtn('base_date','기준일'),
     ],
     rowTemplate: r => {
       const chg  = r.price_change_rate;
@@ -491,8 +580,8 @@ async function loadMarketData(el) {
         <td style="color:var(--blue);font-size:calc(12px*var(--m-sub))">${n(r.w52_low)}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.w52_high_date||'—'}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.w52_low_date||'—'}</td>
-        <td style="font-size:calc(11px*var(--m-label))">${p(r.price && r.w52_high ? (r.price - r.w52_high) / r.w52_high * 100 : null)}</td>
-        <td style="font-size:calc(11px*var(--m-label))">${p(r.price && r.w52_low  ? (r.price - r.w52_low)  / r.w52_low  * 100 : null)}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${p(r._w52HighPct)}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${p(r._w52LowPct)}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2);font-family:monospace">${r.price_change_sign||'—'}</td>
         <td>${warn(r.market_warn_code)}</td>
         <td>${yn(r.is_caution)}</td>
@@ -640,7 +729,8 @@ async function loadFinancialData(el) {
     },
     headers: () => [
       // 식별
-      '종목명', '코드', '연도', '분기', '구분',
+      _sortBtn('corp_name','종목명'), _sortBtn('stock_code','코드'),
+      _sortBtn('bsns_year','연도'), _sortBtn('quarter','분기'), _sortBtn('fs_div','구분'),
       // 손익계산서 (DART)
       _sortBtn('revenue','매출액','D'),
       _sortBtn('gross_profit','매출총이익','D'),
