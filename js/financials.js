@@ -47,8 +47,15 @@ function pFinancials() {
       <option value="all" ${F.scope==='all'?'selected':''}>전체</option>
     </select>
     <input class="search-box" id="fin-q" placeholder="종목명 검색..." oninput="_finSearchDebounce()" style="max-width:160px">
-    <select class="form-select" id="fin-ind" onchange="F.industry=this.value;loadFinancials()" style="width:120px;padding:6px 10px">
+    <!-- 산업·세부산업 옵션은 로드된 데이터에서 _syncFinSectorOptions()가 다시 채운다
+         (INDUSTRIES 상수만 쓰면 금융·건설·기타 등 상수 밖 산업을 고를 수 없음) -->
+    <select class="form-select" id="fin-ind"
+      onchange="F.industry=this.value;F.subIndustry='전체';loadFinancials()" style="width:130px;padding:6px 10px">
       ${industries.map(i=>`<option value="${i}" ${F.industry===i?'selected':''}>${i}</option>`).join('')}
+    </select>
+    <select class="form-select" id="fin-sub" onchange="F.subIndustry=this.value;loadFinancials()"
+      style="width:150px;padding:6px 10px">
+      <option value="전체">세부산업 전체</option>
     </select>
     <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)" id="fin-count"></span>
     <div style="margin-left:auto;display:flex;gap:6px">
@@ -83,7 +90,57 @@ function _applyFinFilter(rows) {
     );
     rows = rows.filter(r => indStocks.has(r.stock_code));
   }
+  if (F.subIndustry && F.subIndustry !== '전체') {
+    rows = rows.filter(r => FIN.metaMap?.[r.stock_code]?.sub === F.subIndustry);
+  }
   return rows;
+}
+
+/**
+ * 산업·세부산업 드롭다운을 실제 로드된 데이터로 다시 채운다.
+ * - 산업: INDUSTRIES(분석 11종) 순서를 먼저 두고, 상수 밖 값(금융·기타·건설 등)을 건수순으로 뒤에
+ * - 세부산업: 산업이 선택돼 있으면 그 산업 것만, '전체'면 전부
+ * - 건수는 현재 범위(모니터링/전체)·검색어 적용 전 기준이라 고르기 전에 규모를 가늠할 수 있다
+ * @param {Array} rows 필터 적용 전 행 (stock_code 보유)
+ */
+function _syncFinSectorOptions(rows) {
+  const meta = FIN.metaMap || {};
+  const indCnt = {}, subCnt = {};
+  rows.forEach(r => {
+    const m = meta[r.stock_code];
+    if (!m || !m.ind) return;
+    indCnt[m.ind] = (indCnt[m.ind] || 0) + 1;
+    if (m.sub && (F.industry === '전체' || m.ind === F.industry)) {
+      subCnt[m.sub] = (subCnt[m.sub] || 0) + 1;
+    }
+  });
+
+  const byCntDesc = (a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0], 'ko');
+  const known = INDUSTRIES.filter(i => indCnt[i]);
+  const extra = Object.entries(indCnt).filter(([i]) => !INDUSTRIES.includes(i))
+    .sort(byCntDesc).map(([i]) => i);
+  const opt = (val, label, cur) =>
+    `<option value="${escAttr(val)}"${val === cur ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+
+  const indEl = document.getElementById('fin-ind');
+  if (indEl) {
+    // 선택값이 목록에 없으면(범위 전환 등) 옵션을 남겨 선택이 조용히 풀리지 않게 한다
+    const cur  = F.industry;
+    const list = [...known, ...extra];
+    if (cur !== '전체' && !list.includes(cur)) list.push(cur);
+    indEl.innerHTML = opt('전체', '산업 전체', cur)
+      + list.map(i => opt(i, `${i} (${indCnt[i] || 0})`, cur)).join('');
+  }
+
+  const subEl = document.getElementById('fin-sub');
+  if (subEl) {
+    const cur  = F.subIndustry || '전체';
+    const list = Object.entries(subCnt).sort(byCntDesc).map(([s]) => s);
+    if (cur !== '전체' && !list.includes(cur)) list.push(cur);
+    subEl.innerHTML = opt('전체', '세부산업 전체', cur)
+      + list.map(s => opt(s, `${s} (${subCnt[s] || 0})`, cur)).join('');
+    subEl.disabled = !list.length;
+  }
 }
 
 /**
@@ -232,6 +289,7 @@ async function _loadTabData(el, config) {
   const { fetchRows, defaultSort = 'market_cap', headers, rowTemplate } = config;
 
   let rows = await fetchRows();
+  _syncFinSectorOptions(rows);   // 필터 걸기 전 전체 기준으로 옵션·건수 갱신
   rows = _applyFinFilter(rows);
   rows = _sortRows(rows, defaultSort);
 
@@ -263,6 +321,7 @@ function initFinancials() {
   F.mode     = 'market';
   F.scope    = 'monitored';
   F.industry = '전체';
+  F.subIndustry = '전체';
   F.sortBy   = 'market_cap';
   F.sortDir  = 'desc';
 
