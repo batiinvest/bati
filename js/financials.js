@@ -84,6 +84,22 @@ function pFinancials() {
   <!-- 컬럼 그룹 토글 — 40여 개를 용도별로 켜고 끈다 (선택은 브라우저에 저장) -->
   <div id="fin-cols" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-bottom:.75rem"></div>
 
+  <!-- 지표 범위 필터 — 컬럼을 골라 최소~최대로 거른다. 여러 개를 겹쳐 걸 수 있고
+       걸린 조건은 칩으로 표시·제거한다. 옵션은 탭별로 _syncFinNumFilter()가 채운다 -->
+  <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-bottom:.75rem">
+    <span style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-right:2px">지표</span>
+    <select class="form-select" id="fin-num-col" style="width:140px;padding:4px 8px;font-size:calc(12px*var(--m-sub))"></select>
+    <input class="form-input" id="fin-num-min" type="number" placeholder="최소" inputmode="decimal"
+      style="width:78px;padding:4px 8px;font-size:calc(12px*var(--m-sub))"
+      onkeydown="if(event.key==='Enter')addFinNumFilter()">
+    <span style="color:var(--text3);font-size:calc(12px*var(--m-sub))">~</span>
+    <input class="form-input" id="fin-num-max" type="number" placeholder="최대" inputmode="decimal"
+      style="width:78px;padding:4px 8px;font-size:calc(12px*var(--m-sub))"
+      onkeydown="if(event.key==='Enter')addFinNumFilter()">
+    <button class="chip chip-sm" onclick="addFinNumFilter()">추가</button>
+    <span id="fin-num-chips" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-left:4px"></span>
+  </div>
+
   <div id="fin-table" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) var(--bg3)">
     <div id="fin-table-inner">${loadingHTML()}</div>
   </div>`;
@@ -120,6 +136,16 @@ function _applyFinFilter(rows) {
   if (F.wics && F.wics !== '전체') {
     rows = rows.filter(r => FIN.metaMap?.[r.stock_code]?.wics === F.wics);
   }
+  // 지표 범위 — 여러 조건은 AND. 값이 없는 종목은 비교 불가라 제외한다
+  (F.numFilters || []).forEach(f => {
+    rows = rows.filter(r => {
+      const v = r[f.col];
+      if (v == null || v === '') return false;
+      if (f.min != null && v < f.min * f.scale) return false;
+      if (f.max != null && v > f.max * f.scale) return false;
+      return true;
+    });
+  });
   return rows;
 }
 
@@ -553,6 +579,98 @@ const FIN_EXPAND_GROUPS = {
 };
 const FIN_EXPAND_LS = 'bati-fin-expand';
 
+// ── 지표 범위 필터 ──────────────────────────────────────────────────────────
+// [컬럼, 라벨, 입력배율]. 배율은 '입력값 × 배율 = DB값' — 시가총액·거래대금을 원 단위로
+// 입력하게 하면 자릿수가 비현실적이라 억 단위로 받는다.
+const FIN_NUM_COLS = {
+  market: [
+    ['per',               'PER',              1],
+    ['pbr',               'PBR',              1],
+    ['eps',               'EPS(원)',          1],
+    ['bps',               'BPS(원)',          1],
+    ['market_cap',        '시가총액(억)',      1e8],
+    ['price',             '현재가(원)',        1],
+    ['price_change_rate', '등락률(%)',        1],
+    ['volume_change_rate','거래량증감률(%)',   1],
+    ['trading_value',     '거래대금(억)',      1e8],
+    ['volume',            '거래량(주)',        1],
+    ['foreign_hold_rate', '외국인보유율(%)',   1],
+    ['foreign_net_buy',   '외국인순매수',      1],
+    ['loan_balance_rate', '융자잔고율(%)',     1],
+    ['_w52HighPct',       '52주고가대비(%)',   1],
+    ['_w52LowPct',        '52주저가대비(%)',   1],
+    ['vol_turnover',      '거래량회전율(%)',   1],
+  ],
+  financial: [
+    ['revenue',          '매출액(억)',    1e8],
+    ['operating_profit', '영업이익(억)',  1e8],
+    ['net_income',       '당기순이익(억)', 1e8],
+    ['ebitda',           'EBITDA(억)',   1e8],
+    ['fcf',              'FCF(억)',      1e8],
+    ['operating_margin', 'OPM(%)',       1],
+    ['net_margin',       'NPM(%)',       1],
+    ['roe',              'ROE(%)',       1],
+    ['roa',              'ROA(%)',       1],
+    ['debt_ratio',       '부채비율(%)',   1],
+    ['current_ratio',    '유동비율(%)',   1],
+  ],
+};
+
+function _finNumCols() {
+  return FIN_NUM_COLS[F.mode === 'financial' ? 'financial' : 'market'] || [];
+}
+
+/** 지표 필터 추가 — 최소·최대 중 하나만 넣어도 된다 */
+function addFinNumFilter() {
+  const col = document.getElementById('fin-num-col')?.value;
+  const rawMin = document.getElementById('fin-num-min')?.value;
+  const rawMax = document.getElementById('fin-num-max')?.value;
+  if (!col) return;
+  const min = rawMin === '' ? null : Number(rawMin);
+  const max = rawMax === '' ? null : Number(rawMax);
+  if (min == null && max == null) { toast('최소 또는 최대를 입력하세요', 'error'); return; }
+  if (min != null && max != null && min > max) { toast('최소가 최대보다 큽니다', 'error'); return; }
+
+  const def = _finNumCols().find(c => c[0] === col);
+  F.numFilters = (F.numFilters || []).filter(f => f.col !== col);   // 같은 컬럼은 교체
+  F.numFilters.push({ col, label: def ? def[1] : col, scale: def ? def[2] : 1, min, max });
+  document.getElementById('fin-num-min').value = '';
+  document.getElementById('fin-num-max').value = '';
+  _renderFinView();
+}
+
+function removeFinNumFilter(col) {
+  F.numFilters = (F.numFilters || []).filter(f => f.col !== col);
+  _renderFinView();
+}
+
+function clearFinNumFilters() {
+  F.numFilters = [];
+  _renderFinView();
+}
+
+/** 컬럼 목록·조건 칩 갱신 (탭마다 지표가 다르다) */
+function _syncFinNumFilter() {
+  const sel = document.getElementById('fin-num-col');
+  if (sel) {
+    const cur = sel.value;
+    const list = _finNumCols();
+    sel.innerHTML = list.map(([c, l]) =>
+      `<option value="${escAttr(c)}"${c === cur ? ' selected' : ''}>${escapeHtml(l)}</option>`).join('');
+  }
+  const box = document.getElementById('fin-num-chips');
+  if (!box) return;
+  const fs = F.numFilters || [];
+  box.innerHTML = fs.map(f => {
+    const range = f.min != null && f.max != null ? `${f.min}~${f.max}`
+                : f.min != null ? `${f.min}↑` : `${f.max}↓`;
+    return `<span class="chip chip-sm active" style="cursor:default">${escapeHtml(f.label)} ${range}`
+      + `<span onclick="removeFinNumFilter('${escJsStr(f.col)}')" title="조건 제거"
+         style="cursor:pointer;margin-left:5px;font-weight:700">✕</span></span>`;
+  }).join('') + (fs.length > 1
+    ? `<button class="chip chip-sm" onclick="clearFinNumFilters()">조건 비우기</button>` : '');
+}
+
 function _finExpandGroups() {
   return FIN_EXPAND_GROUPS[F.mode === 'financial' ? 'financial' : 'market'] || [];
 }
@@ -803,6 +921,7 @@ function _renderFinView() {
   );
   _setFinTableHeight();
   _bindFinLazyRows();
+  _syncFinNumFilter();           // 탭마다 지표 목록이 다르다
   _syncFinColChips();            // 탭마다 그룹이 달라 매 렌더 갱신
   _applyFinColVisibility();      // 헤더 인덱스가 바뀔 수 있어 렌더 후 다시 적용
   _applyFinFont();               // 칩 줄이 새로 그려지므로 표시값도 함께 갱신
@@ -843,6 +962,7 @@ function initFinancials() {
   F.subIndustry = '전체';
   F.wicsSector  = '전체';
   F.wics        = '전체';
+  F.numFilters  = [];
   F.sortBy   = 'market_cap';
   F.sortDir  = 'desc';
 
