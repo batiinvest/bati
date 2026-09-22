@@ -198,7 +198,7 @@ function _syncFinSectorOptions(rows) {
     const list = Object.entries(wicsCnt).sort(byCntDesc).map(([s]) => s);
     if (cur !== '전체' && !list.includes(cur)) list.push(cur);
     wEl.innerHTML = opt('전체', '세부업종 전체', cur)
-      + list.map(s => opt(s, `${wicsLabel(s)} (${wicsCnt[s] || 0})`, cur)).join('');
+      + list.map(s => opt(s, `${s} (${wicsCnt[s] || 0})`, cur)).join('');
     wEl.disabled = !list.length;
   }
 }
@@ -315,15 +315,6 @@ const WICS_SECTORS = {
   G35: '건강관리', G40: '금융',     G45: 'IT',       G50: '커뮤니케이션', G55: '유틸리티',
 };
 
-// WICS 원본 업종명 → 화면 표시명.
-// DB에는 원본을 그대로 둔다 — 네이버 수집값과 대조가 되어야 하고, 원본을 고치면
-// 다음 수집 때 되돌아간다. 표시만 바꾸는 것이라 필터 value도 원본을 쓴다.
-const WICS_ALIAS = {
-  '반도체와반도체장비': '반도체',
-};
-/** 업종 표시명 (별칭 없으면 원본 그대로) */
-const wicsLabel = w => WICS_ALIAS[w] || w || '';
-
 /**
  * 업종 셀 — WICS 소분류(전 종목 동일 기준). 대분류는 title로 보조 표기.
  * 테마와 한 칸에 섞지 않는다 — 기준이 다른 값이 한 컬럼에 섞이면 정렬·집계가 무의미해진다.
@@ -336,7 +327,7 @@ function _wicsCell(m) {
   // title에는 원본명을 남긴다 — 별칭이 어떤 WICS 업종인지 확인할 수 있어야 한다
   const tip = [sec, m.wics].filter(Boolean).join(' > ');
   return `<td style="white-space:nowrap" title="${escAttr(tip)}">`
-    + `<span class="badge badge-cat">${escapeHtml(wicsLabel(m.wics))}</span></td>`;
+    + `<span class="badge badge-cat">${escapeHtml(m.wics)}</span></td>`;
 }
 
 /**
@@ -683,7 +674,7 @@ async function loadMarketData(el) {
         const m = meta[r.stock_code];
         r._meta = m;
         r._ind  = m?.ind  || '';   // 테마 정렬용
-        r._wics = wicsLabel(m?.wics);   // 업종 정렬용 — 표시명 기준이라야 보이는 순서와 일치
+        r._wics = m?.wics || '';   // 업종 정렬용
         r._w52HighPct = (r.price != null && r.w52_high) ? (r.price - r.w52_high) / r.w52_high * 100 : null;
         r._w52LowPct  = (r.price != null && r.w52_low)  ? (r.price - r.w52_low)  / r.w52_low  * 100 : null;
       });
@@ -807,8 +798,7 @@ function _finMarketCsvSpec() {
     ['코드',         r => r.stock_code],
     ['시장',         r => r.market],
     // 표에선 한 칸에 묶어 보여주지만 CSV는 열을 나눈다 (피벗·필터 편의)
-    ['업종',         r => wicsLabel(r._meta?.wics)],
-    ['업종(WICS원본)', r => r._meta?.wics],
+    ['업종',         r => r._meta?.wics],
     ['업종대분류',    r => WICS_SECTORS[(r._meta?.wcode || '').slice(0, 3)] || ''],
     ['WICS코드',     r => r._meta?.wcode],
     ['테마',         r => r._meta?.ind],
