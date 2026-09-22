@@ -393,7 +393,7 @@ const FIN_COL_GROUPS = {
     { key:'id',    name:'식별', always:true,
       cols:['종목명','코드','시장','업종','테마'] },
     { key:'price', name:'시세',
-      cols:['시가총액','현재가','전일대비','등락률','거래량증감률','고가','저가','VWAP'] },
+      cols:['시가총액','현재가','전일대비','등락률','거래량증감률','고가','저가'] },
     { key:'vol',   name:'거래',
       cols:['거래량','거래대금','상장주수','거래량회전율'] },
     { key:'val',   name:'밸류',
@@ -655,7 +655,7 @@ async function loadMarketData(el) {
       ]);
       // 표가 실제 사용하는 컬럼만 명시 (구 select('*') — 당일 전 종목 × 전 컬럼 다운로드)
       const COLS = 'stock_code,corp_name,market,market_cap,price,price_change,price_change_rate,'
-        + 'volume_change_rate,high_price,low_price,vwap,volume,trading_value,listing_shares,vol_turnover,'
+        + 'volume_change_rate,high_price,low_price,volume,trading_value,listing_shares,vol_turnover,'
         + 'per,pbr,eps,bps,fiscal_month,foreign_hold_rate,foreign_hold_qty,foreign_net_buy,program_net_buy,'
         + 'loan_balance_rate,short_sell_qty,w52_high,w52_low,w52_high_date,w52_low_date,'
         + 'price_change_sign,market_warn_code,is_caution,manage_issue_code,is_short_over,is_liquidation,'
@@ -694,7 +694,6 @@ async function loadMarketData(el) {
       _sortBtn('price_change_rate','등락률'),
       _sortBtn('volume_change_rate','거래량증감률'),
       _sortBtn('high_price','고가'), _sortBtn('low_price','저가'),
-      _sortBtn('vwap','VWAP'),
       _sortBtn('volume','거래량'), _sortBtn('trading_value','거래대금'),
       _sortBtn('listing_shares','상장주수'), _sortBtn('vol_turnover','거래량회전율'),
       _sortBtn('per','PER'), _sortBtn('pbr','PBR'),
@@ -748,7 +747,6 @@ async function loadMarketData(el) {
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${p(r.volume_change_rate)}</td>
         <td style="color:var(--red)">${fmtPrice(r.high_price)}</td>
         <td style="color:var(--blue)">${fmtPrice(r.low_price)}</td>
-        <td style="font-size:calc(11px*var(--m-label))">${fmtPrice(r.vwap)}</td>
         <td>${n(r.volume)}</td>
         <td>${r.trading_value ? fmtCap(r.trading_value) : '—'}</td>
         <td style="font-size:calc(11px*var(--m-label))">${n(r.listing_shares)}</td>
@@ -815,7 +813,6 @@ function _finMarketCsvSpec() {
     ['거래량증감률(%)', r => r.volume_change_rate],
     ['고가',         r => r.high_price],
     ['저가',         r => r.low_price],
-    ['VWAP',         r => r.vwap],
     ['거래량',       r => r.volume],
     ['거래대금',      r => r.trading_value],
     ['상장주수',      r => r.listing_shares],
