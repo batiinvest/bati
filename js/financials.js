@@ -357,7 +357,7 @@ function _renderTable(headers, bodyRows) {
         <tr>
           ${headers.map((h, i) => `<th style="
             position:sticky;top:0;z-index:${i === 0 ? 3 : 2};
-            background:var(--bg2);
+            background-color:var(--bg2);   /* 단축 background는 background-image를 리셋해 상세열 음영이 죽는다 */
             border-bottom:2px solid var(--border2);
             text-align:left;padding:9px 12px;
             font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text1);
@@ -393,7 +393,7 @@ const FIN_COL_GROUPS = {
     { key:'id',    name:'식별', always:true,
       cols:['종목명','코드','시장','업종','테마'] },
     { key:'price', name:'시세',
-      cols:['시가총액','현재가','전일대비','등락률','거래량증감률','고가','저가'] },
+      cols:['시가총액','현재가','전일대비','고가','저가','등락률','거래량증감률'] },
     { key:'vol',   name:'거래',
       cols:['거래량','거래대금','상장주수','거래량회전율'] },
     { key:'val',   name:'밸류',
@@ -576,10 +576,31 @@ function _applyFinColVisibility() {
     if (hidden.has(label)) nth.push(i + 1);   // nth-child는 1부터
   });
 
+  // 펼쳐진 상세 컬럼은 배경 톤 + 좌우 경계선으로 묶어 표시한다.
+  // 안 그러면 어디서 어디까지가 '현재가에 딸려 나온 열'인지 구분이 안 된다.
+  const label2idx = new Map();
+  ths.forEach((th, i) => label2idx.set(_finThLabel(th), i + 1));
+  const detail = [];
+  _finExpandGroups().forEach(g => {
+    if (!exp.has(g.key)) return;
+    const idx = g.cols.map(c => label2idx.get(c)).filter(Boolean).sort((a, b) => a - b);
+    if (idx.length) detail.push(idx);
+  });
+
   let el = document.getElementById('fin-col-style');
   if (!el) { el = document.createElement('style'); el.id = 'fin-col-style'; document.head.appendChild(el); }
-  el.textContent = nth.map(n =>
-    `#fin-table th:nth-child(${n}),#fin-table td:nth-child(${n}){display:none}`).join('');
+  const rules = nth.map(n =>
+    `#fin-table th:nth-child(${n}),#fin-table td:nth-child(${n}){display:none}`);
+  detail.forEach(idx => {
+    const sel = n => `#fin-table th:nth-child(${n}),#fin-table td:nth-child(${n})`;
+    // background-image로 칠한다 — background로 쓰면 sticky 헤더·첫 열의 불투명 배경을 덮어
+    // 스크롤 시 뒤 셀이 비친다. box-shadow도 헤더의 기존 하단 그림자를 덮으므로 테두리를 쓴다.
+    idx.forEach(n => rules.push(
+      `${sel(n)}{background-image:linear-gradient(rgba(42,171,238,.06),rgba(42,171,238,.06))}`));
+    rules.push(`${sel(idx[0])}{border-left:1px solid var(--border2)}`);
+    rules.push(`${sel(idx[idx.length - 1])}{border-right:1px solid var(--border2)}`);
+  });
+  el.textContent = rules.join('');
 
   const info = document.getElementById('fin-col-info');
   if (info) info.textContent = nth.length ? `${ths.length - nth.length}/${ths.length}열` : '';
@@ -816,11 +837,13 @@ async function loadMarketData(el) {
       _sortBtn('corp_name','종목명'), _sortBtn('stock_code','코드'),
       _sortBtn('market','시장'), _sortBtn('_wics','업종'), _sortBtn('_ind','테마'),
       _sortBtn('market_cap','시가총액'),
+      // 상세 컬럼은 대표(현재가) 바로 뒤에 붙인다 — 펼쳤을 때 멀리 떨어져 나오면
+      // 어느 대표에 딸린 값인지 알 수 없다
       _sortBtn('price','현재가') + _expandBtn('price', 3),
       _sortBtn('price_change','전일대비'),
+      _sortBtn('high_price','고가'), _sortBtn('low_price','저가'),
       _sortBtn('price_change_rate','등락률'),
       _sortBtn('volume_change_rate','거래량증감률'),
-      _sortBtn('high_price','고가'), _sortBtn('low_price','저가'),
       _sortBtn('volume','거래량'), _sortBtn('trading_value','거래대금'),
       _sortBtn('listing_shares','상장주수'), _sortBtn('vol_turnover','거래량회전율'),
       _sortBtn('per','PER'), _sortBtn('pbr','PBR'),
@@ -867,10 +890,10 @@ async function loadMarketData(el) {
         <td>${fmtCap(r.market_cap)}</td>
         <td style="font-weight:500">${fmtPrice(r.price)}</td>
         <td style="color:${chgC}">${chgV != null ? (chgV>0?'+':'')+chgV.toLocaleString()+'원' : '—'}</td>
-        <td style="color:${chgC};font-weight:500">${chgStr(chg)}</td>
-        <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${p(r.volume_change_rate)}</td>
         <td style="color:var(--red)">${fmtPrice(r.high_price)}</td>
         <td style="color:var(--blue)">${fmtPrice(r.low_price)}</td>
+        <td style="color:${chgC};font-weight:500">${chgStr(chg)}</td>
+        <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${p(r.volume_change_rate)}</td>
         <td>${n(r.volume)}</td>
         <td>${r.trading_value ? fmtCap(r.trading_value) : '—'}</td>
         <td style="font-size:calc(11px*var(--m-label))">${n(r.listing_shares)}</td>
