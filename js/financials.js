@@ -893,7 +893,7 @@ async function loadMarketData(el) {
                 background:${w52pct>=80?'var(--red)':w52pct<=20?'var(--blue)':'var(--tg)'};border-radius:2px"></span>
             </span><span style="color:var(--text2)">${w52pct}%</span></div>` : '';
       return `<tr>
-        <td class="stock-row" style="font-weight:500;color:var(--tg);white-space:nowrap"
+        <td class="stock-row" style="font-weight:600;color:var(--text);white-space:nowrap"
           data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||'')}" data-stock-tab="market">${escapeHtml(r.corp_name||'')}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2);font-family:monospace">${r.stock_code}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.market||'—'}</td>
@@ -1161,7 +1161,7 @@ async function loadFinancialData(el) {
       const ocfC   = _finC(r.operating_cashflow||0);
       const ebitdaC= _finC(r.ebitda||0);
       return `<tr>
-        <td class="stock-row" style="font-weight:500;color:var(--tg);white-space:nowrap"
+        <td class="stock-row" style="font-weight:600;color:var(--text);white-space:nowrap"
           data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||'')}" data-stock-tab="financial">${escapeHtml(r.corp_name||'')}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2);font-family:monospace">${r.stock_code}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.bsns_year||'—'}</td>

@@ -541,7 +541,9 @@ td.ctr, th.ctr { text-align:center; }
   box-shadow:1px 0 0 var(--border);
 }
 /* 위 규칙이 ID 특이도로 .stock-row:hover(반투명)를 눌러버려 hover가 죽으므로 같은 층위에서 재지정 */
-#fin-table tbody td.stock-row:hover { background:var(--bg3); }
+/* 종목명은 본문색(대비 15:1)으로 두고, 클릭 가능하다는 신호는 hover에서 준다.
+   구: 상시 var(--tg) → 행에서 가장 중요한 식별자가 가장 낮은 대비(6.53)였다. */
+#fin-table tbody td.stock-row:hover { background-color:var(--bg3); color:var(--tg); }
 
 /* ── 탭 버튼 ── */
 .tab { font-size:calc(13px*var(--m-body)); padding:9px 16px; font-weight:500; }
