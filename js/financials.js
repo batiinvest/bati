@@ -421,6 +421,58 @@ const FIN_COL_GROUPS = {
 
 const FIN_COLS_LS = 'bati-fin-cols';
 
+// ── 표 글자 크기 ────────────────────────────────────────────────────────────
+// 전역 조절(설정 페이지)은 document 전체 zoom이라 사이드바까지 같이 커진다.
+// 표는 36열짜리라 "더 많이 보려고 줄이거나" "읽으려고 키우는" 요구가 따로 있어,
+// #fin-table에만 --m-* 배율을 덮어쓴다. 표 안의 font-size는 전부
+// calc(NNpx*var(--m-역할)) 규약이라 변수만 바꾸면 일괄로 따라온다.
+const FIN_FONT_LS = 'bati-fin-font';
+const FIN_FONT_MIN = 70, FIN_FONT_MAX = 130, FIN_FONT_STEP = 10;
+
+function _finFontPct() {
+  const v = Math.round(Number(localStorage.getItem(FIN_FONT_LS)));
+  return Number.isFinite(v) && v ? Math.min(FIN_FONT_MAX, Math.max(FIN_FONT_MIN, v)) : 100;
+}
+
+// --fs-* 의 기준 px과 대응 역할 (style.css :root 정의와 같이 유지할 것)
+const FIN_FS_BASE = { '--fs-data': [12, 'sub'], '--fs-label': [11, 'label'],
+                      '--fs-value': [15, 'title'], '--fs-big': [22, 'title'] };
+
+/**
+ * 배율을 표 컨테이너에 적용 — 내부 재렌더와 무관하게 유지되도록 #fin-table에 건다.
+ *
+ * --m-* 만 덮어써선 안 된다. style.css의 `td { font-size: var(--fs-data) }` 계열은
+ * --fs-data 가 :root에서 이미 calc(12px*1)로 **확정된 뒤 상속**되므로, 하위에서
+ * --m-sub 를 바꿔도 반영되지 않는다(실측: table은 커지는데 td는 12px 고정).
+ * 그래서 --fs-* 도 함께 덮어쓴다.
+ *
+ * 또한 전역 역할별 배율(설정 페이지, config.js)이 따로 있으므로 **곱해서** 합성한다.
+ */
+function _applyFinFont() {
+  const el = document.getElementById('fin-table');
+  if (!el) return;
+  const r = _finFontPct() / 100;
+  const rootCs = getComputedStyle(document.documentElement);
+  const g = k => parseFloat(rootCs.getPropertyValue(`--m-${k}`)) || 1;   // 전역 역할 배율
+
+  ['title', 'body', 'sub', 'label'].forEach(k =>
+    el.style.setProperty(`--m-${k}`, r === 1 ? '' : String(g(k) * r)));
+  Object.entries(FIN_FS_BASE).forEach(([v, [px, role]]) =>
+    el.style.setProperty(v, r === 1 ? '' : `calc(${px}px*${g(role) * r})`));
+
+  const out = document.getElementById('fin-font-val');
+  if (out) out.textContent = _finFontPct() + '%';
+  _setFinTableHeight();   // 행 높이가 바뀌므로 표 높이 재계산
+}
+
+function setFinFont(pct) {
+  const v = Math.min(FIN_FONT_MAX, Math.max(FIN_FONT_MIN, Math.round(pct)));
+  try { localStorage.setItem(FIN_FONT_LS, String(v)); } catch (e) { /* 사생활 모드 */ }
+  _applyFinFont();
+}
+
+function stepFinFont(delta) { setFinFont(_finFontPct() + delta * FIN_FONT_STEP); }
+
 /** 현재 탭의 그룹 정의 */
 function _finGroups() {
   return FIN_COL_GROUPS[F.mode === 'financial' ? 'financial' : 'market'] || [];
@@ -481,7 +533,16 @@ function _syncFinColChips() {
           onclick="toggleFinColGroup('${g.key}')"
           title="${escAttr(g.cols.join(' · '))}">${g.name}</button>`).join('')
     + `<button class="chip chip-sm" onclick="setFinColsAll()" title="모든 컬럼 표시">전체</button>`
-    + `<span id="fin-col-info" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:2px"></span>`;
+    + `<span id="fin-col-info" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:2px"></span>`
+    // 글자 크기 — 표에만 적용. 컬럼 칩과 같은 줄 오른쪽 끝
+    + `<span style="margin-left:auto;display:flex;align-items:center;gap:3px">`
+    +   `<span style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-right:2px">글자</span>`
+    +   `<button class="chip chip-sm" onclick="stepFinFont(-1)" title="작게">−</button>`
+    +   `<span id="fin-font-val" style="font-size:calc(11px*var(--m-label));color:var(--text2);`
+    +     `min-width:34px;text-align:center;font-variant-numeric:tabular-nums"></span>`
+    +   `<button class="chip chip-sm" onclick="stepFinFont(1)" title="크게">+</button>`
+    +   `<button class="chip chip-sm" onclick="setFinFont(100)" title="기본값으로">초기화</button>`
+    + `</span>`;
 }
 
 function toggleFinColGroup(key) {
@@ -544,6 +605,7 @@ function _renderFinView() {
   _bindFinLazyRows();
   _syncFinColChips();            // 탭마다 그룹이 달라 매 렌더 갱신
   _applyFinColVisibility();      // 헤더 인덱스가 바뀔 수 있어 렌더 후 다시 적용
+  _applyFinFont();               // 칩 줄이 새로 그려지므로 표시값도 함께 갱신
 }
 
 /** 아래로 스크롤하면 다음 묶음을 이어 붙인다 (행 높이가 제각각이라 가상 스크롤 대신 점진 렌더) */
