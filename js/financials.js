@@ -296,6 +296,7 @@ async function _getCompanyMetaMap() {
     // companies.code는 일부만 .KS/.KQ 접미사 — market_data의 bare 코드와 맞춘다
     rows.forEach(c => {
       map[c.code.replace(/\.(KS|KQ)$/, '')] = {
+        raw:   c.code,                  // 저장 시 where 절용 원본 코드(.KS/.KQ 포함 가능)
         ind:   c.industry      || '',   // 테마 (큐레이션, 일부 종목)
         sub:   c.sub_industry  || '',   // 세부 테마
         wics:  c.wics_industry || '',   // 업종 (WICS, 전 종목)
@@ -335,12 +336,71 @@ function _wicsCell(m) {
  * @param {Object} [m] _getCompanyMetaMap()의 종목 메타
  * @returns {string} td HTML
  */
-function _themeCell(m) {
-  if (!m || !m.ind) return '<td style="color:var(--text3)">—</td>';
+function _themeCell(m, code) {
+  // 테마는 큐레이션 값이라 표에서 바로 고칠 수 있게 한다(editor 이상).
+  // 업종(WICS)은 외부 수집값이라 편집 대상이 아니다 — 고쳐도 다음 수집에 덮인다.
+  const editable = typeof canEdit !== 'function' || canEdit();
+  const attrs = editable && code
+    ? ` onclick="startThemeEdit(this,'${escJsStr(code)}')" title="클릭해 테마 수정" style="cursor:pointer;`
+    : ' style="';
+  if (!m || !m.ind) {
+    return `<td${attrs}white-space:nowrap;color:var(--text3)">—</td>`;
+  }
   const sub = m.sub
     ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:2px">${escapeHtml(m.sub)}</div>`
     : '';
-  return `<td style="white-space:nowrap;font-size:calc(12px*var(--m-sub));color:var(--tg)">${escapeHtml(m.ind)}${sub}</td>`;
+  return `<td${attrs}white-space:nowrap;font-size:calc(12px*var(--m-sub));color:var(--tg)">${escapeHtml(m.ind)}${sub}</td>`;
+}
+
+/** 테마 셀을 select로 바꿔 편집 시작 */
+function startThemeEdit(td, code) {
+  if (td.querySelector('select')) return;          // 이미 편집 중
+  const cur = FIN.metaMap?.[code]?.ind || '';
+  // 데이터에만 있는 값(금융·건설 등)도 목록에 살려둔다 — 선택지가 없어 값이 날아가지 않게
+  const extra = [...new Set(Object.values(FIN.metaMap || {}).map(m => m.ind).filter(Boolean))]
+    .filter(v => !INDUSTRIES.includes(v)).sort((a, b) => a.localeCompare(b, 'ko'));
+  const opts = ['', ...INDUSTRIES, ...extra]
+    .map(v => `<option value="${escAttr(v)}"${v === cur ? ' selected' : ''}>${v ? escapeHtml(v) : '(없음)'}</option>`)
+    .join('');
+  td.dataset.prev = td.innerHTML;
+  td.innerHTML = `<select class="form-select" style="width:110px;padding:2px 6px;font-size:calc(12px*var(--m-sub))"
+    onchange="saveTheme('${escJsStr(code)}', this.value)"
+    onblur="cancelThemeEdit(this)" onclick="event.stopPropagation()">${opts}</select>`;
+  const sel = td.querySelector('select');
+  sel.focus();
+}
+
+function cancelThemeEdit(sel) {
+  const td = sel.closest('td');
+  if (td && td.dataset.prev != null) { td.innerHTML = td.dataset.prev; delete td.dataset.prev; }
+}
+
+/** 테마 저장 — DB 반영 후 캐시(metaMap·indMap·행 정렬키)까지 맞춘 뒤 다시 그린다 */
+async function saveTheme(code, value) {
+  const m = FIN.metaMap?.[code];
+  if (!m) return;
+  const v = value || '';
+  if (v === m.ind) { _renderFinView(); return; }
+  try {
+    // .select()로 실제 갱신된 행을 되받는다 — RLS가 막으면 오류 없이 0건만 반환하므로,
+    // 이를 확인하지 않으면 화면만 바뀌고 DB는 그대로인 상태를 성공으로 오인한다
+    // (비로그인 anon으로 실측: HTTP 200 + 빈 배열).
+    const { data, error } = await sb.from('companies')
+      .update({ industry: v }).eq('code', m.raw || code).select('code');
+    if (error) throw error;
+    if (!data || !data.length) throw new Error('권한이 없거나 대상 종목을 찾지 못했습니다');
+  } catch (e) {
+    toast('테마 저장 실패: ' + (e.message || e), 'error');
+    _renderFinView();   // 캐시를 건드리기 전이라 원래 값으로 되돌아간다
+    return;
+  }
+  m.ind = v;
+  // 테마를 비우면 세부테마만 남아 '소속 없는 세부'가 된다 → 함께 비움
+  if (!v && m.sub) { m.sub = ''; sb.from('companies').update({ sub_industry: '' }).eq('code', m.raw || code); }
+  if (v) FIN.indMap[code] = v; else delete FIN.indMap[code];
+  (FIN.raw || []).forEach(r => { if (r.stock_code === code) r._ind = v; });  // 정렬키 동기화
+  _renderFinView();
+  toast(v ? `테마 → ${v}` : '테마 비움', 'success');
 }
 
 /**
@@ -898,7 +958,7 @@ async function loadMarketData(el) {
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2);font-family:monospace">${r.stock_code}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.market||'—'}</td>
         ${_wicsCell(r._meta)}
-        ${_themeCell(r._meta)}
+        ${_themeCell(r._meta, r.stock_code)}
         <td>${fmtCap(r.market_cap)}</td>
         <td style="font-weight:500">${fmtPrice(r.price)}</td>
         <td style="color:${chgC}">${chgV != null ? (chgV>0?'+':'')+chgV.toLocaleString()+'원' : '—'}</td>
