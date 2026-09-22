@@ -725,13 +725,21 @@ function initFinancials() {
   // 페이지 진입 시 검색어·필터 초기화
   F.q        = '';
   F.mode     = 'market';
-  F.scope    = 'monitored';
+  F.scope    = 'all';        // 진입 시 전체 상장사 (모니터링 313종목은 드롭다운으로 전환)
   F.industry = '전체';
   F.subIndustry = '전체';
   F.wicsSector  = '전체';
   F.wics        = '전체';
   F.sortBy   = 'market_cap';
   F.sortDir  = 'desc';
+
+  // 템플릿(pFinancials)은 이 함수보다 **먼저** 실행돼 직전 F 값으로 select를 그린다.
+  // 여기서 기본값으로 되돌린 뒤 DOM을 맞춰주지 않으면 표는 전체인데 드롭다운은
+  // '모니터링 종목'으로 보이는 불일치가 생긴다(업종·테마 select는 _syncFinSectorOptions가 담당).
+  const _scopeEl = document.getElementById('fin-scope');
+  if (_scopeEl) _scopeEl.value = F.scope;
+  const _qEl = document.getElementById('fin-q');
+  if (_qEl) _qEl.value = F.q;
 
   // #content overflow-x:hidden → body 가로스크롤 차단
   // (탭 레전드 등 #fin-table 외부 요소도 원인일 수 있어 최상위에서 차단)
