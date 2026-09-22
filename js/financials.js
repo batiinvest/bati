@@ -448,6 +448,113 @@ async function loadMarketData(el) {
   });
 }
 
+// ══════════════════════════════════════════
+//  CSV 내보내기 — 화면에 보이는 그대로(필터·정렬이 적용된 _finData)
+//  값은 서식 없는 원본을 내보낸다 — 엑셀에서 바로 계산되도록('1.2조' 같은 표시 문자열 금지).
+//  ⚠ 컬럼 구성은 각 탭의 headers 배열과 같이 유지할 것.
+// ══════════════════════════════════════════
+
+/** 시장 경고 코드 → 라벨 (표와 동일 기준) */
+const _FIN_WARN_LABEL = { '01': '주의', '02': '경고', '03': '위험예고' };
+
+/** 시장 현황 탭 CSV 스펙 — [헤더, 값함수] */
+function _finMarketCsvSpec() {
+  const pctOf = (a, b) => (a != null && b) ? +((a - b) / b * 100).toFixed(2) : '';
+  return [
+    ['종목명',       r => r.corp_name],
+    ['코드',         r => r.stock_code],
+    ['시장',         r => r.market],
+    // 표에선 한 칸에 묶어 보여주지만 CSV는 열을 나눈다 (피벗·필터 편의)
+    ['산업',         r => r._meta?.ind],
+    ['세부산업',      r => r._meta?.sub],
+    ['DART분류',     r => r._meta?.sector],
+    ['시가총액',      r => r.market_cap],
+    ['현재가',       r => r.price],
+    ['전일대비',      r => r.price_change],
+    ['등락률(%)',    r => r.price_change_rate],
+    ['거래량증감률(%)', r => r.volume_change_rate],
+    ['고가',         r => r.high_price],
+    ['저가',         r => r.low_price],
+    ['VWAP',         r => r.vwap],
+    ['거래량',       r => r.volume],
+    ['거래대금',      r => r.trading_value],
+    ['상장주수',      r => r.listing_shares],
+    ['거래량회전율(%)', r => r.vol_turnover],
+    ['PER',          r => r.per],
+    ['PBR',          r => r.pbr],
+    ['EPS',          r => r.eps],
+    ['BPS',          r => r.bps],
+    ['결산월',       r => r.fiscal_month],
+    ['외국인보유율(%)', r => r.foreign_hold_rate],
+    ['외국인보유수',   r => r.foreign_hold_qty],
+    ['외국인순매수',   r => r.foreign_net_buy],
+    ['프로그램순매수', r => r.program_net_buy],
+    ['융자잔고율(%)',  r => r.loan_balance_rate],
+    ['공매도수량',    r => r.short_sell_qty],
+    ['52주고가',     r => r.w52_high],
+    ['52주저가',     r => r.w52_low],
+    ['52주고가일',    r => r.w52_high_date],
+    ['52주저가일',    r => r.w52_low_date],
+    ['52주고가대비(%)', r => pctOf(r.price, r.w52_high)],
+    ['52주저가대비(%)', r => pctOf(r.price, r.w52_low)],
+    ['전일부호',      r => r.price_change_sign],
+    ['시장경고',      r => (!r.market_warn_code || r.market_warn_code === '00')
+                            ? '' : (_FIN_WARN_LABEL[r.market_warn_code] || r.market_warn_code)],
+    ['투자유의',      r => r.is_caution ? 'Y' : ''],
+    ['관리종목',      r => r.manage_issue_code],
+    ['단기과열',      r => r.is_short_over ? 'Y' : ''],
+    ['정리매매',      r => r.is_liquidation ? 'Y' : ''],
+    ['신고가구분',    r => r.hgpr_cls],
+    ['신고가코드',    r => r.hgpr_cls_code],
+    ['기준일',       r => r.base_date],
+  ];
+}
+
+/** 재무제표 탭 CSV 스펙 */
+function _finFinancialCsvSpec() {
+  const cols = [
+    ['매출액','revenue'], ['매출총이익','gross_profit'], ['매출원가','cogs'],
+    ['판관비','sga'], ['R&D','rd_expense'], ['영업이익','operating_profit'],
+    ['기타영업수익','other_operating_income'], ['기타영업비용','other_operating_expense'],
+    ['세전이익','pretax_income'], ['당기순이익','net_income'],
+    ['자산총계','total_assets'], ['부채총계','total_liabilities'], ['자본총계','total_equity'],
+    ['유동자산','current_assets'], ['유동부채','current_liabilities'], ['비유동자산','non_current_assets'],
+    ['자본금','capital_stock'], ['이익잉여금','retained_earnings'],
+    ['영업현금흐름','operating_cashflow'], ['투자현금흐름','investing_cashflow'],
+    ['재무현금흐름','financing_cashflow'], ['CapEx(유형)','capex'], ['CapEx(무형)','capex_intangible'],
+    ['CapEx합계','capex_total'], ['감가상각비','depreciation'], ['무형상각비','amortization'],
+    ['D&A','da'], ['EBITDA','ebitda'],
+    ['GPM(%)','gross_margin'], ['OPM(%)','operating_margin'], ['NPM(%)','net_margin'],
+    ['매출원가율(%)','cogs_ratio'], ['판관비율(%)','sga_ratio'],
+    ['부채비율(%)','debt_ratio'], ['유동비율(%)','current_ratio'],
+    ['ROE(%)','roe'], ['ROA(%)','roa'], ['FCF','fcf'],
+  ];
+  return [
+    ['종목명', r => r.corp_name],
+    ['코드',   r => r.stock_code],
+    ['산업',   r => FIN.metaMap?.[r.stock_code]?.ind],
+    ['연도',   r => r.bsns_year],
+    ['분기',   r => r.quarter],
+    ['구분',   r => r.fs_div === 'CFS' ? '연결' : '별도'],
+    ...cols.map(([h, k]) => [h, r => r[k]]),
+  ];
+}
+
+function exportFinancials() {
+  if (!_finData?.length) { toast('내보낼 데이터가 없습니다.', 'error'); return; }
+  const isMarket = F.mode !== 'financial';
+  const spec  = isMarket ? _finMarketCsvSpec() : _finFinancialCsvSpec();
+  const scope = F.scope === 'monitored' ? '모니터링' : '전체';
+  const name  = ['기업분석', isMarket ? '시장현황' : '재무제표', scope,
+                 F.industry !== '전체' ? F.industry : null, todayStr()].filter(Boolean).join('_');
+  downloadCsv(
+    spec.map(c => c[0]),
+    _finData.map(r => spec.map(c => c[1](r) ?? '')),
+    name
+  );
+  toast(`CSV ${_finData.length}개 종목 내보냄`, 'success');
+}
+
 async function loadFinancialData(el) {
   const pct  = v => v != null ? v.toFixed(1) + '%' : '—';
   const cap  = v => v != null ? fmtCap(v) : '—';

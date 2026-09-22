@@ -580,6 +580,32 @@ const kstToday = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 
 const todayStr = kstToday;
 
 /**
+ * CSV 다운로드 공용 — 셀 인용·수식 인젝션 무력화·BOM(한글 엑셀)·Blob 저장
+ * exportScreener/exportFinancials 등 표 내보내기 공통. 값은 서식 없는 원본을 넘길 것
+ * (엑셀에서 재계산 가능하도록 — '1.2조' 같은 표시용 문자열 금지).
+ * @param {string[]}        headers  헤더 행
+ * @param {Array<Array>}    rows     값 배열의 배열 (headers와 길이 일치)
+ * @param {string}          filename 확장자 제외 파일명
+ */
+function downloadCsv(headers, rows, filename) {
+  const cell = v => {
+    let s = String(v ?? '');
+    // 문자열 값이 수식 문자(=,+,@)로 시작하면 인젝션 무력화 (숫자 음수는 그대로)
+    if (typeof v === 'string' && /^[=+@]/.test(s)) s = "'" + s;
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const csv = [headers.join(','), ...rows.map(r => r.map(cell).join(','))].join('\n');
+  // data: URI는 대용량(수천 행 × 수십 컬럼)에서 인코딩 팽창으로 막히므로 Blob 사용
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = filename + '.csv';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
  * Date 객체 → 'YYYY-MM-DD' 문자열
  * disclosure.js / investment.js 등의 인라인 패턴 통합
  */

@@ -458,16 +458,6 @@ function exportScreener() {
   if (!SCR.data?.length) return;
   const keys    = ['corp_name','industry','market','capEok','price','price_change_rate','per','pbr','peg','evEbitda','operating_margin','roe','roa','debt_ratio'];
   const headers = ['종목명','산업','시장','시총(억)','현재가','등락률','PER','PBR','PEG','EV/EBITDA','영업이익률','ROE','ROA','부채비율'];
-  // CSV 셀 인용 — 쉼표/따옴표/줄바꿈 포함 값 파손 방지.
-  // 문자열 값이 수식 문자(=,+,@)로 시작하면 인젝션 무력화 (숫자 음수는 그대로)
-  const cell = v => {
-    let s = String(v ?? '');
-    if (typeof v === 'string' && /^[=+@]/.test(s)) s = "'" + s;
-    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-  };
-  const csv = [headers.join(','), ...SCR.data.map(r => keys.map(k => cell(r[k])).join(','))].join('\n');
-  const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
-  a.download = 'screener_' + todayStr() + '.csv';
-  a.click();
+  // 셀 인용·수식 인젝션 방어·BOM·대용량 저장은 config.js downloadCsv 공용
+  downloadCsv(headers, SCR.data.map(r => keys.map(k => r[k])), 'screener_' + todayStr());
 }
