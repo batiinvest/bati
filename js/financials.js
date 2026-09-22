@@ -140,6 +140,59 @@ async function _getMonitoredCodes() {
 }
 
 /**
+ * 전 종목 산업 메타 맵 (code → {ind, sub, sector}) — 1회 조회 후 FIN 캐시
+ * getIndustryMap()은 모니터링 종목(약 313개)만 담아 '전체' 범위에선 산업이 대부분 비어버린다.
+ * 실측(2026-09): industry 실값 1,361/2,661 · sub_industry 535 · sector(DART) 2,651.
+ * @returns {Promise<Object>} 조회 실패 시 빈 객체(산업 컬럼만 '—'로 비고 표는 정상 렌더)
+ */
+async function _getCompanyMetaMap() {
+  if (FIN.metaMap) return FIN.metaMap;
+  const map = {};
+  try {
+    const rows = await fetchAllPages(
+      sb.from('companies').select('code,industry,sub_industry,sector')
+        .eq('active', true).order('code')
+    );
+    // companies.code는 일부만 .KS/.KQ 접미사 — market_data의 bare 코드와 맞춘다
+    rows.forEach(c => {
+      map[c.code.replace(/\.(KS|KQ)$/, '')] = {
+        ind:    c.industry     || '',
+        sub:    c.sub_industry || '',
+        sector: c.sector       || '',
+      };
+    });
+  } catch (e) {
+    console.warn('[기업분석] 산업 메타 로드 실패 — 산업 컬럼 비움', e);
+  }
+  FIN.metaMap = map;
+  return map;
+}
+
+/**
+ * 산업 셀 — 앱 분류(industry) 우선 + 세부산업 병기, 없으면 DART 표준산업분류로 폴백.
+ * DART 분류는 문구가 길어(예: '정보처리, 호스팅, 포털 및 기타 인터넷 정보매개 서비스업')
+ * 표에선 줄여 쓰고 전문은 title로 넘긴다.
+ * @param {Object} [m] _getCompanyMetaMap()의 종목 메타
+ * @returns {string} td HTML
+ */
+function _sectorCell(m) {
+  const none = '<td style="color:var(--text3)">—</td>';
+  if (!m) return none;
+  if (m.ind) {
+    const sub = m.sub
+      ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:2px">${escapeHtml(m.sub)}</div>`
+      : '';
+    return `<td style="white-space:nowrap"><span class="badge badge-cat">${escapeHtml(m.ind)}</span>${sub}</td>`;
+  }
+  if (m.sector) {
+    const short = m.sector.length > 14 ? m.sector.slice(0, 14) + '…' : m.sector;
+    return `<td style="font-size:calc(11px*var(--m-label));color:var(--text2);white-space:nowrap"
+      title="${escAttr(m.sector)} (DART 표준산업분류)">${escapeHtml(short)}</td>`;
+  }
+  return none;
+}
+
+/**
  * 공통 테이블 HTML 렌더링
  * @param {string[]} headers   th 배열 (HTML 문자열)
  * @param {string[]} bodyRows  tr 배열 (HTML 문자열)
@@ -239,10 +292,12 @@ async function loadFinancials() {
   const el = document.getElementById('fin-table-inner') || document.getElementById('fin-table');
   if (!el) return;
 
-  // 산업 필터용 companies 매핑: config.js 전역 캐시 사용
+  // 산업 필터용 매핑 — 표의 산업 컬럼과 같은 전 종목 맵을 쓴다.
+  // (구: getIndustryMap()=모니터링 전용 → '전체' 범위에서 컬럼엔 보이는데 필터엔 안 걸리는 불일치)
   if (!FIN.indMap) {
-    const map = await getIndustryMap();  // config.js 전역 캐시 (이미 로드된 경우 즉시 반환)
-    FIN.indMap = map;             // 기존 참조 코드(_finIndMap)와 호환성 유지
+    const meta = await _getCompanyMetaMap();
+    FIN.indMap = {};
+    Object.entries(meta).forEach(([code, m]) => { if (m.ind) FIN.indMap[code] = m.ind; });
   }
 
   // 탭 active 상태 업데이트
@@ -277,8 +332,8 @@ async function loadMarketData(el) {
   await _loadTabData(el, {
     defaultSort: 'market_cap',
     fetchRows: async () => {
-      const [monitoredCodes, maxDate] = await Promise.all([
-        _getMonitoredCodes(), getLatestMarketDate(),
+      const [monitoredCodes, maxDate, meta] = await Promise.all([
+        _getMonitoredCodes(), getLatestMarketDate(), _getCompanyMetaMap(),
       ]);
       // 표가 실제 사용하는 컬럼만 명시 (구 select('*') — 당일 전 종목 × 전 컬럼 다운로드)
       const COLS = 'stock_code,corp_name,market,market_cap,price,price_change,price_change_rate,'
@@ -294,10 +349,12 @@ async function loadMarketData(el) {
       const data = monitoredCodes ? all.filter(r => monitoredCodes.has(r.stock_code)) : all;
       const latest = {};
       data.forEach(r => { if (!latest[r.stock_code]) latest[r.stock_code] = r; });
-      return Object.values(latest);
+      const out = Object.values(latest);
+      out.forEach(r => { r._meta = meta[r.stock_code]; });  // 산업 컬럼용
+      return out;
     },
     headers: () => [
-      '종목명', '코드', '시장',
+      '종목명', '코드', '시장', '산업',
       _sortBtn('market_cap','시가총액'),
       _sortBtn('price','현재가'),
       _sortBtn('price_change','전일대비'),
@@ -345,6 +402,7 @@ async function loadMarketData(el) {
           data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||'')}" data-stock-tab="market">${escapeHtml(r.corp_name||'')}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2);font-family:monospace">${r.stock_code}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.market||'—'}</td>
+        ${_sectorCell(r._meta)}
         <td>${fmtCap(r.market_cap)}</td>
         <td style="font-weight:500">${fmtPrice(r.price)}</td>
         <td style="color:${chgC}">${chgV != null ? (chgV>0?'+':'')+chgV.toLocaleString()+'원' : '—'}</td>
