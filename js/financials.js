@@ -395,15 +395,17 @@ const FIN_COL_GROUPS = {
     { key:'price', name:'시세',
       cols:['시가총액','현재가','전일대비','고가','저가','등락률','거래량증감률'] },
     { key:'vol',   name:'거래',
-      cols:['거래량','거래대금','상장주수','거래량회전율'] },
+      cols:['거래량','거래대금'] },
     { key:'val',   name:'밸류',
-      cols:['PER','PBR','EPS','BPS','결산월'] },
+      cols:['PER','PBR','EPS','BPS'] },
     { key:'flow',  name:'수급',
       cols:['외국인보유율','외국인보유수','외국인순매수','프로그램순매수','융자잔고율','공매도수량'] },
     { key:'w52',   name:'52주',
       cols:['52주고가','52주저가','52주고가일','52주저가일','52주고가대비%','52주저가대비%'] },
     { key:'stat',  name:'상태',
-      cols:['경고','신고가구분','기준일'] },
+      cols:['경고','신고가구분'] },
+    { key:'etc',   name:'참고',
+      cols:['상장주수','거래량회전율','결산월','기준일'] },
   ],
   financial: [
     { key:'id',    name:'식별', always:true,
@@ -845,9 +847,8 @@ async function loadMarketData(el) {
       _sortBtn('price_change_rate','등락률'),
       _sortBtn('volume_change_rate','거래량증감률'),
       _sortBtn('volume','거래량'), _sortBtn('trading_value','거래대금'),
-      _sortBtn('listing_shares','상장주수'), _sortBtn('vol_turnover','거래량회전율'),
       _sortBtn('per','PER'), _sortBtn('pbr','PBR'),
-      _sortBtn('eps','EPS'), _sortBtn('bps','BPS'), _sortBtn('fiscal_month','결산월'),
+      _sortBtn('eps','EPS'), _sortBtn('bps','BPS'),
       _sortBtn('foreign_hold_rate','외국인보유율'), _sortBtn('foreign_hold_qty','외국인보유수'),
       _sortBtn('foreign_net_buy','외국인순매수'), _sortBtn('program_net_buy','프로그램순매수'),
       _sortBtn('loan_balance_rate','융자잔고율'), _sortBtn('short_sell_qty','공매도수량'),
@@ -856,7 +857,10 @@ async function loadMarketData(el) {
       _sortBtn('_w52HighPct','52주고가대비%'), _sortBtn('_w52LowPct','52주저가대비%'),
 
       _sortBtn('_riskRank','경고'), _sortBtn('hgpr_cls','신고가구분'),
-      _sortBtn('base_date','기준일'),
+      // 참고 — 훑을 때 보는 값이 아니라 맨 뒤. 기준일은 전 행이 같은 날짜라 정보량 0,
+      // 결산월도 대부분 12월, 거래량회전율은 거래량/상장주수 파생이다.
+      _sortBtn('listing_shares','상장주수'), _sortBtn('vol_turnover','거래량회전율'),
+      _sortBtn('fiscal_month','결산월'), _sortBtn('base_date','기준일'),
     ],
     rowTemplate: r => {
       const chg  = r.price_change_rate;
@@ -896,12 +900,9 @@ async function loadMarketData(el) {
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${p(r.volume_change_rate)}</td>
         <td>${n(r.volume)}</td>
         <td>${r.trading_value ? fmtCap(r.trading_value) : '—'}</td>
-        <td style="font-size:calc(11px*var(--m-label))">${n(r.listing_shares)}</td>
-        <td style="font-size:calc(11px*var(--m-label))">${r.vol_turnover != null ? r.vol_turnover.toFixed(2)+'%' : '—'}</td>
         <td>${r.per != null && r.per !== 0 ? r.per.toFixed(1) : '—'}</td>
         <td>${r.pbr != null && r.pbr !== 0 ? r.pbr.toFixed(2) : '—'}</td>
         <td>${n(r.eps)}</td><td>${n(r.bps)}</td>
-        <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.fiscal_month||'—'}월</td>
         <td>${r.foreign_hold_rate != null ? r.foreign_hold_rate.toFixed(1)+'%' : '—'}</td>
         <td style="font-size:calc(11px*var(--m-label))">${n(r.foreign_hold_qty)}</td>
         <td style="color:${buyClr(r.foreign_net_buy||0)}">${buyFmt(r.foreign_net_buy)}</td>
@@ -919,6 +920,9 @@ async function loadMarketData(el) {
         <td style="font-size:calc(11px*var(--m-label))">${p(r._w52LowPct)}</td>
         ${_riskCell(r)}
         <td style="font-size:calc(11px*var(--m-label));color:var(--tg)">${r.hgpr_cls||'—'}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${n(r.listing_shares)}</td>
+        <td style="font-size:calc(11px*var(--m-label))">${r.vol_turnover != null ? r.vol_turnover.toFixed(2)+'%' : '—'}</td>
+        <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.fiscal_month||'—'}월</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.base_date||'—'}</td>
       </tr>`;
     },
@@ -986,13 +990,10 @@ function _finMarketCsvSpec() {
     ['저가',         r => r.low_price],
     ['거래량',       r => r.volume],
     ['거래대금',      r => r.trading_value],
-    ['상장주수',      r => r.listing_shares],
-    ['거래량회전율(%)', r => r.vol_turnover],
     ['PER',          r => r.per],
     ['PBR',          r => r.pbr],
     ['EPS',          r => r.eps],
     ['BPS',          r => r.bps],
-    ['결산월',       r => r.fiscal_month],
     ['외국인보유율(%)', r => r.foreign_hold_rate],
     ['외국인보유수',   r => r.foreign_hold_qty],
     ['외국인순매수',   r => r.foreign_net_buy],
@@ -1014,6 +1015,10 @@ function _finMarketCsvSpec() {
     ['단기과열',      r => r.is_short_over ? 'Y' : ''],
     ['정리매매',      r => r.is_liquidation ? 'Y' : ''],
     ['신고가구분',    r => r.hgpr_cls],
+    // 참고 — 표와 같은 순서로 맨 뒤
+    ['상장주수',      r => r.listing_shares],
+    ['거래량회전율(%)', r => r.vol_turnover],
+    ['결산월',       r => r.fiscal_month],
     ['기준일',       r => r.base_date],
   ];
 }
