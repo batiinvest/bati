@@ -14,8 +14,12 @@ function go(page) {
   }
   A.page = page;
   closeSidebar();
+  // 한 메뉴가 탭으로 묶인 여러 페이지를 대표할 수 있다(data-page-alt, 공백 구분).
+  // 예: '기업 분석' 메뉴는 financials·screener 두 페이지에서 모두 활성 유지.
   document.querySelectorAll('.nav-item').forEach(el =>
-    el.classList.toggle('active', el.dataset.page === page));
+    el.classList.toggle('active',
+      el.dataset.page === page ||
+      (el.dataset.pageAlt || '').split(' ').includes(page)));
   const meta = PAGE_META[page];
   document.getElementById('page-title').textContent = meta?.title || '';
 
