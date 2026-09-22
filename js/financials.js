@@ -394,7 +394,7 @@ const FIN_COL_GROUPS = {
       cols:['종목명','코드','시장','업종','테마'] },
     // 거래량·거래대금은 '현재가 +' 상세로 들어가 거래 칩이 비어버리므로 시세로 흡수
     { key:'price', name:'시세',
-      cols:['시가총액','현재가','전일대비','고가','저가','거래량','거래량증감률','거래대금','등락률'] },
+      cols:['시가총액','현재가','전일대비','고가','저가','거래량','거래량증감률','등락률','거래대금'] },
     { key:'val',   name:'밸류',
       cols:['PER','PBR','EPS','BPS'] },
     { key:'flow',  name:'수급',
@@ -430,8 +430,9 @@ const FIN_COLS_LS = 'bati-fin-cols';
 const FIN_EXPAND_GROUPS = {
   market: [
     { key: 'price', lead: '현재가',
-      // 가격 상세 + 거래 상세. 접으면 시가총액·현재가·등락률만 남는다
-      cols: ['전일대비', '고가', '저가', '거래량', '거래량증감률', '거래대금'] },
+      // 가격 상세 + 거래 상세. 거래대금은 유동성 확인용으로 늘 보는 값이라 제외.
+      // 접으면 시가총액·현재가·등락률·거래대금만 남는다
+      cols: ['전일대비', '고가', '저가', '거래량', '거래량증감률'] },
     { key: 'w52',   lead: '52주고가',
       // 52주 고가 셀에 이미 위치 프로그레스 바가 있어 대표값으로 충분하다
       cols: ['52주저가', '52주고가일', '52주저가일', '52주고가대비%', '52주저가대비%'] },
@@ -849,12 +850,11 @@ async function loadMarketData(el) {
       _sortBtn('market_cap','시가총액'),
       // 상세 컬럼은 대표(현재가) 바로 뒤에 붙인다 — 펼쳤을 때 멀리 떨어져 나오면
       // 어느 대표에 딸린 값인지 알 수 없다
-      _sortBtn('price','현재가') + _expandBtn('price', 6),
+      _sortBtn('price','현재가') + _expandBtn('price', 5),
       _sortBtn('price_change','전일대비'),
       _sortBtn('high_price','고가'), _sortBtn('low_price','저가'),
       _sortBtn('volume','거래량'), _sortBtn('volume_change_rate','거래량증감률'),
-      _sortBtn('trading_value','거래대금'),
-      _sortBtn('price_change_rate','등락률'),
+      _sortBtn('price_change_rate','등락률'), _sortBtn('trading_value','거래대금'),
       _sortBtn('per','PER'), _sortBtn('pbr','PBR'),
       _sortBtn('eps','EPS'), _sortBtn('bps','BPS'),
       _sortBtn('foreign_hold_rate','외국인보유율'), _sortBtn('foreign_hold_qty','외국인보유수'),
@@ -906,8 +906,8 @@ async function loadMarketData(el) {
         <td style="color:var(--blue)">${fmtPrice(r.low_price)}</td>
         <td>${n(r.volume)}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${p(r.volume_change_rate)}</td>
-        <td>${r.trading_value ? fmtCap(r.trading_value) : '—'}</td>
         <td style="color:${chgC};font-weight:500">${chgStr(chg)}</td>
+        <td>${r.trading_value ? fmtCap(r.trading_value) : '—'}</td>
         <td>${r.per != null && r.per !== 0 ? r.per.toFixed(1) : '—'}</td>
         <td>${r.pbr != null && r.pbr !== 0 ? r.pbr.toFixed(2) : '—'}</td>
         <td>${n(r.eps)}</td><td>${n(r.bps)}</td>
@@ -996,8 +996,8 @@ function _finMarketCsvSpec() {
     ['저가',         r => r.low_price],
     ['거래량',       r => r.volume],
     ['거래량증감률(%)', r => r.volume_change_rate],
-    ['거래대금',      r => r.trading_value],
     ['등락률(%)',    r => r.price_change_rate],
+    ['거래대금',      r => r.trading_value],
     ['PER',          r => r.per],
     ['PBR',          r => r.pbr],
     ['EPS',          r => r.eps],
