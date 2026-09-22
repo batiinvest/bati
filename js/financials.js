@@ -571,6 +571,9 @@ const FIN_EXPAND_GROUPS = {
       // 가격 상세 + 거래 상세. 거래대금은 유동성 확인용으로 늘 보는 값이라 제외.
       // 접으면 시가총액·현재가·등락률·거래대금만 남는다
       cols: ['전일대비', '고가', '저가', '거래량', '거래량증감률'] },
+    { key: 'frgn',  lead: '외국인보유율',
+      // 보유율(%)이 대표값, 보유수(주)는 절대 규모라 필요할 때만
+      cols: ['외국인보유수'] },
     { key: 'w52',   lead: '52주고가',
       // 52주 고가 셀에 이미 위치 프로그레스 바가 있어 대표값으로 충분하다
       cols: ['52주저가', '52주고가일', '52주저가일', '52주고가대비%', '52주저가대비%'] },
@@ -1089,7 +1092,8 @@ async function loadMarketData(el) {
       _sortBtn('price_change_rate','등락률'), _sortBtn('trading_value','거래대금'),
       _sortBtn('per','PER'), _sortBtn('pbr','PBR'),
       _sortBtn('eps','EPS'), _sortBtn('bps','BPS'),
-      _sortBtn('foreign_hold_rate','외국인보유율'), _sortBtn('foreign_hold_qty','외국인보유수'),
+      _sortBtn('foreign_hold_rate','외국인보유율') + _expandBtn('frgn', 1),
+      _sortBtn('foreign_hold_qty','외국인보유수'),
       _sortBtn('foreign_net_buy','외국인순매수'), _sortBtn('program_net_buy','프로그램순매수'),
       _sortBtn('loan_balance_rate','융자잔고율'), _sortBtn('short_sell_qty','공매도수량'),
       _sortBtn('w52_high','52주고가') + _expandBtn('w52', 5), _sortBtn('w52_low','52주저가'),
