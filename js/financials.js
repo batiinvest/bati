@@ -56,15 +56,23 @@ function pFinancials() {
       <option value="all" ${F.scope==='all'?'selected':''}>전체</option>
     </select>
     <input class="search-box" id="fin-q" placeholder="종목명 검색..." oninput="_finSearchDebounce()" style="max-width:160px">
-    <!-- 산업·세부산업 옵션은 로드된 데이터에서 _syncFinSectorOptions()가 다시 채운다
-         (INDUSTRIES 상수만 쓰면 금융·건설·기타 등 상수 밖 산업을 고를 수 없음) -->
-    <select class="form-select" id="fin-ind"
-      onchange="F.industry=this.value;F.subIndustry='전체';_renderFinView()" style="width:130px;padding:6px 10px">
+    <!-- 필터 2축. 옵션·건수는 로드된 데이터에서 _syncFinSectorOptions()가 채운다.
+         업종(WICS) = 무슨 사업을 하나 · 전 종목 / 테마 = 어떤 이야기로 묶이나 · 일부 종목 -->
+    <select class="form-select" id="fin-wsec" title="업종 대분류 (GICS 표준 10종)"
+      onchange="F.wicsSector=this.value;F.wics='전체';_renderFinView()" style="width:130px;padding:6px 10px">
+      <option value="전체">업종 전체</option>
+    </select>
+    <select class="form-select" id="fin-wics" title="업종 소분류 (WICS 79종)"
+      onchange="F.wics=this.value;_renderFinView()" style="width:175px;padding:6px 10px">
+      <option value="전체">세부업종 전체</option>
+    </select>
+    <select class="form-select" id="fin-ind" title="투자 테마 (큐레이션)"
+      onchange="F.industry=this.value;F.subIndustry='전체';_renderFinView()" style="width:120px;padding:6px 10px">
       ${industries.map(i=>`<option value="${i}" ${F.industry===i?'selected':''}>${i}</option>`).join('')}
     </select>
-    <select class="form-select" id="fin-sub" onchange="F.subIndustry=this.value;_renderFinView()"
-      style="width:150px;padding:6px 10px">
-      <option value="전체">세부산업 전체</option>
+    <select class="form-select" id="fin-sub" title="세부 테마"
+      onchange="F.subIndustry=this.value;_renderFinView()" style="width:145px;padding:6px 10px">
+      <option value="전체">세부테마 전체</option>
     </select>
     <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)" id="fin-count"></span>
     <div style="margin-left:auto;display:flex;gap:6px">
@@ -88,7 +96,7 @@ let _finData = [];
 // ══════════════════════════════════════════
 
 /**
- * 공통 필터 적용 (검색어 + 산업)
+ * 공통 필터 적용 — 검색어 + 테마 2단 + 업종 2단 (두 축은 독립이며 AND로 겹친다)
  * @param {Array} rows
  * @returns {Array} 필터된 rows
  */
@@ -105,25 +113,44 @@ function _applyFinFilter(rows) {
   if (F.subIndustry && F.subIndustry !== '전체') {
     rows = rows.filter(r => FIN.metaMap?.[r.stock_code]?.sub === F.subIndustry);
   }
+  // 업종(WICS) — 테마와 독립된 축. 대분류는 wics_code 앞 3자리로 판정
+  if (F.wicsSector && F.wicsSector !== '전체') {
+    rows = rows.filter(r => (FIN.metaMap?.[r.stock_code]?.wcode || '').slice(0, 3) === F.wicsSector);
+  }
+  if (F.wics && F.wics !== '전체') {
+    rows = rows.filter(r => FIN.metaMap?.[r.stock_code]?.wics === F.wics);
+  }
   return rows;
 }
 
 /**
- * 산업·세부산업 드롭다운을 실제 로드된 데이터로 다시 채운다.
- * - 산업: INDUSTRIES(분석 11종) 순서를 먼저 두고, 상수 밖 값(금융·기타·건설 등)을 건수순으로 뒤에
- * - 세부산업: 산업이 선택돼 있으면 그 산업 것만, '전체'면 전부
+ * 업종·테마 드롭다운 4종을 실제 로드된 데이터로 다시 채운다.
+ * - 업종(WICS): 대분류(GICS 10종) → 소분류(79종). 소분류는 선택된 대분류 안에서만
+ * - 테마: INDUSTRIES(11종) 순서를 먼저 두고, 상수 밖 값(금융·기타·건설 등)을 건수순으로 뒤에
+ *         → 이 상수 밖 값들은 업종을 테마 칸에 넣어둔 잔재라 WICS 안착 후 정리 대상
+ * - 세부테마: 테마가 선택돼 있으면 그 테마 것만
  * - 건수는 현재 범위(모니터링/전체)·검색어 적용 전 기준이라 고르기 전에 규모를 가늠할 수 있다
  * @param {Array} rows 필터 적용 전 행 (stock_code 보유)
  */
 function _syncFinSectorOptions(rows) {
   const meta = FIN.metaMap || {};
-  const indCnt = {}, subCnt = {};
+  const indCnt = {}, subCnt = {}, secCnt = {}, wicsCnt = {};
   rows.forEach(r => {
     const m = meta[r.stock_code];
-    if (!m || !m.ind) return;
-    indCnt[m.ind] = (indCnt[m.ind] || 0) + 1;
-    if (m.sub && (F.industry === '전체' || m.ind === F.industry)) {
-      subCnt[m.sub] = (subCnt[m.sub] || 0) + 1;
+    if (!m) return;
+    if (m.ind) {
+      indCnt[m.ind] = (indCnt[m.ind] || 0) + 1;
+      if (m.sub && (F.industry === '전체' || m.ind === F.industry)) {
+        subCnt[m.sub] = (subCnt[m.sub] || 0) + 1;
+      }
+    }
+    if (m.wics) {
+      const sec = (m.wcode || '').slice(0, 3);
+      if (sec) secCnt[sec] = (secCnt[sec] || 0) + 1;
+      // 소분류는 선택된 대분류 안에서만 센다
+      if (!F.wicsSector || F.wicsSector === '전체' || sec === F.wicsSector) {
+        wicsCnt[m.wics] = (wicsCnt[m.wics] || 0) + 1;
+      }
     }
   });
 
@@ -140,7 +167,7 @@ function _syncFinSectorOptions(rows) {
     const cur  = F.industry;
     const list = [...known, ...extra];
     if (cur !== '전체' && !list.includes(cur)) list.push(cur);
-    indEl.innerHTML = opt('전체', '산업 전체', cur)
+    indEl.innerHTML = opt('전체', '테마 전체', cur)
       + list.map(i => opt(i, `${i} (${indCnt[i] || 0})`, cur)).join('');
   }
 
@@ -149,9 +176,30 @@ function _syncFinSectorOptions(rows) {
     const cur  = F.subIndustry || '전체';
     const list = Object.entries(subCnt).sort(byCntDesc).map(([s]) => s);
     if (cur !== '전체' && !list.includes(cur)) list.push(cur);
-    subEl.innerHTML = opt('전체', '세부산업 전체', cur)
+    subEl.innerHTML = opt('전체', '세부테마 전체', cur)
       + list.map(s => opt(s, `${s} (${subCnt[s] || 0})`, cur)).join('');
     subEl.disabled = !list.length;
+  }
+
+  // 업종 대분류 — GICS 표준 10종. WICS_SECTORS 정의 순서를 유지해 위치가 흔들리지 않게 한다
+  const secEl = document.getElementById('fin-wsec');
+  if (secEl) {
+    const cur  = F.wicsSector || '전체';
+    const list = Object.keys(WICS_SECTORS).filter(k => secCnt[k]);
+    if (cur !== '전체' && !list.includes(cur)) list.push(cur);
+    secEl.innerHTML = opt('전체', '업종 전체', cur)
+      + list.map(k => opt(k, `${WICS_SECTORS[k] || k} (${secCnt[k] || 0})`, cur)).join('');
+  }
+
+  // 업종 소분류 — 대분류가 선택돼 있으면 그 안에서만
+  const wEl = document.getElementById('fin-wics');
+  if (wEl) {
+    const cur  = F.wics || '전체';
+    const list = Object.entries(wicsCnt).sort(byCntDesc).map(([s]) => s);
+    if (cur !== '전체' && !list.includes(cur)) list.push(cur);
+    wEl.innerHTML = opt('전체', '세부업종 전체', cur)
+      + list.map(s => opt(s, `${s} (${wicsCnt[s] || 0})`, cur)).join('');
+    wEl.disabled = !list.length;
   }
 }
 
@@ -242,46 +290,55 @@ async function _getCompanyMetaMap() {
   const map = {};
   try {
     const rows = await fetchAllPages(
-      sb.from('companies').select('code,industry,sub_industry,sector')
+      sb.from('companies').select('code,industry,sub_industry,wics_industry,wics_code')
         .eq('active', true).order('code')
     );
     // companies.code는 일부만 .KS/.KQ 접미사 — market_data의 bare 코드와 맞춘다
     rows.forEach(c => {
       map[c.code.replace(/\.(KS|KQ)$/, '')] = {
-        ind:    c.industry     || '',
-        sub:    c.sub_industry || '',
-        sector: c.sector       || '',
+        ind:   c.industry      || '',   // 테마 (큐레이션, 일부 종목)
+        sub:   c.sub_industry  || '',   // 세부 테마
+        wics:  c.wics_industry || '',   // 업종 (WICS, 전 종목)
+        wcode: c.wics_code     || '',   // 'G453010' — 앞 3자리가 대분류
       };
     });
   } catch (e) {
-    console.warn('[기업분석] 산업 메타 로드 실패 — 산업 컬럼 비움', e);
+    console.warn('[기업분석] 업종·테마 메타 로드 실패 — 해당 컬럼 비움', e);
   }
   FIN.metaMap = map;
   return map;
 }
 
+// WICS 대분류 (wics_code 앞 3자리) — GICS 표준 섹터명
+const WICS_SECTORS = {
+  G10: '에너지',   G15: '소재',     G20: '산업재',   G25: '경기소비재', G30: '필수소비재',
+  G35: '건강관리', G40: '금융',     G45: 'IT',       G50: '커뮤니케이션', G55: '유틸리티',
+};
+
 /**
- * 산업 셀 — 앱 분류(industry) 우선 + 세부산업 병기, 없으면 DART 표준산업분류로 폴백.
- * DART 분류는 문구가 길어(예: '정보처리, 호스팅, 포털 및 기타 인터넷 정보매개 서비스업')
- * 표에선 줄여 쓰고 전문은 title로 넘긴다.
+ * 업종 셀 — WICS 소분류(전 종목 동일 기준). 대분류는 title로 보조 표기.
+ * 테마와 한 칸에 섞지 않는다 — 기준이 다른 값이 한 컬럼에 섞이면 정렬·집계가 무의미해진다.
  * @param {Object} [m] _getCompanyMetaMap()의 종목 메타
  * @returns {string} td HTML
  */
-function _sectorCell(m) {
-  const none = '<td style="color:var(--text3)">—</td>';
-  if (!m) return none;
-  if (m.ind) {
-    const sub = m.sub
-      ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:2px">${escapeHtml(m.sub)}</div>`
-      : '';
-    return `<td style="white-space:nowrap"><span class="badge badge-cat">${escapeHtml(m.ind)}</span>${sub}</td>`;
-  }
-  if (m.sector) {
-    const short = m.sector.length > 14 ? m.sector.slice(0, 14) + '…' : m.sector;
-    return `<td style="font-size:calc(11px*var(--m-label));color:var(--text2);white-space:nowrap"
-      title="${escAttr(m.sector)} (DART 표준산업분류)">${escapeHtml(short)}</td>`;
-  }
-  return none;
+function _wicsCell(m) {
+  if (!m || !m.wics) return '<td style="color:var(--text3)">—</td>';
+  const sec = WICS_SECTORS[(m.wcode || '').slice(0, 3)];
+  return `<td style="white-space:nowrap"${sec ? ` title="${escAttr(sec + ' > ' + m.wics)}"` : ''}>`
+    + `<span class="badge badge-cat">${escapeHtml(m.wics)}</span></td>`;
+}
+
+/**
+ * 테마 셀 — 큐레이션한 투자 테마 + 세부 테마. 없는 게 정상(전 종목에 붙일 성격이 아니다).
+ * @param {Object} [m] _getCompanyMetaMap()의 종목 메타
+ * @returns {string} td HTML
+ */
+function _themeCell(m) {
+  if (!m || !m.ind) return '<td style="color:var(--text3)">—</td>';
+  const sub = m.sub
+    ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:2px">${escapeHtml(m.sub)}</div>`
+    : '';
+  return `<td style="white-space:nowrap;font-size:calc(12px*var(--m-sub));color:var(--tg)">${escapeHtml(m.ind)}${sub}</td>`;
 }
 
 /**
@@ -332,7 +389,7 @@ const FIN_CHUNK = 150;
 const FIN_COL_GROUPS = {
   market: [
     { key:'id',    name:'식별', always:true,
-      cols:['종목명','코드','시장','산업'] },
+      cols:['종목명','코드','시장','업종','테마'] },
     { key:'price', name:'시세',
       cols:['시가총액','현재가','전일대비','등락률','거래량증감률','고가','저가','VWAP'] },
     { key:'vol',   name:'거래',
@@ -520,6 +577,8 @@ function initFinancials() {
   F.scope    = 'monitored';
   F.industry = '전체';
   F.subIndustry = '전체';
+  F.wicsSector  = '전체';
+  F.wics        = '전체';
   F.sortBy   = 'market_cap';
   F.sortDir  = 'desc';
 
@@ -612,7 +671,8 @@ async function loadMarketData(el) {
       out.forEach(r => {
         const m = meta[r.stock_code];
         r._meta = m;
-        r._ind  = m?.ind || '';
+        r._ind  = m?.ind  || '';   // 테마 정렬용
+        r._wics = m?.wics || '';   // 업종 정렬용
         r._w52HighPct = (r.price != null && r.w52_high) ? (r.price - r.w52_high) / r.w52_high * 100 : null;
         r._w52LowPct  = (r.price != null && r.w52_low)  ? (r.price - r.w52_low)  / r.w52_low  * 100 : null;
       });
@@ -620,7 +680,7 @@ async function loadMarketData(el) {
     },
     headers: () => [
       _sortBtn('corp_name','종목명'), _sortBtn('stock_code','코드'),
-      _sortBtn('market','시장'), _sortBtn('_ind','산업'),
+      _sortBtn('market','시장'), _sortBtn('_wics','업종'), _sortBtn('_ind','테마'),
       _sortBtn('market_cap','시가총액'),
       _sortBtn('price','현재가'),
       _sortBtn('price_change','전일대비'),
@@ -672,7 +732,8 @@ async function loadMarketData(el) {
           data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||'')}" data-stock-tab="market">${escapeHtml(r.corp_name||'')}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2);font-family:monospace">${r.stock_code}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.market||'—'}</td>
-        ${_sectorCell(r._meta)}
+        ${_wicsCell(r._meta)}
+        ${_themeCell(r._meta)}
         <td>${fmtCap(r.market_cap)}</td>
         <td style="font-weight:500">${fmtPrice(r.price)}</td>
         <td style="color:${chgC}">${chgV != null ? (chgV>0?'+':'')+chgV.toLocaleString()+'원' : '—'}</td>
@@ -735,9 +796,11 @@ function _finMarketCsvSpec() {
     ['코드',         r => r.stock_code],
     ['시장',         r => r.market],
     // 표에선 한 칸에 묶어 보여주지만 CSV는 열을 나눈다 (피벗·필터 편의)
-    ['산업',         r => r._meta?.ind],
-    ['세부산업',      r => r._meta?.sub],
-    ['DART분류',     r => r._meta?.sector],
+    ['업종',         r => r._meta?.wics],
+    ['업종대분류',    r => WICS_SECTORS[(r._meta?.wcode || '').slice(0, 3)] || ''],
+    ['WICS코드',     r => r._meta?.wcode],
+    ['테마',         r => r._meta?.ind],
+    ['세부테마',      r => r._meta?.sub],
     ['시가총액',      r => r.market_cap],
     ['현재가',       r => r.price],
     ['전일대비',      r => r.price_change],
@@ -802,7 +865,8 @@ function _finFinancialCsvSpec() {
   return [
     ['종목명', r => r.corp_name],
     ['코드',   r => r.stock_code],
-    ['산업',   r => FIN.metaMap?.[r.stock_code]?.ind],
+    ['업종',   r => FIN.metaMap?.[r.stock_code]?.wics],
+    ['테마',   r => FIN.metaMap?.[r.stock_code]?.ind],
     ['연도',   r => r.bsns_year],
     ['분기',   r => r.quarter],
     ['구분',   r => r.fs_div === 'CFS' ? '연결' : '별도'],
