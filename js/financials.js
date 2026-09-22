@@ -73,6 +73,9 @@ function pFinancials() {
     </div>
   </div>
 
+  <!-- 컬럼 그룹 토글 — 40여 개를 용도별로 켜고 끈다 (선택은 브라우저에 저장) -->
+  <div id="fin-cols" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-bottom:.75rem"></div>
+
   <div id="fin-table" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) var(--bg3)">
     <div id="fin-table-inner">${loadingHTML()}</div>
   </div>`;
@@ -320,6 +323,123 @@ function _renderTable(headers, bodyRows) {
 /** 한 번에 그리는 행 수 — 2,600행을 통째로 그리면 셀 11만 개라 첫 렌더가 수 초 걸린다 */
 const FIN_CHUNK = 150;
 
+// ══════════════════════════════════════════
+//  컬럼 그룹 — 40여 개를 한 번에 보여주지 않고 용도별로 켜고 끈다.
+//  숨김은 행 템플릿을 고치지 않고 nth-child CSS로 처리 → 두 탭에 그대로 적용되고
+//  스크롤로 이어붙인 행에도 자동 반영된다.
+//  ⚠ cols는 헤더 라벨과 정확히 일치해야 한다(정렬 화살표·출처 배지는 떼고 비교).
+// ══════════════════════════════════════════
+const FIN_COL_GROUPS = {
+  market: [
+    { key:'id',    name:'식별', always:true,
+      cols:['종목명','코드','시장','산업'] },
+    { key:'price', name:'시세',
+      cols:['시가총액','현재가','전일대비','등락률','거래량증감률','고가','저가','VWAP'] },
+    { key:'vol',   name:'거래',
+      cols:['거래량','거래대금','상장주수','거래량회전율'] },
+    { key:'val',   name:'밸류',
+      cols:['PER','PBR','EPS','BPS','결산월'] },
+    { key:'flow',  name:'수급',
+      cols:['외국인보유율','외국인보유수','외국인순매수','프로그램순매수','융자잔고율','공매도수량'] },
+    { key:'w52',   name:'52주',
+      cols:['52주고가','52주저가','52주고가일','52주저가일','52주고가대비%','52주저가대비%'] },
+    { key:'stat',  name:'상태',
+      cols:['전일부호','시장경고','투자유의','관리종목','단기과열','정리매매','신고가구분','신고가코드','기준일'] },
+  ],
+  financial: [
+    { key:'id',    name:'식별', always:true,
+      cols:['종목명','코드','연도','분기','구분'] },
+    { key:'pl',    name:'손익',
+      cols:['매출액','매출총이익','매출원가','판관비','R&D','영업이익','기타영업수익','기타영업비용','세전이익','당기순이익'] },
+    { key:'bs',    name:'재무상태',
+      cols:['자산총계','부채총계','자본총계','유동자산','유동부채','비유동자산','자본금','이익잉여금'] },
+    { key:'cf',    name:'현금흐름',
+      cols:['영업현금흐름','투자현금흐름','재무현금흐름','CapEx(유형)','CapEx(무형)','CapEx합계','감가상각비','무형상각비','D&A','EBITDA','FCF'] },
+    { key:'ratio', name:'비율',
+      cols:['GPM','OPM','NPM','매출원가율','판관비율','부채비율','유동비율','ROE','ROA'] },
+  ],
+};
+
+const FIN_COLS_LS = 'bati-fin-cols';
+
+/** 현재 탭의 그룹 정의 */
+function _finGroups() {
+  return FIN_COL_GROUPS[F.mode === 'financial' ? 'financial' : 'market'] || [];
+}
+
+/** 현재 탭에서 꺼둔 그룹 키 Set */
+function _finColsOff() {
+  const m = F.mode === 'financial' ? 'financial' : 'market';
+  FIN.colsOff = FIN.colsOff || {};
+  if (!FIN.colsOff[m]) {
+    let saved = [];
+    try { saved = (JSON.parse(localStorage.getItem(FIN_COLS_LS)) || {})[m] || []; } catch (e) {}
+    FIN.colsOff[m] = new Set(saved);
+  }
+  return FIN.colsOff[m];
+}
+
+function _saveFinCols() {
+  try {
+    const all = {};
+    Object.entries(FIN.colsOff || {}).forEach(([m, s]) => { all[m] = [...s]; });
+    localStorage.setItem(FIN_COLS_LS, JSON.stringify(all));
+  } catch (e) { /* 사생활 모드 등 — 저장 실패해도 화면은 정상 */ }
+}
+
+/** 꺼둔 그룹의 컬럼을 nth-child 규칙으로 숨긴다 */
+function _applyFinColVisibility() {
+  const off = _finColsOff();
+  const hidden = new Set();
+  _finGroups().forEach(g => { if (!g.always && off.has(g.key)) g.cols.forEach(c => hidden.add(c)); });
+
+  // textContent 사용: 이미 display:none인 th는 innerText가 빈 문자열이라 라벨을 잃는다
+  const ths = Array.from(document.querySelectorAll('#fin-table thead th'));
+  const nth = [];
+  ths.forEach((th, i) => {
+    const label = th.textContent.trim().replace(/[↓↑]/g, '').replace(/[DCK]$/, '').trim();
+    if (hidden.has(label)) nth.push(i + 1);   // nth-child는 1부터
+  });
+
+  let el = document.getElementById('fin-col-style');
+  if (!el) { el = document.createElement('style'); el.id = 'fin-col-style'; document.head.appendChild(el); }
+  el.textContent = nth.map(n =>
+    `#fin-table th:nth-child(${n}),#fin-table td:nth-child(${n}){display:none}`).join('');
+
+  const info = document.getElementById('fin-col-info');
+  if (info) info.textContent = nth.length ? `${ths.length - nth.length}/${ths.length}열` : '';
+}
+
+/** 컬럼 그룹 칩 — 탭마다 그룹이 달라 렌더 시점에 다시 그린다 */
+function _syncFinColChips() {
+  const el = document.getElementById('fin-cols');
+  if (!el) return;
+  const off = _finColsOff();
+  el.innerHTML =
+    `<span style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-right:2px">컬럼</span>`
+    + _finGroups().filter(g => !g.always).map(g =>
+        `<button class="chip chip-sm ${off.has(g.key) ? '' : 'active'}"
+          onclick="toggleFinColGroup('${g.key}')"
+          title="${escAttr(g.cols.join(' · '))}">${g.name}</button>`).join('')
+    + `<button class="chip chip-sm" onclick="setFinColsAll()" title="모든 컬럼 표시">전체</button>`
+    + `<span id="fin-col-info" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:2px"></span>`;
+}
+
+function toggleFinColGroup(key) {
+  const off = _finColsOff();
+  off.has(key) ? off.delete(key) : off.add(key);
+  _saveFinCols();
+  _syncFinColChips();
+  _applyFinColVisibility();
+}
+
+function setFinColsAll() {
+  _finColsOff().clear();
+  _saveFinCols();
+  _syncFinColChips();
+  _applyFinColVisibility();
+}
+
 /** 조회 조건 키 — 같으면 네트워크 재조회 없이 캐시(FIN.raw)를 쓴다 */
 function _finCacheKey() {
   return `${F.mode}|${F.scope}`;
@@ -363,6 +483,8 @@ function _renderFinView() {
   );
   _setFinTableHeight();
   _bindFinLazyRows();
+  _syncFinColChips();            // 탭마다 그룹이 달라 매 렌더 갱신
+  _applyFinColVisibility();      // 헤더 인덱스가 바뀔 수 있어 렌더 후 다시 적용
 }
 
 /** 아래로 스크롤하면 다음 묶음을 이어 붙인다 (행 높이가 제각각이라 가상 스크롤 대신 점진 렌더) */
