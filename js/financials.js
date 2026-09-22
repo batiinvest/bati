@@ -352,41 +352,94 @@ function _themeCell(m, code) {
   return `<td${attrs}white-space:nowrap;font-size:calc(12px*var(--m-sub));color:var(--tg)">${escapeHtml(m.ind)}${sub}</td>`;
 }
 
-/** 테마 셀을 select로 바꿔 편집 시작 */
-function startThemeEdit(td, code) {
-  if (td.querySelector('select')) return;          // 이미 편집 중
-  const cur = FIN.metaMap?.[code]?.ind || '';
-  // 데이터에만 있는 값(금융·건설 등)도 목록에 살려둔다 — 선택지가 없어 값이 날아가지 않게
+/** 현재 metaMap에서 쓰이고 있는 테마 목록 (상수 밖 값도 포함) */
+function _themeOptions() {
   const extra = [...new Set(Object.values(FIN.metaMap || {}).map(m => m.ind).filter(Boolean))]
     .filter(v => !INDUSTRIES.includes(v)).sort((a, b) => a.localeCompare(b, 'ko'));
-  const opts = ['', ...INDUSTRIES, ...extra]
-    .map(v => `<option value="${escAttr(v)}"${v === cur ? ' selected' : ''}>${v ? escapeHtml(v) : '(없음)'}</option>`)
-    .join('');
-  td.dataset.prev = td.innerHTML;
-  td.innerHTML = `<select class="form-select" style="width:110px;padding:2px 6px;font-size:calc(12px*var(--m-sub))"
-    onchange="saveTheme('${escJsStr(code)}', this.value)"
-    onblur="cancelThemeEdit(this)" onclick="event.stopPropagation()">${opts}</select>`;
-  const sel = td.querySelector('select');
-  sel.focus();
+  return ['', ...INDUSTRIES, ...extra];
 }
 
-function cancelThemeEdit(sel) {
-  const td = sel.closest('td');
+/** 특정 테마에 이미 쓰이는 세부테마 목록 — 자유 입력이라 datalist 제안으로만 쓴다 */
+function _subOptions(theme) {
+  return [...new Set(Object.values(FIN.metaMap || {})
+    .filter(m => m.sub && (!theme || m.ind === theme)).map(m => m.sub))]
+    .sort((a, b) => a.localeCompare(b, 'ko'));
+}
+
+/**
+ * 테마 셀을 편집 폼으로 교체 — 테마(select) + 세부테마(자유 입력 + 제안).
+ * 세부테마는 113종이라 고정 목록이 아니다. datalist로 기존 값을 제안하되 새 값도 받는다.
+ * 두 값을 한 번에 저장(✓)해 테마만 바뀌고 세부가 남는 중간 상태를 만들지 않는다.
+ */
+function startThemeEdit(td, code) {
+  if (td.querySelector('select')) return;          // 이미 편집 중
+  const m = FIN.metaMap?.[code] || {};
+  const cur = m.ind || '', curSub = m.sub || '';
+  const opts = _themeOptions()
+    .map(v => `<option value="${escAttr(v)}"${v === cur ? ' selected' : ''}>${v ? escapeHtml(v) : '(없음)'}</option>`)
+    .join('');
+  const listId = 'fin-sub-list';
+  td.dataset.prev = td.innerHTML;
+  td.dataset.code = code;
+  td.innerHTML =
+    `<div style="display:flex;gap:3px;align-items:center" onclick="event.stopPropagation()">
+      <select class="form-select fin-edit-ind" style="width:88px;padding:2px 4px;font-size:calc(11px*var(--m-label))"
+        onchange="_refreshSubList(this)">${opts}</select>
+      <input class="form-input fin-edit-sub" list="${listId}" value="${escAttr(curSub)}" placeholder="세부"
+        style="width:88px;padding:2px 4px;font-size:calc(11px*var(--m-label))"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();commitThemeEdit(this)}
+                   else if(event.key==='Escape'){cancelThemeEdit(this)}">
+      <datalist id="${listId}"></datalist>
+      <span onclick="commitThemeEdit(this)" title="저장"
+        style="cursor:pointer;padding:0 4px;color:var(--green);font-weight:700">✓</span>
+      <span onclick="cancelThemeEdit(this)" title="취소"
+        style="cursor:pointer;padding:0 3px;color:var(--text3)">✕</span>
+    </div>`;
+  _refreshSubList(td.querySelector('.fin-edit-ind'));
+  td.querySelector('.fin-edit-ind').focus();
+}
+
+/** 선택된 테마에 맞춰 세부테마 제안 목록을 갈아끼운다 */
+function _refreshSubList(el) {
+  const td = el.closest('td');
+  const dl = td?.querySelector('datalist');
+  if (!dl) return;
+  const theme = td.querySelector('.fin-edit-ind')?.value || '';
+  dl.innerHTML = _subOptions(theme).map(v => `<option value="${escAttr(v)}">`).join('');
+}
+
+function cancelThemeEdit(el) {
+  const td = el.closest('td');
   if (td && td.dataset.prev != null) { td.innerHTML = td.dataset.prev; delete td.dataset.prev; }
 }
 
-/** 테마 저장 — DB 반영 후 캐시(metaMap·indMap·행 정렬키)까지 맞춘 뒤 다시 그린다 */
-async function saveTheme(code, value) {
+/** ✓ 또는 Enter — 테마·세부테마를 함께 저장 */
+function commitThemeEdit(el) {
+  const td = el.closest('td');
+  if (!td) return;
+  saveTheme(td.dataset.code, td.querySelector('.fin-edit-ind')?.value || '',
+                             td.querySelector('.fin-edit-sub')?.value || '');
+}
+
+/**
+ * 테마·세부테마 저장 — DB 반영 후 캐시(metaMap·indMap·행 정렬키)까지 맞춘 뒤 다시 그린다.
+ * 두 값을 한 번의 UPDATE로 보내 '테마만 바뀌고 세부는 옛 값'인 중간 상태를 만들지 않는다.
+ */
+async function saveTheme(code, value, sub) {
   const m = FIN.metaMap?.[code];
   if (!m) return;
-  const v = value || '';
-  if (v === m.ind) { _renderFinView(); return; }
+  const v = (value || '').trim();
+  // 테마가 없으면 세부도 있을 수 없다 — 소속 없는 세부는 모순
+  const sv = v ? (sub || '').trim() : '';
+  if (v === m.ind && sv === m.sub) { _renderFinView(); return; }
+
   try {
     // .select()로 실제 갱신된 행을 되받는다 — RLS가 막으면 오류 없이 0건만 반환하므로,
     // 이를 확인하지 않으면 화면만 바뀌고 DB는 그대로인 상태를 성공으로 오인한다
     // (비로그인 anon으로 실측: HTTP 200 + 빈 배열).
     const { data, error } = await sb.from('companies')
-      .update({ industry: v }).eq('code', m.raw || code).select('code');
+      .update({ industry: v, sub_industry: sv })
+      .eq('code', m.raw || code).select('code');
     if (error) throw error;
     if (!data || !data.length) throw new Error('권한이 없거나 대상 종목을 찾지 못했습니다');
   } catch (e) {
@@ -394,13 +447,12 @@ async function saveTheme(code, value) {
     _renderFinView();   // 캐시를 건드리기 전이라 원래 값으로 되돌아간다
     return;
   }
-  m.ind = v;
-  // 테마를 비우면 세부테마만 남아 '소속 없는 세부'가 된다 → 함께 비움
-  if (!v && m.sub) { m.sub = ''; sb.from('companies').update({ sub_industry: '' }).eq('code', m.raw || code); }
+
+  m.ind = v; m.sub = sv;
   if (v) FIN.indMap[code] = v; else delete FIN.indMap[code];
   (FIN.raw || []).forEach(r => { if (r.stock_code === code) r._ind = v; });  // 정렬키 동기화
   _renderFinView();
-  toast(v ? `테마 → ${v}` : '테마 비움', 'success');
+  toast(v ? `${v}${sv ? ' · ' + sv : ''}` : '테마 비움', 'success');
 }
 
 /**
