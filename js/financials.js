@@ -403,7 +403,7 @@ const FIN_COL_GROUPS = {
     { key:'w52',   name:'52주',
       cols:['52주고가','52주저가','52주고가일','52주저가일','52주고가대비%','52주저가대비%'] },
     { key:'stat',  name:'상태',
-      cols:['전일부호','시장경고','투자유의','관리종목','단기과열','정리매매','신고가구분','신고가코드','기준일'] },
+      cols:['경고','신고가구분','기준일'] },
   ],
   financial: [
     { key:'id',    name:'식별', always:true,
@@ -658,8 +658,8 @@ async function loadMarketData(el) {
         + 'volume_change_rate,high_price,low_price,volume,trading_value,listing_shares,vol_turnover,'
         + 'per,pbr,eps,bps,fiscal_month,foreign_hold_rate,foreign_hold_qty,foreign_net_buy,program_net_buy,'
         + 'loan_balance_rate,short_sell_qty,w52_high,w52_low,w52_high_date,w52_low_date,'
-        + 'price_change_sign,market_warn_code,is_caution,manage_issue_code,is_short_over,is_liquidation,'
-        + 'hgpr_cls,hgpr_cls_code,base_date';
+        + 'market_warn_code,is_caution,manage_issue_code,is_short_over,is_liquidation,'
+        + 'hgpr_cls,base_date';
       const all = maxDate ? await fetchAllPages(
         sb.from('market_data').select(COLS).eq('base_date', maxDate)
           .order('stock_code')   // 페이지 경계 결정성 (무정렬 페이징은 누락/중복 가능)
@@ -680,6 +680,7 @@ async function loadMarketData(el) {
         r._meta = m;
         r._ind  = m?.ind  || '';   // 테마 정렬용
         r._wics = m?.wics || '';   // 업종 정렬용
+        r._riskRank = _riskRank(r);   // 경고 컬럼 정렬용
         r._w52HighPct = (r.price != null && r.w52_high) ? (r.price - r.w52_high) / r.w52_high * 100 : null;
         r._w52LowPct  = (r.price != null && r.w52_low)  ? (r.price - r.w52_low)  / r.w52_low  * 100 : null;
       });
@@ -705,10 +706,7 @@ async function loadMarketData(el) {
       _sortBtn('w52_high_date','52주고가일'), _sortBtn('w52_low_date','52주저가일'),
       _sortBtn('_w52HighPct','52주고가대비%'), _sortBtn('_w52LowPct','52주저가대비%'),
 
-      _sortBtn('price_change_sign','전일부호'), _sortBtn('market_warn_code','시장경고'),
-      _sortBtn('is_caution','투자유의'), _sortBtn('manage_issue_code','관리종목'),
-      _sortBtn('is_short_over','단기과열'), _sortBtn('is_liquidation','정리매매'),
-      _sortBtn('hgpr_cls','신고가구분'), _sortBtn('hgpr_cls_code','신고가코드'),
+      _sortBtn('_riskRank','경고'), _sortBtn('hgpr_cls','신고가구분'),
       _sortBtn('base_date','기준일'),
     ],
     rowTemplate: r => {
@@ -770,14 +768,8 @@ async function loadMarketData(el) {
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.w52_low_date||'—'}</td>
         <td style="font-size:calc(11px*var(--m-label))">${p(r._w52HighPct)}</td>
         <td style="font-size:calc(11px*var(--m-label))">${p(r._w52LowPct)}</td>
-        <td style="font-size:calc(11px*var(--m-label));color:var(--text2);font-family:monospace">${r.price_change_sign||'—'}</td>
-        <td>${warn(r.market_warn_code)}</td>
-        <td>${yn(r.is_caution)}</td>
-        <td style="font-size:calc(11px*var(--m-label))">${r.manage_issue_code||'—'}</td>
-        <td>${yn(r.is_short_over)}</td>
-        <td>${yn(r.is_liquidation)}</td>
+        ${_riskCell(r)}
         <td style="font-size:calc(11px*var(--m-label));color:var(--tg)">${r.hgpr_cls||'—'}</td>
-        <td style="font-size:calc(11px*var(--m-label));color:var(--text2);font-family:monospace">${r.hgpr_cls_code||'—'}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.base_date||'—'}</td>
       </tr>`;
     },
@@ -792,6 +784,36 @@ async function loadMarketData(el) {
 
 /** 시장 경고 코드 → 라벨 (표와 동일 기준) */
 const _FIN_WARN_LABEL = { '01': '주의', '02': '경고', '03': '위험예고' };
+
+/**
+ * 위험 플래그를 한 칸에 모은다 — 구 5개 컬럼(시장경고·투자유의·관리종목·단기과열·정리매매).
+ * 2,589행 중 실제로 켜지는 건 214건뿐인데 5칸을 차지하며 대부분 'N'·'—'만 찍고 있었다.
+ * 한 칸에 모으면 자리도 줄고, 다섯 칸을 훑는 대신 한 칸만 보면 된다.
+ * 희귀하다고 지우면 안 된다 — 투자유의·단기과열은 지정되면 켜지는 실제 신호다.
+ * @returns {string} td HTML
+ */
+function _riskCell(r) {
+  const b = (t, c) => `<span style="font-size:calc(10px*var(--m-label));padding:1px 4px;border-radius:3px;`
+    + `background:${c}22;color:${c};font-weight:600;white-space:nowrap">${t}</span>`;
+  const tags = [];
+  if (r.is_liquidation) tags.push(b('정리매매', 'var(--danger, #f5365c)'));
+  if (r.manage_issue_code === 'Y') tags.push(b('관리', 'var(--red)'));
+  const w = r.market_warn_code;
+  if (w && w !== '00') tags.push(b(_FIN_WARN_LABEL[w] || w, 'var(--yellow)'));
+  if (r.is_caution)    tags.push(b('유의', 'var(--yellow)'));
+  if (r.is_short_over) tags.push(b('과열', 'var(--yellow)'));
+  return tags.length
+    ? `<td style="white-space:nowrap">${tags.join(' ')}</td>`
+    : '<td style="color:var(--text3)">—</td>';
+}
+
+/** 경고 정렬용 점수 — 심각한 것이 위로 (내림차순 기준) */
+function _riskRank(r) {
+  return (r.is_liquidation ? 8 : 0)
+       + (r.manage_issue_code === 'Y' ? 4 : 0)
+       + ((r.market_warn_code && r.market_warn_code !== '00') ? 2 : 0)
+       + (r.is_caution ? 1 : 0) + (r.is_short_over ? 1 : 0);
+}
 
 /** 시장 현황 탭 CSV 스펙 — [헤더, 값함수] */
 function _finMarketCsvSpec() {
@@ -834,15 +856,15 @@ function _finMarketCsvSpec() {
     ['52주저가일',    r => r.w52_low_date],
     ['52주고가대비(%)', r => pctOf(r.price, r.w52_high)],
     ['52주저가대비(%)', r => pctOf(r.price, r.w52_low)],
-    ['전일부호',      r => r.price_change_sign],
+    // CSV는 배지를 쓸 수 없어 플래그를 개별 열로 유지한다(표는 '경고' 한 칸으로 합침).
+    // 단, 'N'/'00' 같은 정상값은 빈칸으로 — 엑셀에서 필터 걸 때 걸리적거린다
     ['시장경고',      r => (!r.market_warn_code || r.market_warn_code === '00')
                             ? '' : (_FIN_WARN_LABEL[r.market_warn_code] || r.market_warn_code)],
+    ['관리종목',      r => r.manage_issue_code === 'Y' ? 'Y' : ''],
     ['투자유의',      r => r.is_caution ? 'Y' : ''],
-    ['관리종목',      r => r.manage_issue_code],
     ['단기과열',      r => r.is_short_over ? 'Y' : ''],
     ['정리매매',      r => r.is_liquidation ? 'Y' : ''],
     ['신고가구분',    r => r.hgpr_cls],
-    ['신고가코드',    r => r.hgpr_cls_code],
     ['기준일',       r => r.base_date],
   ];
 }
