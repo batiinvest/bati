@@ -532,7 +532,7 @@ const FIN_COL_GROUPS = {
       cols:['종목명','코드','시장','업종','테마'] },
     // 거래량·거래대금은 '현재가 +' 상세로 들어가 거래 칩이 비어버리므로 시세로 흡수
     { key:'price', name:'시세',
-      cols:['시가총액','현재가','전일대비','고가','저가','거래량','거래량증감률','등락률','거래대금'] },
+      cols:['시가총액','현재가','전일대비','고가','저가','거래량','거래량증감률','등락률','1주','1달','3달','거래대금'] },
     { key:'val',   name:'밸류',
       cols:['PER','PBR','EPS','BPS'] },
     { key:'flow',  name:'수급',
@@ -571,6 +571,10 @@ const FIN_EXPAND_GROUPS = {
       // 가격 상세 + 거래 상세. 거래대금은 유동성 확인용으로 늘 보는 값이라 제외.
       // 접으면 시가총액·현재가·등락률·거래대금만 남는다
       cols: ['전일대비', '고가', '저가', '거래량', '거래량증감률'] },
+    { key: 'ret',   lead: '등락률',
+      // 당일 등락률이 대표값, 기간 수익률은 추세 확인용.
+      // 3달은 64거래일 이력이 필요해 모니터링 종목 위주로만 채워진다(전체의 12%)
+      cols: ['1주', '1달', '3달'] },
     { key: 'frgn',  lead: '외국인보유율',
       // 보유율(%)이 대표값, 보유수(주)는 절대 규모라 필요할 때만
       cols: ['외국인보유수'] },
@@ -595,6 +599,9 @@ const FIN_NUM_COLS = {
     ['price',             '현재가(원)',        1],
     ['price_change_rate', '등락률(%)',        1],
     ['volume_change_rate','거래량증감률(%)',   1],
+    ['week_return',       '1주수익률(%)',      1],
+    ['month_return',      '1달수익률(%)',      1],
+    ['quarter_return',    '3달수익률(%)',      1],
     ['trading_value',     '거래대금(억)',      1e8],
     ['volume',            '거래량(주)',        1],
     ['foreign_hold_rate', '외국인보유율(%)',   1],
@@ -1049,6 +1056,7 @@ async function loadMarketData(el) {
       // 표가 실제 사용하는 컬럼만 명시 (구 select('*') — 당일 전 종목 × 전 컬럼 다운로드)
       const COLS = 'stock_code,corp_name,market,market_cap,price,price_change,price_change_rate,'
         + 'volume_change_rate,high_price,low_price,volume,trading_value,listing_shares,vol_turnover,'
+        + 'week_return,month_return,quarter_return,'
         + 'per,pbr,eps,bps,fiscal_month,foreign_hold_rate,foreign_hold_qty,foreign_net_buy,program_net_buy,'
         + 'loan_balance_rate,short_sell_qty,w52_high,w52_low,w52_high_date,w52_low_date,'
         + 'market_warn_code,is_caution,manage_issue_code,is_short_over,is_liquidation,'
@@ -1089,7 +1097,10 @@ async function loadMarketData(el) {
       _sortBtn('price_change','전일대비'),
       _sortBtn('high_price','고가'), _sortBtn('low_price','저가'),
       _sortBtn('volume','거래량'), _sortBtn('volume_change_rate','거래량증감률'),
-      _sortBtn('price_change_rate','등락률'), _sortBtn('trading_value','거래대금'),
+      _sortBtn('price_change_rate','등락률') + _expandBtn('ret', 3),
+      _sortBtn('week_return','1주'), _sortBtn('month_return','1달'),
+      _sortBtn('quarter_return','3달'),
+      _sortBtn('trading_value','거래대금'),
       _sortBtn('per','PER'), _sortBtn('pbr','PBR'),
       _sortBtn('eps','EPS'), _sortBtn('bps','BPS'),
       _sortBtn('foreign_hold_rate','외국인보유율') + _expandBtn('frgn', 1),
@@ -1143,6 +1154,9 @@ async function loadMarketData(el) {
         <td>${n(r.volume)}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${p(r.volume_change_rate)}</td>
         <td style="color:${chgC};font-weight:500">${chgStr(chg)}</td>
+        <td style="color:${chgColor(r.week_return)};font-size:calc(11px*var(--m-label))">${chgStr(r.week_return)}</td>
+        <td style="color:${chgColor(r.month_return)};font-size:calc(11px*var(--m-label))">${chgStr(r.month_return)}</td>
+        <td style="color:${chgColor(r.quarter_return)};font-size:calc(11px*var(--m-label))">${chgStr(r.quarter_return)}</td>
         <td>${r.trading_value ? fmtCap(r.trading_value) : '—'}</td>
         <td>${r.per != null && r.per !== 0 ? r.per.toFixed(1) : '—'}</td>
         <td>${r.pbr != null && r.pbr !== 0 ? r.pbr.toFixed(2) : '—'}</td>
@@ -1233,6 +1247,9 @@ function _finMarketCsvSpec() {
     ['거래량',       r => r.volume],
     ['거래량증감률(%)', r => r.volume_change_rate],
     ['등락률(%)',    r => r.price_change_rate],
+    ['1주수익률(%)',  r => r.week_return],
+    ['1달수익률(%)',  r => r.month_return],
+    ['3달수익률(%)',  r => r.quarter_return],
     ['거래대금',      r => r.trading_value],
     ['PER',          r => r.per],
     ['PBR',          r => r.pbr],
