@@ -68,7 +68,10 @@ function _calcTemperature(prevScore = null, foreign5dEok = null) {
   // 최근 5 거래일 누적 등락률로 단기 추세를 평가한다.
   // 데이터가 1건뿐이면 당일 등락으로 fallback — 이때는 일간 스케일 임계값 적용
   // (5일 누적용 임계값에 당일 등락을 넣으면 강한 신호가 중립으로 뭉개짐).
-  const _krRows = INV.macroRows || [];
+  // 휴장일 행은 국내 지수가 비어 있다 — 그대로 세면 '5일 추세'에 빈 날이 섞여
+  // 누적이 과소평가되고, 예전처럼 직전 거래일 값이 복제돼 있으면 같은 등락률이
+  // 중복 누적돼 과대평가된다. 값이 있는 거래일만 본다.
+  const _krRows = (INV.macroRows || []).filter(r => r.kospi_chg != null || r.kosdaq_chg != null);
   const kr5dSum = _krRows.reduce((s, r) =>
     s + (((r.kospi_chg ?? 0) + (r.kosdaq_chg ?? 0)) / 2), 0);
   const _krScale5 = [[5.0,15],[2.5,12],[0.5,10],[-0.5,7],[-2.5,4],[-5.0,1]];   // 5일 누적

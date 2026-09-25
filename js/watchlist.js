@@ -55,12 +55,16 @@ async function fetchBenchmarkReturns() {
       .order('base_date', { ascending: false })
       .limit(130);
     if (!data || !data.length) return null;
-    const latest = data[0];
-    // base_date <= (latest - days) 중 가장 최근 행 (data는 내림차순)
+    // 휴장일 행엔 국내 지수가 없다(collect_macro가 직전 거래일 복제를 막는다) —
+    // 값이 있는 거래일만 남겨야 최신 기준일과 과거 비교 시점이 모두 실제 거래일이 된다.
+    const rows = data.filter(r => r.kospi != null || r.kosdaq != null);
+    if (!rows.length) return null;
+    const latest = rows[0];
+    // base_date <= (latest - days) 중 가장 최근 행 (rows는 내림차순)
     const pickPast = (days) => {
       const t = new Date(latest.base_date); t.setDate(t.getDate() - days);
-      for (const r of data) { if (new Date(r.base_date) <= t) return r; }
-      return data[data.length - 1];
+      for (const r of rows) { if (new Date(r.base_date) <= t) return r; }
+      return rows[rows.length - 1];
     };
     const ret = (cur, past) => (cur != null && past != null && past != 0) ? (cur - past) / past * 100 : null;
     const mk = (idx) => {

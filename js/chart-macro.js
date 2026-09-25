@@ -31,11 +31,25 @@ function _getRisk(key, value) {
 }
 
 async function loadMacroData() {
+  // limit 8 — 연휴가 끼면 최신 행 몇 개가 휴장일이라 거래일을 찾을 여유가 필요하다
   const { data } = await sb.from('macro_data')
-    .select('*').order('base_date', { ascending: false }).limit(5);
-  const m = data?.[0] || {};
+    .select('*').order('base_date', { ascending: false }).limit(8);
+  const m = { ...(data?.[0] || {}) };
+
+  // 휴장일 행엔 국내 지수가 없다 — 직전 거래일 값을 그대로 저장하면 휴장일에도
+  // "코스피 +0.9%"로 보여서 백엔드가 아예 비워둔다(collect_macro). 화면에선 마지막
+  // 거래일 값을 쓰되 _krBaseDate로 '언제 기준인지'를 함께 노출한다.
+  if (m.kospi == null && data?.length) {
+    const last = data.find(r => r.kospi != null);
+    if (last) {
+      ['kospi','kospi_chg','kosdaq','kosdaq_chg','kospi200','kospi200_chg']
+        .forEach(k => { m[k] = last[k]; });
+      m._krBaseDate = last.base_date;
+    }
+  }
+
   INV.macroData = m;   // market-insight.js / market-temperature.js 재활용
-  INV.macroRows = data || []; // 5일치 — 온도계 5일 추세 계산용
+  INV.macroRows = (data || []).slice(0, 5); // 5일치 — 온도계 5일 추세 계산용
 
   // (정리됨) 매크로 카드 그리드·위험 스트립·증시동향 헤더 배너(inv-banner-content) 모두 제거 —
   // 매크로 지수는 전역 탑바 스트립·시장 온도계 6세부요소·Zone A 브리핑 위험배지가 담당(중복 제거).
@@ -94,9 +108,11 @@ function _renderTopbarStrip() {
     `</div>`;
   };
 
+  // 휴장일엔 국내 지수가 마지막 거래일 값이다 — 이름 옆에 기준일을 붙여 오늘 값으로 오해하지 않게 한다
+  const krAsOf = m._krBaseDate ? ` ${m._krBaseDate.slice(5).replace('-', '/')}` : '';
   const items = [
-    { name: '코스피',  val: m.kospi,   chg: m.kospi_chg,   sub: breadthRow(bd.kospi) },
-    { name: '코스닥',  val: m.kosdaq,  chg: m.kosdaq_chg,  sub: breadthRow(bd.kosdaq) },
+    { name: '코스피' + krAsOf,  val: m.kospi,   chg: m.kospi_chg,   sub: breadthRow(bd.kospi) },
+    { name: '코스닥' + krAsOf,  val: m.kosdaq,  chg: m.kosdaq_chg,  sub: breadthRow(bd.kosdaq) },
     { name: 'S&P500', val: m.sp500,   chg: m.sp500_chg,   sub: futRow(m.sp500_fut_chg) },
     { name: '나스닥',  val: m.nasdaq,  chg: m.nasdaq_chg,  sub: futRow(m.nasdaq_fut_chg) },
     { name: 'VIX',    val: m.vix,     chg: m.vix_chg },
