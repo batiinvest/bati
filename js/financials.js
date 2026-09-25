@@ -88,7 +88,7 @@ function pFinancials() {
        걸린 조건은 칩으로 표시·제거한다. 옵션은 탭별로 _syncFinNumFilter()가 채운다 -->
   <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-bottom:.75rem">
     <span style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-right:2px">지표</span>
-    <select class="form-select" id="fin-num-col" style="width:140px;padding:4px 8px;font-size:calc(12px*var(--m-sub))"></select>
+    <select class="form-select" id="fin-num-col" style="width:168px;padding:4px 8px;font-size:calc(12px*var(--m-sub))"></select>
     <input class="form-input" id="fin-num-min" type="number" placeholder="최소" inputmode="decimal"
       style="width:78px;padding:4px 8px;font-size:calc(12px*var(--m-sub))"
       onkeydown="if(event.key==='Enter')addFinNumFilter()">
@@ -590,39 +590,41 @@ const FIN_EXPAND_LS = 'bati-fin-expand';
 // [컬럼, 라벨, 입력배율]. 배율은 '입력값 × 배율 = DB값' — 시가총액·거래대금을 원 단위로
 // 입력하게 하면 자릿수가 비현실적이라 억 단위로 받는다.
 const FIN_NUM_COLS = {
+  // [컬럼, 라벨, 배율, 그룹]. 그룹은 select의 <optgroup> — 19개를 평면으로 늘어놓으면
+  // PER 말고 무엇이 있는지 드러나지 않아 첫 항목만 쓰게 된다.
   market: [
-    ['per',               'PER',              1],
-    ['pbr',               'PBR',              1],
-    ['eps',               'EPS(원)',          1],
-    ['bps',               'BPS(원)',          1],
-    ['market_cap',        '시가총액(억)',      1e8],
-    ['price',             '현재가(원)',        1],
-    ['price_change_rate', '등락률(%)',        1],
-    ['volume_change_rate','거래량증감률(%)',   1],
-    ['week_return',       '1주수익률(%)',      1],
-    ['month_return',      '1달수익률(%)',      1],
-    ['quarter_return',    '3달수익률(%)',      1],
-    ['trading_value',     '거래대금(억)',      1e8],
-    ['volume',            '거래량(주)',        1],
-    ['foreign_hold_rate', '외국인보유율(%)',   1],
-    ['foreign_net_buy',   '외국인순매수',      1],
-    ['loan_balance_rate', '융자잔고율(%)',     1],
-    ['_w52HighPct',       '52주고가대비(%)',   1],
-    ['_w52LowPct',        '52주저가대비(%)',   1],
-    ['vol_turnover',      '거래량회전율(%)',   1],
+    ['per',               'PER',              1,   '밸류'],
+    ['pbr',               'PBR',              1,   '밸류'],
+    ['eps',               'EPS(원)',          1,   '밸류'],
+    ['bps',               'BPS(원)',          1,   '밸류'],
+    ['market_cap',        '시가총액(억)',      1e8, '시세'],
+    ['price',             '현재가(원)',        1,   '시세'],
+    ['price_change_rate', '등락률(%)',        1,   '시세'],
+    ['week_return',       '1주수익률(%)',      1,   '시세'],
+    ['month_return',      '1달수익률(%)',      1,   '시세'],
+    ['quarter_return',    '3달수익률(%)',      1,   '시세'],
+    ['volume',            '거래량(주)',        1,   '거래'],
+    ['volume_change_rate','거래량증감률(%)',   1,   '거래'],
+    ['trading_value',     '거래대금(억)',      1e8, '거래'],
+    ['vol_turnover',      '거래량회전율(%)',   1,   '거래'],
+    ['foreign_hold_rate', '외국인보유율(%)',   1,   '수급'],
+    ['foreign_net_buy',   '외국인순매수',      1,   '수급'],
+    ['loan_balance_rate', '융자잔고율(%)',     1,   '수급'],
+    ['_w52HighPct',       '52주고가대비(%)',   1,   '52주'],
+    ['_w52LowPct',        '52주저가대비(%)',   1,   '52주'],
   ],
   financial: [
-    ['revenue',          '매출액(억)',    1e8],
-    ['operating_profit', '영업이익(억)',  1e8],
-    ['net_income',       '당기순이익(억)', 1e8],
-    ['ebitda',           'EBITDA(억)',   1e8],
-    ['fcf',              'FCF(억)',      1e8],
-    ['operating_margin', 'OPM(%)',       1],
-    ['net_margin',       'NPM(%)',       1],
-    ['roe',              'ROE(%)',       1],
-    ['roa',              'ROA(%)',       1],
-    ['debt_ratio',       '부채비율(%)',   1],
-    ['current_ratio',    '유동비율(%)',   1],
+    ['revenue',          '매출액(억)',    1e8, '손익'],
+    ['operating_profit', '영업이익(억)',  1e8, '손익'],
+    ['net_income',       '당기순이익(억)', 1e8, '손익'],
+    ['ebitda',           'EBITDA(억)',   1e8, '현금흐름'],
+    ['fcf',              'FCF(억)',      1e8, '현금흐름'],
+    ['operating_margin', 'OPM(%)',       1,   '비율'],
+    ['net_margin',       'NPM(%)',       1,   '비율'],
+    ['roe',              'ROE(%)',       1,   '비율'],
+    ['roa',              'ROA(%)',       1,   '비율'],
+    ['debt_ratio',       '부채비율(%)',   1,   '비율'],
+    ['current_ratio',    '유동비율(%)',   1,   '비율'],
   ],
 };
 
@@ -664,9 +666,19 @@ function _syncFinNumFilter() {
   const sel = document.getElementById('fin-num-col');
   if (sel) {
     const cur = sel.value;
-    const list = _finNumCols();
-    sel.innerHTML = list.map(([c, l]) =>
-      `<option value="${escAttr(c)}"${c === cur ? ' selected' : ''}>${escapeHtml(l)}</option>`).join('');
+    // 그룹(optgroup)으로 묶어 연다 — 평면 목록이면 맨 위 PER만 눈에 들어온다
+    const groups = [];
+    _finNumCols().forEach(([c, l, , g]) => {
+      const key = g || '기타';
+      let grp = groups.find(x => x[0] === key);
+      if (!grp) { grp = [key, []]; groups.push(grp); }
+      grp[1].push([c, l]);
+    });
+    sel.innerHTML = groups.map(([g, items]) =>
+      `<optgroup label="${escAttr(g)}">`
+      + items.map(([c, l]) =>
+          `<option value="${escAttr(c)}"${c === cur ? ' selected' : ''}>${escapeHtml(l)}</option>`).join('')
+      + `</optgroup>`).join('');
   }
   const box = document.getElementById('fin-num-chips');
   if (!box) return;
@@ -679,6 +691,10 @@ function _syncFinNumFilter() {
          style="cursor:pointer;margin-left:5px;font-weight:700">✕</span></span>`;
   }).join('') + (fs.length > 1
     ? `<button class="chip chip-sm" onclick="clearFinNumFilters()">조건 비우기</button>` : '');
+  if (!fs.length) {
+    box.innerHTML = `<span style="font-size:calc(11px*var(--m-label));color:var(--text3)">`
+      + `PER·PBR·ROE 등 ${_finNumCols().length}개 지표 — 여러 조건을 겹쳐 걸 수 있습니다</span>`;
+  }
 }
 
 function _finExpandGroups() {
