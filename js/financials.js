@@ -1059,7 +1059,7 @@ async function loadMarketData(el) {
         + 'week_return,month_return,quarter_return,'
         + 'per,pbr,eps,bps,fiscal_month,foreign_hold_rate,foreign_hold_qty,foreign_net_buy,program_net_buy,'
         + 'loan_balance_rate,short_sell_qty,w52_high,w52_low,w52_high_date,w52_low_date,'
-        + 'market_warn_code,is_caution,manage_issue_code,is_short_over,is_liquidation,'
+        + 'market_warn_code,manage_issue_code,is_short_over,is_liquidation,'
         + 'hgpr_cls,base_date';
       const all = maxDate ? await fetchAllPages(
         sb.from('market_data').select(COLS).eq('base_date', maxDate)
@@ -1197,10 +1197,12 @@ async function loadMarketData(el) {
 const _FIN_WARN_LABEL = { '01': '주의', '02': '경고', '03': '위험예고' };
 
 /**
- * 위험 플래그를 한 칸에 모은다 — 구 5개 컬럼(시장경고·투자유의·관리종목·단기과열·정리매매).
- * 2,589행 중 실제로 켜지는 건 214건뿐인데 5칸을 차지하며 대부분 'N'·'—'만 찍고 있었다.
- * 한 칸에 모으면 자리도 줄고, 다섯 칸을 훑는 대신 한 칸만 보면 된다.
- * 희귀하다고 지우면 안 된다 — 투자유의·단기과열은 지정되면 켜지는 실제 신호다.
+ * 위험 플래그를 한 칸에 모은다 — 구 4개 컬럼(시장경고·관리종목·단기과열·정리매매).
+ * 2,589행 중 실제로 켜지는 건 214건뿐인데 여러 칸을 차지하며 대부분 'N'·'—'만 찍고 있었다.
+ * 한 칸에 모으면 자리도 줄고, 네 칸을 훑는 대신 한 칸만 보면 된다.
+ * 희귀하다고 지우면 안 된다 — 단기과열은 지정되면 켜지는 실제 신호다.
+ * (투자유의 is_caution은 2026-09 제거 — KIS invt_caful_yn이 투자주의로 지정된 종목에도
+ *  'N'만 돌려주고, 같은 정보를 market_warn_code='01'이 담는다.)
  * @returns {string} td HTML
  */
 function _riskCell(r) {
@@ -1211,7 +1213,6 @@ function _riskCell(r) {
   if (r.manage_issue_code === 'Y') tags.push(b('관리', 'var(--red)'));
   const w = r.market_warn_code;
   if (w && w !== '00') tags.push(b(_FIN_WARN_LABEL[w] || w, 'var(--yellow)'));
-  if (r.is_caution)    tags.push(b('유의', 'var(--yellow)'));
   if (r.is_short_over) tags.push(b('과열', 'var(--yellow)'));
   return tags.length
     ? `<td style="white-space:nowrap">${tags.join(' ')}</td>`
@@ -1223,7 +1224,7 @@ function _riskRank(r) {
   return (r.is_liquidation ? 8 : 0)
        + (r.manage_issue_code === 'Y' ? 4 : 0)
        + ((r.market_warn_code && r.market_warn_code !== '00') ? 2 : 0)
-       + (r.is_caution ? 1 : 0) + (r.is_short_over ? 1 : 0);
+       + (r.is_short_over ? 1 : 0);
 }
 
 /** 시장 현황 탭 CSV 스펙 — [헤더, 값함수] */
@@ -1272,7 +1273,6 @@ function _finMarketCsvSpec() {
     ['시장경고',      r => (!r.market_warn_code || r.market_warn_code === '00')
                             ? '' : (_FIN_WARN_LABEL[r.market_warn_code] || r.market_warn_code)],
     ['관리종목',      r => r.manage_issue_code === 'Y' ? 'Y' : ''],
-    ['투자유의',      r => r.is_caution ? 'Y' : ''],
     ['단기과열',      r => r.is_short_over ? 'Y' : ''],
     ['정리매매',      r => r.is_liquidation ? 'Y' : ''],
     ['신고가구분',    r => r.hgpr_cls],

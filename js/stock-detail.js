@@ -312,7 +312,10 @@ async function _sdOverview(body, code, name) {
 
     const signalItems = [];
     if (r.hgpr_cls) signalItems.push(`<span style="background:rgba(42,171,238,.15);color:var(--tg);padding:2px 8px;border-radius:4px;font-size:calc(11px*var(--m-label))">📈 ${r.hgpr_cls}</span>`);
-    if (r.is_caution) signalItems.push(`<span style="background:rgba(245,54,92,.15);color:var(--red);padding:2px 8px;border-radius:4px;font-size:calc(11px*var(--m-label))">⚠️ 투자유의</span>`);
+    // 구 is_caution 자리 — KIS가 그 필드를 채우지 않아 이 배지는 한 번도 뜬 적이 없다.
+    // 같은 정보를 담는 market_warn_code로 교체하면 실제 지정 종목에 뜬다(01 주의·02 경고·03 위험예고).
+    const _warn = r.market_warn_code;
+    if (_warn && _warn !== '00') signalItems.push(`<span style="background:rgba(245,54,92,.15);color:var(--red);padding:2px 8px;border-radius:4px;font-size:calc(11px*var(--m-label))">⚠️ 투자${escapeHtml(_FIN_WARN_LABEL[_warn] || _warn)}</span>`);
     if (r.manage_issue_code && r.manage_issue_code!=='0') signalItems.push(`<span style="background:rgba(245,54,92,.2);color:var(--red);padding:2px 8px;border-radius:4px;font-size:calc(11px*var(--m-label))">🚨 관리종목</span>`);
     if (r.is_short_over) signalItems.push(`<span style="background:rgba(251,99,64,.15);color:var(--yellow);padding:2px 8px;border-radius:4px;font-size:calc(11px*var(--m-label))">🔥 단기과열</span>`);
     if (upside > 0) signalItems.push(`<span style="background:rgba(45,206,137,.12);color:var(--green);padding:2px 8px;border-radius:4px;font-size:calc(11px*var(--m-label))">🎯 목표가 +${upside}%</span>`);
