@@ -440,7 +440,6 @@ async function _sdMarket(body, code, name) {
           ${r.base_price  ? _sdRow2('기준가',  _sdWon(r.base_price)) : ''}
           ${r.limit_high  ? _sdRow2('상한가',  _sdWon(r.limit_high), 'var(--red)') : ''}
           ${r.limit_low   ? _sdRow2('하한가',  _sdWon(r.limit_low),  'var(--blue)') : ''}
-          ${r.vwap        ? _sdRow2('VWAP',    _sdWon(r.vwap)) : ''}
           ${_sdRow2('거래량', _sdNum(r.volume))}
           ${_sdRow2('거래대금', _sdCap(r.trading_value))}
           ${r.vol_turnover ? _sdRow2('거래회전율', _sdPct(r.vol_turnover)) : ''}
