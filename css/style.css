@@ -278,6 +278,14 @@ textarea.form-input { resize:vertical; min-height:100px; }
 .tab:hover { color:var(--text); }
 .tab.active { color:var(--tg); border-bottom-color:var(--tg); font-weight:500; }
 
+/* ── 표에서 값을 눌러 거는 필터 (업종·테마 셀) ── */
+.fin-cell-pick { cursor:pointer; }
+.fin-cell-pick:hover { text-decoration:underline; text-underline-offset:2px; }
+.fin-cell-on {
+  font-weight:700; text-decoration:underline; text-underline-offset:2px;
+  outline:1px solid var(--tg); outline-offset:1px; border-radius:3px;
+}
+
 /* ── 표 열 헤더 ▾ 필터 팝오버 ──
    표가 가로 스크롤되는 영역 안이라 헤더 셀에 넣으면 잘린다 → body에 fixed로 띄우고
    버튼 위치를 계산해 붙인다(toggleFinColFilter). */

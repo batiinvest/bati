@@ -272,6 +272,13 @@ function _finMultiOpt(sel, label) {
 // ── 열 헤더 ▾ 필터 ─────────────────────────────────────────────────────────
 // 표에서 업종·테마 값을 보다가 그 자리에서 바로 고른다. 상단 드롭다운과 같은
 // 상태를 쓰되 체크박스라 여러 개를 담을 수 있다 — 같은 열 안에서는 OR.
+/** 표에서 값을 눌러 켜고 끈다 — 같은 값을 다시 누르면 해제. 여러 개가 쌓이면 OR */
+function toggleFinCellFilter(key, val) {
+  const sel = _finSel(key);
+  if (sel.has(val)) sel.delete(val); else sel.add(val);
+  _renderFinView();
+}
+
 function _colFilterBtn(key) {
   const n = _finSel(key).size;
   return `<span onclick="event.stopPropagation();toggleFinColFilter('${key}',event)"
@@ -471,8 +478,13 @@ function _wicsCell(m) {
   const sec = WICS_SECTORS[(m.wcode || '').slice(0, 3)];
   // title에는 원본명을 남긴다 — 별칭이 어떤 WICS 업종인지 확인할 수 있어야 한다
   const tip = [sec, m.wics].filter(Boolean).join(' > ');
+  // 값을 누르면 그 업종만 본다. 여러 행에서 눌러 여러 업종을 쌓을 수 있다(같은 축 안은 OR).
+  // data-no-detail: 행 클릭 위임(data-stock-open)이 종목 상세를 열지 않도록 막는다.
+  const on = _finSel('wics').has(m.wics);
   return `<td style="white-space:nowrap" title="${escAttr(tip)}">`
-    + `<span class="badge badge-cat">${escapeHtml(m.wics)}</span></td>`;
+    + `<span class="badge badge-cat fin-cell-pick${on ? ' fin-cell-on' : ''}" data-no-detail`
+    + ` onclick="toggleFinCellFilter('wics','${escJsStr(m.wics)}')"`
+    + ` title="${escAttr(tip)} — 눌러서 이 업종만 보기">${escapeHtml(m.wics)}</span></td>`;
 }
 
 /**
@@ -484,16 +496,23 @@ function _themeCell(m, code) {
   // 테마는 큐레이션 값이라 표에서 바로 고칠 수 있게 한다(editor 이상).
   // 업종(WICS)은 외부 수집값이라 편집 대상이 아니다 — 고쳐도 다음 수집에 덮인다.
   const editable = typeof canEdit !== 'function' || canEdit();
-  const attrs = editable && code
-    ? ` onclick="startThemeEdit(this,'${escJsStr(code)}')" title="클릭해 테마 수정" style="cursor:pointer;`
-    : ' style="';
+  // 값을 누르면 그 테마로 거른다 — 값 클릭이 필터와 편집 둘 다일 수는 없어서
+  // 편집은 ✎ 로 옮겼다(셀 전체 클릭 → 편집이던 기존 동작을 대체).
+  const pen = editable && code
+    ? ` <span data-no-detail onclick="startThemeEdit(this.closest('td'),'${escJsStr(code)}')"`
+      + ` title="테마 수정" style="cursor:pointer;color:var(--text3)">✎</span>`
+    : '';
   if (!m || !m.ind) {
-    return `<td${attrs}white-space:nowrap;color:var(--text3)">—</td>`;
+    return `<td style="white-space:nowrap;color:var(--text3)">—${pen}</td>`;
   }
+  const on  = _finSel('ind').has(m.ind);
   const sub = m.sub
     ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:2px">${escapeHtml(m.sub)}</div>`
     : '';
-  return `<td${attrs}white-space:nowrap;font-size:calc(12px*var(--m-sub));color:var(--tg)">${escapeHtml(m.ind)}${sub}</td>`;
+  return `<td style="white-space:nowrap;font-size:calc(12px*var(--m-sub))">`
+    + `<span class="fin-cell-pick${on ? ' fin-cell-on' : ''}" data-no-detail`
+    + ` onclick="toggleFinCellFilter('ind','${escJsStr(m.ind)}')"`
+    + ` title="눌러서 이 테마만 보기" style="color:var(--tg)">${escapeHtml(m.ind)}</span>${pen}${sub}</td>`;
 }
 
 /** 현재 metaMap에서 쓰이고 있는 테마 목록 (상수 밖 값도 포함) */
