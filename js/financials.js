@@ -151,6 +151,7 @@ function _applyFinFilter(rows) {
 function _syncFinSectorOptions(rows) {
   const meta = FIN.metaMap || {};
   const indCnt = {}, subCnt = {}, secCnt = {}, wicsCnt = {};
+  const secName = {};   // 코드(G45) → 이름('IT'). DB 값을 그대로 쓴다
   rows.forEach(r => {
     const m = meta[r.stock_code];
     if (!m) return;
@@ -162,7 +163,10 @@ function _syncFinSectorOptions(rows) {
     }
     if (m.wics) {
       const sec = (m.wcode || '').slice(0, 3);
-      if (sec) secCnt[sec] = (secCnt[sec] || 0) + 1;
+      if (sec) {
+        secCnt[sec] = (secCnt[sec] || 0) + 1;
+        if (m.wsec) secName[sec] = m.wsec;
+      }
       // 소분류는 선택된 대분류 안에서만 센다
       if (!F.wicsSector || F.wicsSector === '전체' || sec === F.wicsSector) {
         wicsCnt[m.wics] = (wicsCnt[m.wics] || 0) + 1;
@@ -201,15 +205,16 @@ function _syncFinSectorOptions(rows) {
     subEl.disabled = !list.length;
   }
 
-  // 섹터(업종 대분류) — GICS 표준 10종. WICS_SECTORS 정의 순서를 유지해 위치가 흔들리지 않게 한다.
+  // 섹터(업종 대분류) — 값은 코드(G45)로 두고 이름은 DB에서 온 것을 쓴다.
+  // 코드 오름차순이 곧 공식 분류 순서라 위치가 흔들리지 않는다.
   // 표의 '업종' 열은 소분류라, 대분류를 '업종'이라 부르면 같은 말이 두 층위를 가리켜 혼동된다.
   const secEl = document.getElementById('fin-wsec');
   if (secEl) {
     const cur  = F.wicsSector || '전체';
-    const list = Object.keys(WICS_SECTORS).filter(k => secCnt[k]);
+    const list = Object.keys(secCnt).sort();
     if (cur !== '전체' && !list.includes(cur)) list.push(cur);
     secEl.innerHTML = opt('전체', '섹터 전체', cur)
-      + list.map(k => opt(k, `${WICS_SECTORS[k] || k} (${secCnt[k] || 0})`, cur)).join('');
+      + list.map(k => opt(k, `${secName[k] || k} (${secCnt[k] || 0})`, cur)).join('');
   }
 
   // 업종(소분류) — 표의 '업종' 열과 같은 값. 섹터가 선택돼 있으면 그 안에서만
@@ -541,7 +546,7 @@ async function _getCompanyMetaMap() {
   const map = {};
   try {
     const rows = await fetchAllPages(
-      sb.from('companies').select('code,industry,sub_industry,wics_industry,wics_code')
+      sb.from('companies').select('code,industry,sub_industry,wics_industry,wics_code,wics_sector,wics_mid')
         .eq('active', true).order('code')
     );
     // companies.code는 일부만 .KS/.KQ 접미사 — market_data의 bare 코드와 맞춘다
@@ -550,8 +555,10 @@ async function _getCompanyMetaMap() {
         raw:   c.code,                  // 저장 시 where 절용 원본 코드(.KS/.KQ 포함 가능)
         ind:   c.industry      || '',   // 테마 (큐레이션, 일부 종목)
         sub:   c.sub_industry  || '',   // 세부 테마
-        wics:  c.wics_industry || '',   // 업종 (WICS, 전 종목)
-        wcode: c.wics_code     || '',   // 'G453010' — 앞 3자리가 대분류
+        wics:  c.wics_industry || '',   // 업종 = WICS 소분류 (전 종목)
+        wsec:  c.wics_sector   || '',   // 섹터 = WICS 대분류
+        wmid:  c.wics_mid      || '',   // WICS 중분류
+        wcode: c.wics_code     || '',   // 'G453010' — 앞 3자리가 섹터, 5자리가 중분류
       };
     });
   } catch (e) {
@@ -562,32 +569,9 @@ async function _getCompanyMetaMap() {
 }
 
 // WICS 대분류 (wics_code 앞 3자리) — GICS 표준 섹터명
-// WICS 대분류 10종 — 명칭은 FnGuide 공식 분류표를 따른다(wiseindex.com/About/WICS).
-const WICS_SECTORS = {
-  G10: '에너지',   G15: '소재',     G20: '산업재',   G25: '경기관련소비재', G30: '필수소비재',
-  G35: '건강관리', G40: '금융',     G45: 'IT',       G50: '커뮤니케이션서비스', G55: '유틸리티',
-};
-
-// WICS 중분류 28종(코드 앞 5자리 = 'G' + 4자리) — 명칭은 FnGuide 공식 분류표 그대로다
-// (wiseindex.com/About/WICS, 2026-09-26 대조). 네이버는 업종명만 주므로 이름은 여기서 붙인다.
-//   ⚠️ 4자리로 자르면 안 된다. G4530(반도체와반도체장비)과 G4535(전자와 전기제품)가
-//   'G453'으로 합쳐져, LG에너지솔루션·삼성SDI 같은 2차전지주가 반도체로 찍힌다(실측).
-// 한국 실정에 맞춰 GICS에 없는 증권(4020)·부동산(4050)·교육서비스(2560)·
-// 전자와 전기제품(4535)·디스플레이(4540)가 따로 있고, 부동산은 별도 섹터가 아니라 금융 아래다.
-const WICS_MIDS = {
-  G1010: '에너지',                G1510: '소재',
-  G2010: '자본재',                G2020: '상업서비스와공급품',  G2030: '운송',
-  G2510: '자동차와부품',          G2520: '내구소비재와의류',    G2530: '호텔,레스토랑,레저 등',
-  G2550: '소매(유통)',            G2560: '교육서비스',
-  G3010: '식품과기본식료품소매',   G3020: '식품,음료,담배',      G3030: '가정용품과개인용품',
-  G3510: '건강관리장비와서비스',   G3520: '제약과생물공학',
-  G4010: '은행',                  G4020: '증권',                G4030: '다각화된금융',
-  G4040: '보험',                  G4050: '부동산',
-  G4510: '소프트웨어와서비스',     G4520: '기술하드웨어와장비',   G4530: '반도체와반도체장비',
-  G4535: '전자와 전기제품',        G4540: '디스플레이',
-  G5010: '전기통신서비스',         G5020: '미디어와엔터테인먼트',
-  G5510: '유틸리티',
-};
+// WICS 분류 이름(섹터·중분류·업종)은 DB가 들고 있다 — collect_wics.py가 FnGuide 공식표
+// (wiseindex.com/About/WICS)대로 채운다. 화면에서 코드를 잘라 이름을 짐작하지 않는다:
+// 그렇게 했다가 G4535를 '전기·전자제품'으로 잘못 적어 2차전지주 80종목이 반도체로 보였다.
 
 /**
  * 업종 셀 — WICS 소분류(전 종목 동일 기준). 대분류는 title로 보조 표기.
@@ -598,9 +582,7 @@ const WICS_MIDS = {
 function _wicsCell(m) {
   if (!m || !m.wics) return '<td style="color:var(--text3)">—</td>';
   // title에 3단계를 다 적는다 — 섹터 > 중분류 > 업종
-  const sec = WICS_SECTORS[(m.wcode || '').slice(0, 3)];
-  const mid = WICS_MIDS[(m.wcode || '').slice(0, 5)];
-  const tip = [sec, mid, m.wics].filter(Boolean).join(' > ');
+  const tip = [m.wsec, m.wmid, m.wics].filter(Boolean).join(' > ');
   // 값을 누르면 그 업종만 본다. 여러 행에서 눌러 여러 업종을 쌓을 수 있다(같은 축 안은 OR).
   // data-no-detail: 행 클릭 위임(data-stock-open)이 종목 상세를 열지 않도록 막는다.
   const on = _finCatSel('_wics').has(m.wics);
@@ -1395,10 +1377,9 @@ async function loadMarketData(el) {
         r._meta = m;
         r._ind  = m?.ind  || '';   // 테마 정렬용
         r._wics = m?.wics || '';   // 업종(소분류) 정렬용
-        // WICS 코드는 3단계다 — G45(섹터, 3자) > G4530(중분류, 5자) > G453010(업종, 7자).
-        // 코드만으로는 읽을 수 없어 이름표를 붙여 행에 둔다(정렬·필터·표시 공용).
-        r._wsec = WICS_SECTORS[(m?.wcode || '').slice(0, 3)] || '';
-        r._wmid = WICS_MIDS[(m?.wcode || '').slice(0, 5)]    || '';
+        // WICS 3단계 — 섹터 > 중분류 > 업종. 이름은 DB에서 그대로 온다
+        r._wsec = m?.wsec || '';
+        r._wmid = m?.wmid || '';
         r._riskRank = _riskRank(r);   // 경고 컬럼 정렬용
         r._w52HighPct = (r.price != null && r.w52_high) ? (r.price - r.w52_high) / r.w52_high * 100 : null;
         r._w52LowPct  = (r.price != null && r.w52_low)  ? (r.price - r.w52_low)  / r.w52_low  * 100 : null;
