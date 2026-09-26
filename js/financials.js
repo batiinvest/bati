@@ -84,9 +84,9 @@ function pFinancials() {
   <!-- 컬럼 그룹 토글 — 40여 개를 용도별로 켜고 끈다 (선택은 브라우저에 저장) -->
   <div id="fin-cols" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-bottom:.75rem"></div>
 
-  <!-- 걸린 숫자 조건 표시 — 입력은 각 열 헤더 ▾ 에서 한다(양식이 컬럼마다 다르다).
-       조건이 없으면 이 줄은 아예 자리를 차지하지 않는다. -->
-  <div id="fin-num-chips" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap"></div>
+  <!-- 걸린 조건 — 입력은 각 열 헤더 ▾ 에서 한다(양식이 컬럼마다 다르다).
+       범주·문자·숫자를 한 줄에 모은다. 조건이 없으면 자리를 차지하지 않는다. -->
+  <div id="fin-filter-chips" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap"></div>
 
   <div id="fin-table" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) var(--bg3)">
     <div id="fin-table-inner">${loadingHTML()}</div>
@@ -304,6 +304,10 @@ function _finColActive(col) {
 
 // ── 열 헤더 ▾ 필터 ─────────────────────────────────────────────────────────
 function _colFilterBtn(col, label) {
+  // 칩 줄이 '업종'·'PER' 같은 한글 이름을 쓸 수 있게 헤더가 알려준 라벨을 모아둔다.
+  // 헤더는 매 렌더마다 다시 그려지므로 탭을 바꿔도 최신 라벨이 유지된다.
+  FIN.colLabel = FIN.colLabel || {};
+  if (label) FIN.colLabel[col] = label;
   const kind = _finFilterKind(col);
   const n    = _finColActive(col);
   const cnt  = kind === 'cat' && n > 1 ? n : '';
@@ -395,8 +399,11 @@ function _finColFilterToggle(col, cb) {
 
 function _finColFilterClear(col) {
   _finCatSel(col).clear();
-  document.querySelectorAll('#fin-col-filter input[type=checkbox]')
-    .forEach(c => { c.checked = false; });
+  // 칩에서도 부르므로 팝오버가 다른 열로 열려 있을 수 있다 — 같은 열일 때만 체크를 푼다
+  const box = document.getElementById('fin-col-filter');
+  if (box && box.dataset.col === col) {
+    box.querySelectorAll('input[type=checkbox]').forEach(c => { c.checked = false; });
+  }
   _renderFinView();
 }
 
@@ -886,25 +893,51 @@ function removeFinNumFilter(col) {
   _renderFinView();
 }
 
-function clearFinNumFilters() {
-  F.numFilters = [];
-  _renderFinView();
-}
+/** 열 이름 — 헤더가 알려준 라벨, 없으면 컬럼 키 그대로 */
+function _finColLabel(col) { return (FIN.colLabel || {})[col] || col; }
 
-/** 컬럼 목록·조건 칩 갱신 (탭마다 지표가 다르다) */
-function _syncFinNumFilter() {
-  const box = document.getElementById('fin-num-chips');
+/**
+ * 걸린 조건을 한 줄에 모아 보여준다.
+ * 필터가 36개 열에 흩어져 있어 버튼 강조만으로는 무엇을 걸어뒀는지 알 수 없다.
+ * 범주·문자·숫자를 가리지 않고 같은 칩으로 두고, ✕로 그 조건만 푼다.
+ */
+function _syncFinFilterChips() {
+  const box = document.getElementById('fin-filter-chips');
   if (!box) return;
-  const fs = F.numFilters || [];
-  box.innerHTML = fs.map(f => {
+  const chip = (label, text, off) =>
+    `<span class="chip chip-sm active" style="cursor:default">${escapeHtml(label)} ${escapeHtml(text)}`
+    + `<span onclick="${off}" title="이 조건만 풀기"
+       style="cursor:pointer;margin-left:5px;font-weight:700">✕</span></span>`;
+
+  const chips = [];
+  // 범주 — 두 개까지는 값을 그대로 보여주고, 많아지면 개수로 줄인다
+  Object.entries(F.catSel || {}).forEach(([col, set]) => {
+    if (!set || !set.size) return;
+    const text = set.size <= 2 ? [...set].join(' · ') : `${set.size}개`;
+    chips.push(chip(_finColLabel(col), text, `_finColFilterClear('${escJsStr(col)}')`));
+  });
+  // 문자
+  Object.entries(F.textF || {}).forEach(([col, q]) => {
+    chips.push(chip(_finColLabel(col), `"${q}"`, `_finTextApply('${escJsStr(col)}','')`));
+  });
+  // 숫자
+  (F.numFilters || []).forEach(f => {
     const range = f.min != null && f.max != null ? `${f.min}~${f.max}`
                 : f.min != null ? `${f.min}↑` : `${f.max}↓`;
-    return `<span class="chip chip-sm active" style="cursor:default">${escapeHtml(f.label)} ${range}`
-      + `<span onclick="removeFinNumFilter('${escJsStr(f.col)}')" title="조건 제거"
-         style="cursor:pointer;margin-left:5px;font-weight:700">✕</span></span>`;
-  }).join('') + (fs.length > 1
-    ? `<button class="chip chip-sm" onclick="clearFinNumFilters()">조건 비우기</button>` : '');
-  box.style.marginBottom = fs.length ? '.75rem' : '0';
+    chips.push(chip(f.label, range, `removeFinNumFilter('${escJsStr(f.col)}')`));
+  });
+
+  box.innerHTML = chips.join('') + (chips.length > 1
+    ? `<button class="chip chip-sm" onclick="clearFinFilters()">조건 비우기</button>` : '');
+  box.style.marginBottom = chips.length ? '.75rem' : '0';
+}
+
+/** 걸어둔 조건을 전부 푼다 (업종·테마 드롭다운 선택도 같이 풀린다) */
+function clearFinFilters() {
+  F.catSel = {};
+  F.textF = {};
+  F.numFilters = [];
+  _renderFinView();
 }
 
 function _finExpandGroups() {
@@ -1157,7 +1190,7 @@ function _renderFinView() {
   );
   _setFinTableHeight();
   _bindFinLazyRows();
-  _syncFinNumFilter();           // 탭마다 지표 목록이 다르다
+  _syncFinFilterChips();         // 걸린 조건 칩 (범주·문자·숫자 모두)
   _syncFinColChips();            // 탭마다 그룹이 달라 매 렌더 갱신
   _applyFinColVisibility();      // 헤더 인덱스가 바뀔 수 있어 렌더 후 다시 적용
   _applyFinFont();               // 칩 줄이 새로 그려지므로 표시값도 함께 갱신
