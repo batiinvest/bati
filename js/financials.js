@@ -84,21 +84,9 @@ function pFinancials() {
   <!-- 컬럼 그룹 토글 — 40여 개를 용도별로 켜고 끈다 (선택은 브라우저에 저장) -->
   <div id="fin-cols" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-bottom:.75rem"></div>
 
-  <!-- 지표 범위 필터 — 컬럼을 골라 최소~최대로 거른다. 여러 개를 겹쳐 걸 수 있고
-       걸린 조건은 칩으로 표시·제거한다. 옵션은 탭별로 _syncFinNumFilter()가 채운다 -->
-  <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-bottom:.75rem">
-    <span style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-right:2px">지표</span>
-    <select class="form-select" id="fin-num-col" style="width:168px;padding:4px 8px;font-size:calc(12px*var(--m-sub))"></select>
-    <input class="form-input" id="fin-num-min" type="number" placeholder="최소" inputmode="decimal"
-      style="width:78px;padding:4px 8px;font-size:calc(12px*var(--m-sub))"
-      onkeydown="if(event.key==='Enter')addFinNumFilter()">
-    <span style="color:var(--text3);font-size:calc(12px*var(--m-sub))">~</span>
-    <input class="form-input" id="fin-num-max" type="number" placeholder="최대" inputmode="decimal"
-      style="width:78px;padding:4px 8px;font-size:calc(12px*var(--m-sub))"
-      onkeydown="if(event.key==='Enter')addFinNumFilter()">
-    <button class="chip chip-sm" onclick="addFinNumFilter()">추가</button>
-    <span id="fin-num-chips" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-left:4px"></span>
-  </div>
+  <!-- 걸린 숫자 조건 표시 — 입력은 각 열 헤더 ▾ 에서 한다(양식이 컬럼마다 다르다).
+       조건이 없으면 이 줄은 아예 자리를 차지하지 않는다. -->
+  <div id="fin-num-chips" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap"></div>
 
   <div id="fin-table" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) var(--bg3)">
     <div id="fin-table-inner">${loadingHTML()}</div>
@@ -893,17 +881,6 @@ function _finNumSet(col, rawMin, rawMax, label) {
   return true;
 }
 
-function addFinNumFilter() {
-  const col = document.getElementById('fin-num-col')?.value;
-  if (!col) return;
-  const minEl = document.getElementById('fin-num-min');
-  const maxEl = document.getElementById('fin-num-max');
-  if (!_finNumSet(col, minEl.value, maxEl.value)) return;
-  minEl.value = '';
-  maxEl.value = '';
-  _renderFinView();
-}
-
 function removeFinNumFilter(col) {
   F.numFilters = (F.numFilters || []).filter(f => f.col !== col);
   _renderFinView();
@@ -916,23 +893,6 @@ function clearFinNumFilters() {
 
 /** 컬럼 목록·조건 칩 갱신 (탭마다 지표가 다르다) */
 function _syncFinNumFilter() {
-  const sel = document.getElementById('fin-num-col');
-  if (sel) {
-    const cur = sel.value;
-    // 그룹(optgroup)으로 묶어 연다 — 평면 목록이면 맨 위 PER만 눈에 들어온다
-    const groups = [];
-    _finNumCols().forEach(([c, l, , g]) => {
-      const key = g || '기타';
-      let grp = groups.find(x => x[0] === key);
-      if (!grp) { grp = [key, []]; groups.push(grp); }
-      grp[1].push([c, l]);
-    });
-    sel.innerHTML = groups.map(([g, items]) =>
-      `<optgroup label="${escAttr(g)}">`
-      + items.map(([c, l]) =>
-          `<option value="${escAttr(c)}"${c === cur ? ' selected' : ''}>${escapeHtml(l)}</option>`).join('')
-      + `</optgroup>`).join('');
-  }
   const box = document.getElementById('fin-num-chips');
   if (!box) return;
   const fs = F.numFilters || [];
@@ -944,10 +904,7 @@ function _syncFinNumFilter() {
          style="cursor:pointer;margin-left:5px;font-weight:700">✕</span></span>`;
   }).join('') + (fs.length > 1
     ? `<button class="chip chip-sm" onclick="clearFinNumFilters()">조건 비우기</button>` : '');
-  if (!fs.length) {
-    box.innerHTML = `<span style="font-size:calc(11px*var(--m-label));color:var(--text3)">`
-      + `PER·PBR·ROE 등 ${_finNumCols().length}개 지표 — 여러 조건을 겹쳐 걸 수 있습니다</span>`;
-  }
+  box.style.marginBottom = fs.length ? '.75rem' : '0';
 }
 
 function _finExpandGroups() {
