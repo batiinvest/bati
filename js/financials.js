@@ -59,16 +59,16 @@ function pFinancials() {
     <!-- 필터 2축. 옵션·건수는 로드된 데이터에서 _syncFinSectorOptions()가 채운다.
          업종(WICS) = 무슨 사업을 하나 · 전 종목 / 테마 = 어떤 이야기로 묶이나 · 일부 종목 -->
     <select class="form-select" id="fin-wsec" title="업종 대분류 (GICS 표준 10종)"
-      onchange="F.wicsSector=this.value;_finSel('wics').clear();_renderFinView()" style="width:130px;padding:6px 10px">
+      onchange="F.wicsSector=this.value;_finCatSel('_wics').clear();_renderFinView()" style="width:130px;padding:6px 10px">
       <option value="전체">업종 전체</option>
     </select>
     <select class="form-select" id="fin-wics" title="업종 소분류 (WICS 79종)"
-      onchange="_finSelPick('wics',this.value);_renderFinView()" style="width:175px;padding:6px 10px">
+      onchange="_finSelPick('_wics',this.value);_renderFinView()" style="width:175px;padding:6px 10px">
       <option value="전체">세부업종 전체</option>
     </select>
     <select class="form-select" id="fin-ind" title="투자 테마 (큐레이션)"
-      onchange="_finSelPick('ind',this.value);F.subIndustry='전체';_renderFinView()" style="width:120px;padding:6px 10px">
-      ${industries.map(i=>`<option value="${i}" ${_finSel('ind').has(i)?'selected':''}>${i}</option>`).join('')}
+      onchange="_finSelPick('_ind',this.value);F.subIndustry='전체';_renderFinView()" style="width:120px;padding:6px 10px">
+      ${industries.map(i=>`<option value="${i}" ${_finCatSel('_ind').has(i)?'selected':''}>${i}</option>`).join('')}
     </select>
     <select class="form-select" id="fin-sub" title="세부 테마"
       onchange="F.subIndustry=this.value;_renderFinView()" style="width:145px;padding:6px 10px">
@@ -118,26 +118,25 @@ let _finData = [];
  */
 function _applyFinFilter(rows) {
   if (F.q) rows = rows.filter(r => r.corp_name.includes(F.q));
-  // 테마·업종은 여러 값을 고를 수 있다(열 헤더 ▾). 같은 축 안은 OR, 축끼리는 AND.
-  const indSel = _finSel('ind');
-  if (indSel.size) {
-    const indStocks = new Set(
-      Object.entries(FIN.indMap || {})
-        .filter(([, ind]) => indSel.has(ind))
-        .map(([code]) => code)
-    );
-    rows = rows.filter(r => indStocks.has(r.stock_code));
-  }
+  // 열 필터 — 같은 열 안에서 여러 값은 OR, 열끼리는 AND.
+  // 값은 행에 이미 붙어 있다(_ind·_wics는 로더가 메타에서 채워 넣는다).
+  Object.entries(F.catSel || {}).forEach(([col, set]) => {
+    if (!set || !set.size) return;
+    rows = rows.filter(r => {
+      const v = _finCellVal(r, col);
+      return Array.isArray(v) ? v.some(x => set.has(x)) : set.has(v);
+    });
+  });
+  Object.entries(F.textF || {}).forEach(([col, q]) => {
+    const t = String(q).toLowerCase();
+    rows = rows.filter(r => String(r[col] ?? '').toLowerCase().includes(t));
+  });
   if (F.subIndustry && F.subIndustry !== '전체') {
     rows = rows.filter(r => FIN.metaMap?.[r.stock_code]?.sub === F.subIndustry);
   }
   // 업종(WICS) — 테마와 독립된 축. 대분류는 wics_code 앞 3자리로 판정
   if (F.wicsSector && F.wicsSector !== '전체') {
     rows = rows.filter(r => (FIN.metaMap?.[r.stock_code]?.wcode || '').slice(0, 3) === F.wicsSector);
-  }
-  const wicsSel = _finSel('wics');
-  if (wicsSel.size) {
-    rows = rows.filter(r => wicsSel.has(FIN.metaMap?.[r.stock_code]?.wics));
   }
   // 지표 범위 — 여러 조건은 AND. 값이 없는 종목은 비교 불가라 제외한다
   (F.numFilters || []).forEach(f => {
@@ -169,7 +168,7 @@ function _syncFinSectorOptions(rows) {
     if (!m) return;
     if (m.ind) {
       indCnt[m.ind] = (indCnt[m.ind] || 0) + 1;
-      if (m.sub && (!_finSel('ind').size || _finSel('ind').has(m.ind))) {
+      if (m.sub && (!_finCatSel('_ind').size || _finCatSel('_ind').has(m.ind))) {
         subCnt[m.sub] = (subCnt[m.sub] || 0) + 1;
       }
     }
@@ -195,7 +194,7 @@ function _syncFinSectorOptions(rows) {
   const indEl = document.getElementById('fin-ind');
   if (indEl) {
     // 선택값이 목록에 없으면(범위 전환 등) 옵션을 남겨 선택이 조용히 풀리지 않게 한다
-    const sel  = _finSel('ind');
+    const sel  = _finCatSel('_ind');
     const cur  = _finSelCur(sel);
     const list = [...known, ...extra];
     sel.forEach(v => { if (!list.includes(v)) list.push(v); });
@@ -227,7 +226,7 @@ function _syncFinSectorOptions(rows) {
   // 업종 소분류 — 대분류가 선택돼 있으면 그 안에서만
   const wEl = document.getElementById('fin-wics');
   if (wEl) {
-    const sel  = _finSel('wics');
+    const sel  = _finCatSel('_wics');
     const cur  = _finSelCur(sel);
     const list = Object.entries(wicsCnt).sort(byCntDesc).map(([s]) => s);
     sel.forEach(v => { if (!list.includes(v)) list.push(v); });
@@ -238,22 +237,40 @@ function _syncFinSectorOptions(rows) {
   }
 }
 
-// ── 업종·테마 필터 상태 — 여러 값을 고를 수 있다 ──────────────────────────
-// 진실은 Set 하나다. 상단 드롭다운은 '크기 1인 Set'을 만드는 단축 조작이고,
-// 열 헤더 ▾ 는 같은 Set에 여러 값을 담는다. (단일 문자열과 Set을 함께 두면
-// 어느 쪽이 맞는지 매번 따져야 해서 Set으로 통일했다.)
+// ── 열 필터 ────────────────────────────────────────────────────────────────
+// 컬럼마다 값의 성격이 달라 양식도 달라야 한다:
+//   cat  범주 — 값 목록에서 체크, 여러 개면 OR   (업종·테마·시장·경고·신고가구분)
+//   num  숫자 — 최소~최대 범위                    (PER·시가총액·수익률 …)
+//   text 문자 — 부분 일치                         (종목명·코드·날짜)
+// 표의 대부분이 숫자라, 명시하지 않은 컬럼은 num으로 본다.
+const FIN_FILTER_KIND = {
+  corp_name: 'text', stock_code: 'text', w52_high_date: 'text', w52_low_date: 'text',
+  market: 'cat', _wics: 'cat', _ind: 'cat', hgpr_cls: 'cat',
+  fiscal_month: 'cat', base_date: 'cat', _riskRank: 'cat',
+  bsns_year: 'cat', quarter: 'cat', fs_div: 'cat',   // 재무제표 탭
+};
+// 값이 행에 그대로 없는 컬럼의 추출기. 배열을 주면 '그중 하나라도'로 매칭한다.
+const FIN_FILTER_GET = { _riskRank: r => _riskTags(r) };
+
 const _FIN_MULTI = '__multi__';
 
-function _finSel(key) {
-  const k = key === 'wics' ? 'wicsSel' : 'indSel';
-  if (!(F[k] instanceof Set)) F[k] = new Set();
-  return F[k];
+function _finFilterKind(col) { return FIN_FILTER_KIND[col] || 'num'; }
+function _finCellVal(r, col) {
+  const get = FIN_FILTER_GET[col];
+  return get ? get(r) : r[col];
+}
+
+/** 범주 선택 Set — 컬럼마다 하나. 진실은 이 Set이고 상단 드롭다운은 그 단축 조작이다 */
+function _finCatSel(col) {
+  F.catSel = F.catSel || {};
+  if (!(F.catSel[col] instanceof Set)) F.catSel[col] = new Set();
+  return F.catSel[col];
 }
 
 /** 드롭다운에서 하나 고르기 — '전체'면 비우고, 그 외엔 그 값 하나로 바꾼다 */
-function _finSelPick(key, val) {
+function _finSelPick(col, val) {
   if (val === _FIN_MULTI) return;      // '여러 개' 표시용 옵션은 골라도 무시
-  const sel = _finSel(key);
+  const sel = _finCatSel(col);
   sel.clear();
   if (val && val !== '전체') sel.add(val);
 }
@@ -269,76 +286,155 @@ function _finMultiOpt(sel, label) {
     ? `<option value="${_FIN_MULTI}" selected>${escapeHtml(label)} ${sel.size}개 선택</option>` : '';
 }
 
-// ── 열 헤더 ▾ 필터 ─────────────────────────────────────────────────────────
-// 표에서 업종·테마 값을 보다가 그 자리에서 바로 고른다. 상단 드롭다운과 같은
-// 상태를 쓰되 체크박스라 여러 개를 담을 수 있다 — 같은 열 안에서는 OR.
 /** 표에서 값을 눌러 켜고 끈다 — 같은 값을 다시 누르면 해제. 여러 개가 쌓이면 OR */
-function toggleFinCellFilter(key, val) {
-  const sel = _finSel(key);
+function toggleFinCellFilter(col, val) {
+  const sel = _finCatSel(col);
   if (sel.has(val)) sel.delete(val); else sel.add(val);
   _renderFinView();
 }
 
-function _colFilterBtn(key) {
-  const n = _finSel(key).size;
-  return `<span onclick="event.stopPropagation();toggleFinColFilter('${key}',event)"
-    title="${n ? `${n}개 선택됨 — 눌러서 변경` : '이 열의 값으로 거르기'}"
-    style="cursor:pointer;user-select:none;margin-left:4px;padding:0 3px;border-radius:3px;
-    border:1px solid ${n ? 'var(--tg)' : 'var(--border)'};
-    color:${n ? 'var(--tg)' : 'var(--text2)'};font-weight:700">▾${n || ''}</span>`;
+/** 현재 로드된 행에서 그 열의 값별 건수 — 팝오버 목록용 */
+function _finCatCounts(col) {
+  const cnt = {};
+  (FIN.raw || []).forEach(r => {
+    const v = _finCellVal(r, col);
+    (Array.isArray(v) ? v : [v]).forEach(x => {
+      if (x == null || x === '') return;
+      cnt[x] = (cnt[x] || 0) + 1;
+    });
+  });
+  return cnt;
 }
 
-function toggleFinColFilter(key, ev) {
+/** 이 열에 필터가 걸려 있나 (버튼 강조용) */
+function _finColActive(col) {
+  const kind = _finFilterKind(col);
+  if (kind === 'cat')  return _finCatSel(col).size;
+  if (kind === 'text') return (F.textF?.[col] || '').trim() ? 1 : 0;
+  return (F.numFilters || []).some(f => f.col === col) ? 1 : 0;
+}
+
+// ── 열 헤더 ▾ 필터 ─────────────────────────────────────────────────────────
+function _colFilterBtn(col, label) {
+  const kind = _finFilterKind(col);
+  const n    = _finColActive(col);
+  const cnt  = kind === 'cat' && n > 1 ? n : '';
+  return `<span class="col-filter-btn${n ? ' on' : ''}" data-no-detail`
+    + ` onclick="event.stopPropagation();toggleFinColFilter('${col}',event,'${escJsStr(label)}')"`
+    + ` title="${n ? '필터 걸림 — 눌러서 변경' : '이 열로 거르기'}">▾${cnt}</span>`;
+}
+
+function toggleFinColFilter(col, ev, label) {
   const old  = document.getElementById('fin-col-filter');
-  const same = old && old.dataset.key === key;
+  const same = old && old.dataset.col === col;
   old?.remove();
   if (same) return;                     // 같은 버튼을 다시 누르면 닫기
 
-  const cnt  = (FIN.optCnt || {})[key] || {};
-  const sel  = _finSel(key);
+  const kind = _finFilterKind(col);
+  const box  = document.createElement('div');
+  box.id = 'fin-col-filter';
+  box.dataset.col = col;
+  box.className = 'col-filter';
+  box.innerHTML = `<div class="col-filter-head">${escapeHtml(label || col)}</div>`
+    + (kind === 'cat' ? _finCatBody(col) : kind === 'text' ? _finTextBody(col) : _finNumBody(col));
+  document.body.appendChild(box);
+
+  // 표가 가로로 스크롤되는 영역 안이라 헤더 셀에 넣으면 잘린다 → body에 fixed로 띄운다.
+  // 위아래 모두 뷰포트 안으로 가둔다 — 아래쪽만 막으면 버튼이 화면 위로 스크롤됐을 때
+  // top이 음수가 돼 팝오버가 통째로 사라진다(실측).
+  const r = ev.target.getBoundingClientRect();
+  box.style.left = Math.max(8, Math.min(r.left, window.innerWidth - box.offsetWidth - 8)) + 'px';
+  box.style.top  = Math.max(8, Math.min(r.bottom + 4, window.innerHeight - box.offsetHeight - 8)) + 'px';
+  box.querySelector('input')?.focus();
+}
+
+/** 범주 — 값 목록 체크 */
+function _finCatBody(col) {
+  const cnt  = _finCatCounts(col);
+  const sel  = _finCatSel(col);
   const list = Object.entries(cnt).sort((a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0], 'ko'));
   sel.forEach(v => { if (!(v in cnt)) list.push([v, 0]); });   // 범위 밖 선택값도 남긴다
-
-  const box = document.createElement('div');
-  box.id = 'fin-col-filter';
-  box.dataset.key = key;
-  box.className = 'col-filter';
-  box.innerHTML =
-    `<input class="form-input col-filter-q" placeholder="값 검색..."
-       oninput="_finColFilterSearch(this.value)">`
+  return `<input class="form-input col-filter-q" placeholder="값 검색..."
+            oninput="_finColFilterSearch(this.value)">`
     + `<div class="col-filter-list">`
     + (list.length ? list.map(([v, c]) =>
         `<label class="col-filter-item"><input type="checkbox" value="${escAttr(v)}"`
-        + `${sel.has(v) ? ' checked' : ''} onchange="_finColFilterToggle('${key}',this)">`
+        + `${sel.has(v) ? ' checked' : ''} onchange="_finColFilterToggle('${col}',this)">`
         + `<span>${escapeHtml(v)}</span><span class="col-filter-cnt">${c}</span></label>`).join('')
        : `<div class="col-filter-hint" style="padding:6px">값이 없습니다</div>`)
     + `</div>`
     + `<div class="col-filter-foot">`
-    + `<button class="chip chip-sm" onclick="_finColFilterClear('${key}')">모두 해제</button>`
-    + `<span class="col-filter-hint">여러 개 고르면 그중 아무거나</span>`
+    + `<button class="chip chip-sm" onclick="_finColFilterClear('${col}')">모두 해제</button>`
+    + `<span class="col-filter-hint">여러 개 = 그중 아무거나</span>`
     + `</div>`;
-  document.body.appendChild(box);
-
-  // 표가 가로로 스크롤되는 영역 안이라 헤더 셀에 넣으면 잘린다 → body에 fixed로 띄운다
-  const r = ev.target.getBoundingClientRect();
-  // 위아래 모두 뷰포트 안으로 가둔다 — 아래쪽만 막으면 버튼이 화면 위로 스크롤됐을 때
-  // top이 음수가 돼 팝오버가 통째로 사라진다(실측)
-  box.style.left = Math.max(8, Math.min(r.left, window.innerWidth - box.offsetWidth - 8)) + 'px';
-  box.style.top  = Math.max(8, Math.min(r.bottom + 4, window.innerHeight - box.offsetHeight - 8)) + 'px';
-  box.querySelector('.col-filter-q')?.focus();
 }
 
-function _finColFilterToggle(key, cb) {
-  const sel = _finSel(key);
+/** 숫자 — 최소~최대. 단위는 지표 목록에 정의된 배율을 따른다(억 단위 등) */
+function _finNumBody(col) {
+  const cur  = (F.numFilters || []).find(f => f.col === col) || {};
+  const def  = _finNumCols().find(c => c[0] === col);
+  const unit = def ? (def[1].match(/\(([^)]+)\)/)?.[1] || '') : '';
+  return `<div class="col-filter-num">`
+    + `<input class="form-input" id="cf-min" type="number" inputmode="decimal" placeholder="최소"`
+    + ` value="${cur.min ?? ''}" onkeydown="if(event.key==='Enter')_finNumApply('${col}')">`
+    + `<span>~</span>`
+    + `<input class="form-input" id="cf-max" type="number" inputmode="decimal" placeholder="최대"`
+    + ` value="${cur.max ?? ''}" onkeydown="if(event.key==='Enter')_finNumApply('${col}')">`
+    + `</div>`
+    + `<div class="col-filter-foot">`
+    + `<button class="chip chip-sm" onclick="_finNumApply('${col}')">적용</button>`
+    + `<button class="chip chip-sm" onclick="_finNumClear('${col}')">해제</button>`
+    + `<span class="col-filter-hint">${unit ? escapeHtml(unit) + ' 단위' : '한쪽만 넣어도 됩니다'}</span>`
+    + `</div>`;
+}
+
+/** 문자 — 부분 일치 */
+function _finTextBody(col) {
+  const cur = F.textF?.[col] || '';
+  return `<input class="form-input col-filter-q" placeholder="포함할 글자"
+            value="${escAttr(cur)}" oninput="_finTextApply('${col}',this.value)">`
+    + `<div class="col-filter-foot">`
+    + `<button class="chip chip-sm" onclick="_finTextApply('${col}','')">해제</button>`
+    + `<span class="col-filter-hint">부분 일치</span>`
+    + `</div>`;
+}
+
+function _finColFilterToggle(col, cb) {
+  const sel = _finCatSel(col);
   if (cb.checked) sel.add(cb.value); else sel.delete(cb.value);
   _renderFinView();
 }
 
-function _finColFilterClear(key) {
-  _finSel(key).clear();
+function _finColFilterClear(col) {
+  _finCatSel(col).clear();
   document.querySelectorAll('#fin-col-filter input[type=checkbox]')
     .forEach(c => { c.checked = false; });
   _renderFinView();
+}
+
+function _finNumApply(col) {
+  const box = document.getElementById('fin-col-filter');
+  if (!box) return;
+  if (_finNumSet(col, box.querySelector('#cf-min').value, box.querySelector('#cf-max').value)) {
+    _renderFinView();
+  }
+}
+
+function _finNumClear(col) {
+  F.numFilters = (F.numFilters || []).filter(f => f.col !== col);
+  const box = document.getElementById('fin-col-filter');
+  if (box) box.querySelectorAll('input[type=number]').forEach(i => { i.value = ''; });
+  _renderFinView();
+}
+
+// 문자 필터는 타이핑마다 2,500행을 다시 거르므로 잠깐 모아서 한 번만 돈다
+let _finTextTimer = null;
+function _finTextApply(col, v) {
+  F.textF = F.textF || {};
+  const t = (v || '').trim();
+  if (t) F.textF[col] = t; else delete F.textF[col];
+  clearTimeout(_finTextTimer);
+  _finTextTimer = setTimeout(_renderFinView, 250);
 }
 
 function _finColFilterSearch(q) {
@@ -353,6 +449,14 @@ document.addEventListener('click', e => {
   const box = document.getElementById('fin-col-filter');
   if (box && !box.contains(e.target)) box.remove();
 });
+
+/**
+ * 헤더 한 칸 — 정렬 + 이 열로 거르기.
+ * 필터 양식(체크·범위·부분일치)은 컬럼 성격에서 자동으로 정해진다(FIN_FILTER_KIND).
+ * @param {object} [o] {src: 출처 배지, extra: 뒤에 붙일 것(상세 펼침 버튼 등)}
+ */
+const _th = (col, label, o = {}) =>
+  _sortBtn(col, label, o.src) + _colFilterBtn(col, label) + (o.extra || '');
 
 /**
  * 공통 정렬 버튼 생성
@@ -480,10 +584,10 @@ function _wicsCell(m) {
   const tip = [sec, m.wics].filter(Boolean).join(' > ');
   // 값을 누르면 그 업종만 본다. 여러 행에서 눌러 여러 업종을 쌓을 수 있다(같은 축 안은 OR).
   // data-no-detail: 행 클릭 위임(data-stock-open)이 종목 상세를 열지 않도록 막는다.
-  const on = _finSel('wics').has(m.wics);
+  const on = _finCatSel('_wics').has(m.wics);
   return `<td style="white-space:nowrap" title="${escAttr(tip)}">`
     + `<span class="badge badge-cat fin-cell-pick${on ? ' fin-cell-on' : ''}" data-no-detail`
-    + ` onclick="toggleFinCellFilter('wics','${escJsStr(m.wics)}')"`
+    + ` onclick="toggleFinCellFilter('_wics','${escJsStr(m.wics)}')"`
     + ` title="${escAttr(tip)} — 눌러서 이 업종만 보기">${escapeHtml(m.wics)}</span></td>`;
 }
 
@@ -505,13 +609,13 @@ function _themeCell(m, code) {
   if (!m || !m.ind) {
     return `<td style="white-space:nowrap;color:var(--text3)">—${pen}</td>`;
   }
-  const on  = _finSel('ind').has(m.ind);
+  const on  = _finCatSel('_ind').has(m.ind);
   const sub = m.sub
     ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:2px">${escapeHtml(m.sub)}</div>`
     : '';
   return `<td style="white-space:nowrap;font-size:calc(12px*var(--m-sub))">`
     + `<span class="fin-cell-pick${on ? ' fin-cell-on' : ''}" data-no-detail`
-    + ` onclick="toggleFinCellFilter('ind','${escJsStr(m.ind)}')"`
+    + ` onclick="toggleFinCellFilter('_ind','${escJsStr(m.ind)}')"`
     + ` title="눌러서 이 테마만 보기" style="color:var(--tg)">${escapeHtml(m.ind)}</span>${pen}${sub}</td>`;
 }
 
@@ -770,21 +874,33 @@ function _finNumCols() {
 }
 
 /** 지표 필터 추가 — 최소·최대 중 하나만 넣어도 된다 */
-function addFinNumFilter() {
-  const col = document.getElementById('fin-num-col')?.value;
-  const rawMin = document.getElementById('fin-num-min')?.value;
-  const rawMax = document.getElementById('fin-num-max')?.value;
-  if (!col) return;
+/**
+ * 숫자 범위 조건 설정 — 상단 지표 필터와 열 헤더 ▾ 가 함께 쓴다.
+ * 라벨·배율은 지표 목록(FIN_NUM_COLS)에서 찾고, 목록에 없는 열이면 넘겨받은 라벨을 쓴다
+ * (표에는 지표 목록에 없는 숫자 열도 있다 — 고가·저가·상장주수 등).
+ * @returns {boolean} 조건이 실제로 설정됐는지
+ */
+function _finNumSet(col, rawMin, rawMax, label) {
   const min = rawMin === '' ? null : Number(rawMin);
   const max = rawMax === '' ? null : Number(rawMax);
-  if (min == null && max == null) { toast('최소 또는 최대를 입력하세요', 'error'); return; }
-  if (min != null && max != null && min > max) { toast('최소가 최대보다 큽니다', 'error'); return; }
-
+  if (min == null && max == null) { toast('최소 또는 최대를 입력하세요', 'error'); return false; }
+  if (min != null && max != null && min > max) { toast('최소가 최대보다 큽니다', 'error'); return false; }
   const def = _finNumCols().find(c => c[0] === col);
   F.numFilters = (F.numFilters || []).filter(f => f.col !== col);   // 같은 컬럼은 교체
-  F.numFilters.push({ col, label: def ? def[1] : col, scale: def ? def[2] : 1, min, max });
-  document.getElementById('fin-num-min').value = '';
-  document.getElementById('fin-num-max').value = '';
+  F.numFilters.push({
+    col, label: def ? def[1] : (label || col), scale: def ? def[2] : 1, min, max,
+  });
+  return true;
+}
+
+function addFinNumFilter() {
+  const col = document.getElementById('fin-num-col')?.value;
+  if (!col) return;
+  const minEl = document.getElementById('fin-num-min');
+  const maxEl = document.getElementById('fin-num-max');
+  if (!_finNumSet(col, minEl.value, maxEl.value)) return;
+  minEl.value = '';
+  maxEl.value = '';
   _renderFinView();
 }
 
@@ -1121,10 +1237,10 @@ function initFinancials() {
   F.q        = '';
   F.mode     = 'market';
   F.scope    = 'all';        // 진입 시 전체 상장사 (모니터링 313종목은 드롭다운으로 전환)
-  F.indSel   = new Set();
+  F.catSel   = {};
+  F.textF    = {};
   F.subIndustry = '전체';
   F.wicsSector  = '전체';
-  F.wicsSel     = new Set();
   F.numFilters  = [];
   F.sortBy   = 'market_cap';
   F.sortDir  = 'desc';
@@ -1241,36 +1357,36 @@ async function loadMarketData(el) {
       return out;
     },
     headers: () => [
-      _sortBtn('corp_name','종목명'), _sortBtn('stock_code','코드'),
-      _sortBtn('market','시장'),
-      _sortBtn('_wics','업종') + _colFilterBtn('wics'),
-      _sortBtn('_ind','테마')  + _colFilterBtn('ind'),
-      _sortBtn('market_cap','시가총액'),
+      _th('corp_name','종목명'), _th('stock_code','코드'),
+      _th('market','시장'),
+      _th('_wics','업종'),
+      _th('_ind','테마'),
+      _th('market_cap','시가총액'),
       // 상세 컬럼은 대표(현재가) 바로 뒤에 붙인다 — 펼쳤을 때 멀리 떨어져 나오면
       // 어느 대표에 딸린 값인지 알 수 없다
-      _sortBtn('price','현재가') + _expandBtn('price', 5),
-      _sortBtn('price_change','전일대비'),
-      _sortBtn('high_price','고가'), _sortBtn('low_price','저가'),
-      _sortBtn('volume','거래량'), _sortBtn('volume_change_rate','거래량증감률'),
-      _sortBtn('price_change_rate','등락률') + _expandBtn('ret', 3),
-      _sortBtn('week_return','1주'), _sortBtn('month_return','1달'),
-      _sortBtn('quarter_return','3달'),
-      _sortBtn('trading_value','거래대금'),
-      _sortBtn('per','PER'), _sortBtn('pbr','PBR'),
-      _sortBtn('eps','EPS'), _sortBtn('bps','BPS'),
-      _sortBtn('foreign_hold_rate','외국인보유율') + _expandBtn('frgn', 1),
-      _sortBtn('foreign_hold_qty','외국인보유수'),
-      _sortBtn('foreign_net_buy','외국인순매수'), _sortBtn('program_net_buy','프로그램순매수'),
-      _sortBtn('loan_balance_rate','융자잔고율'), _sortBtn('short_sell_qty','공매도수량'),
-      _sortBtn('w52_high','52주고가') + _expandBtn('w52', 5), _sortBtn('w52_low','52주저가'),
-      _sortBtn('w52_high_date','52주고가일'), _sortBtn('w52_low_date','52주저가일'),
-      _sortBtn('_w52HighPct','52주고가대비%'), _sortBtn('_w52LowPct','52주저가대비%'),
+      _th('price','현재가',{extra:_expandBtn('price', 5)}),
+      _th('price_change','전일대비'),
+      _th('high_price','고가'), _th('low_price','저가'),
+      _th('volume','거래량'), _th('volume_change_rate','거래량증감률'),
+      _th('price_change_rate','등락률',{extra:_expandBtn('ret', 3)}),
+      _th('week_return','1주'), _th('month_return','1달'),
+      _th('quarter_return','3달'),
+      _th('trading_value','거래대금'),
+      _th('per','PER'), _th('pbr','PBR'),
+      _th('eps','EPS'), _th('bps','BPS'),
+      _th('foreign_hold_rate','외국인보유율',{extra:_expandBtn('frgn', 1)}),
+      _th('foreign_hold_qty','외국인보유수'),
+      _th('foreign_net_buy','외국인순매수'), _th('program_net_buy','프로그램순매수'),
+      _th('loan_balance_rate','융자잔고율'), _th('short_sell_qty','공매도수량'),
+      _th('w52_high','52주고가',{extra:_expandBtn('w52', 5)}), _th('w52_low','52주저가'),
+      _th('w52_high_date','52주고가일'), _th('w52_low_date','52주저가일'),
+      _th('_w52HighPct','52주고가대비%'), _th('_w52LowPct','52주저가대비%'),
 
-      _sortBtn('_riskRank','경고'), _sortBtn('hgpr_cls','신고가구분'),
+      _th('_riskRank','경고'), _th('hgpr_cls','신고가구분'),
       // 참고 — 훑을 때 보는 값이 아니라 맨 뒤. 기준일은 전 행이 같은 날짜라 정보량 0,
       // 결산월도 대부분 12월, 거래량회전율은 거래량/상장주수 파생이다.
-      _sortBtn('listing_shares','상장주수'), _sortBtn('vol_turnover','거래량회전율'),
-      _sortBtn('fiscal_month','결산월'), _sortBtn('base_date','기준일'),
+      _th('listing_shares','상장주수'), _th('vol_turnover','거래량회전율'),
+      _th('fiscal_month','결산월'), _th('base_date','기준일'),
     ],
     rowTemplate: r => {
       const chg  = r.price_change_rate;
@@ -1360,15 +1476,26 @@ const _FIN_WARN_LABEL = { '01': '주의', '02': '경고', '03': '위험예고' }
  *  'N'만 돌려주고, 같은 정보를 market_warn_code='01'이 담는다.)
  * @returns {string} td HTML
  */
-function _riskCell(r) {
-  const b = (t, c) => `<span style="font-size:calc(10px*var(--m-label));padding:1px 4px;border-radius:3px;`
-    + `background:${c}22;color:${c};font-weight:600;white-space:nowrap">${t}</span>`;
-  const tags = [];
-  if (r.is_liquidation) tags.push(b('정리매매', 'var(--danger, #f5365c)'));
-  if (r.manage_issue_code === 'Y') tags.push(b('관리', 'var(--red)'));
+const _RISK_COLOR = { '정리매매': 'var(--danger, #f5365c)', '관리': 'var(--red)', '과열': 'var(--yellow)' };
+
+/** 한 종목에 켜진 경고 이름들 — 셀 표시와 열 필터가 같은 값을 보게 분리했다 */
+function _riskTags(r) {
+  const t = [];
+  if (r.is_liquidation) t.push('정리매매');
+  if (r.manage_issue_code === 'Y') t.push('관리');
   const w = r.market_warn_code;
-  if (w && w !== '00') tags.push(b(_FIN_WARN_LABEL[w] || w, 'var(--yellow)'));
-  if (r.is_short_over) tags.push(b('과열', 'var(--yellow)'));
+  if (w && w !== '00') t.push(_FIN_WARN_LABEL[w] || w);
+  if (r.is_short_over) t.push('과열');
+  return t;
+}
+
+function _riskCell(r) {
+  const b = (t) => {
+    const c = _RISK_COLOR[t] || 'var(--yellow)';
+    return `<span style="font-size:calc(10px*var(--m-label));padding:1px 4px;border-radius:3px;`
+      + `background:${c}22;color:${c};font-weight:600;white-space:nowrap">${escapeHtml(t)}</span>`;
+  };
+  const tags = _riskTags(r).map(b);
   return tags.length
     ? `<td style="white-space:nowrap">${tags.join(' ')}</td>`
     : '<td style="color:var(--text3)">—</td>';
@@ -1476,7 +1603,7 @@ function exportFinancials() {
   const spec  = isMarket ? _finMarketCsvSpec() : _finFinancialCsvSpec();
   const scope = F.scope === 'monitored' ? '모니터링' : '전체';
   const name  = ['기업분석', isMarket ? '시장현황' : '재무제표', scope,
-                 _finSel('ind').size ? [..._finSel('ind')].join('+') : null,
+                 _finCatSel('_ind').size ? [..._finCatSel('_ind')].join('+') : null,
                  todayStr()].filter(Boolean).join('_');
   downloadCsv(
     spec.map(c => c[0]),
@@ -1516,50 +1643,50 @@ async function loadFinancialData(el) {
     },
     headers: () => [
       // 식별
-      _sortBtn('corp_name','종목명'), _sortBtn('stock_code','코드'),
-      _sortBtn('bsns_year','연도'), _sortBtn('quarter','분기'), _sortBtn('fs_div','구분'),
+      _th('corp_name','종목명'), _th('stock_code','코드'),
+      _th('bsns_year','연도'), _th('quarter','분기'), _th('fs_div','구분'),
       // 손익계산서 (DART)
-      _sortBtn('revenue','매출액','D'),
-      _sortBtn('gross_profit','매출총이익','D'),
-      _sortBtn('cogs','매출원가','D'),
-      _sortBtn('sga','판관비','D'),
-      _sortBtn('rd_expense','R&D','D'),
-      _sortBtn('operating_profit','영업이익','D'),
-      _sortBtn('other_operating_income','기타영업수익','D'),
-      _sortBtn('other_operating_expense','기타영업비용','D'),
-      _sortBtn('pretax_income','세전이익','D'),
-      _sortBtn('net_income','당기순이익','D'),
+      _th('revenue','매출액',{src:'D'}),
+      _th('gross_profit','매출총이익',{src:'D'}),
+      _th('cogs','매출원가',{src:'D'}),
+      _th('sga','판관비',{src:'D'}),
+      _th('rd_expense','R&D',{src:'D'}),
+      _th('operating_profit','영업이익',{src:'D'}),
+      _th('other_operating_income','기타영업수익',{src:'D'}),
+      _th('other_operating_expense','기타영업비용',{src:'D'}),
+      _th('pretax_income','세전이익',{src:'D'}),
+      _th('net_income','당기순이익',{src:'D'}),
       // 재무상태표 (DART)
-      _sortBtn('total_assets','자산총계','D'),
-      _sortBtn('total_liabilities','부채총계','D'),
-      _sortBtn('total_equity','자본총계','D'),
-      _sortBtn('current_assets','유동자산','D'),
-      _sortBtn('current_liabilities','유동부채','D'),
-      _sortBtn('non_current_assets','비유동자산','D'),
-      _sortBtn('capital_stock','자본금','D'),
-      _sortBtn('retained_earnings','이익잉여금','D'),
+      _th('total_assets','자산총계',{src:'D'}),
+      _th('total_liabilities','부채총계',{src:'D'}),
+      _th('total_equity','자본총계',{src:'D'}),
+      _th('current_assets','유동자산',{src:'D'}),
+      _th('current_liabilities','유동부채',{src:'D'}),
+      _th('non_current_assets','비유동자산',{src:'D'}),
+      _th('capital_stock','자본금',{src:'D'}),
+      _th('retained_earnings','이익잉여금',{src:'D'}),
       // 현금흐름 (DART)
-      _sortBtn('operating_cashflow','영업현금흐름','D'),
-      _sortBtn('investing_cashflow','투자현금흐름','D'),
-      _sortBtn('financing_cashflow','재무현금흐름','D'),
-      _sortBtn('capex','CapEx(유형)','D'),
-      _sortBtn('capex_intangible','CapEx(무형)','D'),
-      _sortBtn('capex_total','CapEx합계','C'),
-      _sortBtn('depreciation','감가상각비','D'),
-      _sortBtn('amortization','무형상각비','D'),
-      _sortBtn('da','D&A','C'),
-      _sortBtn('ebitda','EBITDA','C'),
+      _th('operating_cashflow','영업현금흐름',{src:'D'}),
+      _th('investing_cashflow','투자현금흐름',{src:'D'}),
+      _th('financing_cashflow','재무현금흐름',{src:'D'}),
+      _th('capex','CapEx(유형)',{src:'D'}),
+      _th('capex_intangible','CapEx(무형)',{src:'D'}),
+      _th('capex_total','CapEx합계',{src:'C'}),
+      _th('depreciation','감가상각비',{src:'D'}),
+      _th('amortization','무형상각비',{src:'D'}),
+      _th('da','D&A',{src:'C'}),
+      _th('ebitda','EBITDA',{src:'C'}),
       // 파생비율 (계산)
-      _sortBtn('gross_margin','GPM','C'),
-      _sortBtn('operating_margin','OPM','C'),
-      _sortBtn('net_margin','NPM','C'),
-      _sortBtn('cogs_ratio','매출원가율','C'),
-      _sortBtn('sga_ratio','판관비율','C'),
-      _sortBtn('debt_ratio','부채비율','C'),
-      _sortBtn('current_ratio','유동비율','C'),
-      _sortBtn('roe','ROE','C'),
-      _sortBtn('roa','ROA','C'),
-      _sortBtn('fcf','FCF','C'),
+      _th('gross_margin','GPM',{src:'C'}),
+      _th('operating_margin','OPM',{src:'C'}),
+      _th('net_margin','NPM',{src:'C'}),
+      _th('cogs_ratio','매출원가율',{src:'C'}),
+      _th('sga_ratio','판관비율',{src:'C'}),
+      _th('debt_ratio','부채비율',{src:'C'}),
+      _th('current_ratio','유동비율',{src:'C'}),
+      _th('roe','ROE',{src:'C'}),
+      _th('roa','ROA',{src:'C'}),
+      _th('fcf','FCF',{src:'C'}),
     ],
     rowTemplate: r => {
       // 재무 손익 색상: 이익=초록, 손실=빨강 (주가 등락 색상과 구분)

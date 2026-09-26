@@ -286,6 +286,11 @@ textarea.form-input { resize:vertical; min-height:100px; }
   outline:1px solid var(--tg); outline-offset:1px; border-radius:3px;
 }
 
+/* ── 열 헤더 ▾ 버튼 — 36개 헤더에 다 붙으므로 평소엔 눌러두고 hover·활성 때만 또렷하게 ── */
+.col-filter-btn { cursor:pointer; user-select:none; margin-left:3px; font-weight:700; color:var(--text3); opacity:.4; }
+.col-filter-btn:hover { opacity:1; color:var(--text); }
+.col-filter-btn.on { opacity:1; color:var(--tg); }
+
 /* ── 표 열 헤더 ▾ 필터 팝오버 ──
    표가 가로 스크롤되는 영역 안이라 헤더 셀에 넣으면 잘린다 → body에 fixed로 띄우고
    버튼 위치를 계산해 붙인다(toggleFinColFilter). */
@@ -306,6 +311,13 @@ textarea.form-input { resize:vertical; min-height:100px; }
 .col-filter-cnt { color:var(--text3); font-size:calc(11px*var(--m-label)); }
 .col-filter-foot { display:flex; align-items:center; justify-content:space-between; gap:6px; }
 .col-filter-hint { font-size:calc(10px*var(--m-label)); color:var(--text3); }
+.col-filter-head {
+  font-size:calc(11px*var(--m-label)); color:var(--text2); font-weight:600;
+  padding:0 2px 3px; border-bottom:1px solid var(--border);
+}
+.col-filter-num { display:flex; align-items:center; gap:5px; }
+.col-filter-num input { width:84px; padding:5px 8px; font-size:calc(12px*var(--m-sub)); }
+.col-filter-num > span { color:var(--text3); }
 
 /* ── Toast ── */
 .toast-container { position:fixed; bottom:1.5rem; right:1.5rem; z-index:var(--z-toast); display:flex; flex-direction:column; gap:8px; }
