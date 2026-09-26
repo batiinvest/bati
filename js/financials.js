@@ -234,7 +234,7 @@ function _syncFinSectorOptions(rows) {
 // 표의 대부분이 숫자라, 명시하지 않은 컬럼은 num으로 본다.
 const FIN_FILTER_KIND = {
   corp_name: 'text', stock_code: 'text', w52_high_date: 'text', w52_low_date: 'text',
-  market: 'cat', _wics: 'cat', _ind: 'cat', hgpr_cls: 'cat',
+  market: 'cat', _wics: 'cat', _wsec: 'cat', _wmid: 'cat', _ind: 'cat', hgpr_cls: 'cat',
   fiscal_month: 'cat', base_date: 'cat', _riskRank: 'cat',
   bsns_year: 'cat', quarter: 'cat', fs_div: 'cat',   // 재무제표 탭
 };
@@ -567,6 +567,24 @@ const WICS_SECTORS = {
   G35: '건강관리', G40: '금융',     G45: 'IT',       G50: '커뮤니케이션', G55: '유틸리티',
 };
 
+// WICS 중분류(코드 앞 4자리) — 네이버는 업종명만 주므로 이름은 여기서 붙인다.
+// GICS 산업그룹 체계를 따르되 한국 시장에 맞춰 증권·교육서비스·디스플레이가 따로 있다.
+// 부동산(G405)은 별도 섹터가 아니라 금융(G40) 아래 중분류다 — GICS와 다른 점.
+const WICS_MIDS = {
+  G101: '에너지',                 G151: '소재',
+  G201: '자본재',                 G202: '상업서비스와공급품',   G203: '운송',
+  G251: '자동차와부품',           G252: '내구소비재와의류',     G253: '호텔·레스토랑·레저',
+  G255: '소매(유통)',             G256: '교육서비스',
+  G301: '식품과기본식료품소매',    G302: '식품·음료·담배',       G303: '가정용품과개인용품',
+  G351: '건강관리장비와서비스',    G352: '제약·생물공학·생명과학',
+  G401: '은행',                   G402: '증권',                 G403: '다각화된금융',
+  G404: '보험',                   G405: '부동산',
+  G451: '소프트웨어와서비스',      G452: '기술하드웨어와장비',    G453: '반도체와반도체장비',
+  G454: '디스플레이',
+  G501: '전기통신서비스',          G502: '미디어와엔터테인먼트',
+  G551: '유틸리티',
+};
+
 /**
  * 업종 셀 — WICS 소분류(전 종목 동일 기준). 대분류는 title로 보조 표기.
  * 테마와 한 칸에 섞지 않는다 — 기준이 다른 값이 한 컬럼에 섞이면 정렬·집계가 무의미해진다.
@@ -575,9 +593,10 @@ const WICS_SECTORS = {
  */
 function _wicsCell(m) {
   if (!m || !m.wics) return '<td style="color:var(--text3)">—</td>';
+  // title에 3단계를 다 적는다 — 섹터 > 중분류 > 업종
   const sec = WICS_SECTORS[(m.wcode || '').slice(0, 3)];
-  // title에는 원본명을 남긴다 — 별칭이 어떤 WICS 업종인지 확인할 수 있어야 한다
-  const tip = [sec, m.wics].filter(Boolean).join(' > ');
+  const mid = WICS_MIDS[(m.wcode || '').slice(0, 4)];
+  const tip = [sec, mid, m.wics].filter(Boolean).join(' > ');
   // 값을 누르면 그 업종만 본다. 여러 행에서 눌러 여러 업종을 쌓을 수 있다(같은 축 안은 OR).
   // data-no-detail: 행 클릭 위임(data-stock-open)이 종목 상세를 열지 않도록 막는다.
   const on = _finCatSel('_wics').has(m.wics);
@@ -585,6 +604,21 @@ function _wicsCell(m) {
     + `<span class="badge badge-cat fin-cell-pick${on ? ' fin-cell-on' : ''}" data-no-detail`
     + ` onclick="toggleFinCellFilter('_wics','${escJsStr(m.wics)}')"`
     + ` title="${escAttr(tip)} — 눌러서 이 업종만 보기">${escapeHtml(m.wics)}</span></td>`;
+}
+
+/**
+ * WICS 상위 단계 셀(섹터·중분류) — 업종 셀과 같이 눌러서 거를 수 있다.
+ * 대표는 업종(소분류)이고 이 둘은 '업종 +'로 펼쳤을 때만 보인다.
+ * @param {string} val 표시값
+ * @param {string} col 필터 컬럼 키(_wsec·_wmid)
+ */
+function _wicsLevelCell(val, col) {
+  if (!val) return '<td style="color:var(--text3)">—</td>';
+  const on = _finCatSel(col).has(val);
+  return `<td style="white-space:nowrap">`
+    + `<span class="fin-cell-pick${on ? ' fin-cell-on' : ''}" data-no-detail`
+    + ` onclick="toggleFinCellFilter('${col}','${escJsStr(val)}')"`
+    + ` title="눌러서 이것만 보기" style="color:var(--text2)">${escapeHtml(val)}</span></td>`;
 }
 
 /**
@@ -766,7 +800,7 @@ const FIN_CHUNK = 150;
 const FIN_COL_GROUPS = {
   market: [
     { key:'id',    name:'식별', always:true,
-      cols:['종목명','코드','시장','업종','테마'] },
+      cols:['종목명','코드','시장','업종','섹터','중분류','테마'] },
     // 거래량·거래대금은 '현재가 +' 상세로 들어가 거래 칩이 비어버리므로 시세로 흡수
     { key:'price', name:'시세',
       cols:['시가총액','현재가','전일대비','고가','저가','거래량','거래량증감률','등락률','1주','1달','3달','거래대금'] },
@@ -804,6 +838,9 @@ const FIN_COLS_LS = 'bati-fin-cols';
 // 대표 컬럼 하나만 남기고 부속은 기본 접힘 — 36열 중 8열이 접혀 28열로 시작한다.
 const FIN_EXPAND_GROUPS = {
   market: [
+    { key: 'wics',  lead: '업종',
+      // WICS 3단계 중 업종(소분류)이 대표. 상위 두 단계는 묶어 볼 때만 필요하다
+      cols: ['섹터', '중분류'] },
     { key: 'price', lead: '현재가',
       // 가격 상세 + 거래 상세. 거래대금은 유동성 확인용으로 늘 보는 값이라 제외.
       // 접으면 시가총액·현재가·등락률·거래대금만 남는다
@@ -1058,8 +1095,15 @@ function _saveFinCols() {
 
 /** th 텍스트 → 순수 컬럼 라벨 (정렬 화살표·출처 배지·펼침 기호 제거) */
 function _finThLabel(th) {
-  return th.textContent.trim().replace(/[↓↑]/g, '').replace(/[+−]\s*$/, '')
-           .replace(/[DCK]$/, '').trim();
+  // 헤더 텍스트에서 장식을 걷어내 순수 라벨만 남긴다 — 컬럼 숨김·펼침이 이 라벨로 열을 찾는다.
+  // ▾(열 필터 버튼, 범주면 ▾2처럼 개수가 붙는다)를 빠뜨리면 라벨이 안 맞아
+  // 펼침·숨김이 통째로 무력해진다.
+  return th.textContent.trim()
+           .replace(/[↓↑]/g, '')
+           .replace(/▾\d*/g, '')
+           .replace(/[+−]\s*$/, '')
+           .replace(/[DCK]$/, '')
+           .trim();
 }
 
 /** 꺼둔 그룹의 컬럼을 nth-child 규칙으로 숨긴다 */
@@ -1340,7 +1384,11 @@ async function loadMarketData(el) {
         const m = meta[r.stock_code];
         r._meta = m;
         r._ind  = m?.ind  || '';   // 테마 정렬용
-        r._wics = m?.wics || '';   // 업종 정렬용
+        r._wics = m?.wics || '';   // 업종(소분류) 정렬용
+        // WICS 코드는 3단계다 — G45(섹터) > G4530(중분류) > G453010(업종).
+        // 코드만으로는 읽을 수 없어 이름표를 붙여 행에 둔다(정렬·필터·표시 공용).
+        r._wsec = WICS_SECTORS[(m?.wcode || '').slice(0, 3)] || '';
+        r._wmid = WICS_MIDS[(m?.wcode || '').slice(0, 4)]    || '';
         r._riskRank = _riskRank(r);   // 경고 컬럼 정렬용
         r._w52HighPct = (r.price != null && r.w52_high) ? (r.price - r.w52_high) / r.w52_high * 100 : null;
         r._w52LowPct  = (r.price != null && r.w52_low)  ? (r.price - r.w52_low)  / r.w52_low  * 100 : null;
@@ -1350,7 +1398,8 @@ async function loadMarketData(el) {
     headers: () => [
       _th('corp_name','종목명'), _th('stock_code','코드'),
       _th('market','시장'),
-      _th('_wics','업종'),
+      _th('_wics','업종',{extra:_expandBtn('wics', 2)}),
+      _th('_wsec','섹터'), _th('_wmid','중분류'),
       _th('_ind','테마'),
       _th('market_cap','시가총액'),
       // 상세 컬럼은 대표(현재가) 바로 뒤에 붙인다 — 펼쳤을 때 멀리 떨어져 나오면
@@ -1407,6 +1456,8 @@ async function loadMarketData(el) {
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2);font-family:monospace">${r.stock_code}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.market||'—'}</td>
         ${_wicsCell(r._meta)}
+        ${_wicsLevelCell(r._wsec, '_wsec')}
+        ${_wicsLevelCell(r._wmid, '_wmid')}
         ${_themeCell(r._meta, r.stock_code)}
         <td>${fmtCap(r.market_cap)}</td>
         <td style="font-weight:500">${fmtPrice(r.price)}</td>
@@ -1509,7 +1560,8 @@ function _finMarketCsvSpec() {
     ['시장',         r => r.market],
     // 표에선 한 칸에 묶어 보여주지만 CSV는 열을 나눈다 (피벗·필터 편의)
     ['업종',         r => r._meta?.wics],
-    ['업종대분류',    r => WICS_SECTORS[(r._meta?.wcode || '').slice(0, 3)] || ''],
+    ['섹터',         r => r._wsec],
+    ['중분류',       r => r._wmid],
     ['WICS코드',     r => r._meta?.wcode],
     ['테마',         r => r._meta?.ind],
     ['세부테마',      r => r._meta?.sub],
