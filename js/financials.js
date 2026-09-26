@@ -58,13 +58,13 @@ function pFinancials() {
     <input class="search-box" id="fin-q" placeholder="종목명 검색..." oninput="_finSearchDebounce()" style="max-width:160px">
     <!-- 필터 2축. 옵션·건수는 로드된 데이터에서 _syncFinSectorOptions()가 채운다.
          업종(WICS) = 무슨 사업을 하나 · 전 종목 / 테마 = 어떤 이야기로 묶이나 · 일부 종목 -->
-    <select class="form-select" id="fin-wsec" title="업종 대분류 (GICS 표준 10종)"
+    <select class="form-select" id="fin-wsec" title="섹터 — 업종의 상위 묶음 (GICS 표준 10종)"
       onchange="F.wicsSector=this.value;_finCatSel('_wics').clear();_renderFinView()" style="width:130px;padding:6px 10px">
-      <option value="전체">업종 전체</option>
+      <option value="전체">섹터 전체</option>
     </select>
-    <select class="form-select" id="fin-wics" title="업종 소분류 (WICS 79종)"
+    <select class="form-select" id="fin-wics" title="업종 — 표의 '업종' 열과 같은 값 (WICS 79종)"
       onchange="_finSelPick('_wics',this.value);_renderFinView()" style="width:175px;padding:6px 10px">
-      <option value="전체">세부업종 전체</option>
+      <option value="전체">업종 전체</option>
     </select>
     <select class="form-select" id="fin-ind" title="투자 테마 (큐레이션)"
       onchange="_finSelPick('_ind',this.value);F.subIndustry='전체';_renderFinView()" style="width:120px;padding:6px 10px">
@@ -201,17 +201,18 @@ function _syncFinSectorOptions(rows) {
     subEl.disabled = !list.length;
   }
 
-  // 업종 대분류 — GICS 표준 10종. WICS_SECTORS 정의 순서를 유지해 위치가 흔들리지 않게 한다
+  // 섹터(업종 대분류) — GICS 표준 10종. WICS_SECTORS 정의 순서를 유지해 위치가 흔들리지 않게 한다.
+  // 표의 '업종' 열은 소분류라, 대분류를 '업종'이라 부르면 같은 말이 두 층위를 가리켜 혼동된다.
   const secEl = document.getElementById('fin-wsec');
   if (secEl) {
     const cur  = F.wicsSector || '전체';
     const list = Object.keys(WICS_SECTORS).filter(k => secCnt[k]);
     if (cur !== '전체' && !list.includes(cur)) list.push(cur);
-    secEl.innerHTML = opt('전체', '업종 전체', cur)
+    secEl.innerHTML = opt('전체', '섹터 전체', cur)
       + list.map(k => opt(k, `${WICS_SECTORS[k] || k} (${secCnt[k] || 0})`, cur)).join('');
   }
 
-  // 업종 소분류 — 대분류가 선택돼 있으면 그 안에서만
+  // 업종(소분류) — 표의 '업종' 열과 같은 값. 섹터가 선택돼 있으면 그 안에서만
   const wEl = document.getElementById('fin-wics');
   if (wEl) {
     const sel  = _finCatSel('_wics');
@@ -219,7 +220,7 @@ function _syncFinSectorOptions(rows) {
     const list = Object.entries(wicsCnt).sort(byCntDesc).map(([s]) => s);
     sel.forEach(v => { if (!list.includes(v)) list.push(v); });
     wEl.innerHTML = _finMultiOpt(sel, '업종')
-      + opt('전체', '세부업종 전체', cur)
+      + opt('전체', '업종 전체', cur)
       + list.map(s => opt(s, `${s} (${wicsCnt[s] || 0})`, cur)).join('');
     wEl.disabled = !list.length;
   }
