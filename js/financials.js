@@ -800,7 +800,7 @@ const FIN_CHUNK = 150;
 const FIN_COL_GROUPS = {
   market: [
     { key:'id',    name:'식별', always:true,
-      cols:['종목명','코드','시장','업종','섹터','중분류','테마'] },
+      cols:['종목명','코드','시장','섹터','중분류','업종','테마'] },
     // 거래량·거래대금은 '현재가 +' 상세로 들어가 거래 칩이 비어버리므로 시세로 흡수
     { key:'price', name:'시세',
       cols:['시가총액','현재가','전일대비','고가','저가','거래량','거래량증감률','등락률','1주','1달','3달','거래대금'] },
@@ -983,13 +983,19 @@ function _finExpandGroups() {
 }
 
 /** 펼쳐둔 그룹 키 Set (기본: 전부 접힘) */
+// 한 번도 만진 적 없을 때의 기본 펼침. WICS 3단계(섹터·중분류·업종)는 종목을 묶어
+// 보는 기본 정보라 처음부터 보이는 게 낫다 — 접고 싶으면 '업종 −'로 접으면 되고,
+// 그 선택은 저장돼 다음에도 유지된다.
+const FIN_EXPAND_DEFAULT = { market: ['wics'] };
+
 function _finExpanded() {
   const m = F.mode === 'financial' ? 'financial' : 'market';
   FIN.expanded = FIN.expanded || {};
   if (!FIN.expanded[m]) {
-    let saved = [];
-    try { saved = (JSON.parse(localStorage.getItem(FIN_EXPAND_LS)) || {})[m] || []; } catch (e) {}
-    FIN.expanded[m] = new Set(saved);
+    // null(저장된 적 없음)과 []( 사용자가 전부 접음)를 구분한다
+    let saved = null;
+    try { saved = (JSON.parse(localStorage.getItem(FIN_EXPAND_LS)) || {})[m]; } catch (e) {}
+    FIN.expanded[m] = new Set(saved ?? FIN_EXPAND_DEFAULT[m] ?? []);
   }
   return FIN.expanded[m];
 }
@@ -1398,8 +1404,8 @@ async function loadMarketData(el) {
     headers: () => [
       _th('corp_name','종목명'), _th('stock_code','코드'),
       _th('market','시장'),
-      _th('_wics','업종',{extra:_expandBtn('wics', 2)}),
       _th('_wsec','섹터'), _th('_wmid','중분류'),
+      _th('_wics','업종',{extra:_expandBtn('wics', 2)}),
       _th('_ind','테마'),
       _th('market_cap','시가총액'),
       // 상세 컬럼은 대표(현재가) 바로 뒤에 붙인다 — 펼쳤을 때 멀리 떨어져 나오면
@@ -1455,9 +1461,9 @@ async function loadMarketData(el) {
           data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||'')}" data-stock-tab="market">${escapeHtml(r.corp_name||'')}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2);font-family:monospace">${r.stock_code}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.market||'—'}</td>
-        ${_wicsCell(r._meta)}
         ${_wicsLevelCell(r._wsec, '_wsec')}
         ${_wicsLevelCell(r._wmid, '_wmid')}
+        ${_wicsCell(r._meta)}
         ${_themeCell(r._meta, r.stock_code)}
         <td>${fmtCap(r.market_cap)}</td>
         <td style="font-weight:500">${fmtPrice(r.price)}</td>
@@ -1559,9 +1565,9 @@ function _finMarketCsvSpec() {
     ['코드',         r => r.stock_code],
     ['시장',         r => r.market],
     // 표에선 한 칸에 묶어 보여주지만 CSV는 열을 나눈다 (피벗·필터 편의)
-    ['업종',         r => r._meta?.wics],
     ['섹터',         r => r._wsec],
     ['중분류',       r => r._wmid],
+    ['업종',         r => r._meta?.wics],
     ['WICS코드',     r => r._meta?.wcode],
     ['테마',         r => r._meta?.ind],
     ['세부테마',      r => r._meta?.sub],
