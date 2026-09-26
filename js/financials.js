@@ -62,7 +62,7 @@ function pFinancials() {
       onchange="F.wicsSector=this.value;_finCatSel('_wics').clear();_renderFinView()" style="width:130px;padding:6px 10px">
       <option value="전체">섹터 전체</option>
     </select>
-    <select class="form-select" id="fin-wics" title="업종 — 표의 '업종' 열과 같은 값 (WICS 79종)"
+    <select class="form-select" id="fin-wics" title="업종 — 표의 '업종' 열과 같은 값 (WICS 78종)"
       onchange="_finSelPick('_wics',this.value);_renderFinView()" style="width:175px;padding:6px 10px">
       <option value="전체">업종 전체</option>
     </select>
@@ -141,7 +141,7 @@ function _applyFinFilter(rows) {
 
 /**
  * 업종·테마 드롭다운 4종을 실제 로드된 데이터로 다시 채운다.
- * - 업종(WICS): 대분류(GICS 10종) → 소분류(79종). 소분류는 선택된 대분류 안에서만
+ * - 업종(WICS): 섹터(GICS 10종) → 업종(78종, 네이버 수집 기준). 업종은 선택된 섹터 안에서만
  * - 테마: INDUSTRIES(11종) 순서를 먼저 두고, 상수 밖 값(금융·기타·건설 등)을 건수순으로 뒤에
  *         → 이 상수 밖 값들은 업종을 테마 칸에 넣어둔 잔재라 WICS 안착 후 정리 대상
  * - 세부테마: 테마가 선택돼 있으면 그 테마 것만
