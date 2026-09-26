@@ -59,16 +59,16 @@ function pFinancials() {
     <!-- 필터 2축. 옵션·건수는 로드된 데이터에서 _syncFinSectorOptions()가 채운다.
          업종(WICS) = 무슨 사업을 하나 · 전 종목 / 테마 = 어떤 이야기로 묶이나 · 일부 종목 -->
     <select class="form-select" id="fin-wsec" title="업종 대분류 (GICS 표준 10종)"
-      onchange="F.wicsSector=this.value;F.wics='전체';_renderFinView()" style="width:130px;padding:6px 10px">
+      onchange="F.wicsSector=this.value;_finSel('wics').clear();_renderFinView()" style="width:130px;padding:6px 10px">
       <option value="전체">업종 전체</option>
     </select>
     <select class="form-select" id="fin-wics" title="업종 소분류 (WICS 79종)"
-      onchange="F.wics=this.value;_renderFinView()" style="width:175px;padding:6px 10px">
+      onchange="_finSelPick('wics',this.value);_renderFinView()" style="width:175px;padding:6px 10px">
       <option value="전체">세부업종 전체</option>
     </select>
     <select class="form-select" id="fin-ind" title="투자 테마 (큐레이션)"
-      onchange="F.industry=this.value;F.subIndustry='전체';_renderFinView()" style="width:120px;padding:6px 10px">
-      ${industries.map(i=>`<option value="${i}" ${F.industry===i?'selected':''}>${i}</option>`).join('')}
+      onchange="_finSelPick('ind',this.value);F.subIndustry='전체';_renderFinView()" style="width:120px;padding:6px 10px">
+      ${industries.map(i=>`<option value="${i}" ${_finSel('ind').has(i)?'selected':''}>${i}</option>`).join('')}
     </select>
     <select class="form-select" id="fin-sub" title="세부 테마"
       onchange="F.subIndustry=this.value;_renderFinView()" style="width:145px;padding:6px 10px">
@@ -118,10 +118,12 @@ let _finData = [];
  */
 function _applyFinFilter(rows) {
   if (F.q) rows = rows.filter(r => r.corp_name.includes(F.q));
-  if (F.industry !== '전체') {
+  // 테마·업종은 여러 값을 고를 수 있다(열 헤더 ▾). 같은 축 안은 OR, 축끼리는 AND.
+  const indSel = _finSel('ind');
+  if (indSel.size) {
     const indStocks = new Set(
       Object.entries(FIN.indMap || {})
-        .filter(([, ind]) => ind === F.industry)
+        .filter(([, ind]) => indSel.has(ind))
         .map(([code]) => code)
     );
     rows = rows.filter(r => indStocks.has(r.stock_code));
@@ -133,8 +135,9 @@ function _applyFinFilter(rows) {
   if (F.wicsSector && F.wicsSector !== '전체') {
     rows = rows.filter(r => (FIN.metaMap?.[r.stock_code]?.wcode || '').slice(0, 3) === F.wicsSector);
   }
-  if (F.wics && F.wics !== '전체') {
-    rows = rows.filter(r => FIN.metaMap?.[r.stock_code]?.wics === F.wics);
+  const wicsSel = _finSel('wics');
+  if (wicsSel.size) {
+    rows = rows.filter(r => wicsSel.has(FIN.metaMap?.[r.stock_code]?.wics));
   }
   // 지표 범위 — 여러 조건은 AND. 값이 없는 종목은 비교 불가라 제외한다
   (F.numFilters || []).forEach(f => {
@@ -166,7 +169,7 @@ function _syncFinSectorOptions(rows) {
     if (!m) return;
     if (m.ind) {
       indCnt[m.ind] = (indCnt[m.ind] || 0) + 1;
-      if (m.sub && (F.industry === '전체' || m.ind === F.industry)) {
+      if (m.sub && (!_finSel('ind').size || _finSel('ind').has(m.ind))) {
         subCnt[m.sub] = (subCnt[m.sub] || 0) + 1;
       }
     }
@@ -180,6 +183,8 @@ function _syncFinSectorOptions(rows) {
     }
   });
 
+  // 열 헤더 ▾ 팝오버가 같은 목록·건수를 쓰도록 남긴다 (두 벌로 계산하면 어긋난다)
+  FIN.optCnt = { ind: indCnt, wics: wicsCnt };
   const byCntDesc = (a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0], 'ko');
   const known = INDUSTRIES.filter(i => indCnt[i]);
   const extra = Object.entries(indCnt).filter(([i]) => !INDUSTRIES.includes(i))
@@ -190,10 +195,12 @@ function _syncFinSectorOptions(rows) {
   const indEl = document.getElementById('fin-ind');
   if (indEl) {
     // 선택값이 목록에 없으면(범위 전환 등) 옵션을 남겨 선택이 조용히 풀리지 않게 한다
-    const cur  = F.industry;
+    const sel  = _finSel('ind');
+    const cur  = _finSelCur(sel);
     const list = [...known, ...extra];
-    if (cur !== '전체' && !list.includes(cur)) list.push(cur);
-    indEl.innerHTML = opt('전체', '테마 전체', cur)
+    sel.forEach(v => { if (!list.includes(v)) list.push(v); });
+    indEl.innerHTML = _finMultiOpt(sel, '테마')
+      + opt('전체', '테마 전체', cur)
       + list.map(i => opt(i, `${i} (${indCnt[i] || 0})`, cur)).join('');
   }
 
@@ -220,14 +227,125 @@ function _syncFinSectorOptions(rows) {
   // 업종 소분류 — 대분류가 선택돼 있으면 그 안에서만
   const wEl = document.getElementById('fin-wics');
   if (wEl) {
-    const cur  = F.wics || '전체';
+    const sel  = _finSel('wics');
+    const cur  = _finSelCur(sel);
     const list = Object.entries(wicsCnt).sort(byCntDesc).map(([s]) => s);
-    if (cur !== '전체' && !list.includes(cur)) list.push(cur);
-    wEl.innerHTML = opt('전체', '세부업종 전체', cur)
+    sel.forEach(v => { if (!list.includes(v)) list.push(v); });
+    wEl.innerHTML = _finMultiOpt(sel, '업종')
+      + opt('전체', '세부업종 전체', cur)
       + list.map(s => opt(s, `${s} (${wicsCnt[s] || 0})`, cur)).join('');
     wEl.disabled = !list.length;
   }
 }
+
+// ── 업종·테마 필터 상태 — 여러 값을 고를 수 있다 ──────────────────────────
+// 진실은 Set 하나다. 상단 드롭다운은 '크기 1인 Set'을 만드는 단축 조작이고,
+// 열 헤더 ▾ 는 같은 Set에 여러 값을 담는다. (단일 문자열과 Set을 함께 두면
+// 어느 쪽이 맞는지 매번 따져야 해서 Set으로 통일했다.)
+const _FIN_MULTI = '__multi__';
+
+function _finSel(key) {
+  const k = key === 'wics' ? 'wicsSel' : 'indSel';
+  if (!(F[k] instanceof Set)) F[k] = new Set();
+  return F[k];
+}
+
+/** 드롭다운에서 하나 고르기 — '전체'면 비우고, 그 외엔 그 값 하나로 바꾼다 */
+function _finSelPick(key, val) {
+  if (val === _FIN_MULTI) return;      // '여러 개' 표시용 옵션은 골라도 무시
+  const sel = _finSel(key);
+  sel.clear();
+  if (val && val !== '전체') sel.add(val);
+}
+
+/** 드롭다운이 표시할 값 — 0개면 전체, 1개면 그 값, 여러 개면 전용 옵션 */
+function _finSelCur(sel) {
+  return !sel.size ? '전체' : sel.size === 1 ? [...sel][0] : _FIN_MULTI;
+}
+
+/** 여러 개 선택됐을 때만 맨 앞에 붙는 옵션 (드롭다운은 하나만 표시할 수 있다) */
+function _finMultiOpt(sel, label) {
+  return sel.size > 1
+    ? `<option value="${_FIN_MULTI}" selected>${escapeHtml(label)} ${sel.size}개 선택</option>` : '';
+}
+
+// ── 열 헤더 ▾ 필터 ─────────────────────────────────────────────────────────
+// 표에서 업종·테마 값을 보다가 그 자리에서 바로 고른다. 상단 드롭다운과 같은
+// 상태를 쓰되 체크박스라 여러 개를 담을 수 있다 — 같은 열 안에서는 OR.
+function _colFilterBtn(key) {
+  const n = _finSel(key).size;
+  return `<span onclick="event.stopPropagation();toggleFinColFilter('${key}',event)"
+    title="${n ? `${n}개 선택됨 — 눌러서 변경` : '이 열의 값으로 거르기'}"
+    style="cursor:pointer;user-select:none;margin-left:4px;padding:0 3px;border-radius:3px;
+    border:1px solid ${n ? 'var(--tg)' : 'var(--border)'};
+    color:${n ? 'var(--tg)' : 'var(--text2)'};font-weight:700">▾${n || ''}</span>`;
+}
+
+function toggleFinColFilter(key, ev) {
+  const old  = document.getElementById('fin-col-filter');
+  const same = old && old.dataset.key === key;
+  old?.remove();
+  if (same) return;                     // 같은 버튼을 다시 누르면 닫기
+
+  const cnt  = (FIN.optCnt || {})[key] || {};
+  const sel  = _finSel(key);
+  const list = Object.entries(cnt).sort((a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0], 'ko'));
+  sel.forEach(v => { if (!(v in cnt)) list.push([v, 0]); });   // 범위 밖 선택값도 남긴다
+
+  const box = document.createElement('div');
+  box.id = 'fin-col-filter';
+  box.dataset.key = key;
+  box.className = 'col-filter';
+  box.innerHTML =
+    `<input class="form-input col-filter-q" placeholder="값 검색..."
+       oninput="_finColFilterSearch(this.value)">`
+    + `<div class="col-filter-list">`
+    + (list.length ? list.map(([v, c]) =>
+        `<label class="col-filter-item"><input type="checkbox" value="${escAttr(v)}"`
+        + `${sel.has(v) ? ' checked' : ''} onchange="_finColFilterToggle('${key}',this)">`
+        + `<span>${escapeHtml(v)}</span><span class="col-filter-cnt">${c}</span></label>`).join('')
+       : `<div class="col-filter-hint" style="padding:6px">값이 없습니다</div>`)
+    + `</div>`
+    + `<div class="col-filter-foot">`
+    + `<button class="chip chip-sm" onclick="_finColFilterClear('${key}')">모두 해제</button>`
+    + `<span class="col-filter-hint">여러 개 고르면 그중 아무거나</span>`
+    + `</div>`;
+  document.body.appendChild(box);
+
+  // 표가 가로로 스크롤되는 영역 안이라 헤더 셀에 넣으면 잘린다 → body에 fixed로 띄운다
+  const r = ev.target.getBoundingClientRect();
+  // 위아래 모두 뷰포트 안으로 가둔다 — 아래쪽만 막으면 버튼이 화면 위로 스크롤됐을 때
+  // top이 음수가 돼 팝오버가 통째로 사라진다(실측)
+  box.style.left = Math.max(8, Math.min(r.left, window.innerWidth - box.offsetWidth - 8)) + 'px';
+  box.style.top  = Math.max(8, Math.min(r.bottom + 4, window.innerHeight - box.offsetHeight - 8)) + 'px';
+  box.querySelector('.col-filter-q')?.focus();
+}
+
+function _finColFilterToggle(key, cb) {
+  const sel = _finSel(key);
+  if (cb.checked) sel.add(cb.value); else sel.delete(cb.value);
+  _renderFinView();
+}
+
+function _finColFilterClear(key) {
+  _finSel(key).clear();
+  document.querySelectorAll('#fin-col-filter input[type=checkbox]')
+    .forEach(c => { c.checked = false; });
+  _renderFinView();
+}
+
+function _finColFilterSearch(q) {
+  const t = (q || '').trim().toLowerCase();
+  document.querySelectorAll('#fin-col-filter .col-filter-item').forEach(el => {
+    el.style.display = !t || el.innerText.toLowerCase().includes(t) ? '' : 'none';
+  });
+}
+
+// 바깥을 누르면 닫는다 (헤더 버튼은 stopPropagation 하므로 여기 걸리지 않는다)
+document.addEventListener('click', e => {
+  const box = document.getElementById('fin-col-filter');
+  if (box && !box.contains(e.target)) box.remove();
+});
 
 /**
  * 공통 정렬 버튼 생성
@@ -984,10 +1102,10 @@ function initFinancials() {
   F.q        = '';
   F.mode     = 'market';
   F.scope    = 'all';        // 진입 시 전체 상장사 (모니터링 313종목은 드롭다운으로 전환)
-  F.industry = '전체';
+  F.indSel   = new Set();
   F.subIndustry = '전체';
   F.wicsSector  = '전체';
-  F.wics        = '전체';
+  F.wicsSel     = new Set();
   F.numFilters  = [];
   F.sortBy   = 'market_cap';
   F.sortDir  = 'desc';
@@ -1105,7 +1223,9 @@ async function loadMarketData(el) {
     },
     headers: () => [
       _sortBtn('corp_name','종목명'), _sortBtn('stock_code','코드'),
-      _sortBtn('market','시장'), _sortBtn('_wics','업종'), _sortBtn('_ind','테마'),
+      _sortBtn('market','시장'),
+      _sortBtn('_wics','업종') + _colFilterBtn('wics'),
+      _sortBtn('_ind','테마')  + _colFilterBtn('ind'),
       _sortBtn('market_cap','시가총액'),
       // 상세 컬럼은 대표(현재가) 바로 뒤에 붙인다 — 펼쳤을 때 멀리 떨어져 나오면
       // 어느 대표에 딸린 값인지 알 수 없다
@@ -1337,7 +1457,8 @@ function exportFinancials() {
   const spec  = isMarket ? _finMarketCsvSpec() : _finFinancialCsvSpec();
   const scope = F.scope === 'monitored' ? '모니터링' : '전체';
   const name  = ['기업분석', isMarket ? '시장현황' : '재무제표', scope,
-                 F.industry !== '전체' ? F.industry : null, todayStr()].filter(Boolean).join('_');
+                 _finSel('ind').size ? [..._finSel('ind')].join('+') : null,
+                 todayStr()].filter(Boolean).join('_');
   downloadCsv(
     spec.map(c => c[0]),
     _finData.map(r => spec.map(c => c[1](r) ?? '')),
