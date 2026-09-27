@@ -250,7 +250,8 @@ const FIN_FILTER_GET = {
   _flowQ:    r => _finFlowQ(r)?.label,
 };
 
-// 수급 빈집 사분면 — 값은 백엔드(collect_flow_empty.py)가 넣고, 뜻은 수급 지도와 같다.
+// 수급 빈집 사분면 — 값은 백엔드(collect_flow_empty.py)가 전종목에 넣는다. 정의는 수급 지도와
+// 같고, 순위를 매기는 집단만 테마 대신 WICS 업종이다(테마 없는 종목이 많아서).
 // prio는 정렬용(내림차순이면 빈집이 위로). color는 flow-map.js의 _FM_QE와 같은 색.
 const FIN_FLOW_Q = {
   fill: { label: '빈집',     prio: 3, color: '#f59e0b' },
@@ -1603,10 +1604,14 @@ function _riskCell(r) {
 /** 빈집 판정 셀 — 사분면 이름 + 자기 이력 백분위. ★는 하위 30% 이하(뚜렷한 빈집) */
 function _finFlowCell(r) {
   const q = _finFlowQ(r);
-  if (!q) return `<td style="color:var(--text3)">—</td>`;   // 수급 이력이 없는 종목(모니터링 외)
+  // 판정 없음 = 수급 이력이 짧거나(신규 상장 등) 마지막 거래일 수급이 비어 있는 종목
+  if (!q) return `<td style="color:var(--text3)">—</td>`;
   // ★ = 수급 지도의 _FM_EMPTY_TH(30)와 같은 선 — 중앙값 바로 아래까지 '빈집'이라 부르면 과장이다
   const star = (r.flow_quad === 'fill' && r.flow_pctl != null && r.flow_pctl <= 30) ? ' ★' : '';
-  return `<td style="font-size:calc(11px*var(--m-label));color:${q.color};white-space:nowrap">`
+  const tip = r.flow_pctl != null
+    ? `${q.label} · 최근 5일 수급이 자기 이력 하위 ${Math.round(r.flow_pctl)}% · 공급강도는 같은 업종 안에서 비교`
+    : q.label;
+  return `<td style="font-size:calc(11px*var(--m-label));color:${q.color};white-space:nowrap" title="${escAttr(tip)}">`
     + `${q.label}${star}`
     + (r.flow_pctl != null
         ? ` <span style="color:var(--text3)">${Math.round(r.flow_pctl)}</span>` : '')
