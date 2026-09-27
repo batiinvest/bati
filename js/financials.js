@@ -812,16 +812,14 @@ const FIN_COL_GROUPS = {
       cols:['시가총액','현재가','전일대비','고가','저가','52주고가','52주저가','거래량','거래량증감률','신고가구분','등락률','1주','1달','3달','거래대금'] },
     { key:'val',   name:'밸류',
       cols:['PER','PBR','EPS','BPS'] },
-    { key:'flow',  name:'수급',
-      cols:['외국인보유율','외국인보유수','외국인순매수','프로그램순매수','융자잔고율','공매도수량'] },
+    // 수급 칩은 빈집 필터를 겸한다(FIN_CHIP_FILTER) — 누르면 수급 컬럼을 열고 빈집 종목만 남긴다.
+    // 빈집은 수급 이력 63거래일을 봐야 나오는 판정이라 백엔드가 미리 계산해 둔다
+    { key:'flow',  name:'수급빈집',
+      cols:['빈집','외국인보유율','외국인보유수','외국인순매수','프로그램순매수','융자잔고율','공매도수량'] },
     { key:'w52',   name:'52주 신고가',
       // 52주 고가·저가는 현재가와 나란히 봐야 의미가 있어 '현재가 +'로 옮겼다.
       // 여기 남은 건 언제 찍었나(날짜)와 그 대비 몇 %인가뿐이다
       cols:['52주고가일','52주저가일','52주고가대비%','52주저가대비%'] },
-    // 빈집은 수급 이력 63거래일을 봐야 나오는 판정이라 백엔드가 미리 계산해 둔다.
-    // 수급 칩과 따로 둔 이유: 켜면 행도 거르므로(FIN_CHIP_FILTER) 성격이 다르다
-    { key:'empty', name:'수급빈집',
-      cols:['빈집'] },
     { key:'stat',  name:'상태',
       cols:['경고'] },
     { key:'etc',   name:'참고',
@@ -847,7 +845,7 @@ const FIN_COLS_LS = 'bati-fin-cols';
 // 대개 '지금 그런 종목이 뭐냐'라서, 켜면 해당 종목만 남긴다(끄면 필터도 함께 풀린다).
 const FIN_CHIP_FILTER = {
   w52:   { col: 'hgpr_cls', val: '신고가', tip: '52주 컬럼을 열고 신고가 종목만 남깁니다' },
-  empty: { col: '_flowQ',   val: '빈집',   tip: '빈집 판정을 열고 유동성 공급 업종의 빈집만 남깁니다' },
+  flow:  { col: '_flowQ',   val: '빈집',   tip: '수급 컬럼을 열고 유동성 공급 업종의 빈집 종목만 남깁니다' },
 };
 
 // ── 헤더 '+' 로 펼치는 상세 컬럼 ────────────────────────────────────────────
@@ -994,6 +992,8 @@ function clearFinFilters() {
   F.catSel = {};
   F.textF = {};
   F.numFilters = [];
+  _finResetFilterChips();
+  _saveFinCols();
   _renderFinView();
 }
 
@@ -1099,9 +1099,16 @@ function _finGroups() {
 }
 
 /** 현재 탭에서 꺼둔 그룹 키 Set */
-// 한 번도 만진 적 없을 때 꺼둘 묶음. 52주·수급빈집은 행 필터를 겸하므로(FIN_CHIP_FILTER)
-// 켜진 채로 시작하면 표가 수십 종목만 보인다 — 꺼둔 상태에서 출발한다.
-const FIN_COLS_DEFAULT_OFF = { market: ['w52', 'empty'] };
+// 한 번도 만진 적 없을 때 꺼둘 묶음. 52주 신고가·수급빈집은 행 필터를 겸하므로(FIN_CHIP_FILTER)
+// 켜진 채로 시작하면 표가 수백 종목만 보인다 — 꺼둔 상태에서 출발한다.
+const FIN_COLS_DEFAULT_OFF = { market: ['w52', 'flow'] };
+
+/** 필터를 겸하는 칩을 끈다 — 필터 조건은 저장되지 않아서(페이지 진입·'조건 비우기' 때 비워짐)
+ *  칩만 켜진 채 남으면 '켜져 있는데 안 거르는' 상태가 된다. 칩과 필터를 같이 끈다 */
+function _finResetFilterChips() {
+  const off = FIN.colsOff?.market;
+  if (off) Object.keys(FIN_CHIP_FILTER).forEach(k => off.add(k));
+}
 
 function _finColsOff() {
   const m = F.mode === 'financial' ? 'financial' : 'market';
@@ -1111,6 +1118,8 @@ function _finColsOff() {
     let saved = null;
     try { saved = (JSON.parse(localStorage.getItem(FIN_COLS_LS)) || {})[m]; } catch (e) {}
     FIN.colsOff[m] = new Set(saved ?? FIN_COLS_DEFAULT_OFF[m] ?? []);
+    // 저장된 상태가 '켜짐'이어도 필터 칩은 꺼진 채 시작한다(필터 조건은 저장되지 않는다)
+    if (m === 'market') Object.keys(FIN_CHIP_FILTER).forEach(k => FIN.colsOff[m].add(k));
   }
   return FIN.colsOff[m];
 }
@@ -1196,7 +1205,7 @@ function _syncFinColChips() {
           title="${escAttr([FIN_CHIP_FILTER[g.key]?.tip, g.cols.join(' · ')]
                              .filter(Boolean).join(' · '))}"
           >${g.name}</button>`).join('')
-    + `<button class="chip chip-sm" onclick="setFinColsAll()" title="모든 컬럼 표시">전체</button>`
+    + `<button class="chip chip-sm" onclick="setFinColsAll()" title="모든 컬럼 표시 (필터를 겸하는 52주 신고가·수급빈집 칩은 그대로)">전체</button>`
     + `<span id="fin-col-info" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:2px"></span>`
     // 글자 크기 — 표에만 적용. 컬럼 칩과 같은 줄 오른쪽 끝
     + `<span style="margin-left:auto;display:flex;align-items:center;gap:3px">`
@@ -1227,7 +1236,9 @@ function toggleFinColGroup(key) {
 }
 
 function setFinColsAll() {
-  _finColsOff().clear();
+  // 필터를 겸하는 칩(52주 신고가·수급빈집)은 그대로 둔다 — 켜면 행이 걸러지므로 '모든 컬럼'과 다르다
+  const off = _finColsOff();
+  [...off].forEach(k => { if (!FIN_CHIP_FILTER[k]) off.delete(k); });
   _saveFinCols();
   _syncFinColChips();
   _applyFinColVisibility();
@@ -1315,6 +1326,7 @@ function initFinancials() {
   F.scope    = 'all';        // 진입 시 전체 상장사 (모니터링 313종목은 드롭다운으로 전환)
   F.catSel   = {};
   F.textF    = {};
+  _finResetFilterChips();   // 조건을 비웠으니 필터 칩도 끈다(칩만 켜진 채 남지 않게)
   F.subIndustry = '전체';
   F.wicsSector  = '전체';
   F.numFilters  = [];
@@ -1474,11 +1486,11 @@ async function loadMarketData(el) {
       _th('trading_value','거래대금'),
       _th('per','PER'), _th('pbr','PBR'),
       _th('eps','EPS'), _th('bps','BPS'),
+      _th('_flowQ','빈집'),
       _th('foreign_hold_rate','외국인보유율',{extra:_expandBtn('frgn', 1)}),
       _th('foreign_hold_qty','외국인보유수'),
       _th('foreign_net_buy','외국인순매수'), _th('program_net_buy','프로그램순매수'),
       _th('loan_balance_rate','융자잔고율'), _th('short_sell_qty','공매도수량'),
-      _th('_flowQ','빈집'),
       _th('w52_high_date','52주고가일'), _th('w52_low_date','52주저가일'),
       _th('_w52HighPct','52주고가대비%'), _th('_w52LowPct','52주저가대비%'),
 
@@ -1540,13 +1552,13 @@ async function loadMarketData(el) {
         <td>${r.per != null && r.per !== 0 ? r.per.toFixed(1) : '—'}</td>
         <td>${r.pbr != null && r.pbr !== 0 ? r.pbr.toFixed(2) : '—'}</td>
         <td>${n(r.eps)}</td><td>${n(r.bps)}</td>
+        ${_finFlowCell(r)}
         <td>${r.foreign_hold_rate != null ? r.foreign_hold_rate.toFixed(1)+'%' : '—'}</td>
         <td style="font-size:calc(11px*var(--m-label))">${n(r.foreign_hold_qty)}</td>
         <td style="color:${buyClr(r.foreign_net_buy||0)}">${buyFmt(r.foreign_net_buy)}</td>
         <td style="color:${buyClr(r.program_net_buy||0)}">${buyFmt(r.program_net_buy)}</td>
         <td>${r.loan_balance_rate != null ? r.loan_balance_rate.toFixed(2)+'%' : '—'}</td>
         <td style="font-size:calc(11px*var(--m-label))">${n(r.short_sell_qty)}</td>
-        ${_finFlowCell(r)}
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.w52_high_date||'—'}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.w52_low_date||'—'}</td>
         <td style="font-size:calc(11px*var(--m-label))">${p(r._w52HighPct)}</td>
