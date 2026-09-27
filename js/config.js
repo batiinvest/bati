@@ -742,6 +742,27 @@ const FLOW_STAGE = {
 };
 const FLOW_LEVEL_NAMES = ['상위 10%', '상위 25%', '평균', '하위 25%', '하위 10%'];
 
+// ══════════════════════════════════════════
+//  태린이아빠 국내 전략 후보 — 2026-09-19 영상 「1년간 미장에서 52주 신고가 전략 … 업그레이드」
+//   ① 주도 업종(6개월 수익률÷하방 표준편차 상위 ∩ 사모·투신·연금·외국인 매수 상위, WICS 중분류)
+//   ② 그 안에서 수급 오실레이터 빈집(자기 이력 하위 절반)
+//   ③ 거래대금 상위 150 · 컨센 상향 · 52주(250일) 신고가 중 하나  → 후보 A
+//   일일 스크린: RS 70 이상 · 그날 거래대금 또는 기관·외국인 순매수 상위 150 · 수급 빈  → 후보 B
+//  f = market_data.lead_flags {lead, mid, rs, tv, nb, cons, nh} (collect_leading.py)
+// ══════════════════════════════════════════
+const TAERIN_TAGS = { tv: '거래대금', nb: '순매수', cons: '컨센↑', nh: '신고가' };
+
+function taerinEval(pctl, f) {
+  if (!f || pctl == null) return null;
+  const empty = pctl < 50;
+  const lead  = !!f.lead;
+  const extra = ['tv', 'cons', 'nh'].filter(k => f[k]);      // ③ 확률 높이기 조건
+  const a = lead && empty && extra.length > 0;
+  const b = (f.rs || 0) >= 70 && !!(f.tv || f.nb) && empty;
+  return { empty, lead, a, b, extra, rs: f.rs ?? null,
+           label: a && b ? 'A·B' : a ? 'A' : b ? 'B' : '' };
+}
+
 /** 칸 판정 — { fill:0~5, up, key, label, color, prio, tip } 또는 null */
 function flowGauge(g) {
   if (!g || !Array.isArray(g.lv) || g.cur == null) return null;
@@ -799,6 +820,7 @@ async function _loadFlowVerdicts() {
   // 컬럼은 SQL을 실행해야 생긴다(42703) — flow_gauge는 sql/flow_gauge.sql, 공급 판정 두 컬럼은
   // sql/flow_concept.sql. 없으면 한 단계씩 빼고 받는다. 판정 행과 업종 순위표는 동시에 받는다
   const COLSETS = [
+    'stock_code,flow_quad,flow_pctl,flow_supplied,flow_supply_rank,flow_gauge,lead_flags',
     'stock_code,flow_quad,flow_pctl,flow_supplied,flow_supply_rank,flow_gauge',
     'stock_code,flow_quad,flow_pctl,flow_supplied,flow_supply_rank',
     'stock_code,flow_quad,flow_pctl',
@@ -807,15 +829,18 @@ async function _loadFlowVerdicts() {
     try { return await page(COLSETS[i]); }
     catch (e) { if (e?.code !== '42703' || i >= COLSETS.length - 1) throw e; return pageAny(i + 1); }
   };
-  const [rows, cres] = await Promise.all([
+  const [rows, cres, sres] = await Promise.all([
     pageAny(),
     sb.from('flow_concepts').select('grp,rank,n_groups,supplied,n_stocks,score,data_from,data_to')
       .eq('base_date', date).order('rank'),
+    // 주도 업종 보드(태린이아빠 ① 단계) — sql/leading_sectors.sql 실행 전이면 없음
+    sb.from('leading_sectors').select('*').eq('base_date', date).order('mom_rank'),
   ]);
   const byCode = {};
   rows.forEach(r => { byCode[r.stock_code] = r; });
   const concepts = cres.error ? [] : (cres.data || []);   // 테이블이 없으면 목록만 빠진다
-  return { date, byCode, concepts };
+  const sectors  = sres.error ? [] : (sres.data || []);
+  return { date, byCode, concepts, sectors };
 }
 
 // ══════════════════════════════════════════

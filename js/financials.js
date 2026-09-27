@@ -81,6 +81,9 @@ function pFinancials() {
     </div>
   </div>
 
+  <!-- 주도 업종 보드 — 태린이아빠 ① 단계. 판정이 없으면 자리를 차지하지 않는다 -->
+  <div id="fin-lead-board" style="display:none;margin-bottom:.75rem"></div>
+
   <!-- 컬럼 그룹 토글 — 40여 개를 용도별로 켜고 끈다 (선택은 브라우저에 저장) -->
   <div id="fin-cols" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-bottom:.75rem"></div>
 
@@ -240,7 +243,7 @@ function _syncFinSectorOptions(rows) {
 const FIN_FILTER_KIND = {
   corp_name: 'text', stock_code: 'text', w52_high_date: 'text', w52_low_date: 'text',
   market: 'cat', _wics: 'cat', _wsec: 'cat', _wmid: 'cat', _ind: 'cat', hgpr_cls: 'cat',
-  fiscal_month: 'cat', base_date: 'cat', _riskRank: 'cat', _flowQ: 'cat', _flowStage: 'cat',
+  fiscal_month: 'cat', base_date: 'cat', _riskRank: 'cat', _flowQ: 'cat', _flowStage: 'cat', _taerin: 'cat',
   bsns_year: 'cat', quarter: 'cat', fs_div: 'cat',   // 재무제표 탭
 };
 // 값이 행에 그대로 없는 컬럼의 추출기. 배열을 주면 '그중 하나라도'로 매칭한다.
@@ -249,6 +252,7 @@ const FIN_FILTER_GET = {
   _riskRank: r => _riskTags(r),
   _flowQ:    r => _finFlowQ(r)?.label,
   _flowStage: r => r._gauge?.label,   // 정렬값은 칸 수(숫자), 필터는 단계 이름
+  _taerin:    r => r._te?.label || null,   // 'A·B' / 'A' / 'B' — 후보가 아니면 목록에서 뺀다
 };
 
 // 수급 빈집 사분면 — 값은 백엔드(collect_flow_empty.py)가 전종목에 넣는다. 정의는 수급 지도와
@@ -259,11 +263,19 @@ const FIN_FILTER_GET = {
 const FIN_FLOW_Q = {
   fill:  { label: '빈집',        prio: 4, color: '#f59e0b' },
   fillx: { label: '빈집·비공급', prio: 3, color: '#a88f63' },
+  filln: { label: '빈집·비주도', prio: 3, color: '#a88f63' },   // 주도 업종 밖의 빈집(태린이아빠 ①)
+  hold:  { label: '차있음',      prio: 1, color: '#8898aa' },   // 자기 이력 상위 절반
   full:  { label: '채워짐',      prio: 2, color: '#2dce89' },
   bnce:  { label: '일시유입',    prio: 1, color: '#fb6340' },
   cold:  { label: '소외',        prio: 0, color: '#8898aa' },
 };
-const _finFlowKey = r => (r.flow_quad === 'fill' && r.flow_supplied === false) ? 'fillx' : r.flow_quad;
+// 주도 업종 판정(lead_flags)이 있으면 태린이아빠 방식: 주도 업종 ∧ 자기 이력 하위 절반 = 빈집.
+// 원본에 없는 가로축(업종 내 공급강도 순위)은 쓰지 않는다. 판정이 없으면 이전 사분면 방식으로
+const _finFlowKey = r => {
+  if (r.lead_flags && r.flow_pctl != null)
+    return r.flow_pctl < 50 ? (r.lead_flags.lead ? 'fill' : 'filln') : 'hold';
+  return (r.flow_quad === 'fill' && r.flow_supplied === false) ? 'fillx' : r.flow_quad;
+};
 const _finFlowQ   = r => FIN_FLOW_Q[_finFlowKey(r)] || null;
 
 const _FIN_MULTI = '__multi__';
@@ -822,6 +834,10 @@ const FIN_COL_GROUPS = {
     // 빈집만 남기므로, 전 종목의 '다 찼다 / 이제 시작'을 보려고 독립 열로 둔다(기본 켜짐·행 필터 없음)
     { key:'stage', name:'수급단계',
       cols:['수급단계'] },
+    // 태린이아빠 국내 전략 후보(A: 주도 업종 빈집 + 거래대금·컨센·신고가 / B: RS70 일일 스크린).
+    // 켜면 후보만 남긴다(FIN_CHIP_FILTER)
+    { key:'taerin', name:'태린 후보',
+      cols:['태린후보','RS'] },
     { key:'w52',   name:'52주 신고가',
       // 52주 고가·저가는 현재가와 나란히 봐야 의미가 있어 '현재가 +'로 옮겼다.
       // 여기 남은 건 언제 찍었나(날짜)와 그 대비 몇 %인가뿐이다
@@ -851,7 +867,9 @@ const FIN_COLS_LS = 'bati-fin-cols';
 // 대개 '지금 그런 종목이 뭐냐'라서, 켜면 해당 종목만 남긴다(끄면 필터도 함께 풀린다).
 const FIN_CHIP_FILTER = {
   w52:   { col: 'hgpr_cls', val: '신고가', tip: '52주 컬럼을 열고 신고가 종목만 남깁니다' },
-  flow:  { col: '_flowQ',   val: '빈집',   tip: '수급 컬럼을 열고 유동성 공급 업종의 빈집 종목만 남깁니다' },
+  flow:  { col: '_flowQ',   val: '빈집',   tip: '수급 컬럼을 열고 주도 업종의 빈집 종목만 남깁니다' },
+  taerin:{ col: '_taerin',  val: ['A·B', 'A', 'B'],
+           tip: '태린이아빠 후보만 남깁니다 — A: 주도 업종 빈집 + 거래대금·컨센·신고가 중 하나 · B: RS70 + 거래대금/순매수 상위 + 수급 빈' },
 };
 
 // ── 헤더 '+' 로 펼치는 상세 컬럼 ────────────────────────────────────────────
@@ -1107,7 +1125,7 @@ function _finGroups() {
 /** 현재 탭에서 꺼둔 그룹 키 Set */
 // 한 번도 만진 적 없을 때 꺼둘 묶음. 52주 신고가·수급빈집은 행 필터를 겸하므로(FIN_CHIP_FILTER)
 // 켜진 채로 시작하면 표가 수백 종목만 보인다 — 꺼둔 상태에서 출발한다.
-const FIN_COLS_DEFAULT_OFF = { market: ['w52', 'flow'] };
+const FIN_COLS_DEFAULT_OFF = { market: ['w52', 'flow', 'taerin'] };
 
 /** 필터를 겸하는 칩을 끈다 — 필터 조건은 저장되지 않아서(페이지 진입·'조건 비우기' 때 비워짐)
  *  칩만 켜진 채 남으면 '켜져 있는데 안 거르는' 상태가 된다. 칩과 필터를 같이 끈다 */
@@ -1232,8 +1250,9 @@ function toggleFinColGroup(key) {
   const cf = FIN_CHIP_FILTER[key];
   if (cf) {
     const sel = _finCatSel(cf.col);
-    if (off.has(key)) sel.delete(cf.val);
-    else { sel.clear(); sel.add(cf.val); }
+    const vals = [].concat(cf.val);   // 여러 값을 한 번에 거는 칩도 있다(태린 후보 A·B)
+    if (off.has(key)) vals.forEach(v => sel.delete(v));
+    else { sel.clear(); vals.forEach(v => sel.add(v)); }
     _renderFinView();   // 행이 바뀌므로 통째로 다시 그린다(칩·컬럼 갱신 포함)
     return;
   }
@@ -1294,6 +1313,7 @@ function _renderFinView() {
   _setFinTableHeight();
   _bindFinLazyRows();
   _syncFinFilterChips();         // 걸린 조건 칩 (범주·문자·숫자 모두)
+  _finRenderLeadBoard();         // 주도 업종 보드(시장 현황 탭) — 업종 선택 표시가 바뀌므로 매번
   _syncFinColChips();            // 탭마다 그룹이 달라 매 렌더 갱신
   _applyFinColVisibility();      // 헤더 인덱스가 바뀔 수 있어 렌더 후 다시 적용
   _applyFinFont();               // 칩 줄이 새로 그려지므로 표시값도 함께 갱신
@@ -1444,7 +1464,7 @@ async function loadMarketData(el) {
           .eq('base_date', maxDate)
       ) : Promise.resolve([]);
       const [all, meta, monitoredCodes, fv] = await Promise.all([allP, metaP, monP, fvP]);
-      FIN.flowInfo = fv ? { date: fv.date, concepts: fv.concepts } : null;
+      FIN.flowInfo = fv ? { date: fv.date, concepts: fv.concepts, sectors: fv.sectors || [] } : null;
       // companies(active)에 없는 종목은 제외 — 스팩·상장폐지분이 market_data에는
       // 과거 수집분으로 남아 있어 비활성화만으로는 표에서 사라지지 않는다.
       // meta가 비면(로드 실패) 거르지 않는다 — 표가 통째로 비는 것보다 낫다.
@@ -1475,6 +1495,10 @@ async function loadMarketData(el) {
         r.flow_gauge       = v?.flow_gauge ?? null;
         r._gauge     = flowGauge(r.flow_gauge);   // 수급 칸 — 0~5칸·방향·단계(원본 엑셀의 여러 칸)
         r._flowStage = r._gauge ? r._gauge.fill * 2 + (r._gauge.up ? 1 : 0) : null;
+        r.lead_flags = v?.lead_flags ?? null;
+        r._te     = taerinEval(r.flow_pctl, r.lead_flags);   // 태린이아빠 후보 판정
+        r._taerin = r._te ? (r._te.a ? 2 : 0) + (r._te.b ? 1 : 0) : null;   // 정렬값
+        r._rs     = r.lead_flags?.rs ?? null;
         r._flowQ = _finFlowQ(r)?.prio ?? null;   // 빈집 컬럼 정렬용 (필터는 라벨로 — FIN_FILTER_GET)
       });
       return out;
@@ -1501,6 +1525,7 @@ async function loadMarketData(el) {
       _th('per','PER'), _th('pbr','PBR'),
       _th('eps','EPS'), _th('bps','BPS'),
       _th('_flowStage','수급단계'),
+      _th('_taerin','태린후보'), _th('_rs','RS'),
       _th('foreign_hold_rate','외국인보유율',{extra:_expandBtn('frgn', 1)}),
       _th('foreign_hold_qty','외국인보유수'),
       _th('foreign_net_buy','외국인순매수'), _th('program_net_buy','프로그램순매수'),
@@ -1568,6 +1593,8 @@ async function loadMarketData(el) {
         <td>${r.pbr != null && r.pbr !== 0 ? r.pbr.toFixed(2) : '—'}</td>
         <td>${n(r.eps)}</td><td>${n(r.bps)}</td>
         ${_finStageCell(r)}
+        ${_finTaerinCell(r)}
+        <td style="font-size:calc(11px*var(--m-label));${(r._rs || 0) >= 70 ? 'font-weight:700;color:var(--text1)' : 'color:var(--text3)'}">${r._rs ?? '—'}</td>
         <td>${r.foreign_hold_rate != null ? r.foreign_hold_rate.toFixed(1)+'%' : '—'}</td>
         <td style="font-size:calc(11px*var(--m-label))">${n(r.foreign_hold_qty)}</td>
         <td style="color:${buyClr(r.foreign_net_buy||0)}">${buyFmt(r.foreign_net_buy)}</td>
@@ -1641,7 +1668,11 @@ function _finFlowCell(r) {
   // 공급 업종 밖(fillx)은 원본 기준 빈집이 아니라 ★도 붙이지 않는다
   const star = (_finFlowKey(r) === 'fill' && r.flow_pctl != null && r.flow_pctl <= 30) ? ' ★' : '';
   const nG   = FIN.flowInfo?.concepts?.[0]?.n_groups;
-  const sup  = r.flow_supplied == null ? '업종 공급 판정 없음'
+  const sec  = r.lead_flags ? (FIN.flowInfo?.sectors || []).find(x => x.mid_code === r.lead_flags.mid) : null;
+  const sup  = r.lead_flags ? (sec
+      ? `중분류 ${sec.name} — ${sec.leading ? '주도 업종' : '주도 업종 아님'} (모멘텀 ${sec.mom_rank ?? '—'}위·매수 ${sec.buy_rank ?? '—'}위/${sec.n_sectors})`
+      : '주도 업종 판정 없음')
+    : r.flow_supplied == null ? '업종 공급 판정 없음'
     : `업종 유동성 공급 ${r.flow_supply_rank ?? '—'}위${nG ? '/' + nG : ''}`
       + (r.flow_supplied ? ' (공급 업종)' : ' — 공급 업종(상위 25%) 밖');
   const tip = r.flow_pctl != null
@@ -1661,6 +1692,81 @@ function _finStageCell(r) {
   if (!gg) return `<td style="color:var(--text3)">—</td>`;
   return `<td style="font-size:calc(11px*var(--m-label));white-space:nowrap" title="${escAttr(flowGaugeTip(r.flow_gauge, gg))}">`
     + flowGaugeBar(gg) + ` <span style="color:${gg.color};font-weight:600">${gg.label}</span></td>`;
+}
+
+/** 태린이아빠 후보 셀 — A·B 배지와 충족 조건. 후보가 아니면 이유를 툴팁으로 */
+function _finTaerinCell(r) {
+  const t = r._te, f = r.lead_flags;
+  if (!t) return `<td style="color:var(--text3)">—</td>`;
+  const flags = ['tv', 'nb', 'cons', 'nh'].filter(k => f[k]).map(k => TAERIN_TAGS[k]);
+  const why = [
+    t.lead ? '주도 업종' : '주도 업종 아님',
+    t.empty ? `수급 빈(하위 ${Math.round(r.flow_pctl)}%)` : `수급 차있음(하위 ${Math.round(r.flow_pctl)}%)`,
+    `RS ${t.rs ?? '—'}`,
+    flags.length ? flags.join('·') : '거래대금·순매수·컨센·신고가 해당 없음',
+  ].join(' · ');
+  const tip = (t.a ? 'A = 주도 업종 ∧ 수급 빈 ∧ (거래대금 상위150 ∨ 컨센 상향 ∨ 52주 신고가). ' : '')
+            + (t.b ? 'B = RS 70↑ ∧ (거래대금 ∨ 기관·외국인 순매수 상위150) ∧ 수급 빈. ' : '')
+            + why;
+  const badge = txt => `<span style="display:inline-block;padding:0 5px;border-radius:3px;margin-right:3px;`
+    + `font-weight:800;background:rgba(245,158,11,.18);color:#f59e0b">${txt}</span>`;
+  return `<td style="font-size:calc(11px*var(--m-label));white-space:nowrap" title="${escAttr(tip)}">`
+    + (t.label ? badge(t.label) + `<span style="color:var(--text2)">${escapeHtml(flags.join('·'))}</span>`
+               : `<span style="color:var(--text3)">—</span>`)
+    + `</td>`;
+}
+
+/** 주도 업종 보드 — 태린이아빠 ① 단계(WICS 중분류 28개). 칩·행을 누르면 그 업종으로 거른다 */
+function _finRenderLeadBoard() {
+  const box = document.getElementById('fin-lead-board');
+  if (!box) return;
+  const secs = F.mode === 'market' ? (FIN.flowInfo?.sectors || []) : [];
+  if (!secs.length) { box.innerHTML = ''; box.style.display = 'none'; return; }
+  box.style.display = '';
+  const sel = _finCatSel('_wmid');
+  const leads = secs.filter(x => x.leading);
+  const chip = x => `<button class="chip chip-sm${sel.has(x.name) ? ' active' : ''}" `
+    + `onclick="toggleFinLeadSector('${escJsStr(x.name)}')" `
+    + `title="${escAttr(`모멘텀 ${x.mom_rank}위(6개월 ${x.ret_6m}% ÷ 하방σ ${x.down_dev}%) · 매수 ${x.buy_rank}위 · 누르면 이 업종만`)}">`
+    + `${escapeHtml(x.name)}</button>`;
+  const ma = v => v ? '<span style="color:var(--text1)">●</span>' : '<span style="color:var(--text3)">○</span>';
+  const td = 'padding:3px 8px;border-bottom:1px solid var(--border);white-space:nowrap';
+  const head = ['모멘텀', '매수', '업종(중분류)', '6개월', '하방σ', '점수', '11·20·50일선', '순매수일', '신고가 5일', '종목', '주도']
+    .map(h => `<th style="${td};color:var(--text2);font-weight:600;text-align:left">${h}</th>`).join('');
+  const rows = secs.map(x => `<tr onclick="toggleFinLeadSector('${escJsStr(x.name)}')" style="cursor:pointer;${x.leading ? 'background:rgba(245,158,11,.08)' : ''}">
+      <td style="${td}">${x.mom_rank ?? '—'}</td>
+      <td style="${td}">${x.buy_rank ?? '—'}</td>
+      <td style="${td};color:var(--text1);font-weight:${x.leading ? 700 : 400}">${escapeHtml(x.name)}</td>
+      <td style="${td};color:${chgColor(x.ret_6m)}">${x.ret_6m != null ? (x.ret_6m > 0 ? '+' : '') + Number(x.ret_6m).toFixed(1) + '%' : '—'}</td>
+      <td style="${td}">${x.down_dev != null ? Number(x.down_dev).toFixed(2) + '%' : '—'}</td>
+      <td style="${td}">${x.score != null ? Number(x.score).toFixed(1) : '—'}</td>
+      <td style="${td}">${ma(x.above_ma11)} ${ma(x.above_ma20)} ${ma(x.above_ma50)}</td>
+      <td style="${td}">${x.flow_pos_days ?? '—'}/${x.flow_days ?? '—'}</td>
+      <td style="${td}">${x.newhigh_5d ?? 0}</td>
+      <td style="${td};color:var(--text2)">${x.n_stocks ?? '—'}</td>
+      <td style="${td};color:#f59e0b;font-weight:700">${x.leading ? '★' : ''}</td></tr>`).join('');
+  box.innerHTML = `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--text1)">주도 업종</span>
+      <span style="font-size:calc(11px*var(--m-label));color:var(--text3)" title="6개월 수익률 ÷ 하방 표준편차 상위 10 ∩ 사모·투신·연금·외국인 매수 상위 10 (WICS 중분류 ${secs[0].n_sectors}개, FnGuide 지수)">태린이아빠 ① · ${escapeHtml(FIN.flowInfo.date)}</span>
+      ${leads.length ? leads.map(chip).join('') : '<span style="font-size:calc(11px*var(--m-label));color:var(--text3)">해당 없음</span>'}
+      <button class="chip chip-sm" onclick="toggleFinLeadBoard()">${FIN.leadOpen ? '보드 접기 ▴' : `${secs.length}개 업종 보드 ▾`}</button>
+    </div>`
+    + (FIN.leadOpen ? `<div style="overflow:auto;margin-top:6px;border:1px solid var(--border);border-radius:var(--radius)">
+        <table style="border-collapse:collapse;width:100%;font-size:calc(11.5px*var(--m-label))"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>
+        <div style="padding:6px 8px;font-size:calc(10.5px*var(--m-label));color:var(--text3)">
+          주도 = 모멘텀(6개월 수익률 ÷ 하방 표준편차) 상위 10 ∩ 사모·투신·연금·외국인 매수 상위 10. 11·20·50일선(10주선) 위 여부·기관+외국인 순매수(+) 일수·신고가 군집은 참고.
+        </div></div>` : '');
+}
+
+function toggleFinLeadSector(name) {
+  const sel = _finCatSel('_wmid');
+  sel.has(name) ? sel.delete(name) : sel.add(name);
+  _renderFinView();
+}
+
+function toggleFinLeadBoard() {
+  FIN.leadOpen = !FIN.leadOpen;
+  _finRenderLeadBoard();
 }
 
 function _riskRank(r) {
@@ -1711,6 +1817,9 @@ function _finMarketCsvSpec() {
     ['업종공급순위',  r => r.flow_supply_rank],
     ['수급단계',      r => r._gauge?.label || ''],
     ['수급칸',        r => r._gauge?.fill ?? ''],
+    ['태린후보',      r => r._te?.label || ''],
+    ['RS',           r => r._rs ?? ''],
+    ['주도업종',      r => r.lead_flags ? (r.lead_flags.lead ? 'Y' : 'N') : ''],
     ['52주고가',     r => r.w52_high],
     ['52주저가',     r => r.w52_low],
     ['52주고가일',    r => r.w52_high_date],
