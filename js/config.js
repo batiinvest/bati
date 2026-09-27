@@ -725,6 +725,65 @@ function getFlowVerdicts() {
 
 function resetFlowVerdicts() { CACHE.flowVerdicts = null; }
 
+// ══════════════════════════════════════════
+//  수급 칸(게이지) — 태린이아빠 수급오실레이터 엑셀의 '여러 칸' (2026-09-25 영상)
+//  종목 차트 옆에 '상위10%·상위25%·평균·하위25%·하위10%·현재'를 두고, 현재값이 넘어선 칸을
+//  채운다(원본은 분홍색). 칸 수(0~5)와 방향(어제보다 올랐나)으로 단계를 부른다 — 이름은 원저자의
+//  말을 옮긴 것: "과열권에서 떨어질 때는 한 턴 기다린다" · "수급오실레이터가 꺾이면 비중을
+//  줄인다" · "바닥에서 변곡이 나오면 수급이 본격적으로 채워진다".
+//  g = { lv: [상위10, 상위25, 평균, 하위25, 하위10], cur, prev }  (오실레이터 %)
+// ══════════════════════════════════════════
+const FLOW_STAGE = {
+  start: { label: '이제 시작', color: '#2dce89', prio: 4, tip: '칸이 비어 있는데(2칸 이하) 오르기 시작 — 바닥에서 채워지기 시작' },
+  fill:  { label: '채우는 중', color: '#7fb8a0', prio: 3, tip: '중간 칸에서 오르는 중' },
+  drain: { label: '비우는 중', color: '#8898aa', prio: 2, tip: '중간 이하 칸에서 내려가는 중' },
+  top:   { label: '다 찼다',   color: '#f5365c', prio: 1, tip: '5칸이 다 참(자기 이력 상위 10% 이상) — 과열권' },
+  turn:  { label: '꺾임',      color: '#fb6340', prio: 0, tip: '4칸 이상 찬 상태에서 내려오기 시작 — 비중 축소·한 턴 기다림' },
+};
+const FLOW_LEVEL_NAMES = ['상위 10%', '상위 25%', '평균', '하위 25%', '하위 10%'];
+
+/** 칸 판정 — { fill:0~5, up, key, label, color, prio, tip } 또는 null */
+function flowGauge(g) {
+  if (!g || !Array.isArray(g.lv) || g.cur == null) return null;
+  const fill = g.lv.filter(v => v != null && g.cur >= v).length;
+  const up   = g.prev != null && g.cur > g.prev;
+  const key  = (fill >= 4 && !up) ? 'turn'
+             : fill === 5          ? 'top'
+             : (fill <= 2 && up)   ? 'start'
+             : up                  ? 'fill' : 'drain';
+  return Object.assign({ fill, up, key }, FLOW_STAGE[key]);
+}
+
+/** 오실레이터 이력 → 칸 기준선 [상위10, 상위25, 평균, 하위25, 하위10]
+ *  Excel PERCENTILE.INC와 같은 선형보간 — 백엔드 statistics.quantiles(inclusive)와 같은 값 */
+function flowLevels(vals) {
+  const a = vals.filter(v => v != null && isFinite(v)).slice().sort((x, y) => x - y);
+  if (a.length < 2) return null;
+  const q = p => { const pos = (a.length - 1) * p, lo = Math.floor(pos), f = pos - lo;
+                   return lo + 1 < a.length ? a[lo] + (a[lo + 1] - a[lo]) * f : a[lo]; };
+  return [q(0.9), q(0.75), a.reduce((s, v) => s + v, 0) / a.length, q(0.25), q(0.1)];
+}
+
+/** 칸 그림 — 왼쪽이 바닥(하위10%), 찬 칸은 단계 색. 글자 크기를 따라 커지게 em 단위 */
+function flowGaugeBar(gg) {
+  if (!gg) return '';
+  let h = '';
+  for (let i = 0; i < 5; i++) {
+    const on = i < gg.fill;
+    h += `<span style="display:inline-block;width:.42em;height:.85em;margin-right:1px;border-radius:1px;`
+      + `vertical-align:-1px;background:${on ? gg.color : 'transparent'};border:1px solid ${on ? gg.color : 'var(--border)'}"></span>`;
+  }
+  return h + `<span style="margin-left:2px;color:${gg.color}">${gg.up ? '↑' : '↓'}</span>`;
+}
+
+/** 칸 표 툴팁 — 원본 엑셀 표를 한 줄로 */
+function flowGaugeTip(g, gg) {
+  if (!g || !gg) return '';
+  const f = v => (v >= 0 ? '+' : '') + v.toFixed(3) + '%';
+  return FLOW_LEVEL_NAMES.map((n, i) => `${n} ${f(g.lv[i])}${g.cur >= g.lv[i] ? '■' : '□'}`).join(' · ')
+    + ` | 현재 ${f(g.cur)} (전일 ${f(g.prev)}) · ${gg.fill}/5칸 ${gg.up ? '↑' : '↓'} ${gg.label}`;
+}
+
 async function _loadFlowVerdicts() {
   const { data: d, error } = await sb.from('market_data').select('base_date')
     .not('flow_quad', 'is', null).order('base_date', { ascending: false }).limit(1);
@@ -737,11 +796,19 @@ async function _loadFlowVerdicts() {
       .not('flow_quad', 'is', null).order('stock_code').range(s, e),
     sb.from('market_data').select('stock_code', { count: 'exact', head: true })
       .eq('base_date', date).not('flow_quad', 'is', null));
-  // 공급 판정 두 컬럼은 sql/flow_concept.sql 실행 후 생긴다(42703) — 없으면 컨셉 없이 판정만.
-  // 판정 행과 업종 순위표는 서로 기다릴 필요가 없어 동시에 받는다
+  // 컬럼은 SQL을 실행해야 생긴다(42703) — flow_gauge는 sql/flow_gauge.sql, 공급 판정 두 컬럼은
+  // sql/flow_concept.sql. 없으면 한 단계씩 빼고 받는다. 판정 행과 업종 순위표는 동시에 받는다
+  const COLSETS = [
+    'stock_code,flow_quad,flow_pctl,flow_supplied,flow_supply_rank,flow_gauge',
+    'stock_code,flow_quad,flow_pctl,flow_supplied,flow_supply_rank',
+    'stock_code,flow_quad,flow_pctl',
+  ];
+  const pageAny = async (i = 0) => {
+    try { return await page(COLSETS[i]); }
+    catch (e) { if (e?.code !== '42703' || i >= COLSETS.length - 1) throw e; return pageAny(i + 1); }
+  };
   const [rows, cres] = await Promise.all([
-    page('stock_code,flow_quad,flow_pctl,flow_supplied,flow_supply_rank')
-      .catch(e => { if (e?.code !== '42703') throw e; return page('stock_code,flow_quad,flow_pctl'); }),
+    pageAny(),
     sb.from('flow_concepts').select('grp,rank,n_groups,supplied,n_stocks,score,data_from,data_to')
       .eq('base_date', date).order('rank'),
   ]);

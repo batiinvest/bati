@@ -240,7 +240,7 @@ function _syncFinSectorOptions(rows) {
 const FIN_FILTER_KIND = {
   corp_name: 'text', stock_code: 'text', w52_high_date: 'text', w52_low_date: 'text',
   market: 'cat', _wics: 'cat', _wsec: 'cat', _wmid: 'cat', _ind: 'cat', hgpr_cls: 'cat',
-  fiscal_month: 'cat', base_date: 'cat', _riskRank: 'cat', _flowQ: 'cat',
+  fiscal_month: 'cat', base_date: 'cat', _riskRank: 'cat', _flowQ: 'cat', _flowStage: 'cat',
   bsns_year: 'cat', quarter: 'cat', fs_div: 'cat',   // 재무제표 탭
 };
 // 값이 행에 그대로 없는 컬럼의 추출기. 배열을 주면 '그중 하나라도'로 매칭한다.
@@ -248,6 +248,7 @@ const FIN_FILTER_KIND = {
 const FIN_FILTER_GET = {
   _riskRank: r => _riskTags(r),
   _flowQ:    r => _finFlowQ(r)?.label,
+  _flowStage: r => r._gauge?.label,   // 정렬값은 칸 수(숫자), 필터는 단계 이름
 };
 
 // 수급 빈집 사분면 — 값은 백엔드(collect_flow_empty.py)가 전종목에 넣는다. 정의는 수급 지도와
@@ -815,7 +816,7 @@ const FIN_COL_GROUPS = {
     // 수급 칩은 빈집 필터를 겸한다(FIN_CHIP_FILTER) — 누르면 수급 컬럼을 열고 빈집 종목만 남긴다.
     // 빈집은 수급 이력 63거래일을 봐야 나오는 판정이라 백엔드가 미리 계산해 둔다
     { key:'flow',  name:'수급빈집',
-      cols:['빈집','외국인보유율','외국인보유수','외국인순매수','프로그램순매수','융자잔고율','공매도수량'] },
+      cols:['빈집','수급단계','외국인보유율','외국인보유수','외국인순매수','프로그램순매수','융자잔고율','공매도수량'] },
     { key:'w52',   name:'52주 신고가',
       // 52주 고가·저가는 현재가와 나란히 봐야 의미가 있어 '현재가 +'로 옮겼다.
       // 여기 남은 건 언제 찍었나(날짜)와 그 대비 몇 %인가뿐이다
@@ -1461,6 +1462,9 @@ async function loadMarketData(el) {
         r.flow_pctl        = v?.flow_pctl ?? null;
         r.flow_supplied    = v?.flow_supplied ?? null;
         r.flow_supply_rank = v?.flow_supply_rank ?? null;
+        r.flow_gauge       = v?.flow_gauge ?? null;
+        r._gauge     = flowGauge(r.flow_gauge);   // 수급 칸 — 0~5칸·방향·단계(원본 엑셀의 여러 칸)
+        r._flowStage = r._gauge ? r._gauge.fill * 2 + (r._gauge.up ? 1 : 0) : null;
         r._flowQ = _finFlowQ(r)?.prio ?? null;   // 빈집 컬럼 정렬용 (필터는 라벨로 — FIN_FILTER_GET)
       });
       return out;
@@ -1486,7 +1490,7 @@ async function loadMarketData(el) {
       _th('trading_value','거래대금'),
       _th('per','PER'), _th('pbr','PBR'),
       _th('eps','EPS'), _th('bps','BPS'),
-      _th('_flowQ','빈집'),
+      _th('_flowQ','빈집'), _th('_flowStage','수급단계'),
       _th('foreign_hold_rate','외국인보유율',{extra:_expandBtn('frgn', 1)}),
       _th('foreign_hold_qty','외국인보유수'),
       _th('foreign_net_buy','외국인순매수'), _th('program_net_buy','프로그램순매수'),
@@ -1553,6 +1557,7 @@ async function loadMarketData(el) {
         <td>${r.pbr != null && r.pbr !== 0 ? r.pbr.toFixed(2) : '—'}</td>
         <td>${n(r.eps)}</td><td>${n(r.bps)}</td>
         ${_finFlowCell(r)}
+        ${_finStageCell(r)}
         <td>${r.foreign_hold_rate != null ? r.foreign_hold_rate.toFixed(1)+'%' : '—'}</td>
         <td style="font-size:calc(11px*var(--m-label))">${n(r.foreign_hold_qty)}</td>
         <td style="color:${buyClr(r.foreign_net_buy||0)}">${buyFmt(r.foreign_net_buy)}</td>
@@ -1640,6 +1645,14 @@ function _finFlowCell(r) {
     + `</td>`;
 }
 
+/** 수급단계 셀 — 칸 5개(바닥→상단)·방향·단계 이름. 툴팁은 원본 엑셀의 칸 표 */
+function _finStageCell(r) {
+  const gg = r._gauge;
+  if (!gg) return `<td style="color:var(--text3)">—</td>`;
+  return `<td style="font-size:calc(11px*var(--m-label));white-space:nowrap" title="${escAttr(flowGaugeTip(r.flow_gauge, gg))}">`
+    + flowGaugeBar(gg) + ` <span style="color:${gg.color};font-weight:600">${gg.label}</span></td>`;
+}
+
 function _riskRank(r) {
   return (r.is_liquidation ? 8 : 0)
        + (r.manage_issue_code === 'Y' ? 4 : 0)
@@ -1686,6 +1699,8 @@ function _finMarketCsvSpec() {
     ['빈집',         r => _finFlowQ(r)?.label || ''],
     ['빈집백분위',    r => r.flow_pctl],
     ['업종공급순위',  r => r.flow_supply_rank],
+    ['수급단계',      r => r._gauge?.label || ''],
+    ['수급칸',        r => r._gauge?.fill ?? ''],
     ['52주고가',     r => r.w52_high],
     ['52주저가',     r => r.w52_low],
     ['52주고가일',    r => r.w52_high_date],

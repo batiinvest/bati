@@ -631,7 +631,10 @@ function _fmOscChart(p) {
 
   const path = (vals, Y) => vals.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join('');
 
-  // 빈집권 임계 = 이 종목 이력의 하위 _FM_EMPTY_TH 백분위 값
+  // 수급 칸 기준선 — 상위10·상위25·평균·하위25·하위10 (원본 엑셀의 칸, 차트 오른쪽 이름표는 줄임말)
+  const lv  = p.gauge?.lv || null;
+  const LVS = ['상10', '상25', '평균', '하25', '하10'];
+  // 빈집권 임계 = 이 종목 이력의 하위 _FM_EMPTY_TH 백분위 값 (칸 정보가 없을 때만 선으로 쓴다)
   const sorted = oscs.slice().sort((a, b) => a - b);
   const thVal  = sorted[Math.max(0, Math.min(sorted.length - 1, Math.floor(sorted.length * _FM_EMPTY_TH / 100)))];
 
@@ -646,13 +649,27 @@ function _fmOscChart(p) {
   const dl = i => `<text x="${X(i).toFixed(1)}" y="${y1 + 15}" font-size="8" fill="#8b91a7" text-anchor="${i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}">${ser[i].d.slice(5)}</text>`;
 
   const last = ser[n - 1];
+  // 원본 엑셀의 칸 표 — 현재값이 넘어선 기준선 칸을 분홍으로 채운다(원본 그대로)
+  const box = (lv && p.gg) ? `<table style="font-size:calc(10.5px*var(--m-label));border-collapse:collapse;flex:0 0 auto;align-self:center">`
+    + FLOW_LEVEL_NAMES.map((nm, i) => {
+        const on = p.gauge.cur >= lv[i];
+        return `<tr><td style="padding:2px 6px;border:1px solid var(--border);color:var(--text2);white-space:nowrap">${nm}</td>`
+          + `<td style="padding:2px 6px;border:1px solid var(--border);text-align:right;white-space:nowrap;`
+          + (on ? 'background:rgba(245,54,92,.16);color:#f5365c' : 'color:var(--text1)') + `">${_fmPct2(lv[i])}</td></tr>`;
+      }).join('')
+    + `<tr><td style="padding:2px 6px;border:1px solid var(--border);color:var(--text2)">현재</td>`
+    + `<td style="padding:2px 6px;border:1px solid var(--border);text-align:right;font-weight:700;color:var(--text1)">${_fmPct2(p.gauge.cur)}</td></tr>`
+    + `<tr><td colspan="2" style="padding:4px 2px 0;text-align:center;white-space:nowrap">${flowGaugeBar(p.gg)} `
+    + `<b style="color:${p.gg.color}" title="${escAttr(p.gg.tip)}">${p.gg.label}</b></td></tr></table>` : '';
   return `<div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text1);padding:8px 2px 2px;border-top:1px solid var(--border);margin-top:6px">
       ${escapeHtml(p.name)} 추이 <span style="font-weight:400;color:var(--text2)">시가총액(좌·정규화) vs 수급오실레이터(우·%)</span>
     </div>
-    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:560px;display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg">
+    <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap">
+    <svg viewBox="0 0 ${W} ${H}" style="flex:1 1 300px;width:100%;height:auto;max-width:560px;display:block" xmlns="http://www.w3.org/2000/svg">
       <rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="rgba(255,255,255,.02)"/>
       ${gl(0, '#8b91a7', '4 3', '0%')}
-      ${gl(thVal, _FM_QE.fill.color, '5 4', `하위${_FM_EMPTY_TH}%`)}
+      ${lv ? lv.map((v, i) => gl(v, i < 2 ? '#f5365c' : i > 2 ? '#2dce89' : '#8b91a7', i === 2 ? '2 2' : '5 4', LVS[i])).join('')
+           : gl(thVal, _FM_QE.fill.color, '5 4', `하위${_FM_EMPTY_TH}%`)}
       ${tickC}
       <path d="${path(caps, YC)}" fill="none" stroke="#e8ebf2" stroke-width="1.6"/>
       <path d="${path(oscs, YO)}" fill="none" stroke="${_FM_QE.fill.color}" stroke-width="1.6"/>
@@ -660,7 +677,9 @@ function _fmOscChart(p) {
       ${dl(0)}${dl(md)}${dl(n - 1)}
       <text x="${x0}" y="${y0 - 8}" font-size="8.5" fill="#e8ebf2">— 시가총액</text>
       <text x="${x0 + 58}" y="${y0 - 8}" font-size="8.5" fill="${_FM_QE.fill.color}">— 수급오실레이터 (현재 ${_fmPct2(last.v)})</text>
-    </svg>`;
+    </svg>
+    ${box}
+    </div>`;
 }
 
 // 추이 차트에 띄울 종목 교체 — 원자료는 그대로라 재집계만
@@ -695,8 +714,10 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
     const cur = ser[ser.length - 1].v;
     const avg = ser.reduce((a, o) => a + o.v, 0) / ser.length;
     const pct = ser.filter(o => o.v < cur).length / ser.length * 100;   // 0~100
+    // 수급 칸(원본 엑셀의 여러 칸) — 이 지도의 비교 창 안 자기 이력으로 기준선 5개
+    const gauge = { lv: flowLevels(ser.map(o => o.v)), cur, prev: ser[ser.length - 2].v };
     base.push({
-      code: s.code, name: s.name, cap: s.cap, ser, cur, avg, pct,
+      code: s.code, name: s.name, cap: s.cap, ser, cur, avg, pct, gauge, gg: flowGauge(gauge),
       short: ser.length < expect * 0.9,
       hit: ser.length,
     });
@@ -751,6 +772,14 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
   if (best)
     hi.push(`<span style="color:var(--text2)">가장 비어 있는 빈집</span> <b style="color:var(--text1)">${escapeHtml(best.name)}</b> <span style="color:#f59e0b;font-weight:700">하위 ${Math.round(best.pct)}%</span>`);
 
+  // 수급 단계(칸) 분포 — 원본이 '다 찼다 / 이제 시작'을 가르는 기준
+  const stN = {};
+  pts.forEach(p => { if (p.gg) stN[p.gg.key] = (stN[p.gg.key] || 0) + 1; });
+  const stOrder = ['start', 'fill', 'drain', 'top', 'turn'].filter(k => stN[k]);
+  if (stOrder.length)
+    hi.push(`<span style="color:var(--text2)">수급 단계</span> `
+      + stOrder.map(k => `<b style="color:${FLOW_STAGE[k].color}" title="${escAttr(FLOW_STAGE[k].tip)}">${FLOW_STAGE[k].label} ${stN[k]}</b>`).join(' · '));
+
   // 추이 차트 대상 — 사용자가 고른 종목, 없으면 가장 비어 있는 빈집(없으면 첫 행)
   const selPt   = pts.find(p => p.code === FM.sel) || best || pts[0];
   const selCode = selPt ? selPt.code : null;
@@ -798,6 +827,13 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
             <div style="font-size:calc(10px*var(--m-label));color:var(--text3)">${_fmPct2(p.cur)}</div>
           </div>`;
         } },
+      { key: 'stage', label: '수급 단계', align: 'center', w: 'minmax(92px,1.05fr)',
+        val: p => p.gg ? p.gg.fill * 2 + (p.gg.up ? 1 : 0) : -1,
+        tip: '원본 엑셀의 칸 — 상위10%·상위25%·평균·하위25%·하위10% 중 현재값이 넘어선 칸 수(0~5)와 방향. 5칸=다 찼다, 4칸↑에서 ↓=꺾임, 2칸↓에서 ↑=이제 시작',
+        cell: p => p.gg
+          ? `<div style="text-align:center;font-size:calc(11px*var(--m-label));white-space:nowrap" title="${escAttr(flowGaugeTip(p.gauge, p.gg))}">
+               ${flowGaugeBar(p.gg)}<div style="color:${p.gg.color};font-weight:700">${p.gg.label}</div></div>`
+          : `<div style="text-align:center;color:var(--text3)">—</div>` },
       // 같은 사분면 안에서는 더 비워진 종목이 위로 (prio 간격 1000 > |y| 최대 50)
       { key: 'quad', label: '구분', align: 'center', w: 'minmax(84px,1fr)', val: p => p.q.prio * 1000 - p.y,
         cell: p => `<div style="text-align:center">
@@ -809,6 +845,7 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
       `<b>① 유동성 공급 업종</b> — 원본 표는 종목별 <b>사모·투신·연금·외국인</b>의 시가총액 대비 매수 순위와 매수대금 순위이고, 컨셉 기준은 "외국인 금액대비·기관 시총대비·기관 금액대비"입니다. 같은 7개 지표(사모·투신·연금 시총대비, 사모·투신·연금·외국인 매수대금)를 <b>WICS 업종</b>별 최근 20거래일로 합산해 백분위 평균으로 순위를 매기고 <b>상위 25%</b>(원본: 26개 업종 중 컨셉 7개)를 공급 업종으로 봅니다. 공급 업종 밖의 빈집은 <b>빈집·비공급</b>으로 따로 표시합니다. 업종은 테마가 아니라 종목 기준이라 같은 테마 안에서도 갈립니다. 매수대금은 전일까지 반영됩니다(KIS가 당일분을 저녁에 주지 않음).`,
       `<b>③ 오실레이터 — 원본과 일치</b> — 투자자 분류(외인+기관)·<b>순매수</b>·${_FM_OSC_N}일 롤링·÷시가총액·% 변환이 모두 원본과 같습니다. 원 영상의 오실레이터가 음수로 내려가고(유한양행 −0.38%), 오실레이터 시트가 <b>외인·기관·기외·시기외</b>로 구성된 것을 화면에서 확인했습니다. 원본은 종목 차트를 눈으로 보고 판단하며 기준선은 없습니다 — 아래 백분위·★는 이 지도의 수치화입니다.`,
       `<b>남은 차이 한 가지</b> — 금액 산출입니다. 원본은 거래소 <b>순매수 금액</b>을 직접 쓰고, 우리 원천(KIS inquire-investor)은 수량만 주므로 <b>순매수 수량 × 종가</b>로 환산합니다 — 확정 대금과 소수 % 오차가 납니다.`,
+      `<b>수급 단계(칸)</b> — 원본 수급오실레이터 엑셀(2026-09-25 영상)의 <b>상위10%·상위25%·평균·하위25%·하위10%·현재</b> 칸을 옮겼습니다. 현재값이 넘어선 칸이 채워지고(원본은 분홍색, 삼성전자 예: 현재 0.02% → 평균·하위25%·하위10% 3칸) 5칸이면 <b>다 찼다</b>, 4칸 이상에서 내려오면 <b>꺾임</b>, 2칸 이하에서 오르면 <b>이제 시작</b>입니다. 단계 이름은 원저자 설명을 옮긴 것입니다 — "과열권에서 떨어질 때는 한 턴 기다린다", "수급오실레이터가 꺾이면 비중을 줄인다", "바닥에서 변곡이 나오면 수급이 본격적으로 채워진다". 원본 값은 우리보다 작게 보이는데(삼성전자 원본 ±0.03% vs 우리 ±0.3%) 5일 합계 대신 평균을 쓰거나 원자료가 다른 것으로 보입니다 — 칸은 자기 이력 안의 위치라 결과는 같습니다.`,
       `사분면은 <b>중앙값(하위 50%)</b>으로 가르지만, 실제로 "비었다"고 부를 만한 건 <b>하위 ${_FM_EMPTY_TH}% 이하</b>입니다 — 표의 <b>★</b>와 차트 점선이 그 선입니다. 중앙값 바로 아래는 빈집권일 뿐 신호가 약합니다.`,
       `<b>두 축 모두 순위입니다.</b> 가로는 오실레이터 평균의 <b>업종 내</b> 순위, 세로는 <b>그 종목 자신의 이력</b> 백분위. 가로를 평균값의 부호(0 기준)로 가르던 방식은 |평균| &lt; 0.02%p 구간에 전 종목의 18%가 몰려(실측) 좌/우가 잡음으로 갈려서 순위로 바꿨습니다. 절대 수준은 위 <b>업종 평균</b>이 말해 줍니다.`,
       `종목 간 <b>절대값 비교는 의미가 없습니다</b> — 대형주일수록 시총 대비 수급 비중이 작습니다(실측 10조+ 중앙 0.11% vs 2~10조 0.26%).`,
