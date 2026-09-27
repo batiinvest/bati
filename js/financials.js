@@ -240,11 +240,25 @@ function _syncFinSectorOptions(rows) {
 const FIN_FILTER_KIND = {
   corp_name: 'text', stock_code: 'text', w52_high_date: 'text', w52_low_date: 'text',
   market: 'cat', _wics: 'cat', _wsec: 'cat', _wmid: 'cat', _ind: 'cat', hgpr_cls: 'cat',
-  fiscal_month: 'cat', base_date: 'cat', _riskRank: 'cat',
+  fiscal_month: 'cat', base_date: 'cat', _riskRank: 'cat', _flowQ: 'cat',
   bsns_year: 'cat', quarter: 'cat', fs_div: 'cat',   // 재무제표 탭
 };
 // 값이 행에 그대로 없는 컬럼의 추출기. 배열을 주면 '그중 하나라도'로 매칭한다.
-const FIN_FILTER_GET = { _riskRank: r => _riskTags(r) };
+// _flowQ는 행에 숫자(정렬용 prio)로 들어 있어 그대로 고르면 '3'이 뜬다 → 라벨로 바꿔 준다
+const FIN_FILTER_GET = {
+  _riskRank: r => _riskTags(r),
+  _flowQ:    r => _finFlowQ(r)?.label,
+};
+
+// 수급 빈집 사분면 — 값은 백엔드(collect_flow_empty.py)가 넣고, 뜻은 수급 지도와 같다.
+// prio는 정렬용(내림차순이면 빈집이 위로). color는 flow-map.js의 _FM_QE와 같은 색.
+const FIN_FLOW_Q = {
+  fill: { label: '빈집',     prio: 3, color: '#f59e0b' },
+  full: { label: '채워짐',   prio: 2, color: '#2dce89' },
+  bnce: { label: '일시유입', prio: 1, color: '#fb6340' },
+  cold: { label: '소외',     prio: 0, color: '#8898aa' },
+};
+const _finFlowQ = r => FIN_FLOW_Q[r.flow_quad] || null;
 
 const _FIN_MULTI = '__multi__';
 
@@ -795,10 +809,14 @@ const FIN_COL_GROUPS = {
       cols:['PER','PBR','EPS','BPS'] },
     { key:'flow',  name:'수급',
       cols:['외국인보유율','외국인보유수','외국인순매수','프로그램순매수','융자잔고율','공매도수량'] },
-    { key:'w52',   name:'52주',
+    { key:'w52',   name:'52주 신고가',
       // 52주 고가·저가는 현재가와 나란히 봐야 의미가 있어 '현재가 +'로 옮겼다.
       // 여기 남은 건 언제 찍었나(날짜)와 그 대비 몇 %인가뿐이다
       cols:['52주고가일','52주저가일','52주고가대비%','52주저가대비%'] },
+    // 빈집은 수급 이력 63거래일을 봐야 나오는 판정이라 백엔드가 미리 계산해 둔다.
+    // 수급 칩과 따로 둔 이유: 켜면 행도 거르므로(FIN_CHIP_FILTER) 성격이 다르다
+    { key:'empty', name:'수급빈집',
+      cols:['빈집'] },
     { key:'stat',  name:'상태',
       cols:['경고'] },
     { key:'etc',   name:'참고',
@@ -819,6 +837,13 @@ const FIN_COL_GROUPS = {
 };
 
 const FIN_COLS_LS = 'bati-fin-cols';
+
+// 컬럼을 여는 동시에 행도 거르는 칩. 52주 고저나 빈집 판정을 볼 때 알고 싶은 건
+// 대개 '지금 그런 종목이 뭐냐'라서, 켜면 해당 종목만 남긴다(끄면 필터도 함께 풀린다).
+const FIN_CHIP_FILTER = {
+  w52:   { col: 'hgpr_cls', val: '신고가', tip: '52주 컬럼을 열고 신고가 종목만 남깁니다' },
+  empty: { col: '_flowQ',   val: '빈집',   tip: '빈집 판정을 열고 빈집 종목만 남깁니다' },
+};
 
 // ── 헤더 '+' 로 펼치는 상세 컬럼 ────────────────────────────────────────────
 // 컬럼 칩과 층위가 다르다:
@@ -1069,9 +1094,9 @@ function _finGroups() {
 }
 
 /** 현재 탭에서 꺼둔 그룹 키 Set */
-// 한 번도 만진 적 없을 때 꺼둘 묶음. 52주는 '신고가만 보기'를 겸하므로(toggleFinColGroup)
-// 켜진 채로 시작하면 표가 15종목만 보인다 — 꺼둔 상태에서 출발한다.
-const FIN_COLS_DEFAULT_OFF = { market: ['w52'] };
+// 한 번도 만진 적 없을 때 꺼둘 묶음. 52주·수급빈집은 행 필터를 겸하므로(FIN_CHIP_FILTER)
+// 켜진 채로 시작하면 표가 수십 종목만 보인다 — 꺼둔 상태에서 출발한다.
+const FIN_COLS_DEFAULT_OFF = { market: ['w52', 'empty'] };
 
 function _finColsOff() {
   const m = F.mode === 'financial' ? 'financial' : 'market';
@@ -1163,10 +1188,9 @@ function _syncFinColChips() {
     + _finGroups().filter(g => !g.always).map(g =>
         `<button class="chip chip-sm ${off.has(g.key) ? '' : 'active'}"
           onclick="toggleFinColGroup('${g.key}')"
-          title="${escAttr(g.key === 'w52'
-            ? '52주 컬럼을 열고 신고가 종목만 남깁니다 · ' + g.cols.join(' · ')
-            : g.cols.join(' · '))}"
-          >${g.key === 'w52' ? '52주 신고가' : g.name}</button>`).join('')
+          title="${escAttr([FIN_CHIP_FILTER[g.key]?.tip, g.cols.join(' · ')]
+                             .filter(Boolean).join(' · '))}"
+          >${g.name}</button>`).join('')
     + `<button class="chip chip-sm" onclick="setFinColsAll()" title="모든 컬럼 표시">전체</button>`
     + `<span id="fin-col-info" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:2px"></span>`
     // 글자 크기 — 표에만 적용. 컬럼 칩과 같은 줄 오른쪽 끝
@@ -1184,12 +1208,12 @@ function toggleFinColGroup(key) {
   const off = _finColsOff();
   off.has(key) ? off.delete(key) : off.add(key);
   _saveFinCols();
-  // 52주만 컬럼과 함께 행도 거른다 — 52주 고저를 볼 때 알고 싶은 건
-  // 대개 '지금 신고가인 종목'이라, 켜면 그 종목만 남긴다.
-  if (key === 'w52') {
-    const sel = _finCatSel('hgpr_cls');
-    if (off.has(key)) sel.delete('신고가');
-    else { sel.clear(); sel.add('신고가'); }
+  // 컬럼과 함께 행도 거르는 칩(52주 신고가·수급빈집)
+  const cf = FIN_CHIP_FILTER[key];
+  if (cf) {
+    const sel = _finCatSel(cf.col);
+    if (off.has(key)) sel.delete(cf.val);
+    else { sel.clear(); sel.add(cf.val); }
     _renderFinView();   // 행이 바뀌므로 통째로 다시 그린다(칩·컬럼 갱신 포함)
     return;
   }
@@ -1382,12 +1406,21 @@ async function loadMarketData(el) {
         + 'hgpr_cls,base_date';
       // 2,500여 행이라 1,000행씩 3페이지 — 순차로 받으면 왕복이 그대로 쌓인다.
       // 개수를 먼저 세고 페이지를 동시에 받는다(정렬이 고정돼 있어 경계가 안 어긋난다).
-      const allP = maxDate ? fetchPagesParallel(
-        (s2, e2) => sb.from('market_data').select(COLS).eq('base_date', maxDate)
+      const _page = cols => fetchPagesParallel(
+        (s2, e2) => sb.from('market_data').select(cols).eq('base_date', maxDate)
           .order('stock_code').range(s2, e2),
         sb.from('market_data').select('stock_code', { count: 'exact', head: true })
           .eq('base_date', maxDate)
-      ) : Promise.resolve([]);
+      );
+      // flow_quad·flow_pctl은 sql/flow_empty.sql을 실행해야 생긴다. 없는 컬럼을 넣으면
+      // PostgREST가 42703으로 끊어 표가 통째로 비므로, 한 번만 빼고 다시 받는다 —
+      // 배포와 SQL 실행 순서가 어긋나거나 JS가 캐시된 상태에서도 표는 살아 있게.
+      const allP = !maxDate ? Promise.resolve([])
+        : _page(COLS + ',flow_quad,flow_pctl').catch(e => {
+            if (e?.code !== '42703') throw e;
+            console.warn('[기업분석] flow_quad 컬럼 없음 — sql/flow_empty.sql 미실행. 빈집 열은 비웁니다');
+            return _page(COLS);
+          });
       const [all, meta, monitoredCodes] = await Promise.all([allP, metaP, monP]);
       // companies(active)에 없는 종목은 제외 — 스팩·상장폐지분이 market_data에는
       // 과거 수집분으로 남아 있어 비활성화만으로는 표에서 사라지지 않는다.
@@ -1411,6 +1444,7 @@ async function loadMarketData(el) {
         r._riskRank = _riskRank(r);   // 경고 컬럼 정렬용
         r._w52HighPct = (r.price != null && r.w52_high) ? (r.price - r.w52_high) / r.w52_high * 100 : null;
         r._w52LowPct  = (r.price != null && r.w52_low)  ? (r.price - r.w52_low)  / r.w52_low  * 100 : null;
+        r._flowQ = _finFlowQ(r)?.prio ?? null;   // 빈집 컬럼 정렬용 (필터는 라벨로 — FIN_FILTER_GET)
       });
       return out;
     },
@@ -1439,6 +1473,7 @@ async function loadMarketData(el) {
       _th('foreign_hold_qty','외국인보유수'),
       _th('foreign_net_buy','외국인순매수'), _th('program_net_buy','프로그램순매수'),
       _th('loan_balance_rate','융자잔고율'), _th('short_sell_qty','공매도수량'),
+      _th('_flowQ','빈집'),
       _th('w52_high_date','52주고가일'), _th('w52_low_date','52주저가일'),
       _th('_w52HighPct','52주고가대비%'), _th('_w52LowPct','52주저가대비%'),
 
@@ -1506,6 +1541,7 @@ async function loadMarketData(el) {
         <td style="color:${buyClr(r.program_net_buy||0)}">${buyFmt(r.program_net_buy)}</td>
         <td>${r.loan_balance_rate != null ? r.loan_balance_rate.toFixed(2)+'%' : '—'}</td>
         <td style="font-size:calc(11px*var(--m-label))">${n(r.short_sell_qty)}</td>
+        ${_finFlowCell(r)}
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.w52_high_date||'—'}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.w52_low_date||'—'}</td>
         <td style="font-size:calc(11px*var(--m-label))">${p(r._w52HighPct)}</td>
@@ -1564,6 +1600,19 @@ function _riskCell(r) {
 }
 
 /** 경고 정렬용 점수 — 심각한 것이 위로 (내림차순 기준) */
+/** 빈집 판정 셀 — 사분면 이름 + 자기 이력 백분위. ★는 하위 30% 이하(뚜렷한 빈집) */
+function _finFlowCell(r) {
+  const q = _finFlowQ(r);
+  if (!q) return `<td style="color:var(--text3)">—</td>`;   // 수급 이력이 없는 종목(모니터링 외)
+  // ★ = 수급 지도의 _FM_EMPTY_TH(30)와 같은 선 — 중앙값 바로 아래까지 '빈집'이라 부르면 과장이다
+  const star = (r.flow_quad === 'fill' && r.flow_pctl != null && r.flow_pctl <= 30) ? ' ★' : '';
+  return `<td style="font-size:calc(11px*var(--m-label));color:${q.color};white-space:nowrap">`
+    + `${q.label}${star}`
+    + (r.flow_pctl != null
+        ? ` <span style="color:var(--text3)">${Math.round(r.flow_pctl)}</span>` : '')
+    + `</td>`;
+}
+
 function _riskRank(r) {
   return (r.is_liquidation ? 8 : 0)
        + (r.manage_issue_code === 'Y' ? 4 : 0)
@@ -1607,6 +1656,8 @@ function _finMarketCsvSpec() {
     ['프로그램순매수', r => r.program_net_buy],
     ['융자잔고율(%)',  r => r.loan_balance_rate],
     ['공매도수량',    r => r.short_sell_qty],
+    ['빈집',         r => _finFlowQ(r)?.label || ''],
+    ['빈집백분위',    r => r.flow_pctl],
     ['52주고가',     r => r.w52_high],
     ['52주저가',     r => r.w52_low],
     ['52주고가일',    r => r.w52_high_date],
