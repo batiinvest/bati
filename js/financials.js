@@ -1347,9 +1347,12 @@ async function loadMarketData(el) {
   await _loadTabData(el, {
     defaultSort: 'market_cap',
     fetchRows: async () => {
-      const [monitoredCodes, maxDate, meta] = await Promise.all([
-        _getMonitoredCodes(), getLatestMarketDate(), _getCompanyMetaMap(),
-      ]);
+      // 시세 조회에 필요한 건 기준일뿐이다. 메타(업종·테마)까지 기다렸다 시작하면
+      // 그 시간이 그대로 뒤로 밀린다(실측: companies 227ms가 앞에 직렬로 붙었다).
+      // 기준일만 받고 곧바로 시세를 띄운 뒤, 메타는 그 옆에서 같이 받는다.
+      const metaP = _getCompanyMetaMap();
+      const monP  = _getMonitoredCodes();
+      const maxDate = await getLatestMarketDate();
       // 표가 실제 사용하는 컬럼만 명시 (구 select('*') — 당일 전 종목 × 전 컬럼 다운로드)
       const COLS = 'stock_code,corp_name,market,market_cap,price,price_change,price_change_rate,'
         + 'volume_change_rate,high_price,low_price,volume,trading_value,listing_shares,vol_turnover,'
@@ -1360,12 +1363,13 @@ async function loadMarketData(el) {
         + 'hgpr_cls,base_date';
       // 2,500여 행이라 1,000행씩 3페이지 — 순차로 받으면 왕복이 그대로 쌓인다.
       // 개수를 먼저 세고 페이지를 동시에 받는다(정렬이 고정돼 있어 경계가 안 어긋난다).
-      const all = maxDate ? await fetchPagesParallel(
+      const allP = maxDate ? fetchPagesParallel(
         (s2, e2) => sb.from('market_data').select(COLS).eq('base_date', maxDate)
           .order('stock_code').range(s2, e2),
         sb.from('market_data').select('stock_code', { count: 'exact', head: true })
           .eq('base_date', maxDate)
-      ) : [];
+      ) : Promise.resolve([]);
+      const [all, meta, monitoredCodes] = await Promise.all([allP, metaP, monP]);
       // companies(active)에 없는 종목은 제외 — 스팩·상장폐지분이 market_data에는
       // 과거 수집분으로 남아 있어 비활성화만으로는 표에서 사라지지 않는다.
       // meta가 비면(로드 실패) 거르지 않는다 — 표가 통째로 비는 것보다 낫다.
