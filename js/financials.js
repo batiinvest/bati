@@ -545,9 +545,10 @@ async function _getCompanyMetaMap() {
   if (FIN.metaMap) return FIN.metaMap;
   const map = {};
   try {
-    const rows = await fetchAllPages(
-      sb.from('companies').select('code,industry,sub_industry,wics_industry,wics_code,wics_sector,wics_mid')
-        .eq('active', true).order('code')
+    const COLS = 'code,industry,sub_industry,wics_industry,wics_code,wics_sector,wics_mid';
+    const rows = await fetchPagesParallel(
+      (s2, e2) => sb.from('companies').select(COLS).eq('active', true).order('code').range(s2, e2),
+      sb.from('companies').select('code', { count: 'exact', head: true }).eq('active', true)
     );
     // companies.code는 일부만 .KS/.KQ 접미사 — market_data의 bare 코드와 맞춘다
     rows.forEach(c => {
@@ -1357,9 +1358,13 @@ async function loadMarketData(el) {
         + 'loan_balance_rate,short_sell_qty,w52_high,w52_low,w52_high_date,w52_low_date,'
         + 'market_warn_code,manage_issue_code,is_short_over,is_liquidation,'
         + 'hgpr_cls,base_date';
-      const all = maxDate ? await fetchAllPages(
-        sb.from('market_data').select(COLS).eq('base_date', maxDate)
-          .order('stock_code')   // 페이지 경계 결정성 (무정렬 페이징은 누락/중복 가능)
+      // 2,500여 행이라 1,000행씩 3페이지 — 순차로 받으면 왕복이 그대로 쌓인다.
+      // 개수를 먼저 세고 페이지를 동시에 받는다(정렬이 고정돼 있어 경계가 안 어긋난다).
+      const all = maxDate ? await fetchPagesParallel(
+        (s2, e2) => sb.from('market_data').select(COLS).eq('base_date', maxDate)
+          .order('stock_code').range(s2, e2),
+        sb.from('market_data').select('stock_code', { count: 'exact', head: true })
+          .eq('base_date', maxDate)
       ) : [];
       // companies(active)에 없는 종목은 제외 — 스팩·상장폐지분이 market_data에는
       // 과거 수집분으로 남아 있어 비활성화만으로는 표에서 사라지지 않는다.

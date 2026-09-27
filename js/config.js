@@ -352,14 +352,20 @@ async function fetchAllPages(queryOrFn, pageSize = 1000) {
 //    countQuery     : 동일 필터에 { count:'exact', head:true }를 건 쿼리(개수만)
 // ══════════════════════════════════════════
 async function fetchPagesParallel(makeQuery, countQuery, pageSize = 1000) {
-  const { count, error } = await countQuery;
-  if (error) throw error;
-  const pages = Math.ceil((count || 0) / pageSize);
-  const results = await Promise.all(
-    Array.from({ length: pages }, (_, p) => makeQuery(p * pageSize, (p + 1) * pageSize - 1))
-  );
-  const all = [];
-  for (const r of results) { if (r.error) throw r.error; if (r.data) all.push(...r.data); }
+  // 개수 조회와 첫 페이지를 동시에 띄운다 — count를 기다렸다 시작하면 그 왕복이
+  // 그대로 지연으로 쌓인다(실측 190ms). 첫 페이지는 개수와 무관하게 늘 필요하다.
+  const [cntRes, first] = await Promise.all([countQuery, makeQuery(0, pageSize - 1)]);
+  if (cntRes.error) throw cntRes.error;
+  if (first.error)  throw first.error;
+  const all = [...(first.data || [])];
+  const pages = Math.ceil((cntRes.count || 0) / pageSize);
+  if (pages > 1) {
+    const rest = await Promise.all(
+      Array.from({ length: pages - 1 }, (_, i) =>
+        makeQuery((i + 1) * pageSize, (i + 2) * pageSize - 1))
+    );
+    for (const r of rest) { if (r.error) throw r.error; if (r.data) all.push(...r.data); }
+  }
   return all;
 }
 
