@@ -796,9 +796,11 @@ const FIN_COL_GROUPS = {
     { key:'flow',  name:'수급',
       cols:['외국인보유율','외국인보유수','외국인순매수','프로그램순매수','융자잔고율','공매도수량'] },
     { key:'w52',   name:'52주',
-      cols:['52주고가','52주저가','52주고가일','52주저가일','52주고가대비%','52주저가대비%'] },
+      // 신고가구분은 52주 고저를 봐야 뜻이 통한다 — 칩을 켜면 바로 보이도록
+      // 상세 펼침('+')에는 넣지 않는다
+      cols:['52주고가','52주저가','52주고가일','52주저가일','52주고가대비%','52주저가대비%','신고가구분'] },
     { key:'stat',  name:'상태',
-      cols:['경고','신고가구분'] },
+      cols:['경고'] },
     { key:'etc',   name:'참고',
       cols:['상장주수','거래량회전율','결산월','기준일'] },
   ],
@@ -1422,7 +1424,8 @@ async function loadMarketData(el) {
       _th('w52_high_date','52주고가일'), _th('w52_low_date','52주저가일'),
       _th('_w52HighPct','52주고가대비%'), _th('_w52LowPct','52주저가대비%'),
 
-      _th('_riskRank','경고'), _th('hgpr_cls','신고가구분'),
+      _th('hgpr_cls','신고가구분'),
+      _th('_riskRank','경고'),
       // 참고 — 훑을 때 보는 값이 아니라 맨 뒤. 기준일은 전 행이 같은 날짜라 정보량 0,
       // 결산월도 대부분 12월, 거래량회전율은 거래량/상장주수 파생이다.
       _th('listing_shares','상장주수'), _th('vol_turnover','거래량회전율'),
@@ -1489,8 +1492,8 @@ async function loadMarketData(el) {
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.w52_low_date||'—'}</td>
         <td style="font-size:calc(11px*var(--m-label))">${p(r._w52HighPct)}</td>
         <td style="font-size:calc(11px*var(--m-label))">${p(r._w52LowPct)}</td>
-        ${_riskCell(r)}
         <td style="font-size:calc(11px*var(--m-label));color:var(--tg)">${r.hgpr_cls||'—'}</td>
+        ${_riskCell(r)}
         <td style="font-size:calc(11px*var(--m-label))">${n(r.listing_shares)}</td>
         <td style="font-size:calc(11px*var(--m-label))">${r.vol_turnover != null ? r.vol_turnover.toFixed(2)+'%' : '—'}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.fiscal_month||'—'}월</td>
