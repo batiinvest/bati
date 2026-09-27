@@ -1069,13 +1069,18 @@ function _finGroups() {
 }
 
 /** 현재 탭에서 꺼둔 그룹 키 Set */
+// 한 번도 만진 적 없을 때 꺼둘 묶음. 52주는 '신고가만 보기'를 겸하므로(toggleFinColGroup)
+// 켜진 채로 시작하면 표가 15종목만 보인다 — 꺼둔 상태에서 출발한다.
+const FIN_COLS_DEFAULT_OFF = { market: ['w52'] };
+
 function _finColsOff() {
   const m = F.mode === 'financial' ? 'financial' : 'market';
   FIN.colsOff = FIN.colsOff || {};
   if (!FIN.colsOff[m]) {
-    let saved = [];
-    try { saved = (JSON.parse(localStorage.getItem(FIN_COLS_LS)) || {})[m] || []; } catch (e) {}
-    FIN.colsOff[m] = new Set(saved);
+    // null(저장된 적 없음)과 [](사용자가 전부 켬)를 구분한다
+    let saved = null;
+    try { saved = (JSON.parse(localStorage.getItem(FIN_COLS_LS)) || {})[m]; } catch (e) {}
+    FIN.colsOff[m] = new Set(saved ?? FIN_COLS_DEFAULT_OFF[m] ?? []);
   }
   return FIN.colsOff[m];
 }
@@ -1158,7 +1163,10 @@ function _syncFinColChips() {
     + _finGroups().filter(g => !g.always).map(g =>
         `<button class="chip chip-sm ${off.has(g.key) ? '' : 'active'}"
           onclick="toggleFinColGroup('${g.key}')"
-          title="${escAttr(g.cols.join(' · '))}">${g.name}</button>`).join('')
+          title="${escAttr(g.key === 'w52'
+            ? '52주 컬럼을 열고 신고가 종목만 남깁니다 · ' + g.cols.join(' · ')
+            : g.cols.join(' · '))}"
+          >${g.key === 'w52' ? '52주 신고가' : g.name}</button>`).join('')
     + `<button class="chip chip-sm" onclick="setFinColsAll()" title="모든 컬럼 표시">전체</button>`
     + `<span id="fin-col-info" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:2px"></span>`
     // 글자 크기 — 표에만 적용. 컬럼 칩과 같은 줄 오른쪽 끝
@@ -1176,6 +1184,15 @@ function toggleFinColGroup(key) {
   const off = _finColsOff();
   off.has(key) ? off.delete(key) : off.add(key);
   _saveFinCols();
+  // 52주만 컬럼과 함께 행도 거른다 — 52주 고저를 볼 때 알고 싶은 건
+  // 대개 '지금 신고가인 종목'이라, 켜면 그 종목만 남긴다.
+  if (key === 'w52') {
+    const sel = _finCatSel('hgpr_cls');
+    if (off.has(key)) sel.delete('신고가');
+    else { sel.clear(); sel.add('신고가'); }
+    _renderFinView();   // 행이 바뀌므로 통째로 다시 그린다(칩·컬럼 갱신 포함)
+    return;
+  }
   _syncFinColChips();
   _applyFinColVisibility();
 }
