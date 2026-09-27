@@ -331,6 +331,9 @@ function pInvestment() {
 
     <!-- (종목별 수급 순위 → Zone C 심화 분석으로 이동) -->
 
+    <!-- 주도 업종 · 돈이 몰리는 곳 (태린이아빠 방식 — sector-lead.js) -->
+    ${typeof pSectorLead === 'function' ? pSectorLead() : ''}
+
     <!-- ⑦ 산업 동향 -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-header" style="flex-wrap:wrap;gap:4px;padding-bottom:6px">
@@ -676,6 +679,7 @@ async function loadInvestment() {
   // ── 독립 위젯 즉시 병렬 발사 — 매크로/종목 데이터 완료를 기다리지 않는다 ──
   loadCreditBalance();   // 신용융자 잔고 카드 (credit-balance.js) — 독립 쿼리
   loadMarketInvestor();  // 투자자별 매매동향 카드 (market-investor.js) — 독립 쿼리
+  if (typeof loadSectorLead === 'function') loadSectorLead();  // 주도 업종 카드 (sector-lead.js) — 독립 쿼리
   loadTrendChart();      // 흐름 비교 차트 — macro_data 자체 조회 (loadMacroData와 독립)
   _allDiscLoaded = false;
   loadTodayDisclosures();

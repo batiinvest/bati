@@ -1333,6 +1333,11 @@ function initFinancials() {
   F.catSel   = {};
   F.textF    = {};
   _finResetFilterChips();   // 조건을 비웠으니 필터 칩도 끈다(칩만 켜진 채 남지 않게)
+  // 다른 화면(시황 '주도 업종')에서 업종을 눌러 들어오면 그 업종으로 걸러 연다
+  if (FIN.pendingCat) {
+    Object.entries(FIN.pendingCat).forEach(([c, vs]) => vs.forEach(v => _finCatSel(c).add(v)));
+    FIN.pendingCat = null;
+  }
   F.subIndustry = '전체';
   F.wicsSector  = '전체';
   F.numFilters  = [];
