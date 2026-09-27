@@ -705,6 +705,53 @@ async function getLatestMarketDate() {
 }
 
 // ══════════════════════════════════════════
+//  수급빈집 판정 — 기업분석 표·수급 지도 공용
+//  판정은 백엔드(collect_flow_empty, 평일 18:50)가 market_data 판정일 행에 적는다.
+//  장중엔 오늘 행이 먼저 생기고 판정은 저녁에야 채워지므로 '최신일'이 아니라
+//  '판정이 있는 가장 최근 날'을 읽는다 — 최신일로 읽으면 장중 내내 칩이 빈다.
+//  반환: { date, byCode: {code: {flow_quad, flow_pctl, flow_supplied, flow_supply_rank}},
+//          concepts: [flow_concepts 행 — 업종 공급 순위] } 또는 null(판정 없음·조회 실패)
+// ══════════════════════════════════════════
+function getFlowVerdicts() {
+  if (!CACHE.flowVerdicts) {
+    CACHE.flowVerdicts = _loadFlowVerdicts().catch(e => {
+      console.warn('[수급빈집] 판정 조회 실패:', e);
+      CACHE.flowVerdicts = null;   // 다음 호출에서 다시 시도
+      return null;
+    });
+  }
+  return CACHE.flowVerdicts;
+}
+
+function resetFlowVerdicts() { CACHE.flowVerdicts = null; }
+
+async function _loadFlowVerdicts() {
+  const { data: d, error } = await sb.from('market_data').select('base_date')
+    .not('flow_quad', 'is', null).order('base_date', { ascending: false }).limit(1);
+  if (error) throw error;
+  const date = d?.[0]?.base_date;
+  if (!date) return null;
+
+  const page = cols => fetchPagesParallel(
+    (s, e) => sb.from('market_data').select(cols).eq('base_date', date)
+      .not('flow_quad', 'is', null).order('stock_code').range(s, e),
+    sb.from('market_data').select('stock_code', { count: 'exact', head: true })
+      .eq('base_date', date).not('flow_quad', 'is', null));
+  // 공급 판정 두 컬럼은 sql/flow_concept.sql 실행 후 생긴다(42703) — 없으면 컨셉 없이 판정만.
+  // 판정 행과 업종 순위표는 서로 기다릴 필요가 없어 동시에 받는다
+  const [rows, cres] = await Promise.all([
+    page('stock_code,flow_quad,flow_pctl,flow_supplied,flow_supply_rank')
+      .catch(e => { if (e?.code !== '42703') throw e; return page('stock_code,flow_quad,flow_pctl'); }),
+    sb.from('flow_concepts').select('grp,rank,n_groups,supplied,n_stocks,score,data_from,data_to')
+      .eq('base_date', date).order('rank'),
+  ]);
+  const byCode = {};
+  rows.forEach(r => { byCode[r.stock_code] = r; });
+  const concepts = cres.error ? [] : (cres.data || []);   // 테이블이 없으면 목록만 빠진다
+  return { date, byCode, concepts };
+}
+
+// ══════════════════════════════════════════
 //  봇 재로드 요청 — stocks.js / bots.js 공용
 // ══════════════════════════════════════════
 // 봇 재로드 플래그 upsert — saveEdit, monApply 등 버튼 없는 호출에서도 사용

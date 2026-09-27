@@ -252,14 +252,18 @@ const FIN_FILTER_GET = {
 
 // 수급 빈집 사분면 — 값은 백엔드(collect_flow_empty.py)가 전종목에 넣는다. 정의는 수급 지도와
 // 같고, 순위를 매기는 집단만 테마 대신 WICS 업종이다(테마 없는 종목이 많아서).
+// fillx = 빈집이지만 소속 업종이 '유동성 공급 업종'(원본 1단계) 밖 — 원본 기준으론 빈집을
+//   찾지 않는 곳이라 따로 부른다. flow_supplied가 NULL(컨셉 판정 없음)이면 거르지 않는다.
 // prio는 정렬용(내림차순이면 빈집이 위로). color는 flow-map.js의 _FM_QE와 같은 색.
 const FIN_FLOW_Q = {
-  fill: { label: '빈집',     prio: 3, color: '#f59e0b' },
-  full: { label: '채워짐',   prio: 2, color: '#2dce89' },
-  bnce: { label: '일시유입', prio: 1, color: '#fb6340' },
-  cold: { label: '소외',     prio: 0, color: '#8898aa' },
+  fill:  { label: '빈집',        prio: 4, color: '#f59e0b' },
+  fillx: { label: '빈집·비공급', prio: 3, color: '#a88f63' },
+  full:  { label: '채워짐',      prio: 2, color: '#2dce89' },
+  bnce:  { label: '일시유입',    prio: 1, color: '#fb6340' },
+  cold:  { label: '소외',        prio: 0, color: '#8898aa' },
 };
-const _finFlowQ = r => FIN_FLOW_Q[r.flow_quad] || null;
+const _finFlowKey = r => (r.flow_quad === 'fill' && r.flow_supplied === false) ? 'fillx' : r.flow_quad;
+const _finFlowQ   = r => FIN_FLOW_Q[_finFlowKey(r)] || null;
 
 const _FIN_MULTI = '__multi__';
 
@@ -843,7 +847,7 @@ const FIN_COLS_LS = 'bati-fin-cols';
 // 대개 '지금 그런 종목이 뭐냐'라서, 켜면 해당 종목만 남긴다(끄면 필터도 함께 풀린다).
 const FIN_CHIP_FILTER = {
   w52:   { col: 'hgpr_cls', val: '신고가', tip: '52주 컬럼을 열고 신고가 종목만 남깁니다' },
-  empty: { col: '_flowQ',   val: '빈집',   tip: '빈집 판정을 열고 빈집 종목만 남깁니다' },
+  empty: { col: '_flowQ',   val: '빈집',   tip: '빈집 판정을 열고 유동성 공급 업종의 빈집만 남깁니다' },
 };
 
 // ── 헤더 '+' 로 펼치는 상세 컬럼 ────────────────────────────────────────────
@@ -1396,6 +1400,9 @@ async function loadMarketData(el) {
       // 기준일만 받고 곧바로 시세를 띄운 뒤, 메타는 그 옆에서 같이 받는다.
       const metaP = _getCompanyMetaMap();
       const monP  = _getMonitoredCodes();
+      // 수급빈집 판정은 따로 받는다 — 판정은 저녁 18:50에야 적혀서 장중엔 최신일 행에 없다.
+      // '판정이 있는 가장 최근 날'을 읽어 붙인다. 기준일과 무관해 가장 먼저 띄운다
+      const fvP   = getFlowVerdicts();
       const maxDate = await getLatestMarketDate();
       // 표가 실제 사용하는 컬럼만 명시 (구 select('*') — 당일 전 종목 × 전 컬럼 다운로드)
       const COLS = 'stock_code,corp_name,market,market_cap,price,price_change,price_change_rate,'
@@ -1407,22 +1414,14 @@ async function loadMarketData(el) {
         + 'hgpr_cls,base_date';
       // 2,500여 행이라 1,000행씩 3페이지 — 순차로 받으면 왕복이 그대로 쌓인다.
       // 개수를 먼저 세고 페이지를 동시에 받는다(정렬이 고정돼 있어 경계가 안 어긋난다).
-      const _page = cols => fetchPagesParallel(
-        (s2, e2) => sb.from('market_data').select(cols).eq('base_date', maxDate)
+      const allP = maxDate ? fetchPagesParallel(
+        (s2, e2) => sb.from('market_data').select(COLS).eq('base_date', maxDate)
           .order('stock_code').range(s2, e2),
         sb.from('market_data').select('stock_code', { count: 'exact', head: true })
           .eq('base_date', maxDate)
-      );
-      // flow_quad·flow_pctl은 sql/flow_empty.sql을 실행해야 생긴다. 없는 컬럼을 넣으면
-      // PostgREST가 42703으로 끊어 표가 통째로 비므로, 한 번만 빼고 다시 받는다 —
-      // 배포와 SQL 실행 순서가 어긋나거나 JS가 캐시된 상태에서도 표는 살아 있게.
-      const allP = !maxDate ? Promise.resolve([])
-        : _page(COLS + ',flow_quad,flow_pctl').catch(e => {
-            if (e?.code !== '42703') throw e;
-            console.warn('[기업분석] flow_quad 컬럼 없음 — sql/flow_empty.sql 미실행. 빈집 열은 비웁니다');
-            return _page(COLS);
-          });
-      const [all, meta, monitoredCodes] = await Promise.all([allP, metaP, monP]);
+      ) : Promise.resolve([]);
+      const [all, meta, monitoredCodes, fv] = await Promise.all([allP, metaP, monP, fvP]);
+      FIN.flowInfo = fv ? { date: fv.date, concepts: fv.concepts } : null;
       // companies(active)에 없는 종목은 제외 — 스팩·상장폐지분이 market_data에는
       // 과거 수집분으로 남아 있어 비활성화만으로는 표에서 사라지지 않는다.
       // meta가 비면(로드 실패) 거르지 않는다 — 표가 통째로 비는 것보다 낫다.
@@ -1445,6 +1444,11 @@ async function loadMarketData(el) {
         r._riskRank = _riskRank(r);   // 경고 컬럼 정렬용
         r._w52HighPct = (r.price != null && r.w52_high) ? (r.price - r.w52_high) / r.w52_high * 100 : null;
         r._w52LowPct  = (r.price != null && r.w52_low)  ? (r.price - r.w52_low)  / r.w52_low  * 100 : null;
+        const v = fv?.byCode?.[r.stock_code];
+        r.flow_quad        = v?.flow_quad ?? null;
+        r.flow_pctl        = v?.flow_pctl ?? null;
+        r.flow_supplied    = v?.flow_supplied ?? null;
+        r.flow_supply_rank = v?.flow_supply_rank ?? null;
         r._flowQ = _finFlowQ(r)?.prio ?? null;   // 빈집 컬럼 정렬용 (필터는 라벨로 — FIN_FILTER_GET)
       });
       return out;
@@ -1606,10 +1610,16 @@ function _finFlowCell(r) {
   const q = _finFlowQ(r);
   // 판정 없음 = 수급 이력이 짧거나(신규 상장 등) 마지막 거래일 수급이 비어 있는 종목
   if (!q) return `<td style="color:var(--text3)">—</td>`;
-  // ★ = 수급 지도의 _FM_EMPTY_TH(30)와 같은 선 — 중앙값 바로 아래까지 '빈집'이라 부르면 과장이다
-  const star = (r.flow_quad === 'fill' && r.flow_pctl != null && r.flow_pctl <= 30) ? ' ★' : '';
+  // ★ = 수급 지도의 _FM_EMPTY_TH(30)와 같은 선 — 중앙값 바로 아래까지 '빈집'이라 부르면 과장이다.
+  // 공급 업종 밖(fillx)은 원본 기준 빈집이 아니라 ★도 붙이지 않는다
+  const star = (_finFlowKey(r) === 'fill' && r.flow_pctl != null && r.flow_pctl <= 30) ? ' ★' : '';
+  const nG   = FIN.flowInfo?.concepts?.[0]?.n_groups;
+  const sup  = r.flow_supplied == null ? '업종 공급 판정 없음'
+    : `업종 유동성 공급 ${r.flow_supply_rank ?? '—'}위${nG ? '/' + nG : ''}`
+      + (r.flow_supplied ? ' (공급 업종)' : ' — 공급 업종(상위 25%) 밖');
   const tip = r.flow_pctl != null
-    ? `${q.label} · 최근 5일 수급이 자기 이력 하위 ${Math.round(r.flow_pctl)}% · 공급강도는 같은 업종 안에서 비교`
+    ? `${q.label} · 최근 5일 수급이 자기 이력 하위 ${Math.round(r.flow_pctl)}% · ${sup}`
+      + (FIN.flowInfo?.date ? ` · 판정일 ${FIN.flowInfo.date}` : '')
     : q.label;
   return `<td style="font-size:calc(11px*var(--m-label));color:${q.color};white-space:nowrap" title="${escAttr(tip)}">`
     + `${q.label}${star}`
@@ -1663,6 +1673,7 @@ function _finMarketCsvSpec() {
     ['공매도수량',    r => r.short_sell_qty],
     ['빈집',         r => _finFlowQ(r)?.label || ''],
     ['빈집백분위',    r => r.flow_pctl],
+    ['업종공급순위',  r => r.flow_supply_rank],
     ['52주고가',     r => r.w52_high],
     ['52주저가',     r => r.w52_low],
     ['52주고가일',    r => r.w52_high_date],

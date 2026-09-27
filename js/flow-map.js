@@ -48,7 +48,7 @@
  *       직접 쓰는 것으로 보이고, 우리는 KIS가 수량만 주므로 순매수 수량 × 종가로 환산한다.
  *  ② gap(전환)   — 이전 구간 누적 vs 최근 구간. 기존 사분면 지도(위 설명).
  *
- * 의존: sb, INDUSTRIES, IND_COLORS, getIndustryMap, getLatestMarketDate, fetchAllPages,
+ * 의존: sb, INDUSTRIES, IND_COLORS, getIndustryMap, getLatestMarketDate, fetchAllPages, getFlowVerdicts,
  *       fmtCap, fmtWon, fmtPct, wlBadge, escapeHtml, escAttr, loadingHTML (config.js)
  *       ※ 기준일 배지는 setAsOf가 아니라 직접 innerHTML로 그린다(구간 표기가 필요해서).
  */
@@ -63,6 +63,7 @@ const FM = {
   sel:     null,       // 빈집 모드 추이 차트에 띄울 종목코드 (null이면 가장 비워진 빈집)
   sortDir: -1,         // -1 내림차순, 1 오름차순
   raw:     {},         // 산업별 원자료 캐시 { ind: { dates, byCode } }
+  fv:      null,       // 백엔드 빈집 판정(getFlowVerdicts) — 종목별 업종 공급 여부·공급 업종 목록
   latest:  null,       // 최신 거래일
 };
 
@@ -93,7 +94,9 @@ const _FM_EMPTY_TH = 30;
 
 // 빈집 사분면 — 가로=유동성 공급 강도(오실레이터 평균), 세로=자기 이력 대비 현재 위치
 const _FM_QE = {
-  fill: { key: 'fill', label: '빈집 · 채워질 자리', short: '빈집',     color: '#f59e0b', bg: 'rgba(245,158,11,.16)', prio: 3, tip: '유동성이 공급되는 종목인데 최근 5일 수급 강도가 자기 이력 하위 — 태린이아빠가 말하는 빈집' },
+  fill: { key: 'fill', label: '빈집 · 채워질 자리', short: '빈집',     color: '#f59e0b', bg: 'rgba(245,158,11,.16)', prio: 4, tip: '유동성 공급 업종의 종목인데 최근 5일 수급 강도가 자기 이력 하위 — 태린이아빠가 말하는 빈집' },
+  // 원본 1단계: 빈집은 '유동성이 공급되는 컨셉' 안에서만 찾는다. 업종이 공급 업종 밖이면 따로 부른다
+  fillx: { key: 'fillx', label: '빈집 · 비공급 업종', short: '빈집·비공급', color: '#a88f63', bg: 'rgba(168,143,99,.13)', prio: 3, tip: '수급은 비었지만 소속 업종이 유동성 공급 업종(사모·투신·연금·외국인 매수 상위 25%) 밖 — 원본 기준으론 빈집을 찾지 않는 곳' },
   full: { key: 'full', label: '이미 채워짐',        short: '채워짐',   color: '#2dce89', bg: 'rgba(45,206,137,.13)', prio: 2, tip: '유동성 공급 + 현재 수급 강도도 상위 — 이미 붐비는 집' },
   bnce: { key: 'bnce', label: '유출 중 일시 유입',  short: '일시유입', color: '#fb6340', bg: 'rgba(251,99,64,.13)',  prio: 1, tip: '기간 평균은 유출인데 최근만 상위 — 공급 컨셉인지 확인 필요' },
   cold: { key: 'cold', label: '소외 · 공급 없음',   short: '소외',     color: '#8898aa', bg: 'rgba(136,152,170,.12)', prio: 0, tip: '기간 평균 유출 + 현재도 하위 — 유동성 공급 컨셉이 아님(빈집 아님)' },
@@ -249,6 +252,7 @@ async function loadFlowMap() {
     const dates = [...dateSet].sort();                  // asc
 
     FM.raw[FM.ind] = { dates, byCode };
+    FM.fv = FM.fv || await getFlowVerdicts();   // 업종 공급 여부(원본 1단계) — 없으면 거르지 않는다
     _fmRender();
   } catch (e) {
     console.error('[FlowMap]', e);
@@ -264,6 +268,8 @@ function resetFlowMap(reload = false) {
   FM.raw    = {};
   FM.latest = null;
   FM.sel    = null;
+  FM.fv     = null;
+  resetFlowVerdicts();
   if (!reload) return;
   const zone = document.getElementById('inv-zonec');
   if (zone && zone.style.display !== 'none' && document.getElementById('fm-body')) loadFlowMap();
@@ -708,6 +714,15 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
     return Object.assign({}, p, { x, y, supPct, q: _fmQuadE(x, y) });
   });
 
+  // 원본 1단계 — 소속 업종이 유동성 공급 업종인가(백엔드 flow_supplied, WICS 업종 기준).
+  // 판정이 없으면(null) 거르지 않는다. 테마가 아니라 종목의 업종 기준이라 같은 테마 안에서도 갈린다
+  pts.forEach(p => {
+    const v = FM.fv?.byCode?.[p.code];
+    p.supplied = v?.flow_supplied ?? null;
+    p.supRank  = v?.flow_supply_rank ?? null;
+    if (p.q.key === 'fill' && p.supplied === false) p.q = _FM_QE.fillx;
+  });
+
   // 기준일 배지 — 수급이 실제로 있는 마지막 날 (FM.latest는 장중 오늘을 가리켜 하루 앞섬)
   const lastFlow = raw.dates[raw.dates.length - 1];
   const dEl = document.getElementById('fm-date');
@@ -720,8 +735,18 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
   const indAvg   = pts.reduce((a, p) => a + p.avg, 0) / pts.length;
   const supplied = indAvg >= 0;
   const hi = [
-    `<span style="color:var(--text2)">${escapeHtml(FM.ind)} 유동성</span> <b style="color:${supplied ? '#2dce89' : '#f5365c'}">${supplied ? '공급 중' : '유출 중'}</b> <span style="color:var(--text3)">(업종 평균 ${_fmPct2(indAvg)})</span>`,
+    `<span style="color:var(--text2)">${escapeHtml(FM.ind)} 순매수 흐름</span> <b style="color:${supplied ? '#2dce89' : '#f5365c'}">${supplied ? '유입' : '유출'}</b> <span style="color:var(--text3)">(테마 평균 오실레이터 ${_fmPct2(indAvg)})</span>`,
   ];
+  // 원본 1단계 결과 — 지금 돈이 들어오는 업종(사모·투신·연금·외국인 매수 상위 25%)
+  const sup = (FM.fv?.concepts || []).filter(c => c.supplied);
+  if (sup.length) {
+    const nm = c => escapeHtml(c.grp.split(':').pop());
+    const inTheme = pts.filter(p => p.supplied === true).length;
+    hi.push(`<span style="color:var(--text2)">유동성 공급 업종 ${sup.length}/${sup[0].n_groups}</span> `
+      + `<span style="color:var(--text1)" title="${escAttr(sup.map(c => c.rank + '. ' + c.grp.split(':').pop()).join(' · '))}">`
+      + `${sup.slice(0, 6).map(nm).join(' · ')}${sup.length > 6 ? ` 외 ${sup.length - 6}` : ''}</span> `
+      + `<span style="color:var(--text3)">(이 테마 ${inTheme}/${pts.length}종목 소속 · 매수 ${sup[0].data_from.slice(5)}~${sup[0].data_to.slice(5)})</span>`);
+  }
   const best = pts.filter(p => p.q.key === 'fill').sort((a, b) => a.y - b.y)[0];
   if (best)
     hi.push(`<span style="color:var(--text2)">가장 비어 있는 빈집</span> <b style="color:var(--text1)">${escapeHtml(best.name)}</b> <span style="color:#f59e0b;font-weight:700">하위 ${Math.round(best.pct)}%</span>`);
@@ -731,7 +756,7 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
   const selCode = selPt ? selPt.code : null;
 
   const L = {
-    quads: [_FM_QE.fill, _FM_QE.full, _FM_QE.bnce, _FM_QE.cold],
+    quads: [_FM_QE.fill, _FM_QE.fillx, _FM_QE.full, _FM_QE.bnce, _FM_QE.cold],
     hi,
     sub:   `가로=업종 내 공급강도 순위 · 세로=자기 이력 대비 현재 채움도 · 버블=시총 · 클릭→종목 상세`,
     xAxis: `← 업종 내 하위   ·   유동성 공급 강도 (${_FM_OSC_N}일 오실레이터 평균, 업종 내 순위)   ·   상위 →`,
@@ -745,7 +770,8 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
       { txt: '▲ 일시유입', color: _FM_QE.bnce.color },   // 좌상
       { txt: '▼ 소외',     color: _FM_QE.cold.color },   // 좌하
     ],
-    tipOf: p => `${p.name} · 공급강도 업종 상위 ${Math.round(100 - p.supPct)}% (${_fmPct2(p.avg)}) · 현재 ${_fmPct2(p.cur)} (이력 하위 ${Math.round(p.pct)}%) · ${p.q.short}`,
+    tipOf: p => `${p.name} · 공급강도 업종 상위 ${Math.round(100 - p.supPct)}% (${_fmPct2(p.avg)}) · 현재 ${_fmPct2(p.cur)} (이력 하위 ${Math.round(p.pct)}%)`
+      + (p.supplied == null ? '' : ` · 업종 공급 ${p.supRank ?? '—'}위${p.supplied ? '' : '(공급 업종 밖)'}`) + ` · ${p.q.short}`,
     cols: [
       { key: 'name', label: '종목', align: 'left', w: 'minmax(104px,1.35fr)', val: p => p.name,
         // 행 클릭은 종목 상세(위임). 추이 버튼은 <button>이라 위임에서 제외된다.
@@ -766,7 +792,7 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
       { key: 'sh', label: '현재 채움도', align: 'right', w: 'minmax(96px,1.15fr)', val: p => p.y,
         tip: '오늘 오실레이터가 자기 이력에서 놓인 위치 — 하위일수록 빈집',
         cell: p => {
-          const deep = p.pct <= _FM_EMPTY_TH;   // 충분히 비었다 — ★
+          const deep = p.pct <= _FM_EMPTY_TH && p.q.key !== 'fillx';   // 충분히 비었다 — ★ (공급 업종 밖은 제외)
           return `<div style="text-align:right">
             <div style="font-size:calc(13px*var(--m-body));font-weight:${deep ? 800 : 700};color:${p.y < 0 ? '#f59e0b' : '#2dce89'}">${deep ? '★ ' : ''}하위 ${Math.round(p.pct)}%</div>
             <div style="font-size:calc(10px*var(--m-label));color:var(--text3)">${_fmPct2(p.cur)}</div>
@@ -779,15 +805,16 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
           </div>` },
     ],
     notes: [
-      `<b>출처</b> — 유튜브 <b>태린이아빠</b> '수급빈집'. ① 유동성이 공급되는 컨셉을 고르고 ② 수출데이터·미국시장·선행지표·컨센서스에 하자가 없는지 보고 ③ 그런데도 수급이 비워져 있으면 채워질 자리로 본다. ②는 사람이 판단할 몫이라 이 지도는 ①③만 계산합니다.`,
-      `<b>원본과의 일치</b> — 투자자 분류(외인+기관)·<b>순매수</b>·${_FM_OSC_N}일 롤링·÷시가총액·% 변환이 모두 원본과 같습니다. 원 영상의 오실레이터가 음수로 내려가고(유한양행 −0.38%), 워크북 시트가 <b>외인·기관·기외·시기외</b>로만 구성된 것을 화면에서 확인했습니다.`,
+      `<b>출처</b> — 유튜브 <b>태린이아빠</b> '수급빈집'. ① 유동성이 공급되는 컨셉을 고르고(<b>이때 매수만 본다</b>) ② 수출데이터·미국시장·선행지표·컨센서스에 하자가 없는지 보고 ③ 그런데도 수급이 비워져 있으면 채워질 자리로 본다. ②는 사람이 판단할 몫이라 ①③만 계산합니다.`,
+      `<b>① 유동성 공급 업종</b> — 원본 표는 종목별 <b>사모·투신·연금·외국인</b>의 시가총액 대비 매수 순위와 매수대금 순위이고, 컨셉 기준은 "외국인 금액대비·기관 시총대비·기관 금액대비"입니다. 같은 7개 지표(사모·투신·연금 시총대비, 사모·투신·연금·외국인 매수대금)를 <b>WICS 업종</b>별 최근 20거래일로 합산해 백분위 평균으로 순위를 매기고 <b>상위 25%</b>(원본: 26개 업종 중 컨셉 7개)를 공급 업종으로 봅니다. 공급 업종 밖의 빈집은 <b>빈집·비공급</b>으로 따로 표시합니다. 업종은 테마가 아니라 종목 기준이라 같은 테마 안에서도 갈립니다. 매수대금은 전일까지 반영됩니다(KIS가 당일분을 저녁에 주지 않음).`,
+      `<b>③ 오실레이터 — 원본과 일치</b> — 투자자 분류(외인+기관)·<b>순매수</b>·${_FM_OSC_N}일 롤링·÷시가총액·% 변환이 모두 원본과 같습니다. 원 영상의 오실레이터가 음수로 내려가고(유한양행 −0.38%), 오실레이터 시트가 <b>외인·기관·기외·시기외</b>로 구성된 것을 화면에서 확인했습니다. 원본은 종목 차트를 눈으로 보고 판단하며 기준선은 없습니다 — 아래 백분위·★는 이 지도의 수치화입니다.`,
       `<b>남은 차이 한 가지</b> — 금액 산출입니다. 원본은 거래소 <b>순매수 금액</b>을 직접 쓰고, 우리 원천(KIS inquire-investor)은 수량만 주므로 <b>순매수 수량 × 종가</b>로 환산합니다 — 확정 대금과 소수 % 오차가 납니다.`,
       `사분면은 <b>중앙값(하위 50%)</b>으로 가르지만, 실제로 "비었다"고 부를 만한 건 <b>하위 ${_FM_EMPTY_TH}% 이하</b>입니다 — 표의 <b>★</b>와 차트 점선이 그 선입니다. 중앙값 바로 아래는 빈집권일 뿐 신호가 약합니다.`,
       `<b>두 축 모두 순위입니다.</b> 가로는 오실레이터 평균의 <b>업종 내</b> 순위, 세로는 <b>그 종목 자신의 이력</b> 백분위. 가로를 평균값의 부호(0 기준)로 가르던 방식은 |평균| &lt; 0.02%p 구간에 전 종목의 18%가 몰려(실측) 좌/우가 잡음으로 갈려서 순위로 바꿨습니다. 절대 수준은 위 <b>업종 평균</b>이 말해 줍니다.`,
       `종목 간 <b>절대값 비교는 의미가 없습니다</b> — 대형주일수록 시총 대비 수급 비중이 작습니다(실측 10조+ 중앙 0.11% vs 2~10조 0.26%).`,
       `분모가 <b>당일 시가총액</b>이라 기간 중 주가가 크게 오른 종목도 왜곡되지 않습니다(전환 모드와 다른 점).`,
       `빈집은 <b>채워질 가능성에 거는 것</b>이지 확정이 아닙니다. 원저자도 시장 리스크는 업종쏠림지수·코스닥 3/5/10일선 이탈로 따로 관리하라고 말합니다.`,
-      `수급은 <b>모니터링 종목</b>만 수집되고 market_data 보존이 <b>90일</b>이라 비교 이력은 최대 ${availDays}거래일입니다.`,
+      `수급은 전종목을 매일 정산하고(사후 수정 반영) market_data는 <b>120일</b> 보존합니다. 이 지도의 비교 이력은 ${availDays}거래일입니다.`,
     ],
   };
 
