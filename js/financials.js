@@ -790,13 +790,15 @@ const FIN_COL_GROUPS = {
       cols:['종목명','코드','시장','섹터','중분류','업종','테마'] },
     // 거래량·거래대금은 '현재가 +' 상세로 들어가 거래 칩이 비어버리므로 시세로 흡수
     { key:'price', name:'시세',
-      cols:['시가총액','현재가','전일대비','고가','저가','거래량','거래량증감률','신고가구분','등락률','1주','1달','3달','거래대금'] },
+      cols:['시가총액','현재가','전일대비','고가','저가','52주고가','52주저가','거래량','거래량증감률','신고가구분','등락률','1주','1달','3달','거래대금'] },
     { key:'val',   name:'밸류',
       cols:['PER','PBR','EPS','BPS'] },
     { key:'flow',  name:'수급',
       cols:['외국인보유율','외국인보유수','외국인순매수','프로그램순매수','융자잔고율','공매도수량'] },
     { key:'w52',   name:'52주',
-      cols:['52주고가','52주저가','52주고가일','52주저가일','52주고가대비%','52주저가대비%'] },
+      // 52주 고가·저가는 현재가와 나란히 봐야 의미가 있어 '현재가 +'로 옮겼다.
+      // 여기 남은 건 언제 찍었나(날짜)와 그 대비 몇 %인가뿐이다
+      cols:['52주고가일','52주저가일','52주고가대비%','52주저가대비%'] },
     { key:'stat',  name:'상태',
       cols:['경고'] },
     { key:'etc',   name:'참고',
@@ -830,9 +832,10 @@ const FIN_EXPAND_GROUPS = {
       cols: ['섹터', '중분류'] },
     { key: 'price', lead: '현재가',
       // 가격 상세 + 거래 상세. 거래대금은 유동성 확인용으로 늘 보는 값이라 제외.
-      // 신고가구분도 여기 — 지금 값이 52주 고저 어디쯤인지는 현재가를 볼 때 같이 보는 정보다.
+      // 신고가구분·52주 고저도 여기 — 지금 값이 1년 범위 어디쯤인지는 현재가를 볼 때
+      // 같이 보는 정보다. 52주고가 칸에는 현재가 위치 막대가 함께 그려진다.
       // 접으면 시가총액·현재가·등락률·거래대금만 남는다
-      cols: ['전일대비', '고가', '저가', '거래량', '거래량증감률', '신고가구분'] },
+      cols: ['전일대비', '고가', '저가', '52주고가', '52주저가', '거래량', '거래량증감률', '신고가구분'] },
     { key: 'ret',   lead: '등락률',
       // 당일 등락률이 대표값, 기간 수익률은 추세 확인용.
       // 3달은 64거래일 이력이 필요해 모니터링 종목 위주로만 채워진다(전체의 12%)
@@ -840,9 +843,7 @@ const FIN_EXPAND_GROUPS = {
     { key: 'frgn',  lead: '외국인보유율',
       // 보유율(%)이 대표값, 보유수(주)는 절대 규모라 필요할 때만
       cols: ['외국인보유수'] },
-    { key: 'w52',   lead: '52주고가',
-      // 52주 고가 셀에 이미 위치 프로그레스 바가 있어 대표값으로 충분하다
-      cols: ['52주저가', '52주고가일', '52주저가일', '52주고가대비%', '52주저가대비%'] },
+
   ],
   financial: [],
 };
@@ -1405,9 +1406,10 @@ async function loadMarketData(el) {
       _th('market_cap','시가총액'),
       // 상세 컬럼은 대표(현재가) 바로 뒤에 붙인다 — 펼쳤을 때 멀리 떨어져 나오면
       // 어느 대표에 딸린 값인지 알 수 없다
-      _th('price','현재가',{extra:_expandBtn('price', 6)}),
+      _th('price','현재가',{extra:_expandBtn('price', 8)}),
       _th('price_change','전일대비'),
       _th('high_price','고가'), _th('low_price','저가'),
+      _th('w52_high','52주고가'), _th('w52_low','52주저가'),
       _th('volume','거래량'), _th('volume_change_rate','거래량증감률'),
       _th('hgpr_cls','신고가구분'),
       _th('price_change_rate','등락률',{extra:_expandBtn('ret', 3)}),
@@ -1420,7 +1422,6 @@ async function loadMarketData(el) {
       _th('foreign_hold_qty','외국인보유수'),
       _th('foreign_net_buy','외국인순매수'), _th('program_net_buy','프로그램순매수'),
       _th('loan_balance_rate','융자잔고율'), _th('short_sell_qty','공매도수량'),
-      _th('w52_high','52주고가',{extra:_expandBtn('w52', 5)}), _th('w52_low','52주저가'),
       _th('w52_high_date','52주고가일'), _th('w52_low_date','52주저가일'),
       _th('_w52HighPct','52주고가대비%'), _th('_w52LowPct','52주저가대비%'),
 
@@ -1466,6 +1467,11 @@ async function loadMarketData(el) {
         <td style="color:${chgC}">${chgV != null ? (chgV>0?'+':'')+chgV.toLocaleString()+'원' : '—'}</td>
         <td style="color:var(--red)">${fmtPrice(r.high_price)}</td>
         <td style="color:var(--blue)">${fmtPrice(r.low_price)}</td>
+        <td>
+          <div style="color:var(--red);font-size:calc(12px*var(--m-sub))">${n(r.w52_high)}</div>
+          ${w52bar}
+        </td>
+        <td style="color:var(--blue);font-size:calc(12px*var(--m-sub))">${n(r.w52_low)}</td>
         <td>${n(r.volume)}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${p(r.volume_change_rate)}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--tg)">${r.hgpr_cls||'—'}</td>
@@ -1483,11 +1489,6 @@ async function loadMarketData(el) {
         <td style="color:${buyClr(r.program_net_buy||0)}">${buyFmt(r.program_net_buy)}</td>
         <td>${r.loan_balance_rate != null ? r.loan_balance_rate.toFixed(2)+'%' : '—'}</td>
         <td style="font-size:calc(11px*var(--m-label))">${n(r.short_sell_qty)}</td>
-        <td>
-          <div style="color:var(--red);font-size:calc(12px*var(--m-sub))">${n(r.w52_high)}</div>
-          ${w52bar}
-        </td>
-        <td style="color:var(--blue);font-size:calc(12px*var(--m-sub))">${n(r.w52_low)}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.w52_high_date||'—'}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.w52_low_date||'—'}</td>
         <td style="font-size:calc(11px*var(--m-label))">${p(r._w52HighPct)}</td>
