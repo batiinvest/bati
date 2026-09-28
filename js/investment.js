@@ -147,6 +147,33 @@ function pInvestment() {
       <!-- (투자포인트 요약 → 상단 온도계 옆으로 이동) -->
       <!-- (주도주 → '오늘의 아이디어' 탭으로 이동) -->
 
+      <!-- 한국 피어앤그리드 — 공포·탐욕 지수 + EMA20 + 오실레이터 (fear-greed.js) -->
+      <div class="card" style="margin-bottom:0">
+        <div class="card-header" style="flex-wrap:wrap;gap:6px">
+          <span class="card-title">${_ICO.temp}피어앤그리드</span>
+          <span class="card-sub">시장 심리 — 공포 ↔ 탐욕 (0~100)</span>
+          <span id="fg-date" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:auto"></span>
+          <div style="display:flex;gap:4px">
+            <button class="chip chip-sm active" data-fg-market="kospi"  onclick="setFgMarket('kospi')" >코스피</button>
+            <button class="chip chip-sm"        data-fg-market="kosdaq" onclick="setFgMarket('kosdaq')">코스닥</button>
+          </div>
+        </div>
+        <div id="fg-summary" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border-top:1px solid var(--border)"></div>
+        <div id="fg-charts" style="border-top:1px solid var(--border)">
+          <div style="padding:.75rem 1rem 0;position:relative;height:220px"><canvas id="fg-chart"></canvas></div>
+          <div style="padding:0 1rem .5rem;position:relative;height:70px"><canvas id="fg-osc-chart"></canvas></div>
+        </div>
+        <div id="fg-empty" style="display:none;padding:2rem 1rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub));border-top:1px solid var(--border)"></div>
+        <div style="padding:.5rem 1rem .75rem;border-top:1px solid var(--border)">
+          <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:4px">구성 요소 · 탐욕 쪽 점수 (각 20%)</div>
+          <div id="fg-comp"></div>
+          <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px;line-height:1.5">
+            파랑 = 지수 · 주황 = EMA20 · 회색 = 시장 지수 · 점선 20/50/80. 아래 막대 = 오실레이터(지수의 MACD − 시그널).
+            최근 1년 안에서 각 요소를 0~100으로 맞춘 상대 점수라, 새 고점·저점이 생기면 과거 값도 조금 바뀝니다.
+          </div>
+        </div>
+      </div>
+
       <!-- 수급 요약 -->
       <div class="card" style="margin-bottom:0">
         <div class="card-header">
@@ -679,6 +706,7 @@ async function loadInvestment() {
   // ── 독립 위젯 즉시 병렬 발사 — 매크로/종목 데이터 완료를 기다리지 않는다 ──
   loadCreditBalance();   // 신용융자 잔고 카드 (credit-balance.js) — 독립 쿼리
   loadMarketInvestor();  // 투자자별 매매동향 카드 (market-investor.js) — 독립 쿼리
+  loadFearGreed();       // 피어앤그리드 카드 (fear-greed.js) — 독립 쿼리
   if (typeof loadSectorLead === 'function') loadSectorLead();  // 주도 업종 카드 (sector-lead.js) — 독립 쿼리
   loadTrendChart();      // 흐름 비교 차트 — macro_data 자체 조회 (loadMacroData와 독립)
   _allDiscLoaded = false;
