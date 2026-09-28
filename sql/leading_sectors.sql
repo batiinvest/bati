@@ -43,7 +43,7 @@ create table if not exists leading_sectors (
   flow_cum_ratio  numeric,             -- 누적 ÷ 업종 시가총액(%)
   newhigh_5d      smallint,            -- 최근 5거래일 52주 신고가 종목 수(군집)
   n_stocks        integer,
-  leading         boolean  not null,   -- 주도 업종 = 모멘텀 상위 ∩ 매수 상위
+  "leading"       boolean  not null,   -- 주도 업종 = 모멘텀 상위 ∩ 매수 상위 (leading은 예약어라 따옴표 필수)
   n_empty         smallint,            -- 업종 안 빈집(수급 오실레이터 자기 이력 하위 50%) 종목 수
   n_start         smallint,            -- 업종 안 수급 단계 '이제 시작' 종목 수
   spark           jsonb,               -- 6개월 지수 추이(첫날=1) — 시황 카드 스파크라인
