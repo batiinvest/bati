@@ -15,6 +15,7 @@
 --       {"lead": 주도업종 소속, "mid": 중분류코드, "rs": RS(1~99), "tv": 거래대금 상위150,
 --        "nb": 기관+외국인 순매수 상위150, "cons": 30일 내 영업익 추정 상향, "nh": 52주 신고가}
 --  ② leading_sectors — 판정일별 WICS 중분류 28개 보드(모멘텀·수급 꾸준함·이평·신고가 군집)
+--       기업분석 표 보드와 오늘의 시황 '주도 업종' 카드가 같이 읽는다
 --  ③ bulk_patch_market_data — lead_flags 키 추가(보낸 키만 고친다)
 -- =====================================================================
 
@@ -43,6 +44,9 @@ create table if not exists leading_sectors (
   newhigh_5d      smallint,            -- 최근 5거래일 52주 신고가 종목 수(군집)
   n_stocks        integer,
   leading         boolean  not null,   -- 주도 업종 = 모멘텀 상위 ∩ 매수 상위
+  n_empty         smallint,            -- 업종 안 빈집(수급 오실레이터 자기 이력 하위 50%) 종목 수
+  n_start         smallint,            -- 업종 안 수급 단계 '이제 시작' 종목 수
+  spark           jsonb,               -- 6개월 지수 추이(첫날=1) — 시황 카드 스파크라인
   primary key (base_date, mid_code)
 );
 

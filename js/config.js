@@ -833,8 +833,10 @@ async function _loadFlowVerdicts() {
     pageAny(),
     sb.from('flow_concepts').select('grp,rank,n_groups,supplied,n_stocks,score,data_from,data_to')
       .eq('base_date', date).order('rank'),
-    // 주도 업종 보드(태린이아빠 ① 단계) — sql/leading_sectors.sql 실행 전이면 없음
-    sb.from('leading_sectors').select('*').eq('base_date', date).order('mom_rank'),
+    // 주도 업종 보드(태린이아빠 ① 단계) — sql/leading_sectors.sql 실행 전이면 없음. spark(추이)는 시황 카드만 쓴다
+    sb.from('leading_sectors').select('mid_code,name,ret_6m,down_dev,score,mom_rank,n_sectors,above_ma11,above_ma20,'
+      + 'above_ma50,buy_rank,buy_score,flow_pos_days,flow_days,newhigh_5d,n_stocks,leading,n_empty,n_start')
+      .eq('base_date', date).order('mom_rank'),
   ]);
   const byCode = {};
   rows.forEach(r => { byCode[r.stock_code] = r; });
