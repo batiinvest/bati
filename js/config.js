@@ -50,8 +50,8 @@ async function loadFinPreferred(code, cols, { limit = 24, asc = false } = {}) {
 const CACHE = {};
 
 // INV(오늘의 시황 + 공유 시장캐시) 네임스페이스만은 여기서 선언한다 — investment.js는 로드 순서상
-// 맨 마지막이지만, 그보다 먼저 로드되는 market-overview/-insight 등이 최상위에서 INV에 접근하기
-// 때문(예: market-insight.js `INV.insightSaveDB = ...`). 여기서 빈 객체로 먼저 만들고
+// 맨 마지막이지만, 그보다 먼저 로드되는 market-overview 등이 최상위에서 INV에 접근하기
+// 때문. 여기서 빈 객체로 먼저 만들고
 // investment.js가 기본값(selected·period)을 주입한다. (구 investment.js `const INV` → 이 선언으로 이동)
 const INV = {};
 
@@ -63,7 +63,7 @@ const INDUSTRIES = ['바이오','뷰티','로봇','2차전지','신재생','소�
 const CATS = { '바이오':'#2AABEE','뷰티':'#f5365c','로봇':'#2dce89','2차전지':'#fb6340','신재생':'#5e72e4','소비재':'#f3a4b5','테크':'#a259ff','반도체':'#8898aa','엔터':'#ffd600','조선':'#11cdef','우주':'#4a6fa5' };
 
 // ══════════════════════════════════════════
-//  산업 누적 복리수익률 헬퍼 — chart-industry / chart-uskr / market-insight 공용
+//  산업 누적 복리수익률 헬퍼 — chart-industry / chart-uskr 공용
 //  dayChgMap: { 'YYYY-MM-DD': [종목등락률, ...] }  (한 산업의 일별 등락률 묶음)
 //  dates    : 적용할 날짜 배열(오름차순)
 // ══════════════════════════════════════════
@@ -514,7 +514,7 @@ const chgColor = v => v > 0 ? 'var(--red)' : v < 0 ? 'var(--blue)' : 'var(--text
 const chgStr = v => { const n = Number(v); return (v != null && !isNaN(n)) ? `${n > 0 ? '+' : ''}${n.toFixed(2)}%` : '—'; };
 
 // 등락률 1자리 % (예: +2.3% / -1.5% / —) — 0 이상이면 '+' (chgStr은 0에 '+' 없음 — 의도적 차이)
-// null·NaN·비숫자는 '—' (Number 강제변환 + NaN 가드로 "+NaN%" 방지). market-insight.js의 _fmt를 이 함수로 통합.
+// null·NaN·비숫자는 '—' (Number 강제변환 + NaN 가드로 "+NaN%" 방지).
 const fmtPct = v => { const n = Number(v); return (v != null && !isNaN(n)) ? `${n >= 0 ? '+' : ''}${n.toFixed(1)}%` : '—'; };
 
 // 가격(원) 표시 (예: 71,200원 / —) — null/undefined만 '—' (0은 "0원"; 주가엔 미발생)

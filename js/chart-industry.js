@@ -1,7 +1,7 @@
 // chart-industry.js — KR 산업별 흐름 비교 차트
 // 의존: config.js (INDUSTRIES, IND_COLORS, IND_DEFAULT_COLORS)
 
-// 페이지 상태 네임스페이스 — 구 window._ind*/_krInd* 수렴. krDates·krFinalReturn은 market-insight/chart-uskr가 소비
+// 페이지 상태 네임스페이스 — 구 window._ind*/_krInd* 수렴. krDates는 chart-uskr가 소비
 const IND = {};
 
 // ══════════════════════════════════════════
@@ -73,7 +73,6 @@ async function loadIndTrendChart() {
   industries.forEach(ind => {
     indFinalReturn[ind] = indCumReturn(indDates[ind], dateList);  // config.js 공용 헬퍼
   });
-  IND.krFinalReturn = indFinalReturn;  // market-insight.js에서 재활용
 
   // 수익률 순으로 정렬된 산업 목록
   const industriesSorted = [...industries].sort(

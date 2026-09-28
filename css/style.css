@@ -686,67 +686,12 @@ td.ctr, th.ctr { text-align:center; }
 }
 .msb-bar > span { display:block; height:100%; }
 
-/* ── '오늘의 시장 판단' 통합 카드: A 환경 | B 전략 2열 (근거는 하단 풀폭) ── */
-.mj-grid { display:grid; grid-template-columns:1.15fr 1fr; align-items:stretch; }
-.mj-col-b { border-left:1px solid var(--border); }
+/* ── 시황 최상단 '피어앤그리드' 카드: 좌 차트 | 우 요약·구성 요소 (모바일 1열) ── */
+.fg-grid { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); align-items:stretch; border-top:1px solid var(--border); }
+.fg-col-side { border-left:1px solid var(--border); }
 @media(max-width:900px) {
-  .mj-grid { grid-template-columns:1fr; }
-  .mj-col-b { border-left:none; border-top:1px solid var(--border); }
-}
-
-/* ── 투자포인트 카드 5섹션 ── */
-.insight-sec { margin-bottom:16px; padding-bottom:13px; border-bottom:1px solid rgba(255,255,255,.05); }
-.insight-sec:last-of-type { border-bottom:none; margin-bottom:0; }
-.insight-sec-title {
-  font-size:calc(12px*var(--m-sub)); font-weight:700; letter-spacing:.05em; margin-bottom:9px;
-  display:flex; align-items:center; gap:5px;
-}
-.insight-sec-title::before {
-  content:''; display:inline-block; width:2px; height:12px;
-  background:currentColor; border-radius:2px; opacity:.7; flex-shrink:0;
-}
-.insight-row { display:flex; align-items:flex-start; gap:9px; padding:3px 0; }
-.insight-row-label {
-  min-width:46px; font-size:calc(11px*var(--m-label)); color:var(--text3); font-weight:600;
-  padding-top:2px; flex-shrink:0;
-}
-.insight-row-val { flex:1; color:var(--text); display:flex; flex-wrap:wrap; align-items:center; gap:5px; font-size:calc(13px*var(--m-body)); }
-.insight-tag { font-size:calc(12px*var(--m-sub)); padding:2px 8px; border-radius:100px; font-weight:600; white-space:nowrap; }
-.insight-tag.up { background:rgba(245,54,92,.12); color:var(--red); border:1px solid rgba(245,54,92,.25); }
-.insight-tag.dn { background:rgba(74,158,255,.12); color:var(--blue); border:1px solid rgba(74,158,255,.25); }
-.insight-tag.neu { background:rgba(255,255,255,.07); color:var(--text3); border:1px solid var(--border); }
-.insight-point-row { display:flex; align-items:baseline; gap:9px; padding:5px 6px; border-radius:5px; margin-bottom:2px; }
-.insight-point-num {
-  min-width:19px; height:19px; line-height:19px; border-radius:50%;
-  background:rgba(255,255,255,.08); color:var(--text1);
-  font-size:calc(11px*var(--m-label)); font-weight:700; text-align:center; flex-shrink:0;
-}
-.insight-point-text { font-size:calc(13px*var(--m-body)); color:var(--text); line-height:1.5; }
-.insight-risk-row, .insight-event-row { display:flex; align-items:baseline; gap:9px; padding:4px 2px; }
-.insight-risk-icon { font-size:calc(13px*var(--m-body)); flex-shrink:0; width:19px; text-align:center; line-height:1.6; }
-.insight-oneliner {
-  background:rgba(240,165,0,.05); border:1px solid rgba(240,165,0,.18);
-  border-left:3px solid var(--accent); border-radius:6px; padding:11px 13px; margin-top:2px;
-}
-
-/* ── 시장 온도계 게이지 ── */
-.temp-gauge-bar {
-  position:relative; height:10px; border-radius:6px; overflow:hidden;
-  background:linear-gradient(to right,#f5365c 0%,#fb6340 25%,#f59e0b 45%,#2dce89 65%,#4a9eff 100%);
-}
-.temp-gauge-fill {
-  position:absolute; right:0; top:0; bottom:0;
-  background:var(--bg3); border-radius:0 6px 6px 0;
-  transition:width .6s ease;
-}
-.temp-detail-row {
-  display:flex; align-items:center; gap:8px; padding:1px 0;
-}
-.temp-detail-bar {
-  flex:1; height:5px; border-radius:3px; background:rgba(255,255,255,.08); overflow:hidden;
-}
-.temp-detail-fill {
-  height:100%; border-radius:3px; transition:width .5s ease;
+  .fg-grid { grid-template-columns:minmax(0,1fr); }
+  .fg-col-side { border-left:none; border-top:1px solid var(--border); }
 }
 
 /* ── Task 3: 정보 밀도 테이블 ── */

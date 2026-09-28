@@ -48,11 +48,10 @@ async function loadMacroData() {
     }
   }
 
-  INV.macroData = m;   // market-insight.js / market-temperature.js 재활용
-  INV.macroRows = (data || []).slice(0, 5); // 5일치 — 온도계 5일 추세 계산용
+  INV.macroData = m;   // 탑바 스트립·흐름 비교 등 재활용
 
   // (정리됨) 매크로 카드 그리드·위험 스트립·증시동향 헤더 배너(inv-banner-content) 모두 제거 —
-  // 매크로 지수는 전역 탑바 스트립·시장 온도계 6세부요소·Zone A 브리핑 위험배지가 담당(중복 제거).
+  // 매크로 지수는 전역 탑바 스트립이 담당(중복 제거).
   // 증시동향 카드는 제거 → 코스피·코스닥 상승종목수(breadth)는 탑바 스트립의 지수값 밑에 미니 바로 노출(_renderTopbarStrip).
 
   // 탑바 시장 스트립 갱신

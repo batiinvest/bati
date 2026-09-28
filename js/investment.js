@@ -17,14 +17,14 @@ const INV_ALL_METRICS = [
   { col:'us10y',   name:'미 금리',  group:'기타',   color:'#94a3b8' },  // 연회
 ];
 
-// INV 네임스페이스 자체는 config.js에서 먼저 선언(로드 순서 문제 — market-overview/-insight 등이
+// INV 네임스페이스 자체는 config.js에서 먼저 선언(로드 순서 문제 — market-overview 등이
 // investment.js보다 먼저 로드되며 최상위에서 INV에 접근). 여기서는 시황 페이지 기본값만 주입한다.
 //   selected·period: 지표 선택/기간 UI 상태
 //   ── 구 window._* 수렴 (런타임 대입) ──
 //   tab·highlighted·hovered: 시황 페이지 UI 상태
-//   allMarketRows·macroData·macroRows·marketBreadth·tempScore·indMapData:
-//     market-overview/-insight/-temperature/sector-rotation/chart-macro가 공유하는 시장 데이터 캐시
-//   moSort·indBarChart·insightSaveDB·insightCurrentData·lsPollTimer·lsAllData: 섹션별 상태
+//   allMarketRows·macroData·marketBreadth·indMapData:
+//     market-overview/sector-rotation/chart-macro가 공유하는 시장 데이터 캐시
+//   moSort·indBarChart·lsPollTimer·lsAllData: 섹션별 상태
 INV.selected = new Set(['sp500','nasdaq','kospi','kosdaq']);
 INV.period   = 7;
 
@@ -64,51 +64,38 @@ function pInvestment() {
     </div>
   </div>
 
-  <!-- 상단: 오늘의 시장 판단 — 온도계(환경)+투자포인트(전략) 통합 카드. 환경→전략→근거 수직 흐름 -->
+  <!-- 상단: 피어앤그리드 — 시장 심리(공포↔탐욕) 한눈에. 좌 차트 | 우 요약·구성 요소 (fear-greed.js) -->
+  <!-- (구 '오늘의 시장 판단' 온도계+투자포인트 카드는 09-28 이 카드로 대체 — market-temperature/-insight.js 삭제) -->
   <div class="card insight-card card--hero" style="margin-bottom:1rem">
     <div class="card-header" style="flex-wrap:wrap;gap:6px">
-      <span class="card-title">${_ICO.temp}오늘의 시장 판단</span>
-      <span class="card-sub">지금 들어가도 되나 → 무엇을 할까</span>
-      <span id="mj-source" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:auto"></span>
-      <span style="font-size:calc(11px*var(--m-label));color:var(--text2)" id="market-temp-date"></span>
-      <!-- 보조 작업(히스토리·재분석·관리자)은 케밥 메뉴로 — 헤더 요소 과밀 방지 -->
-      <div class="kebab-wrap">
-        <button class="chip chip-sm" onclick="toggleMjMenu(event)" title="작업 메뉴" aria-label="작업 메뉴">⋯</button>
-        <div class="kebab-menu" id="mj-menu">
-          <button class="kebab-item" id="btn-insight-hist" style="display:none"
-            onclick="toggleInsightHistory()">${_ICO.history}히스토리</button>
-          <button class="kebab-item"
-            onclick="loadMarketInsight(true)">${_ICO.refresh}재분석</button>
-          <span id="mj-admin-btns" style="display:flex;flex-direction:column;gap:2px"></span>
+      <span class="card-title">${_ICO.temp}피어앤그리드</span>
+      <span class="card-sub">시장 심리 — 공포 ↔ 탐욕 (0~100)</span>
+      <span id="fg-date" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:auto"></span>
+      <div style="display:flex;gap:4px">
+        <button class="chip chip-sm active" data-fg-market="kospi"  onclick="setFgMarket('kospi')" >코스피</button>
+        <button class="chip chip-sm"        data-fg-market="kosdaq" onclick="setFgMarket('kosdaq')">코스닥</button>
+      </div>
+    </div>
+    <div class="fg-grid">
+      <!-- 좌: 지수·EMA20·시장 지수 차트 + 오실레이터 -->
+      <div class="fg-col-chart">
+        <div id="fg-charts">
+          <div style="padding:.75rem 1rem 0;position:relative;height:240px"><canvas id="fg-chart"></canvas></div>
+          <div style="padding:0 1rem .5rem;position:relative;height:70px"><canvas id="fg-osc-chart"></canvas></div>
         </div>
+        <div id="fg-empty" style="display:none;padding:3rem 1rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))"></div>
       </div>
-    </div>
-
-    <!-- A 환경 | B 전략 — 2열 (밀도 회복: '이 환경이니 → 이렇게' 좌우 병치) -->
-    <div class="mj-grid">
-      <!-- A. 환경(Regime) + 통합 행동지침 -->
-      <div class="card-body mj-col-a" style="padding:.75rem 1rem" id="market-temp-body">
-        <span class="skeleton" style="width:100%;height:60px;border-radius:6px;display:block"></span>
-      </div>
-      <!-- B. 전략(Selection) — 영향 업종 + 기회/리스크 -->
-      <div class="mj-col-b" style="padding:.75rem 1rem" id="market-insight-card">
-        <div style="color:var(--text2);font-size:calc(12px*var(--m-sub))"><span class="loading"></span> 전략 분석 중...</div>
-      </div>
-    </div>
-
-    <!-- C. 근거(Evidence) — 6지표, 기본 접힘 (풀폭) -->
-    <!-- (출처·DB저장은 상단 헤더로 일원화, 재생성은 재분석과 통합 제거 — 하단 푸터 폐지) -->
-    <div id="mj-evidence" style="border-top:1px solid var(--border)"></div>
-
-    <!-- 히스토리 (DB 저장 국면) -->
-    <div id="insight-history" style="display:none;border-top:1px solid var(--border)">
-      <div style="padding:7px 1rem 4px;font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text2);
-        letter-spacing:.04em;display:flex;align-items:center;gap:6px">
-        최근 시장 국면
-        <span style="font-size:calc(11px*var(--m-label));font-weight:400;opacity:.7">(DB 저장 기준)</span>
-      </div>
-      <div id="insight-history-body" style="padding:0 1rem .75rem">
-        <div style="color:var(--text2);font-size:calc(12px*var(--m-sub));padding:.5rem 0"><span class="loading"></span></div>
+      <!-- 우: 요약 + 구성 요소 -->
+      <div class="fg-col-side">
+        <div id="fg-summary" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border-bottom:1px solid var(--border)"></div>
+        <div style="padding:.6rem 1rem .75rem">
+          <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:4px">구성 요소 · 탐욕 쪽 점수 (각 20%)</div>
+          <div id="fg-comp"></div>
+          <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:8px;line-height:1.5">
+            파랑 = 지수 · 주황 = EMA20 · 회색 = 시장 지수 · 점선 20/50/80. 아래 막대 = 오실레이터(지수의 MACD − 시그널).
+            최근 1년 안에서 각 요소를 0~100으로 맞춘 상대 점수라, 새 고점·저점이 생기면 과거 값도 조금 바뀝니다.
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -147,32 +134,6 @@ function pInvestment() {
       <!-- (투자포인트 요약 → 상단 온도계 옆으로 이동) -->
       <!-- (주도주 → '오늘의 아이디어' 탭으로 이동) -->
 
-      <!-- 한국 피어앤그리드 — 공포·탐욕 지수 + EMA20 + 오실레이터 (fear-greed.js) -->
-      <div class="card" style="margin-bottom:0">
-        <div class="card-header" style="flex-wrap:wrap;gap:6px">
-          <span class="card-title">${_ICO.temp}피어앤그리드</span>
-          <span class="card-sub">시장 심리 — 공포 ↔ 탐욕 (0~100)</span>
-          <span id="fg-date" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:auto"></span>
-          <div style="display:flex;gap:4px">
-            <button class="chip chip-sm active" data-fg-market="kospi"  onclick="setFgMarket('kospi')" >코스피</button>
-            <button class="chip chip-sm"        data-fg-market="kosdaq" onclick="setFgMarket('kosdaq')">코스닥</button>
-          </div>
-        </div>
-        <div id="fg-summary" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border-top:1px solid var(--border)"></div>
-        <div id="fg-charts" style="border-top:1px solid var(--border)">
-          <div style="padding:.75rem 1rem 0;position:relative;height:220px"><canvas id="fg-chart"></canvas></div>
-          <div style="padding:0 1rem .5rem;position:relative;height:70px"><canvas id="fg-osc-chart"></canvas></div>
-        </div>
-        <div id="fg-empty" style="display:none;padding:2rem 1rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub));border-top:1px solid var(--border)"></div>
-        <div style="padding:.5rem 1rem .75rem;border-top:1px solid var(--border)">
-          <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:4px">구성 요소 · 탐욕 쪽 점수 (각 20%)</div>
-          <div id="fg-comp"></div>
-          <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px;line-height:1.5">
-            파랑 = 지수 · 주황 = EMA20 · 회색 = 시장 지수 · 점선 20/50/80. 아래 막대 = 오실레이터(지수의 MACD − 시그널).
-            최근 1년 안에서 각 요소를 0~100으로 맞춘 상대 점수라, 새 고점·저점이 생기면 과거 값도 조금 바뀝니다.
-          </div>
-        </div>
-      </div>
 
       <!-- 수급 요약 -->
       <div class="card" style="margin-bottom:0">
@@ -714,7 +675,7 @@ async function loadInvestment() {
   loadEarningsSurge();
   loadEstimateOutlook(); // '오늘의 아이디어' 전망 탭 (추정치 상향+고성장, estimates.js)
 
-  // 매크로(탑바 스트립·온도계·투자포인트 의존)는 병렬 시작 — 완료는 하단에서 대기
+  // 매크로(탑바 스트립 의존)는 병렬 시작 — 완료는 하단에서 대기
   const macroP = loadMacroData().catch(e => console.warn('[loadInvestment] macro', e));
 
   const maxDate = await getLatestMarketDate();
@@ -740,11 +701,7 @@ async function loadInvestment() {
   if (typeof resetFlowMap === 'function') resetFlowMap(true);
 
   // 매크로 의존 위젯 — 병렬 로드 완료 후 실행 (구: 직렬 await + setTimeout 1500ms 지연 호출)
-  // loadMarketInsight 의존(INV.macroData·IND.krDates·USKR_MAP)은 위 loadMarketOverview가
-  // 내부에서 await하는 것들 + macroP — 여기서 모두 충족된다.
   await macroP;
-  renderMarketTemperature();
-  loadMarketInsight();
 
   // 모니터링 종목 목록 — getIndustryMap() 캐시 재활용 (companies 중복 조회 방지)
   const industryMap = await getIndustryMap();
@@ -949,26 +906,6 @@ function renderIdeaSurge() {
 }
 
 
-// ── 투자포인트 히스토리 토글 ───────────────────────────────────────────────────
-function toggleInsightHistory() {
-  const open = toggleSection('insight-history', null, null, loadInsightHistory);
-  const btn  = document.getElementById('btn-insight-hist');
-  if (btn && open != null) btn.classList.toggle('active', open);
-}
-
-// ── 판단 카드 케밥(⋯) 메뉴 — 히스토리·재분석·관리자 버튼 수납 ──
-function toggleMjMenu(e) {
-  e.stopPropagation();
-  document.getElementById('mj-menu')?.classList.toggle('open');
-}
-// 메뉴 밖 클릭·항목 클릭 시 닫기 (위임 — 페이지 재렌더에도 유지)
-document.addEventListener('click', e => {
-  const menu = document.getElementById('mj-menu');
-  if (!menu?.classList.contains('open')) return;
-  if (!e.target.closest('.kebab-wrap') || e.target.closest('.kebab-item')) menu.classList.remove('open');
-});
-
-
 // (정리됨) 섹터수급↔산업강도 2열 그리드/높이동기화 헬퍼(switchSfImTab·_initSfImLayout·
 //   _syncSfImHeight)는 sf-card(섹터 수급 트렌드) 제거로 소멸 — 산업별 수급동향은 sector-rotation.js.
 
@@ -1165,6 +1102,6 @@ function _renderMyStocks() {
 
 // ── 시황/공시/급등 로직은 분리된 파일에서 로드 ──
 // market-overview.js    : loadMacroData, loadTrendChart, loadMarketOverview
-// market-temperature.js : renderMarketTemperature
+// fear-greed.js         : loadFearGreed, setFgMarket (최상단 피어앤그리드)
 // disclosure.js         : loadTodayDisclosures, loadAllDisclosures, toggleAllDisclosures
 // earnings-surge.js     : loadEarningsSurge, renderSurgeList, setSurgeGrade 등

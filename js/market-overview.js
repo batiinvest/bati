@@ -394,8 +394,6 @@ async function loadMarketOverview(maxDate) {
   loadNewHighStocks();
   loadFlowData();
 
-  // (투자포인트 요약 loadMarketInsight — 구 setTimeout 1500ms 제거,
-  //  loadInvestment가 매크로·본 함수 완료를 await한 뒤 직접 호출)
 }
 
 
