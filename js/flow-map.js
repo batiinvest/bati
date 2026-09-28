@@ -93,8 +93,9 @@ const _FM_OSC_N = 5;
 const _FM_EMPTY_TH = 30;
 // 수급 오실레이터 = 5일 수급 비율의 MACD − 시그널 (백엔드 collect_flow_empty와 같은 값 — 바꾸면 둘 다).
 // 원본 값이 5일 합계보다 약 10배 작고 평균 0 대칭이었다(삼성전자 원본 칸 ±0.03% = MACD−시그널).
-// 워크북 '오실'·'MACD' 시트, "비중을 만들고 변환을 했을 때", 미국판(5일 누적→EMA12−26→시그널10).
-const _FM_MACD = { fast: 12, slow: 26, sig: 10, warmup: 10 };
+// 워크북 '오실'·'MACD' 시트, "비중을 만들고 변환을 했을 때". 시그널 = 9일(국내 원본 두 워크북 모두 =2/10,
+// 09-29 확인 — 이전엔 미국판의 10).
+const _FM_MACD = { fast: 12, slow: 26, sig: 9, warmup: 10 };
 
 /** [{d, v, cap}] 5일 수급 비율 → [{d, v: MACD − 시그널, cap}]. EMA는 첫 값에서 시작(엑셀과 같게) */
 function _fmMacdHist(ser) {
