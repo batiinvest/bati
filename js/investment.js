@@ -910,7 +910,7 @@ let _msSwapOpen     = null;   // 교체 후보를 펼친 보유 종목 코드
 //  "보유 종목 수급 오실레이터가 차면(과열권) 같은 카테고리 안에서 수급이 비어 있고 모멘텀이 살아 있는
 //   종목으로 바꾼다" (가온전선 → LS, 원익IPS → 주성엔지니어링). 보유 종목 단계가 '다 찼다'·'꺾임'이면
 //  같은 테마(sub_industry) → WICS 소분류 → 중분류 순으로 넓혀 찾는다.
-//  후보 = 수급 하위 50%(빈집) ∧ 단계가 다 찼다·꺾임 아님 ∧ 모멘텀 1개 이상(컨센↑·신고가·거래대금↑·군집·RS 70↑),
+//  후보 = 빈집(수급 칸 2개 이하 — flowIsEmpty) ∧ 모멘텀 1개 이상(컨센↑·신고가·거래대금↑·군집·RS 70↑),
 //  범위는 원본 엑셀처럼 시가총액 상위 1,400.
 const _MS_SWAP_STAGES = new Set(['top', 'turn']);
 const _MS_SWAP_MAX = 5, _MS_UNIVERSE = 1400;
@@ -954,16 +954,16 @@ function _msSwapCands(code, fv, comp, heldSet) {
       .filter(c => c.code !== code && !heldSet.has(c.code) && same(c)
         && (!hasCap || (capRank[c.code] != null && capRank[c.code] <= _MS_UNIVERSE)))
       .map(c => ({ c, v: fv.byCode[c.code] }))
-      .filter(x => x.v && x.v.flow_pctl != null && x.v.flow_pctl < 50)
+      .filter(x => x.v && flowIsEmpty(x.v.flow_gauge, x.v.flow_pctl))
       .map(x => {
         const f = x.v.lead_flags || {};
         const gg = x.v.flow_gauge ? flowGauge(x.v.flow_gauge) : null;
-        const te = typeof taerinEval === 'function' ? taerinEval(x.v.flow_pctl, x.v.lead_flags) : null;
+        const te = typeof taerinEval === 'function' ? taerinEval(x.v.flow_gauge, x.v.lead_flags, x.v.flow_pctl) : null;
         return { code: x.c.code, name: x.c.name, pctl: x.v.flow_pctl, gg, mom: _msMomentum(f), lead: !!f.lead, te };
       })
-      .filter(x => x.mom.length && !(x.gg && _MS_SWAP_STAGES.has(x.gg.key)))
+      .filter(x => x.mom.length)
       .sort((a, b) => ((b.te?.a ? 2 : 0) + (b.gg?.key === 'start' ? 1 : 0)) - ((a.te?.a ? 2 : 0) + (a.gg?.key === 'start' ? 1 : 0))
-        || b.mom.length - a.mom.length || a.pctl - b.pctl);
+        || b.mom.length - a.mom.length || (a.gg?.fill ?? 9) - (b.gg?.fill ?? 9) || a.pctl - b.pctl);
     if (list.length) return { basis, list: list.slice(0, _MS_SWAP_MAX), total: list.length };
   }
   return { basis: null, list: [], total: 0 };
@@ -989,7 +989,6 @@ function _msSwapPanel(it, sw) {
       <span style="font-size:calc(12px*var(--m-sub));color:var(--text1);flex-shrink:0;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(x.name)}</span>
       ${x.te?.a ? `<span title="태린 후보 A — 주도 업종 ∧ 수급 빈 ∧ 확률 조건" style="font-size:calc(10.5px*var(--m-label));font-weight:800;padding:0 5px;border-radius:3px;background:rgba(245,158,11,.18);color:#f59e0b;flex-shrink:0">A</span>` : ''}
       <span style="font-size:calc(11px*var(--m-label));white-space:nowrap;flex-shrink:0">${x.gg ? flowGaugeBar(x.gg) + ` <span style="color:${x.gg.color};font-weight:600">${x.gg.label}</span>` : ''}</span>
-      <span style="font-size:calc(11px*var(--m-label));color:var(--text2);flex-shrink:0">하위 ${Math.round(x.pctl)}%</span>
       <span style="font-size:calc(11px*var(--m-label));color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${escapeHtml(x.mom.join(' · '))}${x.lead ? ' <span style="color:#f59e0b">· 주도 업종</span>' : ''}</span>
     </div>`).join('');
   return `<div style="background:var(--bg2)">

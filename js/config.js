@@ -745,7 +745,7 @@ const FLOW_LEVEL_NAMES = ['상위 10%', '상위 25%', '평균', '하위 25%', '�
 // ══════════════════════════════════════════
 //  태린이아빠 국내 전략 후보 — 2026-09-19 영상 「1년간 미장에서 52주 신고가 전략 … 업그레이드」
 //   ① 주도 업종(6개월 수익률÷하방 표준편차 상위 ∩ 사모·투신·연금·외국인 매수 상위, WICS 중분류)
-//   ② 그 안에서 수급 오실레이터 빈집(자기 이력 하위 절반)
+//   ② 그 안에서 수급 오실레이터 빈집(수급 칸 2개 이하 — flowIsEmpty)
 //   ③ 거래대금 상위 150이면서 상승 · 컨센 상향 · 52주(250일) 신고가 · 신고가 군집 업종 중 하나 → 후보 A
 //      (09-19 회원 영상: 거래대금은 "상위이면서 주가가 플러스", 군집은 "군집 현상 있는 섹터 중 빈집")
 //   일일 스크린: RS 70 이상 · 그날 거래대금 또는 기관·외국인 순매수 상위 150 · 수급 빈  → 후보 B
@@ -755,9 +755,21 @@ const FLOW_LEVEL_NAMES = ['상위 10%', '상위 25%', '평균', '하위 25%', '�
 const TAERIN_TAGS = { tv: '거래대금', tvu: '거래대금↑', nb: '순매수', cons: '컨센↑', nh: '신고가', cl: '군집' };
 const TAERIN_A_KEYS = ['tvu', 'cons', 'nh', 'cl'];   // 후보 A ③ 확률 높이기(OR)
 
-function taerinEval(pctl, f) {
-  if (!f || pctl == null) return null;
-  const empty = pctl < 50;
+// 빈집 = 수급 칸 2개 이하 — 현재 오실레이터가 최근 63거래일 '평균' 칸 아래(하위25%·하위10% 칸까지만
+// 넘었거나 하나도 못 넘음). 원본(수급오실레이터 시트)은 칸 표에서 현재값이 넘어선 칸을 빨갛게 칠해
+// 비었다/찼다를 눈으로 읽는다 — 칸 수 기준은 원본에 숫자가 없어 '평균 아래'로 정했다(09-29 사용자
+// 결정: 원본과 같게 빈집을 칸으로 통일). 칸이 없는 옛 판정 행만 자기 이력 하위 50%로 대신한다.
+// 앱의 모든 빈집 판정(기업분석 표·태린 후보·교체 후보)이 이 함수를 쓴다 — 백엔드 collect_leading도 같게.
+const FLOW_EMPTY_MAX_FILL = 2;
+function flowIsEmpty(gauge, pctl) {
+  const gg = gauge ? flowGauge(gauge) : null;
+  if (gg) return gg.fill <= FLOW_EMPTY_MAX_FILL;
+  return pctl == null ? null : pctl < 50;
+}
+
+function taerinEval(gauge, f, pctl) {
+  const empty = flowIsEmpty(gauge, pctl);
+  if (!f || empty == null) return null;
   const lead  = !!f.lead;
   const extra = TAERIN_A_KEYS.filter(k => k === 'tvu' && !('tvu' in f) ? f.tv : f[k]);   // ③ 확률 높이기
   const a = lead && empty && extra.length > 0;
