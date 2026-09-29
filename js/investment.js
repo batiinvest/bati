@@ -903,7 +903,103 @@ function renderIdeaSurge() {
 //   이벤트(공시 or 리포트) 있는 종목을 위로, 그 안에서 등락 큰 순으로 정렬.
 //   시세는 INV.allMarketRows(loadMarketOverview)에 의존 → 준비되면 _renderMyStocks() 재호출로 갱신.
 let _myStocksWlRows = null;
-let _myStocksData   = null;   // { wlRows, discsByCode, reportsByCode, nameToWl }
+let _myStocksData   = null;   // { wlRows, discsByCode, reportsByCode, nameToWl, fv, comp }
+let _msSwapOpen     = null;   // 교체 후보를 펼친 보유 종목 코드
+
+// ── 교체 후보 — 태린이아빠 09-19 회원 영상 「수급 빈집 체크」 ─────────────────────
+//  "보유 종목 수급 오실레이터가 차면(과열권) 같은 카테고리 안에서 수급이 비어 있고 모멘텀이 살아 있는
+//   종목으로 바꾼다" (가온전선 → LS, 원익IPS → 주성엔지니어링). 보유 종목 단계가 '다 찼다'·'꺾임'이면
+//  같은 테마(sub_industry) → WICS 소분류 → 중분류 순으로 넓혀 찾는다.
+//  후보 = 수급 하위 50%(빈집) ∧ 단계가 다 찼다·꺾임 아님 ∧ 모멘텀 1개 이상(컨센↑·신고가·거래대금↑·군집·RS 70↑),
+//  범위는 원본 엑셀처럼 시가총액 상위 1,400.
+const _MS_SWAP_STAGES = new Set(['top', 'turn']);
+const _MS_SWAP_MAX = 5, _MS_UNIVERSE = 1400;
+
+function _msCompanies() {
+  if (!CACHE.msCompanies) {
+    CACHE.msCompanies = fetchPagesParallel(
+      (a, b) => sb.from('companies').select('code,name,wics_code,wics_industry,sub_industry')
+        .eq('active', true).order('code').range(a, b),
+      sb.from('companies').select('code', { count: 'exact', head: true }).eq('active', true))
+      .then(rows => Object.fromEntries(rows.map(c => [c.code, c])))
+      .catch(e => { console.warn('[교체후보] 기업 분류 조회 실패', e); CACHE.msCompanies = null; return null; });
+  }
+  return CACHE.msCompanies;
+}
+
+function _msMomentum(f) {
+  const m = [];
+  if (f.cons) m.push('컨센↑');
+  if (f.nh) m.push('신고가');
+  if (f.tvu) m.push('거래대금↑');
+  if (f.cl) m.push('군집');
+  if ((f.rs || 0) >= 70) m.push(`RS ${f.rs}`);
+  return m;
+}
+
+function _msSwapCands(code, fv, comp, heldSet) {
+  const me = comp?.[code];
+  if (!me || !fv) return { basis: null, list: [] };
+  const capRank = {};
+  (INV.allMarketRows || []).filter(r => r.market_cap).sort((a, b) => b.market_cap - a.market_cap)
+    .forEach((r, i) => { capRank[r.stock_code] = i + 1; });
+  const hasCap = Object.keys(capRank).length > 0;
+  const levels = [
+    ['같은 테마', c => me.sub_industry && c.sub_industry === me.sub_industry],
+    [`같은 업종(${me.wics_industry || 'WICS 소분류'})`, c => me.wics_code && c.wics_code === me.wics_code],
+    ['같은 WICS 중분류', c => me.wics_code && (c.wics_code || '').slice(0, 5) === me.wics_code.slice(0, 5)],
+  ];
+  for (const [basis, same] of levels) {
+    const list = Object.values(comp)
+      .filter(c => c.code !== code && !heldSet.has(c.code) && same(c)
+        && (!hasCap || (capRank[c.code] != null && capRank[c.code] <= _MS_UNIVERSE)))
+      .map(c => ({ c, v: fv.byCode[c.code] }))
+      .filter(x => x.v && x.v.flow_pctl != null && x.v.flow_pctl < 50)
+      .map(x => {
+        const f = x.v.lead_flags || {};
+        const gg = x.v.flow_gauge ? flowGauge(x.v.flow_gauge) : null;
+        const te = typeof taerinEval === 'function' ? taerinEval(x.v.flow_pctl, x.v.lead_flags) : null;
+        return { code: x.c.code, name: x.c.name, pctl: x.v.flow_pctl, gg, mom: _msMomentum(f), lead: !!f.lead, te };
+      })
+      .filter(x => x.mom.length && !(x.gg && _MS_SWAP_STAGES.has(x.gg.key)))
+      .sort((a, b) => ((b.te?.a ? 2 : 0) + (b.gg?.key === 'start' ? 1 : 0)) - ((a.te?.a ? 2 : 0) + (a.gg?.key === 'start' ? 1 : 0))
+        || b.mom.length - a.mom.length || a.pctl - b.pctl);
+    if (list.length) return { basis, list: list.slice(0, _MS_SWAP_MAX), total: list.length };
+  }
+  return { basis: null, list: [], total: 0 };
+}
+
+function toggleMsSwap(code) {
+  _msSwapOpen = _msSwapOpen === code ? null : code;
+  _renderMyStocks();
+}
+
+function _msStageHTML(v) {
+  const gg = v?.flow_gauge ? flowGauge(v.flow_gauge) : null;
+  if (!gg) return '';
+  return `<span data-no-detail title="${escAttr('수급 오실레이터 ' + flowGaugeTip(v.flow_gauge, gg))}" `
+    + `style="font-size:calc(11px*var(--m-label));white-space:nowrap;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis">${flowGaugeBar(gg)} `
+    + `<span style="color:${gg.color};font-weight:600">${gg.label}</span></span>`;
+}
+
+function _msSwapPanel(it, sw) {
+  const rows = sw.list.map(x => `
+    <div class="stock-row" data-stock-open="${x.code}" data-stock-name="${escAttr(x.name)}" data-stock-tab="market"
+      style="display:flex;align-items:center;gap:8px;padding:5px 14px 5px 28px;border-top:1px dashed var(--border)">
+      <span style="font-size:calc(12px*var(--m-sub));color:var(--text1);flex-shrink:0;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(x.name)}</span>
+      ${x.te?.a ? `<span title="태린 후보 A — 주도 업종 ∧ 수급 빈 ∧ 확률 조건" style="font-size:calc(10.5px*var(--m-label));font-weight:800;padding:0 5px;border-radius:3px;background:rgba(245,158,11,.18);color:#f59e0b;flex-shrink:0">A</span>` : ''}
+      <span style="font-size:calc(11px*var(--m-label));white-space:nowrap;flex-shrink:0">${x.gg ? flowGaugeBar(x.gg) + ` <span style="color:${x.gg.color};font-weight:600">${x.gg.label}</span>` : ''}</span>
+      <span style="font-size:calc(11px*var(--m-label));color:var(--text2);flex-shrink:0">하위 ${Math.round(x.pctl)}%</span>
+      <span style="font-size:calc(11px*var(--m-label));color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${escapeHtml(x.mom.join(' · '))}${x.lead ? ' <span style="color:#f59e0b">· 주도 업종</span>' : ''}</span>
+    </div>`).join('');
+  return `<div style="background:var(--bg2)">
+    <div style="padding:6px 14px 4px 28px;font-size:calc(11px*var(--m-label));color:var(--text2)">
+      <b style="color:var(--text1)">${escapeHtml(it.name)}</b> 수급이 ${escapeHtml(it.gg.label)} —
+      ${escapeHtml(sw.basis)}에서 수급이 비어 있고 모멘텀이 있는 종목 ${sw.total}개${sw.total > sw.list.length ? ` 중 ${sw.list.length}개` : ''}
+      <span style="color:var(--text3)">(태린이아빠 09-19 회원 영상의 교체 방식 · 시총 상위 ${_MS_UNIVERSE})</span>
+    </div>${rows || `<div style="padding:6px 28px;color:var(--text3);font-size:calc(11px*var(--m-label))">조건에 맞는 종목이 없습니다</div>`}
+  </div>`;
+}
 
 // 공시 카테고리 색
 const _MS_CAT_ST = {
@@ -960,7 +1056,7 @@ async function loadMyStocksCard() {
   const todayKst  = kstToday();   // 공시 기준일 — KST 단일 기준 (fmtDate 로컬TZ 혼용 제거)
   const daysAgo30 = offsetDate(-30);
 
-  const [discRes, reportRes] = await Promise.all([
+  const [discRes, reportRes, fv, comp] = await Promise.all([
     sb.from('daily_disclosures')
       .select('corp_name,report_nm,rcept_no,category')
       .eq('base_date', todayKst),
@@ -970,6 +1066,8 @@ async function loadMyStocksCard() {
       .gte('receive_date', daysAgo30)
       .order('receive_date', { ascending: false })
       .limit(30),
+    getFlowVerdicts(),   // 수급 단계·빈집 — 기업분석 표와 같은 캐시
+    _msCompanies(),      // 교체 후보의 같은 테마·업종 찾기
   ]);
 
   // 종목코드 기준으로 공시·보고서 묶기 (공시는 corp_name → wl → stock_code)
@@ -984,7 +1082,7 @@ async function loadMyStocksCard() {
     (reportsByCode[r.stock_code] = reportsByCode[r.stock_code] || []).push(r);
   });
 
-  _myStocksData = { wlRows, discsByCode, reportsByCode, nameToWl, todayKst };
+  _myStocksData = { wlRows, discsByCode, reportsByCode, nameToWl, todayKst, fv, comp };
   _renderMyStocks();
 }
 
@@ -993,7 +1091,8 @@ function _renderMyStocks() {
   const body = document.getElementById('ms-body');
   if (!body || !_myStocksData) return;
 
-  const { wlRows, discsByCode, reportsByCode, todayKst } = _myStocksData;
+  const { wlRows, discsByCode, reportsByCode, todayKst, fv, comp } = _myStocksData;
+  const heldSet = new Set(wlRows.filter(w => w.group_name === '보유중').map(w => w.stock_code));
   const allRows = INV.allMarketRows || [];
   const mktByCode = {};
   allRows.forEach(r => { mktByCode[r.stock_code] = r; });
@@ -1012,6 +1111,7 @@ function _renderMyStocks() {
       name: wl.corp_name || mkt?.corp_name || wl.stock_code,
       held: wl.group_name === '보유중',
       chg:  mkt?.price_change_rate,
+      fvRow: fv?.byCode?.[wl.stock_code],
       discs, reports,
       hasEvent: discs.length > 0 || reports.length > 0,
     });
@@ -1025,6 +1125,12 @@ function _renderMyStocks() {
     return cb - ca;
   });
 
+  // 교체 검토 — 보유 종목 수급이 다 찼다·꺾임
+  items.forEach(it => {
+    it.gg = it.fvRow?.flow_gauge ? flowGauge(it.fvRow.flow_gauge) : null;
+    it.swap = it.held && it.gg && _MS_SWAP_STAGES.has(it.gg.key) ? _msSwapCands(it.code, fv, comp, heldSet) : null;
+  });
+  const swapCnt = items.filter(i => i.swap).length;
   const eventCnt = items.filter(i => i.hasEvent).length;
   const priceReady = allRows.length > 0;
 
@@ -1071,16 +1177,21 @@ function _renderMyStocks() {
         background:${it.held?'rgba(245,58,92,.13)':'rgba(255,255,255,.06)'};
         color:${it.held?'var(--red)':'var(--text2)'}">${it.held?'보유':'관심'}</span>
       ${chgHTML}
+      ${_msStageHTML(it.fvRow)}
+      ${it.swap ? `<button class="chip chip-sm ${_msSwapOpen === it.code ? 'active' : ''}" data-no-detail
+        onclick="toggleMsSwap('${escJsStr(it.code)}')" title="같은 테마·업종에서 수급이 비어 있고 모멘텀이 있는 종목"
+        style="flex-shrink:0">교체 후보 ${it.swap.total}</button>` : ''}
       <div style="display:flex;align-items:center;gap:5px;flex:1;min-width:0;overflow:hidden">
         ${discHTML}${reportHTML}
       </div>
-    </div>`;
+    </div>${it.swap && _msSwapOpen === it.code ? _msSwapPanel(it, it.swap) : ''}`;
   }).join('');
 
   const header = `<div style="display:flex;align-items:center;gap:6px;padding:7px 14px 7px 12px;font-size:calc(11px*var(--m-label));color:var(--text2)">
     <span style="width:2px;height:11px;background:var(--tg);border-radius:2px;flex-shrink:0"></span>
     ${eventCnt ? `오늘 <b style="color:var(--text1)">${eventCnt}</b>종목에 공시·리포트` : '오늘 공시·리포트 있는 종목 없음'}
-    <span style="color:var(--text3);margin-left:auto">${todayKst} 기준 · 리포트 30일</span>
+    ${swapCnt ? `<span style="color:var(--border)">·</span> <span title="보유 종목 수급 오실레이터가 다 찼다·꺾임 — 교체 후보 버튼에서 확인">교체 검토 <b style="color:#fb6340">${swapCnt}</b>종목</span>` : ''}
+    <span style="color:var(--text3);margin-left:auto">${todayKst} 기준 · 리포트 30일${fv?.date ? ` · 수급 ${fv.date}` : ''}</span>
   </div>`;
 
   body.innerHTML = header + rows;
