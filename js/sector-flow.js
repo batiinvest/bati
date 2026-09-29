@@ -2,7 +2,7 @@
  * sector-flow.js — 종목별 수급 순위 (10거래일 누적 외국인/기관 순매수)
  *
  * Zone C(심화 분석)의 '종목별 수급 순위' 카드 전용.
- * 산업별 수급동향(섹터 단위)은 sector-rotation.js로 이관됨.
+ * 업종 단위 수급은 sector-lead.js(업종 보드 — WICS 중분류)가 맡는다.
  *
  * 의존: sb, fmtNet, getIndustryMap, openMarketDetail, wlBadge (config.js / financials.js)
  */

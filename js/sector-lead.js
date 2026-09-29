@@ -13,7 +13,14 @@
  *   오실레이터 (업종)」: 업종 5일 (외국인+기관) 순매수 ÷ 시가총액의 MACD − 시그널, 63거래일 안 수급 칸.
  *   칸을 누르면 원본 차트처럼 업종 시가총액 + 오실레이터를 펼친다.
  *
- * 의존: sb, chgColor, escapeHtml, escAttr, escJsStr, loadingHTML, _ICO, flowGauge·flowGaugeBar·
+ * 09-29 업종 보드 통일(WICS 중분류 28개) — 옛 '산업별 수급동향'(자체 산업 분류·4사분면) 카드를 없애고
+ * 태린이아빠 자료로 대체한 줄·열을 이 카드에 모았다.
+ *   머리 줄: 업종 쏠림지수(「특정업종 쏠림지수 국내」) · 업종 국면(120일선 위 업종 비율 —
+ *            「업종지수 활용한 추세 및 비추세 전략」)  ← sector_market_daily (collect_sector_market.py)
+ *   열: 오늘(WICS 지수 등락) · 거래대금·연·사·투(「외국인기관수급오실레이터 (업종)」 업종비중 = 관심도)
+ *       ← leading_sectors 확장 컬럼 (collect_leading.py)
+ *
+ * 의존: sb, chgColor, escapeHtml, escAttr, escJsStr, loadingHTML, _ICO, fmtTV, flowGauge·flowGaugeBar·
  *       flowGaugeTip·FLOW_LEVEL_NAMES·chartTheme (config.js), Chart.js
  *       FIN (financials.js — 업종 클릭 시 기업분석 표를 그 중분류로 걸러 연다)
  */
@@ -30,6 +37,17 @@ const SL = {
   open:    null,    // 차트를 펼친 중분류 코드
   oscMkt:  'ALL',   // 펼친 차트의 시장
   chart:   null,
+  mkt:     null,    // sector_market_daily 최근 행들(오름차순) — 쏠림지수·국면
+  ext:     false,   // leading_sectors 확장 컬럼(오늘·관심도)이 채워져 있나
+  ncol:    12,      // 표 열 수 — 펼친 차트 행의 colspan
+};
+
+// 업종 국면 — 120일선 위 업종 비율 (원본 전략 v2.1의 Breadth 구간)
+const _SL_REGIME = {
+  trend:   { label: '추세',   color: '#f5365c', tip: '120일선 위 업종 60% 이상 — 원본 전략: 6개월 상대강도 상위 업종을 따라가는 국면' },
+  range:   { label: '비추세', color: '#fb6340', tip: '40~60% — 원본 전략: 상대강도 상위 업종의 강도에 따라 비중을 나누는 국면' },
+  recover: { label: '회복',   color: '#2AABEE', tip: '30~40% — 원본 전략: 과거 주도 업종 중 120일선 위로 올라와 눌린 업종을 보는 국면' },
+  contra:  { label: '역추세', color: '#4a9eff', tip: '30% 미만 — 원본 전략: 과매도 반등을 보는 국면' },
 };
 
 const _SL_TOP = 10;   // collect_leading LEAD_MOM_TOP·LEAD_BUY_TOP과 같게 — 바꾸면 둘 다
@@ -67,7 +85,8 @@ async function loadSectorLead() {
     if (error) throw error;
     SL.rows = rows || [];
     SL.date = date;
-    await _slLoadOsc();
+    SL.ext = SL.rows.some(r => r.tv_now != null);
+    await Promise.all([_slLoadOsc(), _slLoadMkt()]);
     _renderSectorLead();
   } catch (e) {
     console.warn('[주도업종]', e);
@@ -89,6 +108,50 @@ async function _slLoadOsc() {
     (rows || []).forEach(r => { (SL.osc[r.mid_code] ||= {})[r.market] = r; });
     SL.oscDate = d[0].base_date;
   } catch (e) { console.warn('[업종수급]', e); }
+}
+
+// 업종 쏠림지수·국면 — 최근 60거래일(스파크라인·방향). 표가 없으면(sql/sector_board.sql 전) 줄만 뺀다
+async function _slLoadMkt() {
+  SL.mkt = null;
+  try {
+    const { data, error } = await sb.from('sector_market_daily')
+      .select('base_date,osc,corr30,breadth,n_above,n_sectors,regime,top5')
+      .order('base_date', { ascending: false }).limit(60);
+    if (error || !data?.length) return;
+    SL.mkt = data.reverse();
+  } catch (e) { console.warn('[업종쏠림]', e); }
+}
+
+// 카드 머리 두 줄 — 업종 쏠림지수 · 업종 국면
+function _slMarketLines(nameOf) {
+  const rows = (SL.mkt || []).filter(r => r.osc != null);
+  if (!rows.length) return '';
+  const last = rows[rows.length - 1], prev = rows[rows.length - 2];
+  const up = prev && last.osc > prev.osc;
+  const sign = v => (v >= 0 ? '+' : '') + Number(v).toFixed(2);
+  const spTip = '원본 「특정업종 쏠림지수 국내」: 매일 업종 등락률 1~5위 합 − 나머지 합을 누적한 선의 MACD − 시그널. '
+    + '선이 오르면 특정 업종으로 자금이 쏠리는 것, 내리면 여러 업종이 돌아가며 오르는 장(수익 내기 쉬운 장). '
+    + '지나치게 내려가면 다시 특정 업종 쏠림 가능성을, 시장이 빠지는데 일부 업종만 버텨도 오른다.'
+    + (last.corr30 != null ? ` · 업종·시장(코스피200 동일가중) 30일 상관 평균 ${Number(last.corr30).toFixed(2)}` : '');
+  const top = (last.top5 || []).map(c => nameOf[c] || c).join(' · ');
+  const rg = _SL_REGIME[last.regime];
+  const pctA = last.n_sectors ? Math.round(last.n_above / last.n_sectors * 100) : null;
+  return `
+    <div style="padding:8px 12px 2px;font-size:calc(12.5px*var(--m-sub));line-height:1.8;border-bottom:1px dashed var(--border)">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap" title="${escAttr(spTip)}">
+        <b style="color:var(--text1)">업종 쏠림지수</b>
+        <span style="display:inline-block">${_slSparkSvg(rows.map(r => Number(r.osc)), up ? '#f59e0b' : '#2AABEE')}</span>
+        <b style="font-variant-numeric:tabular-nums;color:${up ? '#f59e0b' : '#2AABEE'}">${sign(last.osc)} ${up ? '↑' : '↓'}</b>
+        <span style="color:var(--text1)">${up ? '특정 업종으로 쏠리는 중' : '여러 업종이 돌아가며 오르는 중'}</span>
+        ${top ? `<span style="color:var(--text3)">· 오늘 등락 상위 5 ${escapeHtml(top)}</span>` : ''}
+      </div>
+      ${rg ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap" title="${escAttr(rg.tip + ' (원본 「업종지수 활용한 추세 및 비추세 전략」 — 구간 60·40·30%)')}">
+        <b style="color:var(--text1)">업종 국면</b>
+        <span style="color:${rg.color};font-weight:700">${rg.label}</span>
+        <span style="color:var(--text2)">120일선 위 업종 ${last.n_above}/${last.n_sectors}${pctA != null ? ` (${pctA}%)` : ''}</span>
+        <span style="color:var(--text3)">${last.base_date} 기준</span>
+      </div>` : ''}
+    </div>`;
 }
 
 const _SL_MKT = { ALL: '합산', KOSPI: '코스피', KOSDAQ: '코스닥' };
@@ -132,7 +195,12 @@ function _renderSectorLead() {
   const topB  = rows.filter(r => r.buy_rank != null && r.buy_rank <= _SL_TOP).sort((a, b) => a.buy_rank - b.buy_rank);
   const nameBtn = r => `<span style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px" `
     + `onclick="goSectorStocks('${escJsStr(r.name)}')" title="기업분석 표에서 이 업종 종목 보기">${escapeHtml(r.name)}</span>`;
-  const summary = `
+  const nameOf = Object.fromEntries(rows.map(r => [r.mid_code, r.name]));
+  rows.forEach(r => {
+    r._tv5  = r.tv_now != null && r.tv_avg5 ? r.tv_now / r.tv_avg5 - 1 : null;
+    r._buy5 = r.buy3_now != null && r.buy3_avg5 ? r.buy3_now / r.buy3_avg5 - 1 : null;
+  });
+  const summary = _slMarketLines(nameOf) + `
     <div style="padding:8px 12px 6px;font-size:calc(12.5px*var(--m-sub));line-height:1.7">
       <div><b style="color:${_SL_TAG.lead.color}">주도 업종</b>
         <span style="color:var(--text3)">(모멘텀 상위 ${_SL_TOP} ∩ 매수 상위 ${_SL_TOP})</span>
@@ -154,11 +222,14 @@ function _renderSectorLead() {
     return `<tr style="border-top:1px solid var(--border)">
       ${td(t ? `<span title="${escAttr(t.tip)}" style="font-size:calc(10.5px*var(--m-label));font-weight:700;color:${t.color};background:${t.bg};border-radius:4px;padding:1px 6px">${t.txt}</span>` : '', 'center')}
       ${td(nameBtn(r), 'left', 'font-weight:600;color:var(--text1)')}
+      ${SL.ext ? td(`<span style="color:${chgColor(r.ret_1d)}">${pct(r.ret_1d, 2)}</span>`) : ''}
       ${td(_slSparkSvg(r.spark, chgColor(r.ret_6m)), 'center')}
       ${td(`<span style="color:${chgColor(r.ret_6m)}">${pct(r.ret_6m)}</span>`)}
       ${td(r.mom_rank != null ? `${r.mom_rank}<span style="color:var(--text3)">/${nM}</span>` : '—', 'right',
            `title="${escAttr(`수익률 ÷ 하방 표준편차 = ${r.score ?? '—'} (하방 표준편차 ${r.down_dev ?? '—'}%)`)}"`)}
       ${td(r.buy_rank != null ? `${r.buy_rank}<span style="color:var(--text3)">/${nB}</span>` : '—')}
+      ${SL.ext ? td(_slTvCell(r), 'right', `title="${escAttr(_slTvTip(r))}"`) : ''}
+      ${SL.ext ? td(_slBuyCell(r), 'right', `title="${escAttr(_slBuyTip(r))}"`) : ''}
       ${td(`${ma(r.above_ma11)} ${ma(r.above_ma20)} ${ma(r.above_ma50)}`, 'center')}
       ${td(r.flow_pos_days != null ? `${r.flow_pos_days}<span style="color:var(--text3)">/${r.flow_days ?? 20}일</span>` : '—')}
       ${td(r.newhigh_5d ?? 0)}
@@ -168,16 +239,20 @@ function _renderSectorLead() {
     </tr>${SL.open === r.mid_code ? _slOscRow(r) : ''}`;
   }).join('');
 
+  SL.ncol = 11 + (SL.osc ? 1 : 0) + (SL.ext ? 3 : 0);
   el.innerHTML = summary + `
     <div style="overflow-x:auto">
-      <table style="width:100%;min-width:${SL.osc ? 880 : 760}px;border-collapse:collapse;font-size:calc(12px*var(--m-sub))">
+      <table style="width:100%;min-width:${760 + (SL.osc ? 120 : 0) + (SL.ext ? 200 : 0)}px;border-collapse:collapse;font-size:calc(12px*var(--m-sub))">
         <thead><tr>
           ${th('lead', '구분', `주도 = 모멘텀 상위 ${_SL_TOP} ∩ 매수 상위 ${_SL_TOP}`, 'center')}
           ${th('name', '업종', 'WICS 중분류 — 누르면 기업분석 표에서 이 업종 종목', 'left')}
+          ${SL.ext ? th('ret_1d', '오늘', 'WICS 중분류 지수 전일 대비') : ''}
           <th style="padding:6px 8px;font-weight:600;color:var(--text2);font-size:calc(11px*var(--m-label))">6개월 추이</th>
           ${th('ret_6m', '6개월', 'FnGuide WICS 중분류 지수 6개월 수익률')}
           ${th('mom_rank', '모멘텀', '6개월 수익률 ÷ 하방 표준편차 순위 (원본: 하방 표준편차 대비 수익률이 센 업종)')}
           ${th('buy_rank', '매수', '사모·투신·연금·외국인 매수 순위, 최근 20거래일 (원본: 장 마감 후 수급을 쪼개 보아 꾸준히 매수가 들어오는 업종)')}
+          ${SL.ext ? th('_tv5', '거래대금', '관심도 — 판정일 업종 거래대금이 최근 5거래일 평균보다 얼마나 많은가 (아래 작은 글씨: 20일 평균 대비). 원본 「외국인기관수급오실레이터 (업종)」 업종비중 시트') : ''}
+          ${SL.ext ? th('_buy5', '연·사·투', '관심도 — 연기금·사모·투신 매수대금 합(원본 \'1일 유동성 투여\')과 최근 5거래일 평균 대비. KIS가 전일까지만 줘 하루 늦다(원본도 전일 값)') : ''}
           <th title="지수가 11일선 · 20일선 · 50일선(10주선) 위면 ●" style="padding:6px 8px;font-weight:600;color:var(--text2);font-size:calc(11px*var(--m-label))">11·20·50일선</th>
           ${th('flow_pos_days', '순매수일', '참고 — 최근 20거래일 중 업종 전체 기관+외국인이 순매수한 날')}
           ${th('newhigh_5d', '신고가', '최근 5거래일 52주 신고가 종목 수 (군집)')}
@@ -194,8 +269,31 @@ function _renderSectorLead() {
       '매수'는 2024-10 영상의 방식(사모·투신·연금·외국인 매수 — "이때 매수만 본다")이다.
       업종은 WICS 중분류, 지수는 FnGuide WICS 지수이며, 상위 ${_SL_TOP}은 원본에 수치가 없어 정한 값이다.
       ${SL.osc ? `'업종 수급'은 같은 채널의 「외국인기관수급오실레이터 (업종)」을 WICS 중분류로 옮긴 것이다 (${SL.oscDate} 기준, 표는 코스피+코스닥 합산).` : ''}
+      ${SL.mkt ? `업종 쏠림지수는 「특정업종 쏠림지수 국내」, 업종 국면은 「업종지수 활용한 추세 및 비추세 전략」을 WI26 대신 WICS 중분류 28개로 계산한 것이다.` : ''}
     </div>`;
   if (SL.open) _slRenderOscChart();
+}
+
+// 관심도 칸 — 평균 대비 %(굵게 = 30% 이상 증가). 원본은 '최근일 − 평균'(억원)을 본다 → 툴팁에 금액 차
+const _slRatio = (v, strong = 0.3) => v == null ? '—'
+  : `<span style="color:${v >= 0 ? 'var(--text1)' : 'var(--text3)'};font-weight:${v >= strong ? 700 : 400}">${v >= 0 ? '+' : ''}${(v * 100).toFixed(0)}%</span>`;
+
+function _slTvCell(r) {
+  const r20 = r.tv_now != null && r.tv_avg20 ? r.tv_now / r.tv_avg20 - 1 : null;
+  return `${_slRatio(r._tv5)}<div style="font-size:calc(10.5px*var(--m-label));color:var(--text3)">20일 ${r20 == null ? '—' : (r20 >= 0 ? '+' : '') + (r20 * 100).toFixed(0) + '%'}</div>`;
+}
+function _slTvTip(r) {
+  if (r.tv_now == null) return '';
+  const d = (a, b) => b == null ? '—' : `${a - b >= 0 ? '+' : '−'}${fmtTV(Math.abs(a - b))}`;
+  return `거래대금 ${fmtTV(r.tv_now)} · 5일 평균 ${r.tv_avg5 != null ? fmtTV(r.tv_avg5) : '—'} (${d(r.tv_now, r.tv_avg5)}) · 20일 평균 ${r.tv_avg20 != null ? fmtTV(r.tv_avg20) : '—'} (${d(r.tv_now, r.tv_avg20)})`;
+}
+function _slBuyCell(r) {
+  if (r.buy3_now == null) return '—';
+  return `${fmtTV(r.buy3_now)}<div style="font-size:calc(10.5px*var(--m-label))">${_slRatio(r._buy5)}</div>`;
+}
+function _slBuyTip(r) {
+  if (r.buy3_now == null) return '';
+  return `연기금·사모·투신 매수대금 ${fmtTV(r.buy3_now)} (${r.buy_date} 하루) · 최근 5거래일 평균 ${r.buy3_avg5 != null ? fmtTV(r.buy3_avg5) : '—'}`;
 }
 
 // 표의 '업종 수급' 칸 — 칸 그림 + 단계, 누르면 차트
@@ -214,7 +312,7 @@ function _slOscRow(r) {
     const st = g?.gg ? ` <span style="color:${g.gg.color}">${g.gg.label}</span>` : '';
     return `<button class="chip chip-sm ${SL.oscMkt === k ? 'active' : ''}" onclick="setSlOscMkt('${k}')">${lbl}${st}</button>`;
   }).join('');
-  return `<tr><td colspan="12" style="padding:8px 12px 12px;background:var(--bg2);border-top:1px solid var(--border)">
+  return `<tr><td colspan="${SL.ncol}" style="padding:8px 12px 12px;background:var(--bg2);border-top:1px solid var(--border)">
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">
       <b style="color:var(--text1);font-size:calc(12.5px*var(--m-sub))">${escapeHtml(r.name)} · 업종 수급 오실레이터</b>
       <span style="display:flex;gap:4px;flex-wrap:wrap">${chips}</span>

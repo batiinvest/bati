@@ -23,7 +23,7 @@ const INV_ALL_METRICS = [
 //   ── 구 window._* 수렴 (런타임 대입) ──
 //   tab·highlighted·hovered: 시황 페이지 UI 상태
 //   allMarketRows·macroData·marketBreadth·indMapData:
-//     market-overview/sector-rotation/chart-macro가 공유하는 시장 데이터 캐시
+//     market-overview/chart-macro가 공유하는 시장 데이터 캐시
 //   moSort·indBarChart·lsPollTimer·lsAllData: 섹션별 상태
 INV.selected = new Set(['sp500','nasdaq','kospi','kosdaq']);
 INV.period   = 7;
@@ -110,20 +110,9 @@ function pInvestment() {
     <div id="ms-body" style="border-top:1px solid var(--border)">${_skelList(3, true)}</div>
   </div>
 
-  <!-- 산업별 수급동향 — 로테이션 맵 + 산업 보드 (등락·거래대금·수급·국면). 내 종목 현황 바로 아래 배치 -->
-  <div id="sector-rot-card" class="card" style="margin-bottom:1rem">
-    <div class="card-header" style="flex-wrap:wrap;gap:6px">
-      <span class="card-title">${_ICO.flow}산업별 수급동향</span>
-      <span class="card-sub">자금이 어디로 — 등락·거래대금·수급·국면</span>
-      <span id="sr-date" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:auto"></span>
-      <div style="display:flex;gap:4px">
-        <button class="chip chip-sm"        data-sr-period="1"  onclick="switchSrPeriod(1)" >1일</button>
-        <button class="chip chip-sm active" data-sr-period="5"  onclick="switchSrPeriod(5)" >5일</button>
-        <button class="chip chip-sm"        data-sr-period="20" onclick="switchSrPeriod(20)">20일</button>
-      </div>
-    </div>
-    <div id="sector-rot-body" style="padding:0">${_skelList(8, true)}</div>
-  </div>
+  <!-- 업종 보드 — 주도 업종·업종 수급·쏠림지수·국면·관심도 (WICS 중분류 28개, sector-lead.js).
+       09-29 옛 '산업별 수급동향'(자체 산업 분류·4사분면, sector-rotation.js)을 이 카드로 대체 -->
+  ${typeof pSectorLead === 'function' ? pSectorLead() : ''}
 
   <!-- 2단 레이아웃: 좌(투자포인트+주도주+수급) + 우(공시/신호) -->
   <div class="inv-2col">
@@ -319,8 +308,7 @@ function pInvestment() {
 
     <!-- (종목별 수급 순위 → Zone C 심화 분석으로 이동) -->
 
-    <!-- 주도 업종 · 돈이 몰리는 곳 (태린이아빠 방식 — sector-lead.js) -->
-    ${typeof pSectorLead === 'function' ? pSectorLead() : ''}
+    <!-- (주도 업종 → '내 종목 현황' 바로 아래 업종 보드로 이동) -->
 
     <!-- ⑦ 산업 동향 -->
     <div class="card" style="margin-bottom:12px">
@@ -694,7 +682,6 @@ async function loadInvestment() {
   renderIdeaSurge(); // '오늘의 아이디어' 급등 탭
   loadLeadingStocks();
   loadLeadingBacktest();
-  loadSectorRotation();  // 산업별 수급동향(로테이션 맵+보드, US·KR·선행 컬럼 통합) — INV.indMapData(신선)+sector_daily_summary
   // 수급 지도(종목별 찬집/빈집)는 Zone C를 펼칠 때만 지연 로드 — toggleZoneC 참조.
   // 단 새로고침 경로(refreshInvestment→finish→loadInvestment)는 셸을 다시 그리지 않아
   // 펼쳐둔 지도가 캐시(FM.raw)에 묶인 채 남는다 → 캐시를 버리고 열려 있으면 재조회.
@@ -907,7 +894,7 @@ function renderIdeaSurge() {
 
 
 // (정리됨) 섹터수급↔산업강도 2열 그리드/높이동기화 헬퍼(switchSfImTab·_initSfImLayout·
-//   _syncSfImHeight)는 sf-card(섹터 수급 트렌드) 제거로 소멸 — 산업별 수급동향은 sector-rotation.js.
+//   _syncSfImHeight)는 sf-card(섹터 수급 트렌드) 제거로 소멸 — 업종 수급은 sector-lead.js(업종 보드).
 
 
 // ── 내 종목 현황 카드 ────────────────────────────────────────────────────────
