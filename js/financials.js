@@ -1698,14 +1698,15 @@ function _finStageCell(r) {
 function _finTaerinCell(r) {
   const t = r._te, f = r.lead_flags;
   if (!t) return `<td style="color:var(--text3)">—</td>`;
-  const flags = ['tv', 'nb', 'cons', 'nh'].filter(k => f[k]).map(k => TAERIN_TAGS[k]);
+  const flags = ['tvu', 'tv', 'nb', 'cons', 'nh', 'cl']
+    .filter(k => f[k] && !(k === 'tv' && f.tvu)).map(k => TAERIN_TAGS[k]);   // 거래대금↑이면 거래대금은 생략
   const why = [
     t.lead ? '주도 업종' : '주도 업종 아님',
     t.empty ? `수급 빈(하위 ${Math.round(r.flow_pctl)}%)` : `수급 차있음(하위 ${Math.round(r.flow_pctl)}%)`,
     `RS ${t.rs ?? '—'}`,
-    flags.length ? flags.join('·') : '거래대금·순매수·컨센·신고가 해당 없음',
+    flags.length ? flags.join('·') : '거래대금·순매수·컨센·신고가·군집 해당 없음',
   ].join(' · ');
-  const tip = (t.a ? 'A = 주도 업종 ∧ 수급 빈 ∧ (거래대금 상위150 ∨ 컨센 상향 ∨ 52주 신고가). ' : '')
+  const tip = (t.a ? 'A = 주도 업종 ∧ 수급 빈 ∧ (거래대금 상위150·상승 ∨ 컨센 상향 ∨ 52주 신고가 ∨ 신고가 군집 소분류). ' : '')
             + (t.b ? 'B = RS 70↑ ∧ (거래대금 ∨ 기관·외국인 순매수 상위150) ∧ 수급 빈. ' : '')
             + why;
   const badge = txt => `<span style="display:inline-block;padding:0 5px;border-radius:3px;margin-right:3px;`
