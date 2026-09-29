@@ -819,8 +819,9 @@ const FIN_CHUNK = 150;
 const FIN_COL_GROUPS = {
   market: [
     { key:'id',    name:'식별', always:true,
-      // 빈집은 종목명 바로 옆 — 종목을 훑을 때 수급 판정을 같이 본다(칩과 상관없이 항상 표시)
-      cols:['종목명','빈집','코드','시장','섹터','중분류','업종','테마'] },
+      // 빈집·수급단계는 종목명 바로 옆 — 종목을 훑을 때 수급 판정을 같이 본다(칩과 상관없이 항상 표시).
+      // 수급단계 = 수급 칸(원본 엑셀의 상위10·상위25·평균·하위25·하위10 칸)으로 부른 단계 (09-29 이동)
+      cols:['종목명','빈집','수급단계','코드','시장','섹터','중분류','업종','테마'] },
     // 거래량·거래대금은 '현재가 +' 상세로 들어가 거래 칩이 비어버리므로 시세로 흡수
     { key:'price', name:'시세',
       cols:['시가총액','현재가','전일대비','고가','저가','52주고가','52주저가','거래량','거래량증감률','신고가구분','등락률','1주','1달','3달','거래대금'] },
@@ -830,10 +831,6 @@ const FIN_COL_GROUPS = {
     // 빈집은 수급 이력 63거래일을 봐야 나오는 판정이라 백엔드가 미리 계산해 둔다
     { key:'flow',  name:'수급빈집',
       cols:['외국인보유율','외국인보유수','외국인순매수','프로그램순매수','융자잔고율','공매도수량'] },
-    // 수급 칸(원본 엑셀의 상위10·상위25·평균·하위25·하위10 칸)으로 부른 단계. 수급빈집 칩은 켜면
-    // 빈집만 남기므로, 전 종목의 '다 찼다 / 이제 시작'을 보려고 독립 열로 둔다(기본 켜짐·행 필터 없음)
-    { key:'stage', name:'수급단계',
-      cols:['수급단계'] },
     // 태린이아빠 국내 전략 후보(A: 주도 업종 빈집 + 거래대금·컨센·신고가 / B: RS70 일일 스크린).
     // 켜면 후보만 남긴다(FIN_CHIP_FILTER)
     { key:'taerin', name:'태린 후보',
@@ -1504,7 +1501,7 @@ async function loadMarketData(el) {
       return out;
     },
     headers: () => [
-      _th('corp_name','종목명'), _th('_flowQ','빈집'), _th('stock_code','코드'),
+      _th('corp_name','종목명'), _th('_flowQ','빈집'), _th('_flowStage','수급단계'), _th('stock_code','코드'),
       _th('market','시장'),
       _th('_wsec','섹터'), _th('_wmid','중분류'),
       _th('_wics','업종',{extra:_expandBtn('wics', 2)}),
@@ -1524,7 +1521,6 @@ async function loadMarketData(el) {
       _th('trading_value','거래대금'),
       _th('per','PER'), _th('pbr','PBR'),
       _th('eps','EPS'), _th('bps','BPS'),
-      _th('_flowStage','수급단계'),
       _th('_taerin','태린후보'), _th('_rs','RS'),
       _th('foreign_hold_rate','외국인보유율',{extra:_expandBtn('frgn', 1)}),
       _th('foreign_hold_qty','외국인보유수'),
@@ -1565,6 +1561,7 @@ async function loadMarketData(el) {
         <td class="stock-row" style="font-weight:600;color:var(--text);white-space:nowrap"
           data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||'')}" data-stock-tab="market">${escapeHtml(r.corp_name||'')}</td>
         ${_finFlowCell(r)}
+        ${_finStageCell(r)}
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2);font-family:monospace">${r.stock_code}</td>
         <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${r.market||'—'}</td>
         ${_wicsLevelCell(r._wsec, '_wsec')}
@@ -1592,7 +1589,6 @@ async function loadMarketData(el) {
         <td>${r.per != null && r.per !== 0 ? r.per.toFixed(1) : '—'}</td>
         <td>${r.pbr != null && r.pbr !== 0 ? r.pbr.toFixed(2) : '—'}</td>
         <td>${n(r.eps)}</td><td>${n(r.bps)}</td>
-        ${_finStageCell(r)}
         ${_finTaerinCell(r)}
         <td style="font-size:calc(11px*var(--m-label));${(r._rs || 0) >= 70 ? 'font-weight:700;color:var(--text1)' : 'color:var(--text3)'}">${r._rs ?? '—'}</td>
         <td>${r.foreign_hold_rate != null ? r.foreign_hold_rate.toFixed(1)+'%' : '—'}</td>
