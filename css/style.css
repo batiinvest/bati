@@ -387,9 +387,6 @@ textarea.form-input { resize:vertical; min-height:100px; }
   .fin-controls { flex-wrap:wrap; }
   .fin-controls .btn-group { margin-left:0 !important; width:100%; justify-content:flex-end; }
 
-  /* ── 투자페이지 2-col → 1-col ── */
-  .inv-2col { grid-template-columns:1fr; }
-
   /* ── 마켓 스트립 — 4개 이상 숨김 ── */
   .market-strip-item:nth-child(n+4) { display:none; }
 
@@ -611,11 +608,28 @@ td.ctr, th.ctr { text-align:center; }
 }
 @keyframes shimmer { 0%{background-position:200% center} 100%{background-position:-200% center} }
 
-/* ── 시황 2단 레이아웃 (좌 컨텍스트 2fr | 우 아이디어·공시 3fr) ── */
-.inv-2col { display:grid; grid-template-columns:2fr 3fr; gap:1rem; align-items:start; margin-bottom:1rem; }
-/* 모바일 1열 — 위쪽 @media(900px) 블록의 같은 규칙은 이 기본 규칙보다 앞에 있어 덮여 버렸다(10-03 발견).
-   기본 규칙 바로 뒤에 다시 둔다 */
-@media(max-width:900px) { .inv-2col { grid-template-columns:minmax(0,1fr); } }
+/* ── 시황 수급 3열 (기관/외국인 수급 · 투자자별 매매동향 · 신용융자 잔고) — 10-03 ──
+   좁아지면 2열 → 1열. 미디어 규칙은 기본 규칙 뒤에 둔다(앞에 두면 덮인다 — 옛 .inv-2col 사례) */
+.inv-3col { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr); gap:1rem; align-items:stretch; margin-bottom:1rem; }
+/* 1500px 아래: 기관/외국인 수급(안에 3칸)이 한 줄을 다 쓰고 그 아래 매매동향·신용잔고 2열 */
+@media(max-width:1500px) { .inv-3col { grid-template-columns:repeat(2,minmax(0,1fr)); }
+                           .inv-3col > :first-child { grid-column:1 / -1; } }
+@media(max-width:900px)  { .inv-3col { grid-template-columns:minmax(0,1fr); } }
+
+/* ── 오늘의 아이디어(태린 후보) 줄 — 넓으면 한 줄 표, 좁으면 두 줄 (taerin-picks.js) ── */
+.tp-row, .tp-head {
+  display:grid; gap:2px 12px; align-items:center; padding:6px 14px; border-bottom:1px solid var(--border);
+  grid-template-columns:minmax(150px,1.2fr) minmax(150px,1fr) minmax(130px,.9fr) minmax(0,1.6fr) 72px 72px;
+  grid-template-areas:"name sec gauge tags chg tv";
+}
+.tp-head { padding:5px 14px; background:var(--bg2); font-size:calc(11px*var(--m-label)); font-weight:600; color:var(--text2); }
+.tp-name { grid-area:name; } .tp-sec { grid-area:sec; } .tp-gauge { grid-area:gauge; }
+.tp-tags { grid-area:tags; } .tp-chg { grid-area:chg; text-align:right; } .tp-tv { grid-area:tv; text-align:right; }
+@media(max-width:760px) {
+  .tp-row { grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) auto; gap:2px 8px; padding:6px 12px;
+            grid-template-areas:"name sec chg" "gauge tags tv"; }
+  .tp-head { display:none; }
+}
 
 /* ── 산업 동향 상세 그리드 (market-overview) — 구 인라인 그리드 클래스화 ──
    인라인 grid-template-columns는 미디어쿼리로 못 이겨 모바일에서 차트/표가 짜부됐음.

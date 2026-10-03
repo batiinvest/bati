@@ -76,7 +76,7 @@ function _tpSecTag(s) {
   const k = s.leading ? ['주도', '#f59e0b'] : (s.mom_rank != null && s.mom_rank <= _TP_LEAD_TOP) ? ['모멘텀', 'var(--tg)']
     : (s.buy_rank != null && s.buy_rank <= _TP_LEAD_TOP) ? ['매수', '#2dce89'] : null;
   return `<span title="${escAttr(`중분류 ${s.name} — 모멘텀 ${s.mom_rank ?? '—'}위 · 매수 ${s.buy_rank ?? '—'}위 / ${s.n_sectors}`)}" `
-    + `style="font-size:calc(11px*var(--m-label));color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">`
+    + `class="tp-sec" style="font-size:calc(11px*var(--m-label));color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">`
     + `${escapeHtml(s.name)}${k ? ` <b style="color:${k[1]}">${k[0]}</b>` : ''}</span>`;
 }
 
@@ -104,24 +104,25 @@ function renderTaerinPicks() {
     return t.join(' · ');
   };
 
-  el.innerHTML = shown.map(r => {
+  const head = `<div class="tp-head"><span class="tp-name">종목</span><span class="tp-sec">업종 (WICS 중분류)</span>`
+    + `<span class="tp-gauge">수급 칸</span><span class="tp-tags">충족 조건</span><span class="tp-chg">등락</span><span class="tp-tv">거래대금</span></div>`;
+  el.innerHTML = head + shown.map(r => {
     const m = mkt[r.code];
     const chg = m?.price_change_rate;
     const tv = m?.trading_value;
     return `
-    <div class="stock-row" data-stock-open="${r.code}" data-stock-name="${escAttr(r.name)}" data-stock-tab="market"
-      style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) auto;gap:2px 8px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--border)">
-      <span style="display:flex;align-items:center;gap:5px;min-width:0">
+    <div class="stock-row tp-row" data-stock-open="${r.code}" data-stock-name="${escAttr(r.name)}" data-stock-tab="market">
+      <span class="tp-name" style="display:flex;align-items:center;gap:5px;min-width:0">
         ${badge(r.te)}
         <span style="font-size:calc(12px*var(--m-sub));font-weight:600;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.name)}</span>
       </span>
       ${_tpSecTag(r.sec)}
-      <span style="font-size:calc(12px*var(--m-sub));font-weight:700;text-align:right;color:${chg != null ? chgColor(chg) : 'var(--text3)'}">${chg != null ? chgStr(chg) : '—'}</span>
-      <span style="font-size:calc(11px*var(--m-label));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0" title="${escAttr(r.gg ? flowGaugeTip(r.gauge, r.gg) : '')}">
+      <span class="tp-chg" style="font-size:calc(12px*var(--m-sub));font-weight:700;color:${chg != null ? chgColor(chg) : 'var(--text3)'}">${chg != null ? chgStr(chg) : '—'}</span>
+      <span class="tp-gauge" style="font-size:calc(11px*var(--m-label));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0" title="${escAttr(r.gg ? flowGaugeTip(r.gauge, r.gg) : '')}">
         ${r.gg ? `${flowGaugeBar(r.gg)} <span style="color:${r.gg.color};font-weight:600">${r.gg.label}</span>` : ''}
       </span>
-      <span style="font-size:calc(11px*var(--m-label));color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${escapeHtml(tags(r))}</span>
-      <span style="font-size:calc(11px*var(--m-label));color:var(--text3);text-align:right;white-space:nowrap">${tv ? fmtTV(tv) : ''}</span>
+      <span class="tp-tags" style="font-size:calc(11px*var(--m-label));color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${escapeHtml(tags(r))}</span>
+      <span class="tp-tv" style="font-size:calc(11px*var(--m-label));color:var(--text3);white-space:nowrap">${tv ? fmtTV(tv) : ''}</span>
     </div>`;
   }).join('')
   + (list.length > _TP_SHOW ? `<div style="padding:6px 12px;text-align:center">

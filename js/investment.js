@@ -114,15 +114,9 @@ function pInvestment() {
        09-29 옛 '산업별 수급동향'(자체 산업 분류·4사분면, sector-rotation.js)을 이 카드로 대체 -->
   ${typeof pSectorLead === 'function' ? pSectorLead() : ''}
 
-  <!-- 2단 레이아웃: 좌(투자포인트+주도주+수급) + 우(공시/신호) -->
-  <div class="inv-2col">
-
-    <!-- 좌 패널 -->
-    <div id="inv-left" style="display:flex;flex-direction:column;gap:1rem">
-
-      <!-- (투자포인트 요약 → 상단 온도계 옆으로 이동) -->
-      <!-- (주도주 → '오늘의 아이디어' 탭으로 이동) -->
-
+  <!-- 수급 3종 가로 배치(10-03 사용자 요청) — 기관/외국인 수급 · 투자자별 매매동향 · 신용융자 잔고.
+       옛 2단(좌 수급 | 우 아이디어·공시) 레이아웃은 없앴다 -->
+  <div class="inv-3col">
 
       <!-- 수급 요약 -->
       <div class="card" style="margin-bottom:0">
@@ -194,16 +188,11 @@ function pInvestment() {
         </div>
       </div>
 
-      <!-- (산업 강도 매트릭스 → '산업별 수급동향' 보드의 US·KR·선행 컬럼으로 통합) -->
+  </div>
 
-    </div>
-
-    <!-- 우 패널 -->
-    <div id="inv-right" style="display:flex;flex-direction:column;gap:1rem">
-
-      <!-- 💡 오늘의 아이디어 = 태린이아빠 후보 (taerin-picks.js). 10-03 사용자 결정 '태린 후보로만' —
+      <!-- 💡 오늘의 아이디어 (전체 폭) = 태린이아빠 후보 (taerin-picks.js). 10-03 사용자 결정 '태린 후보로만' —
            옛 탭(주도주·신고가·실적급등·급등·전망)과 그 화면 코드는 없앴다 -->
-      <div class="card" style="margin-bottom:0">
+      <div class="card" style="margin-bottom:1rem">
         <div class="card-header" style="flex-wrap:wrap;gap:6px">
           <span class="card-title">${_ICO.bulb}오늘의 아이디어</span>
           <span class="card-sub">태린이아빠 후보 — 주도 업종 빈집</span>
@@ -217,8 +206,8 @@ function pInvestment() {
         <div id="tp-body" style="border-top:1px solid var(--border)">${_skelList(8, true)}</div>
       </div>
 
-      <!-- 공시 피드 -->
-      <div class="card" style="margin-bottom:0">
+      <!-- 공시 피드 (전체 폭) -->
+      <div class="card" style="margin-bottom:1rem">
         <div class="card-header">
           <span class="card-title">${_ICO.doc}오늘 실적 공시 종목</span>
           <span id="inv-disclosure-date" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:8px"></span>
@@ -231,12 +220,6 @@ function pInvestment() {
         </div>
       </div>
 
-      <!-- (실적 급등 → '오늘의 아이디어' 탭으로 이동) -->
-
-      <!-- (산업 강도 매트릭스 → 좌측 컨텍스트 열로 이동) -->
-
-    </div>
-  </div>
 
   <!-- 이하: 상세 섹션들 (전체 너비) -->
   <div id="inv-tab-market" style="display:block">
