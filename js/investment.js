@@ -93,8 +93,7 @@ function pInvestment() {
           <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:4px">구성 요소 · 탐욕 쪽 점수 (각 20%)</div>
           <div id="fg-comp"></div>
           <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:8px;line-height:1.5">
-            파랑 = 지수 · 주황 = EMA20 · 회색 = 시장 지수 · 점선 20/50/80. 아래 막대 = 오실레이터(지수의 MACD − 시그널),
-            <span style="color:#fb6340">▼</span> 피크 · <span style="color:#2dce89">▲</span> 매수 조건.
+            파랑 = 지수 · 주황 = EMA20 · 회색 = 시장 지수 · 점선 20/50/80. 아래 막대 = 오실레이터(지수의 MACD − 시그널).
             최근 1년 안에서 각 요소를 0~100으로 맞춘 상대 점수라, 새 고점·저점이 생기면 과거 값도 조금 바뀝니다.
           </div>
         </div>
@@ -772,7 +771,7 @@ function toggleZoneC() {
 //   시세는 INV.allMarketRows(loadMarketOverview)에 의존 → 준비되면 _renderMyStocks() 재호출로 갱신.
 let _myStocksWlRows = null;
 let _myStocksData   = null;   // { wlRows, discsByCode, reportsByCode, nameToWl, fv, comp }
-let _msRuleOpen     = null;   // 매매 규칙(매도 조건·교체 후보) 패널을 펼친 보유 종목 코드
+let _msRuleOpen     = null;   // 매매 규칙(원문·사실·교체 후보) 패널을 펼친 보유 종목 코드
 
 // ── 교체 후보 — 태린이아빠 09-19 회원 영상 「수급 빈집 체크」 ─────────────────────
 //  "보유 종목 수급 오실레이터가 차면(과열권) 같은 카테고리 안에서 수급이 비어 있고 모멘텀이 살아 있는
@@ -866,57 +865,82 @@ function _msSwapRows(it, sw) {
     </div>${rows}`;
 }
 
-// 매매 규칙 패널 — 원저자 '일관성' 시트 매도 조건 점검(config.js holdRules) + 교체 후보
+// 매매 규칙 패널 — 태린이아빠 「외국인기관수급오실레이터(700)」 '일관성' 시트 원문 + 그 옆에 확인 가능한 사실.
+//  원본은 글로 적은 규칙이라 수치 기준이 없다 → 판정(해당/아님)하지 않는다(10-03 사용자 결정 '원본 문장 + 사실만').
+//  사실 = lead_flags.sv (백엔드 collect_leading.sell_facts — KIS 일봉·주봉, 판정일 정규장 종가) + 수급 칸·주도 업종
+const _MS_RULE = {
+  s1:  '(1) 신고가 갱신후 밀리는 음봉은 무조건 매도 — 일봉과 주봉 체크',
+  l15: '주봉상 직전 양봉 중간을 깨면 정리',
+  l16: '늦게 봐서 양봉보다 큰 음봉 일단정리',
+  l17: '(바닥권보다는 상승중인 기업을 팔때 고려)',
+  l19: '(만약 늦었다면 못해도 10주 이평선 깨지면 정리)',
+  s2:  '(2) 수급 오실레이터 과열권 매도조건 — 시장 주도종목군의 경우 과열권에 매도가 나갈려면 상승추세의 종목은 '
+     + '10일선 이탈이 동반되면 매도 · 하락후 반등 추세의 종목은 5일선이 이탈되면 매도 = 수급 오실레이터 과열이라도 '
+     + '10일선 이탈안되거나 5일선 이탈안되면 포지션 유지하자',
+  s3:  '(3) 좀더 나은 종목이 나오면 교체',
+  b35: '보통은 수급오실레이터가 꺾이면 비중을 줄이거나 매도 하고 다른 종목으로 교체하는게 일반적으로는 성과가 좋다 · '
+     + '10개중에 1개 정도는 차별적으로 접근해야한다 · 주도업종이고 주도주 신고가 들어가면서 수급오실레이터가 내려가면 '
+     + '이구간에서는 한번참아볼만하다',
+};
+
 function _msRulePanel(it) {
-  const hr = it.hr, sw = it.swap;
+  const f = it.fvRow?.lead_flags || {}, sv = f.sv, gg = it.gg;
   const fs = 'font-size:calc(11px*var(--m-label))';
-  const sub = t => `<div style="padding:5px 14px 1px 28px;${fs};font-weight:600;color:var(--text2)">${t}</div>`;
-  const row = r => {
-    const hit = r.on && r.hit;
-    const st = !r.on ? `<span style="color:var(--text3)">${escapeHtml(r.off || '')}</span>`
-      : hit ? '<b style="color:#fb6340">해당</b>' : '<span style="color:var(--text2)">아님</span>';
-    return `<div style="display:flex;align-items:center;gap:8px;padding:1px 14px 1px 28px;${fs}">
-      <span style="width:10px;flex-shrink:0;color:${hit ? '#fb6340' : 'var(--text3)'}">${hit ? '●' : '○'}</span>
-      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${r.on ? 'var(--text1)' : 'var(--text3)'}">${escapeHtml(r.name)}${r.val ? ` <span style="color:var(--text3)">(${escapeHtml(r.val)})</span>` : ''}</span>
-      <span style="flex-shrink:0">${st}</span>
-    </div>`;
-  };
-  let h = '';
-  if (hr) {
-    const ctx = [hr.trend ? HOLD_TREND_LABEL[hr.trend] : '추세 판정 불가(60거래일 미만)',
-                 hr.gg ? `수급 ${hr.gg.fill}/5칸 ${hr.gg.up ? '↑' : '↓'} ${hr.gg.label}` : '수급 칸 없음'].join(' · ');
-    h += `<div style="padding:6px 14px 0 28px;${fs};color:var(--text2)">
-        <b style="color:var(--text1)">${escapeHtml(it.name)}</b> 매도 조건 점검 — ${escapeHtml(ctx)}</div>`
-      + sub('(1) 신고가 후 밀리는 음봉 · 주봉') + hr.rules.filter(r => r.g === 1).map(row).join('')
-      + sub('(2) 수급 과열권 + 이평선 이탈') + hr.rules.filter(r => r.g === 2).map(row).join('')
-      + (hr.keep ? `<div style="padding:2px 14px 0 46px;${fs};color:var(--text2)">과열권이지만 선을 지키는 중 — 원저자 기준으로는 그대로 두는 구간</div>` : '')
-      + (hr.patience ? `<div style="padding:2px 14px 0 46px;${fs};color:#f59e0b">주도 업종 · 최근 5거래일 안 52주 신고가 · 수급 내려가는 중 — 원저자가 '한 번 참아볼 만하다'고 한 구간</div>` : '');
+  const won = v => v == null ? '—' : `${Math.round(v).toLocaleString()}원`;
+  const md = d => d ? `${+d.slice(4, 6)}/${+d.slice(6, 8)}` : '—';
+  const vs = (a, b) => a == null || b == null ? '' : a > b ? '위' : a < b ? '아래' : '같음';
+  const candle = (o, c) => c > o ? '양봉' : c < o ? '음봉' : '보합';
+  const pct = (a, b) => a == null || !b ? '' : ` ${a >= b ? '+' : ''}${((a / b - 1) * 100).toFixed(1)}%`;
+  const quote = t => `<div style="padding:4px 14px 1px 28px;${fs};color:var(--text2)">「${escapeHtml(t)}」</div>`;
+  const fact = t => `<div style="padding:0 14px 1px 40px;${fs};color:var(--text1)">· ${t}</div>`;
+  const head = t => `<div style="padding:7px 14px 0 28px;${fs};font-weight:700;color:var(--text1)">${t}</div>`;
+  const gauge = gg ? `수급 칸 ${flowGaugeBar(gg)} ${gg.fill}/5 <span style="color:${gg.color}">${gg.label}</span>` : '수급 칸 —';
+  const lead = `주도 업종 ${f.lead ? '<b style="color:#f59e0b">소속</b>' : '아님'}`;
+  const hi = sv ? `52주 최고가 ${won(sv.hi)} (${md(sv.hi_d)}${sv.hi_w ? ' 주' : ''})` : '';
+
+  let h = `<div style="padding:6px 14px 0 28px;${fs};color:var(--text2)">
+      <b style="color:var(--text1)">${escapeHtml(it.name)}</b> — 태린이아빠 '일관성' 시트의 종목 매도 규칙 원문과 오늘의 사실</div>`;
+  if (sv) {
+    const yb = sv.yb, ybMid = yb ? (yb.o + yb.c) / 2 : null;
+    h += head('2. 종목 매도')
+      + quote(_MS_RULE.s1)
+      + fact(hi)
+      + fact(`일봉 ${md((_myStocksData?.fv?.date || '').replace(/-/g, ''))}: 시가 ${won(sv.d_o)} → 종가 ${won(sv.d_c)} <b>${candle(sv.d_o, sv.d_c)}</b> · 전날 종가 ${won(sv.d_pc)}${pct(sv.d_c, sv.d_pc)}`)
+      + fact(`주봉 ${md(sv.w_d)} 주: 시가 ${won(sv.w_o)} → 종가 ${won(sv.w_c)} <b>${candle(sv.w_o, sv.w_c)}</b> · 지난주 종가 ${won(sv.w_pc)}${pct(sv.w_c, sv.w_pc)}`)
+      + quote(_MS_RULE.l15)
+      + fact(yb ? `직전 양봉 ${md(yb.d)} 주: ${won(yb.o)} → ${won(yb.c)} · 몸통 가운데 ${won(ybMid)} · 이번 주 종가 ${won(sv.w_c)} <b>${vs(sv.w_c, ybMid)}</b>`
+                : '직전 양봉 — 1년 주봉 안에 없음')
+      + quote(_MS_RULE.l16)
+      + fact(`이번 주 몸통 ${won(Math.abs(sv.w_c - sv.w_o))} (${candle(sv.w_o, sv.w_c)})${yb ? ` · 직전 양봉 몸통 ${won(yb.c - yb.o)}` : ''}`)
+      + quote(_MS_RULE.l17)
+      + quote(_MS_RULE.l19)
+      + fact(`10주선 ${won(sv.w10)} · 이번 주 종가 ${won(sv.w_c)} <b>${vs(sv.w_c, sv.w10)}</b>`)
+      + quote(_MS_RULE.s2)
+      + fact(`${gauge} · ${lead}`)
+      + fact(`종가 ${won(sv.d_c)} · 10일선 ${won(sv.m10)} <b>${vs(sv.d_c, sv.m10)}</b> · 5일선 ${won(sv.m5)} <b>${vs(sv.d_c, sv.m5)}</b>`);
   } else {
-    h += `<div style="padding:6px 14px 0 28px;${fs};color:var(--text3)">매도 조건 재료가 아직 없습니다 (평일 18:50 수급 판정 때 함께 계산)</div>`;
+    h += `<div style="padding:4px 14px 0 28px;${fs};color:var(--text3)">일봉·주봉 사실이 아직 없습니다 (평일 18:50 수급 판정 때 함께 계산)</div>`;
   }
-  h += sub('(3) 더 나은 종목이 나오면 교체')
-    + (sw ? _msSwapRows(it, sw)
-          : `<div style="padding:0 14px 2px 28px;${fs};color:var(--text3)">수급이 다 찼다·꺾임일 때 같은 테마·업종에서 수급이 빈 종목을 찾습니다${it.gg ? ` — 지금 ${escapeHtml(it.gg.label)}` : ''}</div>`);
-  h += `<div style="padding:6px 14px 8px 28px;${fs};color:var(--text3);line-height:1.5">
-      태린이아빠 「외국인기관수급오실레이터」 '일관성' 시트의 종목 매도 규칙을 판정일 종가로 점검한 것.
-      원본에 수치가 없어 정한 기준: 과열권 = 수급 칸 4개 이상 · 추세 = 20일선과 60일선 · 신고가 '후' = 3거래일 안 · 직전 양봉 = 앞 4주 안.</div>`;
+  h += quote(_MS_RULE.s3)
+    + (it.swap ? _msSwapRows(it, it.swap)
+               : `<div style="padding:0 14px 1px 40px;${fs};color:var(--text3)">· 교체 후보는 수급이 다 찼다·꺾임일 때 같은 테마·업종에서 수급이 빈 종목을 찾습니다${gg ? ` — 지금 ${escapeHtml(gg.label)}` : ''}</div>`)
+    + quote(_MS_RULE.b35)
+    + fact(`${gauge} (오실레이터 ${gg ? (gg.up ? '오르는 중' : '내리는 중') : '—'}) · ${lead}${hi ? ` · ${hi}` : ''}`)
+    + `<div style="padding:6px 14px 8px 28px;${fs};color:var(--text3);line-height:1.5">
+      원본은 글로 적은 규칙이라 수치 기준(과열권·추세·'신고가 후'의 기간)이 없어 해당 여부는 판정하지 않습니다.
+      일봉·주봉은 판정일 정규장 종가 기준 · 주도 업종은 앱의 주도 업종 판정.</div>`;
   return `<div style="background:var(--bg2)">${h}</div>`;
 }
 
-// 보유 종목 줄의 매매 규칙 칩 — 매도 조건 해당 > 교체 후보 > 과열·선 지킴 > 참아볼 구간 > 점검
+// 보유 종목 줄의 매매 규칙 칩 — 교체 후보가 있으면 그 수, 아니면 '매매 규칙'
 function _msRuleChip(it) {
-  const hr = it.hr, sw = it.swap;
-  if (!hr && !sw) return '';
-  const n = hr?.hits.length || 0;
-  const [label, color, tip] = n ? [`매도 조건 ${n}`, '#fb6340', hr.hits.map(r => r.name).join(' · ')]
-    : sw ? [`교체 후보 ${sw.total}`, '', '같은 테마·업종에서 수급이 비어 있고 모멘텀이 있는 종목']
-    : hr.keep ? ['과열 · 선 지킴', '', '수급 과열권이지만 이평선을 지키는 중']
-    : hr.patience ? ['참아볼 구간', '#f59e0b', '주도 업종 신고가 중 수급 하락 — 원저자 예외 구간']
-    : ['매도 조건 0', 'var(--text3)', '원저자 매도 조건 중 해당 없음'];
-  const open = _msRuleOpen === it.code;   // 펼친 칩은 active 배경 — 강조색 글자를 빼야 읽힌다
+  if (!it.held || !(it.fvRow?.lead_flags?.sv || it.swap)) return '';
+  const open = _msRuleOpen === it.code;
+  const [label, tip] = it.swap
+    ? [`교체 후보 ${it.swap.total}`, '같은 테마·업종에서 수급이 비어 있고 모멘텀이 있는 종목 · 매매 규칙 원문']
+    : ['매매 규칙', '태린이아빠 매도 규칙 원문과 오늘의 일봉·주봉 사실'];
   return `<button class="chip chip-sm ${open ? 'active' : ''}" data-no-detail
-        onclick="toggleMsRule('${escJsStr(it.code)}')" title="${escAttr(tip + ' — 눌러서 매매 규칙 점검')}"
-        style="flex-shrink:0${color && !open ? `;color:${color}` : ''}">${label}${n && sw ? ` · 교체 ${sw.total}` : ''}</button>`;
+        onclick="toggleMsRule('${escJsStr(it.code)}')" title="${escAttr(tip)}" style="flex-shrink:0">${label}</button>`;
 }
 
 // 공시 카테고리 색
@@ -1043,14 +1067,12 @@ function _renderMyStocks() {
     return cb - ca;
   });
 
-  // 교체 검토 — 보유 종목 수급이 다 찼다·꺾임 / 매도 조건 — 원저자 '일관성' 시트(config.js holdRules)
+  // 교체 검토 — 보유 종목 수급이 다 찼다·꺾임
   items.forEach(it => {
     it.gg = it.fvRow?.flow_gauge ? flowGauge(it.fvRow.flow_gauge) : null;
     it.swap = it.held && it.gg && _MS_SWAP_STAGES.has(it.gg.key) ? _msSwapCands(it.code, fv, comp, heldSet) : null;
-    it.hr = it.held ? holdRules(it.fvRow) : null;
   });
   const swapCnt = items.filter(i => i.swap).length;
-  const sellCnt = items.filter(i => i.hr?.hits.length).length;
   const eventCnt = items.filter(i => i.hasEvent).length;
   const priceReady = allRows.length > 0;
 
@@ -1102,13 +1124,12 @@ function _renderMyStocks() {
       <div style="display:flex;align-items:center;gap:5px;flex:1;min-width:0;overflow:hidden">
         ${discHTML}${reportHTML}
       </div>
-    </div>${(it.hr || it.swap) && _msRuleOpen === it.code ? _msRulePanel(it) : ''}`;
+    </div>${_msRuleOpen === it.code && _msRuleChip(it) ? _msRulePanel(it) : ''}`;
   }).join('');
 
   const header = `<div style="display:flex;align-items:center;gap:6px;padding:7px 14px 7px 12px;font-size:calc(11px*var(--m-label));color:var(--text2)">
     <span style="width:2px;height:11px;background:var(--tg);border-radius:2px;flex-shrink:0"></span>
     ${eventCnt ? `오늘 <b style="color:var(--text1)">${eventCnt}</b>종목에 공시·리포트` : '오늘 공시·리포트 있는 종목 없음'}
-    ${sellCnt ? `<span style="color:var(--border)">·</span> <span title="원저자 '일관성' 시트 매도 조건에 해당하는 보유 종목 — 매도 조건 버튼에서 확인">매도 조건 <b style="color:#fb6340">${sellCnt}</b>종목</span>` : ''}
     ${swapCnt ? `<span style="color:var(--border)">·</span> <span title="보유 종목 수급 오실레이터가 다 찼다·꺾임 — 교체 후보 버튼에서 확인">교체 검토 <b style="color:#fb6340">${swapCnt}</b>종목</span>` : ''}
     <span style="color:var(--text3);margin-left:auto">${todayKst} 기준 · 리포트 30일${fv?.date ? ` · 수급 ${fv.date}` : ''}</span>
   </div>`;

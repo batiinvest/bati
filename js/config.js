@@ -872,47 +872,6 @@ function flowGaugeTip(g, gg) {
     + ` | 현재 ${f(g.cur)} (전일 ${f(g.prev)}) · ${gg.fill}/5칸 ${gg.up ? '↑' : '↓'} ${gg.label}`;
 }
 
-// ══════════════════════════════════════════
-//  원저자 종목 매도 조건 — 태린이아빠 「외국인기관수급오실레이터(700)」 '일관성' 시트 (10-03)
-//   (1) 신고가 갱신 후 밀리는 음봉 — 일봉과 주봉 체크
-//       곁들인 메모: 주봉상 직전 양봉 중간을 깨면 · 늦게 봐서 양봉보다 큰 음봉 (바닥권보다 상승 중인 종목에)
-//                   · 늦었다면 못해도 10주 이평선을 깨면
-//   (2) 수급 오실레이터 과열권 — 상승 추세 종목은 10일선 이탈, 하락 후 반등 종목은 5일선 이탈이 같이 나오면.
-//       과열이라도 선을 지키면 그대로 둔다
-//   (3) 더 나은 종목이 나오면 교체 — investment.js 교체 후보(같은 테마·업종의 수급 빈집)
-//   예외: 주도 업종이고 주도주가 신고가를 내면서 수급 오실레이터가 내려가는 구간은 한 번 참아볼 만하다
-//  재료 lead_flags.sv — 백엔드 collect_leading.sell_checks (KIS 일봉·주봉, 판정일 종가)
-//  ⚠ 원본에 수치가 없어 정한 것: 과열권 = 수급 칸 4개 이상(상위 25% 위), 추세 = 20일선과 60일선
-//    (위면 상승 추세, 아래면 '하락 후 반등'), 신고가 '후' = 최근 3거래일 안, 직전 양봉 = 앞 4주 안,
-//    예외의 '신고가 들어가면서' = 최근 5거래일 안 52주 신고가
-// ══════════════════════════════════════════
-const HOLD_HOT_FILL = 4;
-function holdRules(v) {
-  const f = v?.lead_flags || {}, sv = f.sv;
-  if (!sv) return null;
-  const gg  = v.flow_gauge ? flowGauge(v.flow_gauge) : null;
-  const hot = !!gg && gg.fill >= HOLD_HOT_FILL;
-  const up  = sv.tr === 'up', rb = sv.tr === 'rb';
-  const won = x => x ? `${Math.round(x).toLocaleString()}원` : '';
-  const rules = [
-    { k: 'nhd',  g: 1, name: '신고가 갱신 후 밀리는 음봉 — 일봉', on: true, hit: !!sv.nhd },
-    { k: 'nhw',  g: 1, name: '신고가 갱신 후 밀리는 음봉 — 주봉', on: true, hit: !!sv.nhw },
-    { k: 'hm',   g: 1, name: '주봉 직전 양봉의 중간 아래', on: up, off: '상승 추세 종목에만', hit: !!sv.hm },
-    { k: 'big',  g: 1, name: '직전 양봉보다 큰 주봉 음봉', on: up, off: '상승 추세 종목에만', hit: !!sv.big },
-    { k: 'b10w', g: 1, name: '10주선 아래', val: won(sv.w10), on: true, hit: !!sv.b10w },
-    { k: 'b10',  g: 2, name: '과열권 · 상승 추세 — 10일선 아래', val: won(sv.m10),
-      on: hot && up, off: !hot ? '과열권 아님' : '상승 추세 아님', hit: hot && up && !!sv.b10 },
-    { k: 'b5',   g: 2, name: '과열권 · 하락 후 반등 — 5일선 아래', val: won(sv.m5),
-      on: hot && rb, off: !hot ? '과열권 아님' : '하락 후 반등 아님', hit: hot && rb && !!sv.b5 },
-  ];
-  const hits = rules.filter(r => r.on && r.hit);
-  return {
-    rules, hits, gg, hot, trend: sv.tr,
-    keep: hot && !rules.some(r => r.g === 2 && r.hit),     // 과열이지만 선을 지킴 — 원저자: 그대로 둔다
-    patience: !!f.lead && !!sv.nh5 && !!gg && !gg.up,       // 예외 구간
-  };
-}
-const HOLD_TREND_LABEL = { up: '상승 추세 (20일선 ≥ 60일선)', rb: '하락 후 반등 (20일선 < 60일선)' };
 
 async function _loadFlowVerdicts() {
   const { data: d, error } = await sb.from('market_data').select('base_date')
