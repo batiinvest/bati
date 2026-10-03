@@ -24,7 +24,7 @@ const INV_ALL_METRICS = [
 //   tab·highlighted·hovered: 시황 페이지 UI 상태
 //   allMarketRows·macroData·marketBreadth·indMapData:
 //     market-overview/chart-macro가 공유하는 시장 데이터 캐시
-//   moSort·indBarChart·lsPollTimer·lsAllData: 섹션별 상태
+//   moSort·indBarChart: 섹션별 상태
 INV.selected = new Set(['sp500','nasdaq','kospi','kosdaq']);
 INV.period   = 7;
 
@@ -201,82 +201,20 @@ function pInvestment() {
     <!-- 우 패널 -->
     <div id="inv-right" style="display:flex;flex-direction:column;gap:1rem">
 
-      <!-- 💡 오늘의 아이디어 (주도주·신고가·실적급등 통합 탭) -->
+      <!-- 💡 오늘의 아이디어 = 태린이아빠 후보 (taerin-picks.js). 10-03 사용자 결정 '태린 후보로만' —
+           옛 탭(주도주·신고가·실적급등·급등·전망)과 그 화면 코드는 없앴다 -->
       <div class="card" style="margin-bottom:0">
         <div class="card-header" style="flex-wrap:wrap;gap:6px">
           <span class="card-title">${_ICO.bulb}오늘의 아이디어</span>
-          <span class="card-sub">발굴 → 클릭 → 상세·⭐관심</span>
-          <div style="display:flex;gap:4px;margin-left:auto;flex-wrap:wrap">
-            <button class="chip chip-sm active" id="idea-tab-ls"       onclick="switchIdeaTab('ls')"      >${_ICO.rocket}주도주</button>
-            <button class="chip chip-sm"        id="idea-tab-hgpr"     onclick="switchIdeaTab('hgpr')"    >${_ICO.flag}신고가</button>
-            <button class="chip chip-sm"        id="idea-tab-earnings" onclick="switchIdeaTab('earnings')">${_ICO.bar}실적급등</button>
-            <button class="chip chip-sm"        id="idea-tab-surge"    onclick="switchIdeaTab('surge')"   >${_ICO.arrowUp}급등</button>
-            <button class="chip chip-sm"        id="idea-tab-outlook"  onclick="switchIdeaTab('outlook')" >${_ICO.chart}전망</button>
+          <span class="card-sub">태린이아빠 후보 — 주도 업종 빈집</span>
+          <span id="tp-count" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:auto"></span>
+          <div style="display:flex;gap:4px">
+            <button class="chip chip-sm active" data-tp-filter="all" onclick="setTpFilter('all')">전체</button>
+            <button class="chip chip-sm"        data-tp-filter="A"   onclick="setTpFilter('A')" title="주도 업종 ∧ 수급 빈집 + 확률 조건">A</button>
+            <button class="chip chip-sm"        data-tp-filter="B"   onclick="setTpFilter('B')" title="RS 70 일일 스크린">B</button>
           </div>
         </div>
-
-        <!-- 주도주 패널 -->
-        <div id="idea-panel-ls" style="border-top:1px solid var(--border)">
-          <div style="padding:5px 10px;border-bottom:1px solid var(--border);display:flex;gap:3px;align-items:center">
-            <button class="chip chip-sm active" data-ls-tab="all"    onclick="switchLsTab('all')"   >전체</button>
-            <button class="chip chip-sm"        data-ls-tab="kospi"  onclick="switchLsTab('kospi')" >코스피</button>
-            <button class="chip chip-sm"        data-ls-tab="kosdaq" onclick="switchLsTab('kosdaq')">코스닥</button>
-            <span style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:auto;align-self:center" id="ls-date"></span>
-            <button id="ls-refresh-btn" class="chip chip-sm" onclick="refreshLeadingStocks()" style="margin-left:6px" title="새로고침">${_ICO.refresh}</button>
-          </div>
-          <div id="ls-body">${_skelList(8)}</div>
-          <div style="padding:5px 10px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;gap:3px;align-items:center">
-            <span onclick="toggleLsBacktest()" style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text2);cursor:pointer;user-select:none">과거 주도주 수익률 <span id="ls-bt-chev" style="font-size:calc(11px*var(--m-label))">▾</span></span>
-            <span id="ls-bt-date" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:auto;align-self:center"></span>
-            <div style="display:flex;gap:3px">
-              <button class="chip chip-sm active" data-bt-period="1w" onclick="switchBtPeriod('1w')">1주</button>
-              <button class="chip chip-sm"        data-bt-period="1m" onclick="switchBtPeriod('1m')">1달</button>
-              <button class="chip chip-sm"        data-bt-period="3m" onclick="switchBtPeriod('3m')">3달</button>
-            </div>
-          </div>
-          <div id="ls-bt-body" style="padding:6px 8px;display:none">${_skelList(5)}</div>
-        </div>
-
-        <!-- 신고가 패널 -->
-        <div id="idea-panel-hgpr" style="display:none;border-top:1px solid var(--border)">
-          <div style="padding:5px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">KIS 기준 신고가 지정 종목</span>
-            <span id="hgpr-date" style="font-size:calc(11px*var(--m-label));color:var(--text2)"></span>
-            <div style="display:flex;gap:4px;margin-left:auto">
-              <button class="chip chip-sm active" data-hgpr-tab="monitored" onclick="switchHgprTab('monitored')">${_ICO.star}모니터링</button>
-              <button class="chip chip-sm"        data-hgpr-tab="all"       onclick="switchHgprTab('all')"      >전체 종목</button>
-            </div>
-          </div>
-          <div id="hgpr-body" style="padding:.5rem 0">${_skelList(6)}</div>
-        </div>
-
-        <!-- 실적급등 패널 -->
-        <div id="idea-panel-earnings" style="display:none;border-top:1px solid var(--border)">
-          <div style="padding:5px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <div style="display:flex;gap:4px">
-              <button class="chip chip-sm active" data-surge-grade="all"  onclick="setSurgeGrade(this,'all')" >전체</button>
-              <button class="chip chip-sm"        data-surge-grade="S"    onclick="setSurgeGrade(this,'S')"   >S급</button>
-              <button class="chip chip-sm"        data-surge-grade="A"    onclick="setSurgeGrade(this,'A')"   >A급</button>
-              <button class="chip chip-sm"        data-surge-grade="B"    onclick="setSurgeGrade(this,'B')"   >B급</button>
-              <button class="chip chip-sm"        data-surge-grade="관찰"  onclick="setSurgeGrade(this,'관찰')" >관찰</button>
-            </div>
-            <select class="form-select" id="inv-earnings-quarter" style="width:130px;padding:3px 8px;font-size:calc(12px*var(--m-sub));margin-left:auto"
-              onchange="loadEarningsSurge()"><option value="">로딩 중...</option></select>
-          </div>
-          <div id="inv-earnings-list" style="padding:.5rem 0">${_skelCards(4)}</div>
-        </div>
-
-        <!-- 급등 패널 (당일 상승률 상위, 거래대금 필터) -->
-        <div id="idea-panel-surge" style="display:none;border-top:1px solid var(--border)">
-          <div style="padding:5px 10px;border-bottom:1px solid var(--border);font-size:calc(11px*var(--m-label));color:var(--text2)">거래대금 5억↑ · 상승률 상위 (최근 거래일 종가 기준)</div>
-          <div id="idea-surge-body" style="padding:.25rem 0">${_skelList(8, true)}</div>
-        </div>
-
-        <!-- 전망 패널 (미래 실적 추정치 — 상향 감지 + 고성장, estimates.js) -->
-        <div id="idea-panel-outlook" style="display:none;border-top:1px solid var(--border)">
-          <div style="padding:5px 10px;border-bottom:1px solid var(--border);font-size:calc(11px*var(--m-label));color:var(--text2)">KIS 리서치 연간 추정치 (매일 18:40 갱신) · 커버 종목만 표시</div>
-          <div id="idea-outlook-body" style="padding:.25rem 0">${_skelList(8, true)}</div>
-        </div>
+        <div id="tp-body" style="border-top:1px solid var(--border)">${_skelList(8, true)}</div>
       </div>
 
       <!-- 공시 피드 -->
@@ -525,7 +463,6 @@ function _clearInvRefreshTimers() {
 // 페이지 이탈 정리 훅 — nav go()가 PAGE_META.onUnload로 호출
 function unloadInvestment() {
   _clearInvRefreshTimers();
-  if (INV.lsPollTimer) { clearInterval(INV.lsPollTimer); INV.lsPollTimer = null; }
   if (typeof resetFlowMap === 'function') resetFlowMap();   // 수급 지도 원자료 폐기
 }
 
@@ -660,8 +597,7 @@ async function loadInvestment() {
   loadTrendChart();      // 흐름 비교 차트 — macro_data 자체 조회 (loadMacroData와 독립)
   _allDiscLoaded = false;
   loadTodayDisclosures();
-  loadEarningsSurge();
-  loadEstimateOutlook(); // '오늘의 아이디어' 전망 탭 (추정치 상향+고성장, estimates.js)
+  loadTaerinPicks();     // '오늘의 아이디어' = 태린이아빠 후보 (taerin-picks.js) — 판정 캐시 공유
 
   // 매크로(탑바 스트립 의존)는 병렬 시작 — 완료는 하단에서 대기
   const macroP = loadMacroData().catch(e => console.warn('[loadInvestment] macro', e));
@@ -679,9 +615,7 @@ async function loadInvestment() {
 
   // 종목 데이터만 필요한 위젯 (INV.allMarketRows 재활용)
   renderVolumeLeaders();
-  renderIdeaSurge(); // '오늘의 아이디어' 급등 탭
-  loadLeadingStocks();
-  loadLeadingBacktest();
+  renderTaerinPicks();   // 시세(등락률·거래대금)가 들어왔으니 태린 후보 다시 그림
   // 수급 지도(종목별 찬집/빈집)는 Zone C를 펼칠 때만 지연 로드 — toggleZoneC 참조.
   // 단 새로고침 경로(refreshInvestment→finish→loadInvestment)는 셸을 다시 그리지 않아
   // 펼쳐둔 지도가 캐시(FM.raw)에 묶인 채 남는다 → 캐시를 버리고 열려 있으면 재조회.
@@ -839,57 +773,6 @@ function toggleZoneC() {
     try { if (typeof loadUskrChart     === 'function') loadUskrChart();     } catch(e) { console.warn('[ZoneC] uskr', e); }
     try { if (typeof loadFlowMap       === 'function') loadFlowMap();       } catch(e) { console.warn('[ZoneC] flowmap', e); }
   });
-}
-
-
-// ── 주도주 백테스트(과거 주도주 수익률) 접기/펼치기 ──────────────────────────────
-function toggleLsBacktest() {
-  toggleSection('ls-bt-body', 'ls-bt-chev', ['▴', '▾']);
-}
-
-
-// ── '오늘의 아이디어' 탭 전환 (주도주 / 신고가 / 실적급등) ───────────────────────
-// 각 패널은 기존 위젯 내용을 그대로 품고 있어(id 유지) 로더는 변경 불필요 — 표시 토글만.
-function switchIdeaTab(tab) {
-  ['ls', 'hgpr', 'earnings', 'surge', 'outlook'].forEach(t => {
-    const panel = document.getElementById('idea-panel-' + t);
-    if (panel) panel.style.display = (t === tab) ? 'block' : 'none';
-    const btn = document.getElementById('idea-tab-' + t);
-    if (btn) btn.classList.toggle('active', t === tab);
-  });
-}
-
-// ── '급등' 탭 — 당일 상승률 상위 (거래대금 5억↑, 껍데기 급등 제외) ────────────────
-// 이미 로드된 INV.allMarketRows 재사용 (별도 쿼리 없음). 행 클릭 → 상세.
-function renderIdeaSurge() {
-  const el = document.getElementById('idea-surge-body');
-  if (!el) return;
-  const MIN_TV = 5e8; // 거래대금 5억원
-  const rows = (INV.allMarketRows || [])
-    .filter(r => r.price_change_rate != null && r.corp_name)
-    .filter(r => (r.trading_value || ((r.volume ?? 0) * (r.price ?? 0))) >= MIN_TV)
-    .sort((a, b) => b.price_change_rate - a.price_change_rate)
-    .slice(0, 15);
-
-  if (!rows.length) {
-    el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">데이터 없음</div>';
-    return;
-  }
-
-  el.innerHTML = rows.map((r, i) => {
-    const mkTag = r.market === 'KOSDAQ'
-      ? '<span style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:2px;font-weight:600">Q</span>' : '';
-    const tv    = r.trading_value || ((r.volume ?? 0) * (r.price ?? 0));
-    const tvStr = fmtTV(tv);
-    return `
-    <div class="stock-row" data-stock-open="${r.stock_code}" data-stock-name="${escAttr(r.corp_name||r.stock_code||'')}" data-stock-tab="market"
-      style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border)">
-      <span style="width:16px;font-size:calc(11px*var(--m-label));color:var(--text2);font-weight:600;flex-shrink:0">${i + 1}</span>
-      <span style="flex:1;font-size:calc(12px*var(--m-sub));font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.corp_name)}${mkTag}</span>
-      <span style="font-size:calc(11px*var(--m-label));color:var(--text2);white-space:nowrap">${tvStr}</span>
-      <span style="font-size:calc(12px*var(--m-sub));font-weight:700;color:${chgColor(r.price_change_rate)};flex-shrink:0;min-width:48px;text-align:right">${chgStr(r.price_change_rate)}</span>
-    </div>`;
-  }).join('');
 }
 
 
@@ -1201,4 +1084,4 @@ function _renderMyStocks() {
 // market-overview.js    : loadMacroData, loadTrendChart, loadMarketOverview
 // fear-greed.js         : loadFearGreed, setFgMarket (최상단 피어앤그리드)
 // disclosure.js         : loadTodayDisclosures, loadAllDisclosures, toggleAllDisclosures
-// earnings-surge.js     : loadEarningsSurge, renderSurgeList, setSurgeGrade 등
+// taerin-picks.js       : loadTaerinPicks, renderTaerinPicks, setTpFilter (오늘의 아이디어)

@@ -613,6 +613,9 @@ td.ctr, th.ctr { text-align:center; }
 
 /* ── 시황 2단 레이아웃 (좌 컨텍스트 2fr | 우 아이디어·공시 3fr) ── */
 .inv-2col { display:grid; grid-template-columns:2fr 3fr; gap:1rem; align-items:start; margin-bottom:1rem; }
+/* 모바일 1열 — 위쪽 @media(900px) 블록의 같은 규칙은 이 기본 규칙보다 앞에 있어 덮여 버렸다(10-03 발견).
+   기본 규칙 바로 뒤에 다시 둔다 */
+@media(max-width:900px) { .inv-2col { grid-template-columns:minmax(0,1fr); } }
 
 /* ── 산업 동향 상세 그리드 (market-overview) — 구 인라인 그리드 클래스화 ──
    인라인 grid-template-columns는 미디어쿼리로 못 이겨 모바일에서 차트/표가 짜부됐음.
