@@ -1922,7 +1922,9 @@ async function loadFinancialData(el) {
       const listed = Object.keys(meta).length ? new Set(Object.keys(meta)) : null;
       let data = monitoredCodes ? all.filter(r => monitoredCodes.has(r.stock_code)) : all;
       if (listed) data = data.filter(r => listed.has(r.stock_code));
-      return Object.values(_pickLatestFin(data));
+      // 최신값 표 — 4분기 연간값 행이 최신인 종목(리츠 등)이 사라지지 않게 남기되 '연간'으로 표시
+      return Object.values(_pickLatestFin(finNormalizeQuarters(data, { keepAnnualQ4: true })))
+        .map(r => r._annual ? { ...r, quarter: 'Q4(연간)' } : r);
     },
     headers: () => [
       // 식별

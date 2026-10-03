@@ -105,7 +105,7 @@ async function loadWatchlist() {
       .then(r => r.data || []),
     // 재무 — 최신 분기 우선, 최근 4개년 (전 이력 다운로드 방지)
     !codes.length ? [] : sb.from('financials')
-      .select('stock_code,bsns_year,quarter,revenue,operating_profit,roe')
+      .select('stock_code,fs_div,is_cumulative,bsns_year,quarter,revenue,operating_profit,roe')
       .in('stock_code', codes)
       .gte('bsns_year', String(new Date().getFullYear() - 3))
       .order('bsns_year', { ascending: false })
@@ -126,7 +126,8 @@ async function loadWatchlist() {
   (comps || []).forEach(r => { industryMap[r.code] = r.industry; });
 
   const roeMap = {}, opmMap = {}, revMap = {}, opMap = {};
-  (fins || []).forEach(r => {
+  // 최신 분기 1건 — 연결 우선, 4분기 연간값 행은 분기 매출로 보이지 않게 정리
+  finNormalizeQuarters(finPreferFs(fins || [])).forEach(r => {
     if (!roeMap[r.stock_code] && r.roe != null)          roeMap[r.stock_code] = r.roe;
     if (!revMap[r.stock_code] && r.revenue)              revMap[r.stock_code] = r.revenue;
     if (!opMap[r.stock_code]  && r.operating_profit)     opMap[r.stock_code]  = r.operating_profit;

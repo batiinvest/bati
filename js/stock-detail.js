@@ -707,10 +707,12 @@ async function _sdOpinion(body, code, name) {
 
 async function _renderFinancialTab(body, code, name) {
   try {
-    const { data: fins } = await sb.from('financials')
-      .select('bsns_year,quarter,revenue,operating_profit,net_income,operating_margin,net_margin,roe,roa,debt_ratio,total_assets,total_equity,operating_cashflow,cogs_ratio,gross_margin,sga_ratio')
+    const { data: finRaw } = await sb.from('financials')
+      .select('fs_div,is_cumulative,bsns_year,quarter,revenue,operating_profit,net_income,operating_margin,net_margin,roe,roa,debt_ratio,total_assets,total_equity,operating_cashflow,cogs_ratio,gross_margin,sga_ratio')
       .eq('stock_code', code)
       .order('bsns_year').order('quarter');
+    // 연결·별도가 둘 다 있는 종목은 같은 분기가 두 줄씩 나왔다 → 연결 우선, 4분기 연간값 행 정리
+    const fins = finNormalizeQuarters(finPreferFs(finRaw || []));
 
     if (!fins?.length) {
       body.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center">재무 데이터 없음</div>';

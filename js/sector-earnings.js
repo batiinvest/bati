@@ -82,14 +82,15 @@ async function loadSectorEarn() {
       let rawRows = [];
       for (let i = 0; i < codes.length; i += 300) {
         const data = await fetchAllPages((s, e) => sb.from('financials')
-          .select('stock_code,bsns_year,quarter,revenue,operating_profit,debt_ratio,finance_cost,fs_div')
+          .select('stock_code,bsns_year,quarter,revenue,operating_profit,debt_ratio,finance_cost,fs_div,is_cumulative')
           .in('stock_code', codes.slice(i, i + 300))
           .gte('bsns_year', String(year - 2))
           .order('stock_code', { ascending: true })
           .range(s, e));
         rawRows.push(...data);
       }
-      const rows = finPreferFs(rawRows);
+      // 4분기 연간값 행이 남으면 분기 YoY가 튀고 TTM(4분기 합)이 부풀려진다 → 정리
+      const rows = finNormalizeQuarters(finPreferFs(rawRows));
       if (!rows.length) { body.innerHTML = emptyHTML(ind + ' 산업 재무데이터 없음'); return; }
 
       // 2b) 시장데이터(밸류·시총·외국인) — 최신 거래일 (수익률/순매수는 커버리지 낮아 제외)

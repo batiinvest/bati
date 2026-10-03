@@ -32,14 +32,66 @@ function finPreferFs(rows) {
     : (anyCfs ? r.fs_div === 'CFS' : r.fs_div === 'OFS'));
 }
 
-// 단일 종목 재무 로드 (CFS 우선·OFS 폴백). cols에 fs_div 자동 포함, limit*2 fetch 후 우선 fs만.
+// ── financials 누적 행 정규화 — 백엔드 fin_rules.is_annual_q4와 같은 규칙 (2026-10-03 DART 대조) ──
+// is_cumulative=true는 직전 분기가 없어 수집기가 순분기로 못 바꾼 행이다. 뜻이 분기마다 다르다:
+//  · 1~3분기: 손익은 분기 단독 그대로 맞다. 누적(연초~)인 건 현금흐름뿐 → 현금흐름 칸만 비운다.
+//  · 4분기: 손익·현금흐름이 사업보고서 '연간값'. 같은 해 1~3분기가 다 있으면 빼서 4분기 단독으로,
+//    없으면(대부분 상장 첫해·리츠) 분기 값을 알 수 없어 뺀다 — 연간값이 '4분기'로 보이면
+//    분기 차트가 튀고 다음 분기가 급감처럼 보이며 TTM(4분기 합)이 부풀려진다.
+//  keepAnnualQ4: 최신값 표처럼 종목이 사라지면 안 되는 곳 — 행을 남기고 _annual=true 표시.
+//  is_cumulative를 select하지 않은 호출은 그대로 통과(기존 동작).
+const _FIN_FLOW = ['revenue', 'cogs', 'gross_profit', 'sga', 'rd_expense', 'other_operating_income',
+  'other_operating_expense', 'operating_profit', 'pretax_income', 'net_income', 'finance_income', 'finance_cost'];
+const _FIN_CF = ['operating_cashflow', 'investing_cashflow', 'financing_cashflow', 'cash_increase', 'capex',
+  'capex_intangible', 'depreciation', 'amortization', 'capex_total', 'da', 'ebitda', 'fcf', 'fcf_direct', 'fcf_indirect'];
+const _FIN_UNKNOWN_AFTER_SPLIT = ['revenue_yoy', 'revenue_qoq', 'op_profit_yoy', 'op_profit_qoq',
+  'net_income_yoy', 'net_income_qoq', 'roe', 'roa'];
+const _FIN_MARGIN = { operating_margin: 'operating_profit', net_margin: 'net_income',
+  gross_margin: 'gross_profit', cogs_ratio: 'cogs', sga_ratio: 'sga' };
+
+function finNormalizeQuarters(rows, { keepAnnualQ4 = false } = {}) {
+  if (!rows || !rows.length) return rows || [];
+  if (!rows.some(r => r.is_cumulative)) return rows;          // 대부분 종목은 해당 없음
+  const qn  = r => String(r.quarter || '').replace(/\D/g, '');
+  const key = r => `${r.stock_code ?? ''}|${r.bsns_year}|${r.fs_div ?? ''}`;
+  const grp = {};
+  for (const r of rows) (grp[key(r)] = grp[key(r)] || {})[qn(r)] = r;
+  const out = [];
+  for (const r of rows) {
+    if (!r.is_cumulative) { out.push(r); continue; }
+    const c = { ...r };
+    if (qn(r) !== '4') {                                       // 1~3분기: 현금흐름만 누적
+      for (const k of _FIN_CF) if (k in c) c[k] = null;
+      out.push(c); continue;
+    }
+    const q13 = ['1', '2', '3'].map(x => grp[key(r)][x]);
+    if (q13.every(Boolean)) {                                  // 1~3분기가 다 있으면 차감해 4분기 단독
+      const sub = (k, ok) => (ok && c[k] != null && q13.every(x => x[k] != null))
+        ? c[k] - q13.reduce((s, x) => s + x[k], 0) : null;
+      for (const k of _FIN_FLOW) if (k in c) c[k] = sub(k, true);
+      const cfOk = q13.every(x => !x.is_cumulative);           // 1~3분기 현금흐름이 누적이면 차감 불가
+      for (const k of _FIN_CF) if (k in c) c[k] = sub(k, cfOk);
+      for (const [m, src] of Object.entries(_FIN_MARGIN))
+        if (m in c) c[m] = (c.revenue > 0 && c[src] != null) ? c[src] / c.revenue * 100 : null;
+      for (const k of _FIN_UNKNOWN_AFTER_SPLIT) if (k in c) c[k] = null;
+      c.is_cumulative = false;
+      out.push(c); continue;
+    }
+    if (keepAnnualQ4) { c._annual = true; out.push(c); }       // 분기 단독 불명 — 최신값 표시용으로만
+  }
+  return out;
+}
+
+// 단일 종목 재무 로드 (CFS 우선·OFS 폴백 + 누적 행 정규화). cols에 fs_div·is_cumulative 자동 포함,
+// limit*2 fetch 후 우선 fs만.
 async function loadFinPreferred(code, cols, { limit = 24, asc = false } = {}) {
-  const sel = /(^|,)\s*fs_div\s*(,|$)/.test(cols) ? cols : cols + ',fs_div';
+  let sel = /(^|,)\s*fs_div\s*(,|$)/.test(cols) ? cols : cols + ',fs_div';
+  if (!/(^|,)\s*is_cumulative\s*(,|$)/.test(sel)) sel += ',is_cumulative';
   const { data } = await sb.from('financials').select(sel)
     .eq('stock_code', code)
     .order('bsns_year', { ascending: asc }).order('quarter', { ascending: asc })
     .limit(limit * 2);
-  return { data: finPreferFs(data).slice(0, limit) };
+  return { data: finNormalizeQuarters(finPreferFs(data)).slice(0, limit) };
 }
 
 // ══════════════════════════════════════════
