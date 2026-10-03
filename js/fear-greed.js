@@ -139,6 +139,83 @@ function computeFearGreed(rows, col) {
   return out;
 }
 
+// ── 원저자 시장 매매 규칙 — 태린이아빠 「외국인기관수급오실레이터(700)」 '일관성' 시트 (10-03) ──
+//  시장 매도: 피어앤그리드 오실레이터가 피크치면 기계적 비중 축소 · 인버스는 시장이 크게 망가질 가능성이
+//            있을 때만 · 평소에는 현금 30% 확보
+//  시장 매수: 피어앤그리드 오실레이터가 과매도 영역 + 코스닥 지수 3일선 오후장 회복
+//  판정(원본에 수치가 없어 정함) — 오실레이터를 수급 칸과 같은 방식으로 칸을 매긴다
+//   (그날까지 최근 63거래일의 [상위10, 상위25, 평균, 하위25, 하위10] — config.js flowLevels·flowGauge)
+//   피크 = 전날이 4칸 이상(상위 25% 위)이면서 꼭대기(그 전날보다 높고 오늘은 내림)
+//   과매도 = 0칸(하위 10% 아래)인 날이 최근 5거래일 안
+//   3일선 회복 = 코스닥 종가가 3일 이동평균 위로 올라선 날(전날은 아래) — 오후장 대신 종가로 본다
+const FG_LV_DAYS = 63, FG_LV_MIN = 20, FG_OVERSOLD_DAYS = 5, FG_HOT_FILL = 4;
+const FG_MARK = { peak: '#fb6340', buy: '#2dce89' };
+
+// res: computeFearGreed 결과, rows: 원자료(코스닥 종가) → 날짜마다 {date, osc, gg, kq, peak, oversold, kqUp, buy}
+function fgSignals(res, rows) {
+  const kq = (rows || []).filter(r => r.kosdaq != null).map(r => ({ d: r.base_date, c: +r.kosdaq }));
+  const kqBy = {};
+  kq.forEach((r, i) => {
+    const ma3 = i >= 2 ? (r.c + kq[i - 1].c + kq[i - 2].c) / 3 : null;
+    kqBy[r.d] = { c: r.c, ma3, above: ma3 != null && r.c >= ma3 };
+  });
+  const out = res.map((r, i) => {
+    const hist = res.slice(Math.max(0, i - FG_LV_DAYS + 1), i + 1).map(x => x.osc);
+    const lv = i > 0 && hist.length >= FG_LV_MIN ? flowLevels(hist) : null;
+    return { date: r.date, osc: r.osc, lv, gg: lv ? flowGauge({ lv, cur: r.osc, prev: res[i - 1].osc }) : null,
+             kq: kqBy[r.date] || null };
+  });
+  out.forEach((s, i) => {
+    const p = out[i - 1], pp = out[i - 2];
+    s.peak = !!(p?.gg && pp && p.gg.fill >= FG_HOT_FILL && p.osc >= pp.osc && s.osc < p.osc);
+    s.oversold = out.slice(Math.max(0, i - FG_OVERSOLD_DAYS + 1), i + 1).some(x => x.gg && x.gg.fill === 0);
+    s.kqUp = !!(s.kq?.above && p?.kq && p.kq.ma3 != null && !p.kq.above);
+    s.buy = s.oversold && s.kqUp;
+  });
+  return out;
+}
+
+function _fgRulesHTML(sig) {
+  const last = sig[sig.length - 1];
+  if (!last?.gg) return '';
+  const fs = 'font-size:calc(11px*var(--m-label))';
+  // 매도 — 오늘 피크이거나, 최근 피크 뒤로 계속 내리는 중
+  let pk = -1;
+  for (let i = sig.length - 1; i > 0; i--) {
+    if (sig[i].peak) { pk = i; break; }
+    if (sig[i].osc >= sig[i - 1].osc) break;   // 한 번이라도 올랐으면 피크 뒤 하락 구간이 끝남
+  }
+  const sellOn = pk >= 0;
+  const sellTxt = !sellOn ? `아님 — 오실레이터 ${last.gg.up ? '오르는 중' : '내리는 중'}`
+    : pk === sig.length - 1 ? '해당 — 오늘 피크에서 꺾임'
+    : `해당 — ${sig[pk - 1].date.slice(5).replace('-', '/')} 피크 뒤 ${sig.length - pk}일째 하락`;
+  const k = last.kq;
+  const kqTxt = !k?.ma3 ? '코스닥 3일선 —'
+    : `코스닥 ${k.c.toLocaleString(undefined, { maximumFractionDigits: 2 })} · 3일선 ${k.ma3.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+      + ` ${last.kqUp ? '위로 회복' : k.above ? '위' : '아래'}`;
+  const mark = (ok, t) => `<span style="color:${ok ? 'var(--text1)' : 'var(--text3)'}">${ok ? '●' : '○'} ${t}</span>`;
+  const row = (name, on, txt, color) => `
+    <div style="display:flex;align-items:baseline;gap:8px;${fs};padding:2px 0">
+      <span style="color:var(--text2);flex-shrink:0;width:88px">${name}</span>
+      <span style="color:${on ? color : 'var(--text2)'};font-weight:${on ? 700 : 400};min-width:0">${txt}</span>
+    </div>`;
+  return `<div style="padding:.5rem 1rem .55rem;border-bottom:1px solid var(--border)">
+    <div style="display:flex;align-items:center;gap:6px;${fs};color:var(--text2);margin-bottom:3px"
+      title="${escAttr(`오실레이터 칸 — 최근 ${FG_LV_DAYS}거래일 분포: `
+        + FLOW_LEVEL_NAMES.map((n, i) => `${n} ${_fgSigned(last.lv[i])}${last.osc >= last.lv[i] ? '■' : '□'}`).join(' · ')
+        + ` | 오늘 ${_fgSigned(last.osc)}`)}">
+      <b style="color:var(--text1)">원저자 시장 규칙</b>
+      <span style="margin-left:auto;white-space:nowrap">오실레이터 칸 ${flowGaugeBar(last.gg)} ${last.gg.fill}/5</span>
+    </div>
+    ${row('매도 조건', sellOn, sellTxt, FG_MARK.peak)}
+    <div style="${fs};color:var(--text3);padding:0 0 2px 96px">피크치면 비중 축소 · 평소 현금 30% · 인버스는 시장이 크게 망가질 가능성이 있을 때만</div>
+    ${row('매수 조건', last.buy, last.buy ? '해당 — 과매도 영역 + 코스닥 3일선 회복' : '아님', FG_MARK.buy)}
+    <div style="${fs};padding:0 0 0 96px;display:flex;flex-wrap:wrap;gap:2px 10px">
+      ${mark(last.oversold, '과매도 영역(최근 5일 안 0칸)')}${mark(last.kqUp, kqTxt)}
+    </div>
+  </div>`;
+}
+
 // ── 로드·렌더 ──────────────────────────────────────────────────────────
 
 async function loadFearGreed() {
@@ -182,6 +259,7 @@ function renderFearGreed() {
   const empty   = document.getElementById('fg-empty');
   const summary = document.getElementById('fg-summary');
   const compEl  = document.getElementById('fg-comp');
+  const rulesEl = document.getElementById('fg-rules');
   if (!canvas) return;
 
   const res = (FG.result || {})[FG.market] || [];
@@ -194,6 +272,7 @@ function renderFearGreed() {
     }
     if (summary) summary.innerHTML = '';
     if (compEl) compEl.innerHTML = '';
+    if (rulesEl) rulesEl.innerHTML = '';
     setAsOf('fg-date', null);
     return;
   }
@@ -226,6 +305,10 @@ function renderFearGreed() {
       + cell('오실레이터', _fgSigned(last.osc), oscTurn,
         last.osc > 0 ? 'var(--up)' : last.osc < 0 ? 'var(--down)' : 'var(--text)');
   }
+
+  // ── 원저자 시장 규칙 (피크 → 비중 축소 / 과매도 + 코스닥 3일선 회복 → 매수 조건) ──
+  const sig = fgSignals(res, FG.rows);
+  if (rulesEl) rulesEl.innerHTML = _fgRulesHTML(sig);
 
   // ── 구성 요소: 탐욕 쪽 점수(0~100) — 무엇이 지수를 끌어올리고 내리나 ──
   if (compEl) {
@@ -313,7 +396,16 @@ function renderFearGreed() {
           borderWidth: 0,
           barPercentage: 1,
           categoryPercentage: 0.9,
-        }],
+          order: 2,
+        },
+        // 원저자 규칙 표시 — ▼ 피크(전날 꼭대기, 비중 축소) · ▲ 매수 조건(과매도 + 코스닥 3일선 회복)
+        ...[['피크', 'peak', 180], ['매수 조건', 'buy', 0]].map(([label, k, rot]) => ({
+          type: 'line', label, order: 1, showLine: false,
+          // 피크는 꼭대기 막대에(판정은 다음 날 내려온 걸 보고 나온다)
+          data: sig.map((s, i) => (k === 'peak' ? sig[i + 1]?.peak : s.buy) ? s.osc : null),
+          pointStyle: 'triangle', rotation: rot, pointRadius: 4, pointHoverRadius: 5,
+          pointBackgroundColor: FG_MARK[k], pointBorderColor: FG_MARK[k],
+        }))],
       },
       options: {
         responsive: true,
@@ -321,7 +413,9 @@ function renderFearGreed() {
         layout: { padding: { right: FG_AXIS_R } },
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: ctx => `오실레이터: ${_fgSigned(ctx.parsed.y)}` } },
+          tooltip: { filter: it => it.parsed.y != null,
+                     callbacks: { label: ctx => ctx.dataset.type === 'line' ? `▶ ${ctx.dataset.label}`
+                                                 : `오실레이터: ${_fgSigned(ctx.parsed.y)}` } },
         },
         scales: {
           x: { display: false, offset: false },   // 선 차트와 같은 위치에 막대
