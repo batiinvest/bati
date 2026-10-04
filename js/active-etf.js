@@ -7,8 +7,12 @@
 //     KRX 구성비중(COMPST_RTO)은 음수 현금·원화예금까지 분모에 넣어 4개 ETF가 원본과 달랐다(10-04 대조:
 //     PLUS AI반도체소부장·WON 반도체밸류체인·RISE 비메모리·PLUS K제조업). 이 규칙으로 30개 999행 중 999행 일치.
 // 날짜: 현재 = 저장된 최신 거래일, 과거 = 그보다 3거래일 전(원본 예시 09-28 vs 09-23) — 둘 다 고를 수 있다(10-04 사용자 결정)
+// [추가 — 원본에 없음, 10-04 사용자 요청] '신규편입 모아보기': 고른 두 날짜 사이 30개 ETF가 새로 담은 종목을 한 표로.
+//   신규편입 = 표와 같은 기준(비교 날짜 비중 0 또는 없음 → 현재 비중 > 0). 현금(KRD…)과 비교 날짜에 상장 전이던
+//   ETF는 뺀다(상장 전 ETF는 표에서 전 종목이 신규편입으로 찍힌다). 정렬 = 담은 ETF 수 → 현재 비중 합.
 // 데이터: active_etfs, active_etf_holdings (백엔드 collect_active_etf.py, 평일 19:35)
-// 의존: config.js (sb, escapeHtml, escAttr, loadingHTML, emptyHTML, errorHTML)
+//   두 날짜의 30개 ETF 전체를 한 번 받아(AE.byDate) 탭 표와 모아보기가 같이 쓴다.
+// 의존: config.js (sb, fetchAllPages, escapeHtml, escAttr, escJsStr, loadingHTML, emptyHTML, errorHTML)
 
 const AE = {
   etfs: null,     // [{code, name, grp, grp_ord, ord}]
@@ -18,7 +22,10 @@ const AE = {
   past: null,     // 비교(과거) 날짜
   tab: 0,
   missing: false, // 테이블 없음(sql/active_etf.sql 실행 전)
+  byDate: {},     // 날짜 → { etf_code: [원본 비중 붙인 행] } (Promise)
+  newMore: false, // 모아보기 전부 보기
 };
+const AE_NEW_SHOW = 12;   // 모아보기 기본 줄 수
 const AE_PAST_GAP = 3;          // 기본 비교 = 3거래일 전 (원본 예시)
 const AE_DATE_PROBE = '438740'; // 가장 오래 상장된 ETF — 저장된 날짜 목록용
 const AE_SCALE = ['#63BE7B', '#FFEB84', '#F8696B'];   // 원본 3색 단계: 최소 · 중앙값(50%) · 최대
@@ -40,6 +47,7 @@ function pActiveEtf() {
     중간 <span class="ae-sw" style="background:${AE_SCALE[1]}"></span>
     높음 <span class="ae-sw" style="background:${AE_SCALE[2]}"></span> (원본 조건부 서식). 출처: KRX ETF PDF.
   </div>
+  <div id="ae-new"></div>
   <div id="ae-body">${loadingHTML('불러오는 중...')}</div>`;
 }
 
@@ -73,7 +81,7 @@ async function loadActiveEtf() {
     return;
   }
   _aeRenderControls();
-  _aeRenderTab();
+  _aeRender();
 }
 
 function _aeRenderControls() {
@@ -86,10 +94,11 @@ function _aeRenderControls() {
   if (past) past.innerHTML = AE.dates.filter(d => d < AE.cur).map(d => opt(d, AE.past)).join('');
 }
 
-function setAeTab(i) {
+function setAeTab(i, scroll) {
   AE.tab = i;
   _aeRenderControls();
   _aeRenderTab();
+  if (scroll) document.getElementById('ae-body')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function setAeDate(which, d) {
@@ -98,32 +107,117 @@ function setAeDate(which, d) {
     const i = AE.dates.indexOf(d);
     AE.past = AE.dates[Math.min(i + AE_PAST_GAP, AE.dates.length - 1)];
   }
+  AE.newMore = false;
   _aeRenderControls();
-  _aeRenderTab();
+  _aeRender();
+}
+
+function toggleAeNewMore() {
+  AE.newMore = !AE.newMore;
+  _aeRenderNew();
+}
+
+// 그날 30개 ETF 전체 → { etf_code: [원본 비중 붙인 행] } (한 번 받아 둔다)
+function _aeLoad(d) {
+  if (!AE.byDate[d]) {
+    AE.byDate[d] = fetchAllPages((a, b) => sb.from('active_etf_holdings')
+      .select('etf_code,item_code,item_name,mkt,amount,seq').eq('base_date', d)
+      .order('etf_code').order('seq').range(a, b))
+      .then(rows => {
+        const by = {};
+        rows.forEach(r => { (by[r.etf_code] = by[r.etf_code] || []).push(r); });
+        Object.keys(by).forEach(c => { by[c] = _aeWeights(by[c]); });
+        return by;
+      })
+      .catch(e => { delete AE.byDate[d]; throw e; });
+  }
+  return AE.byDate[d];
+}
+
+// 두 날짜를 받아 모아보기와 탭 표를 그린다 — 날짜가 바뀔 때만 부른다
+async function _aeRender() {
+  const body = document.getElementById('ae-body'), nw = document.getElementById('ae-new');
+  if (!body) return;
+  if (!AE.past || AE.past >= AE.cur) {
+    body.innerHTML = emptyHTML('현재보다 앞선 비교 날짜가 없습니다');
+    if (nw) nw.innerHTML = '';
+    return;
+  }
+  body.innerHTML = loadingHTML('불러오는 중...');
+  if (nw) nw.innerHTML = '';
+  const want = `${AE.cur}|${AE.past}`;
+  AE.want = want;
+  try {
+    await Promise.all([_aeLoad(AE.cur), _aeLoad(AE.past)]);
+    if (AE.want !== want) return;   // 그사이 날짜가 바뀜
+    _aeRenderNew();
+    _aeRenderTab();
+  } catch (e) {
+    console.warn('[액티브ETF]', e);
+    body.innerHTML = errorHTML(e.message || '조회 실패');
+  }
 }
 
 async function _aeRenderTab() {
   const body = document.getElementById('ae-body');
   const g = AE.groups[AE.tab];
   if (!body || !g) return;
-  if (!AE.past || AE.past >= AE.cur) { body.innerHTML = emptyHTML('현재보다 앞선 비교 날짜가 없습니다'); return; }
-  body.innerHTML = loadingHTML('불러오는 중...');
-  const want = `${AE.tab}|${AE.cur}|${AE.past}`;
-  AE.want = want;
-  try {
-    const q = d => sb.from('active_etf_holdings').select('etf_code,item_code,item_name,mkt,amount,seq')
-      .in('etf_code', g.codes).eq('base_date', d).order('etf_code').order('seq').limit(2000);
-    const [{ data: cur, error: e1 }, { data: past, error: e2 }] = await Promise.all([q(AE.cur), q(AE.past)]);
-    if (e1 || e2) throw (e1 || e2);
-    if (AE.want !== want) return;   // 그사이 탭·날짜가 바뀜
-    const nameOf = Object.fromEntries(AE.etfs.map(e => [e.code, e.name]));
-    body.innerHTML = `<div class="ae-grid">${g.codes.map(c =>
-      _aeTable(c, nameOf[c] || c, _aeWeights((cur || []).filter(r => r.etf_code === c)),
-               _aeWeights((past || []).filter(r => r.etf_code === c)))).join('')}</div>`;
-  } catch (e) {
-    console.warn('[액티브ETF]', e);
-    body.innerHTML = errorHTML(e.message || '조회 실패');
-  }
+  const [cur, past] = await Promise.all([_aeLoad(AE.cur), _aeLoad(AE.past)]);
+  const nameOf = Object.fromEntries(AE.etfs.map(e => [e.code, e.name]));
+  body.innerHTML = `<div class="ae-grid">${g.codes.map(c =>
+    _aeTable(c, nameOf[c] || c, cur[c] || [], past[c] || [])).join('')}</div>`;
+}
+
+// 신규편입 모아보기 (원본에 없는 추가 — 머리말 참고)
+async function _aeRenderNew() {
+  const el = document.getElementById('ae-new');
+  if (!el) return;
+  const [cur, past] = await Promise.all([_aeLoad(AE.cur), _aeLoad(AE.past)]);
+  const md = d => d.slice(5).replace('-', '/');
+  const tabOf = {};
+  AE.groups.forEach((g, i) => g.codes.forEach(c => { tabOf[c] = i; }));
+  const items = {}, skipped = [];
+  AE.etfs.forEach(e => {
+    if (!cur[e.code]?.length) return;
+    if (!past[e.code]?.length) { skipped.push(e.name); return; }   // 비교 날짜에 상장 전
+    const pw = Object.fromEntries(past[e.code].map(r => [r.item_code, r.weight]));
+    cur[e.code].forEach(r => {
+      if (r.item_code.startsWith('KRD') || !(r.weight > 0) || pw[r.item_code]) return;   // 현금 · 기존 보유
+      const it = items[r.item_code] = items[r.item_code] || { code: r.item_code, name: r.item_name, mkt: r.mkt, etfs: [] };
+      it.etfs.push({ code: e.code, name: e.name, w: r.weight });
+    });
+  });
+  const list = Object.values(items)
+    .map(it => ({ ...it, sum: it.etfs.reduce((s, x) => s + x.w, 0), etfs: it.etfs.sort((a, b) => b.w - a.w) }))
+    .sort((a, b) => b.etfs.length - a.etfs.length || b.sum - a.sum);
+  const shown = AE.newMore ? list : list.slice(0, AE_NEW_SHOW);
+  const fs = 'font-size:calc(11px*var(--m-label))';
+  el.innerHTML = `
+  <div class="card ae-new-card">
+    <div class="card-header" style="flex-wrap:wrap;gap:6px">
+      <span class="card-title">신규편입 모아보기</span>
+      <span class="card-sub" style="margin-right:auto">${md(AE.past)} → ${md(AE.cur)} · 30개 ETF가 새로 담은 종목 ${list.length}개 (현금 제외)</span>
+    </div>
+    ${!list.length ? `<div style="padding:12px;${fs};color:var(--text2)">이 기간에 새로 담은 종목이 없습니다</div>` : `
+    <div class="table-wrap"><table class="ae-tbl ae-new-tbl">
+      <thead><tr><th></th><th>종목명</th><th class="ae-num">ETF 수</th><th>담은 ETF (현재 비중)</th></tr></thead>
+      <tbody>${shown.map(it => {
+        const stock = /^[0-9A-Z]{6}$/.test(it.code);
+        return `<tr ${stock ? `class="stock-row" data-stock-open="${escAttr(it.code)}" data-stock-name="${escAttr(it.name || '')}" data-stock-tab="market"` : ''}>
+          <td class="ae-mkt">${AE_MKT[it.mkt] || ''}</td>
+          <td class="ae-name" title="${escAttr(it.name || '')}">${escapeHtml(it.name || it.code)}</td>
+          <td class="ae-num"><b>${it.etfs.length}</b></td>
+          <td class="ae-etfs"><div class="ae-etf-chips">${it.etfs.map(x => `<button class="chip chip-sm" data-no-detail title="${escAttr(x.name + ' 표로 이동')}"
+              onclick="setAeTab(${tabOf[x.code]}, true)">${escapeHtml(x.name)} ${x.w.toFixed(2)}%</button>`).join('')}</div></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>
+    ${list.length > AE_NEW_SHOW ? `<div style="padding:6px 12px;text-align:center"><button class="chip chip-sm" onclick="toggleAeNewMore()">${AE.newMore ? '접기' : `전부 보기 (+${list.length - AE_NEW_SHOW})`}</button></div>` : ''}`}
+    <div style="padding:6px 12px 8px;${fs};color:var(--text3);line-height:1.5;border-top:1px solid var(--border)">
+      원본에 없는 추가 표 — 아래 표의 '신규편입'(비교 날짜에 없거나 비중 0)을 30개 ETF에서 모은 것. 담은 ETF를 누르면 그 ETF 표로 갑니다.
+      ${skipped.length ? `<br>비교 날짜에 상장 전이라 뺀 ETF: ${escapeHtml(skipped.join(', '))}` : ''}
+    </div>
+  </div>`;
 }
 
 // 원본 비중 — 금액이 플러스인 행(원화예금 제외)으로 나눈다. 빠진 행(음수 현금·원화예금)은 원본처럼 0

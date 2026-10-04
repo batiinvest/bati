@@ -860,3 +860,8 @@ textarea.nt-textarea-sm { min-height:240px; }
 .ae-tbl .ae-name { max-width:150px; overflow:hidden; text-overflow:ellipsis; color:var(--text1); }
 .ae-tbl .ae-new { color:var(--up); font-weight:600; }
 @media(max-width:500px) { .ae-tbl td, .ae-tbl th { padding:4px 5px; } .ae-tbl .ae-name { max-width:96px; } }
+/* 신규편입 모아보기 — 담은 ETF 칩은 줄바꿈 */
+.ae-new-card { margin-bottom:1rem; }
+.ae-new-tbl td.ae-etfs { white-space:normal; }
+.ae-etf-chips { display:flex; flex-wrap:wrap; gap:4px; }
+.ae-new-tbl .ae-name { max-width:180px; }
