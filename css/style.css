@@ -840,3 +840,23 @@ textarea.nt-textarea { min-height:340px; height:100%; resize:vertical; font-fami
 }
 .nt-tg-sm { min-height:0; }
 textarea.nt-textarea-sm { min-height:240px; }
+
+/* ── 액티브 ETF 페이지 (active-etf.js) — 원본 「액티브ETF를 관찰하자」 요약 시트처럼 ETF 3개 나란히 ── */
+.ae-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap; margin-bottom:.5rem; }
+.ae-tabs { display:flex; gap:4px; flex-wrap:wrap; }
+.ae-dates { display:flex; gap:10px; font-size:calc(12px*var(--m-sub)); color:var(--text2); }
+.ae-dates select { margin-left:4px; background:var(--bg2); color:var(--text1); border:1px solid var(--border); border-radius:6px; padding:3px 6px; font-size:calc(12px*var(--m-sub)); }
+.ae-desc { font-size:calc(11px*var(--m-label)); color:var(--text3); line-height:1.6; margin-bottom:.75rem; }
+.ae-sw { display:inline-block; width:.9em; height:.9em; border-radius:2px; vertical-align:-1px; }
+.ae-grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:1rem; align-items:start; }
+@media(max-width:1200px) { .ae-grid { grid-template-columns:minmax(0,1fr); } }
+.ae-card { margin-bottom:0; }
+.ae-scroll { max-height:72vh; overflow:auto; }
+.ae-tbl { font-size:calc(12px*var(--m-sub)); }
+.ae-tbl th { position:sticky; top:0; background:var(--bg2); z-index:1; padding:6px 8px; }
+.ae-tbl td { padding:4px 8px; }
+.ae-tbl .ae-num { text-align:right; font-variant-numeric:tabular-nums; }
+.ae-tbl .ae-mkt { color:var(--text3); font-size:calc(11px*var(--m-label)); width:22px; padding-right:2px; }
+.ae-tbl .ae-name { max-width:150px; overflow:hidden; text-overflow:ellipsis; color:var(--text1); }
+.ae-tbl .ae-new { color:var(--up); font-weight:600; }
+@media(max-width:500px) { .ae-tbl td, .ae-tbl th { padding:4px 5px; } .ae-tbl .ae-name { max-width:96px; } }
