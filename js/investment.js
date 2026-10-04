@@ -41,16 +41,6 @@ function _skelList(n=5, compact=false) {
     `</div>`
   ).join('');
 }
-function _skelCards(n=4) {
-  return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;padding:12px">` +
-    Array(n).fill(0).map(() =>
-      `<div style="background:var(--bg3);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px">` +
-      `<span class="skeleton" style="width:60%;height:12px;border-radius:4px"></span>` +
-      `<span class="skeleton" style="width:40%;height:18px;border-radius:4px"></span>` +
-      `<span class="skeleton" style="width:80%;height:10px;border-radius:3px"></span>` +
-      `</div>`
-    ).join('') + `</div>`;
-}
 
 // ── 페이지 HTML ──
 function pInvestment() {

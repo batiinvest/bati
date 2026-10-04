@@ -7,7 +7,6 @@
 // FnGuide식 메인 탭 (인덱스 하드코딩 금지 — RP_TABS.indexOf('...')로 참조)
 const RP_TABS = ['기업현황','기업개요','사업분석','재무분석','투자지표','지분현황','최근리포트','금감원공시','수급흐름','DART 분석'];
 let _rpStock     = null;   // 선택된 종목 { code, name }
-let _rpTab       = 'overview';  // 현재 탭
 let _rpData      = {};     // 로드된 데이터 캐시
 let _rpSegCache  = null;   // 제품별 차트 캐시
 let _rpSegSel    = null;   // 선택된 세그먼트명 (null = 전체)

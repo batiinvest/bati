@@ -87,10 +87,6 @@ body { background:var(--bg); color:var(--text); font-family:'Pretendard','Apple 
 .nav-item.disabled { opacity:.3 !important; cursor:not-allowed; pointer-events:none; }
 .nav-item svg { width:15px; height:15px; flex-shrink:0; opacity:.8; }
 .nav-badge { margin-left:auto; background:var(--tg); color:#fff; font-size:calc(11px*var(--m-label)); font-weight:700; padding:1px 6px; border-radius:100px; }
-.nav-role { margin-left:auto; font-size:calc(11px*var(--m-label)); padding:1px 7px; border-radius:100px; font-weight:600; }
-.role-admin  { background:rgba(42,171,238,.2); color:var(--tg); }
-.role-editor { background:rgba(45,206,137,.15); color:var(--green); }
-.role-viewer { background:rgba(255,255,255,.08); color:var(--text3); }
 .sidebar-footer { padding:.875rem 1.25rem; border-top:1px solid var(--border); }
 .user-info { display:flex; align-items:center; gap:8px; margin-bottom:.625rem; }
 .user-avatar { width:28px; height:28px; border-radius:50%; background:rgba(42,171,238,.2); display:flex; align-items:center; justify-content:center; font-size:calc(11px*var(--m-label)); font-weight:700; color:var(--tg); flex-shrink:0; }
@@ -163,25 +159,7 @@ tr:hover td { background:rgba(255,255,255,.04); }
 }
 
 /* ── 케밥(⋯) 드롭다운 — 카드 헤더의 보조 작업 메뉴 ── */
-.kebab-wrap { position:relative; }
-.kebab-menu {
-  display:none; position:absolute; right:0; top:calc(100% + 4px);
-  background:var(--bg2); border:1px solid var(--border2); border-radius:8px;
-  padding:5px; z-index:60; box-shadow:0 8px 24px rgba(0,0,0,.45);
-  min-width:130px; flex-direction:column; gap:2px;
-}
-.kebab-menu.open { display:flex; }
-.kebab-item {
-  background:none; border:none; color:var(--text1); font-size:calc(12px*var(--m-sub));
-  text-align:left; padding:7px 10px; border-radius:6px; cursor:pointer;
-  font-family:inherit; display:flex; align-items:center; white-space:nowrap;
-}
-.kebab-item:hover { background:var(--bg3); color:var(--text); }
 /* 케밥(⋯) 트리거 — 시각 크기는 작지만 최소 터치 타깃 32×32 확보(가로 확장은 ::after가 못 해줌) */
-.kebab-wrap > .chip-sm {
-  min-width:32px; min-height:32px;
-  display:inline-flex; align-items:center; justify-content:center;
-}
 
 /* ── 스크리너 필터 접기 토글 ── */
 .sc-filter-chev { margin-left:auto; font-size:calc(11px*var(--m-label)); color:var(--text2); transition:transform .2s; }
@@ -330,8 +308,6 @@ textarea.form-input { resize:vertical; min-height:100px; }
 @keyframes spin { to{transform:rotate(360deg)} }
 
 /* ── Viewer lock overlay ── */
-.viewer-lock { position:absolute; inset:0; background:rgba(15,17,23,.7); display:flex; align-items:center; justify-content:center; border-radius:var(--radius); z-index:5; backdrop-filter:blur(2px); }
-.viewer-lock span { font-size:calc(12px*var(--m-sub)); color:var(--text3); padding:6px 14px; border:1px solid var(--border); border-radius:100px; }
 
 @media(max-width:900px){
   /* ── 레이아웃 ── */
@@ -365,7 +341,6 @@ textarea.form-input { resize:vertical; min-height:100px; }
   th, td { padding:7px 8px; }
 
   /* ── 전체현황: 산업별/Top5 2열 → 1열 ── */
-  .overview-grid { grid-template-columns:1fr !important; }
 
   /* (시황 상단 2-col은 '오늘의 시장 판단' 단일 카드로 통합 — .inv-top-grid 제거됨) */
 
@@ -384,8 +359,6 @@ textarea.form-input { resize:vertical; min-height:100px; }
   .topbar-actions button span { display:none; }
 
   /* ── 재무조회 컨트롤 ── */
-  .fin-controls { flex-wrap:wrap; }
-  .fin-controls .btn-group { margin-left:0 !important; width:100%; justify-content:flex-end; }
 
   /* ── 마켓 스트립 — 4개 이상 숨김 ── */
   .market-strip-item:nth-child(n+4) { display:none; }
@@ -405,22 +378,11 @@ textarea.form-input { resize:vertical; min-height:100px; }
   .card-header { padding:.75rem .875rem; }
   .modal { padding:1rem; }
   /* 종목 관리 테이블 — 덜 중요한 컬럼 숨김 */
-  .stock-col-chatid,
   .stock-col-keyword { display:none; }
 }
 
 /* ── 워치리스트 인라인 편집 가능 셀: hover 시 연필 힌트 ── */
-.wl-editable { cursor:pointer; position:relative; }
-.wl-editable:hover { box-shadow:inset 0 0 0 1px var(--border2); }
-.wl-editable::after {
-  content:'\270E'; position:absolute; top:3px; right:4px;
-  font-size:calc(11px*var(--m-label)); color:var(--text3); opacity:0; transition:opacity .15s; pointer-events:none;
-}
-.wl-editable:hover::after { opacity:.7; }
 /* 터치 기기는 hover가 없어 편집 가능 셀을 발견할 수 없음 → 연필 힌트 상시 노출 */
-@media (pointer: coarse) {
-  .wl-editable::after { opacity:.45; }
-}
 
 /* ── 모바일 반응형: 스크리너·워치리스트·주도주 (P3-3) ─────────────── */
 @media(max-width:900px){
@@ -430,11 +392,8 @@ textarea.form-input { resize:vertical; min-height:100px; }
   /* 워치리스트 테이블은 탭별로 컬럼을 자동 선별(JS) — 고정 nth-child 숨김 제거 */
 
   /* 주도주 카드 그리드 2열 → 1열 */
-  .leading-grid { grid-template-columns:1fr !important; }
 
   /* 공시 테이블 — 접수시각 숨김 */
-  .disc-table th:nth-child(3),
-  .disc-table td:nth-child(3) { display:none; }
 
   /* 포트폴리오 요약 카드 — 가로 스크롤 대신 2열 랩 */
   #wl-summary > div { flex-wrap:wrap; }
@@ -444,37 +403,13 @@ textarea.form-input { resize:vertical; min-height:100px; }
 /* ── 투자노트 테이블: 좁은 화면에서 컬럼 우선순위 + 종목명 고정 (data-col 기반) ── */
 @media(max-width:900px){
   /* 펀더멘털·산업 등 저우선 컬럼 숨김 — 진입가·목표가·손익·비중·액션은 유지 */
-  .wl-table [data-col="industry"],
-  .wl-table [data-col="rev"],
-  .wl-table [data-col="op"],
-  .wl-table [data-col="roe"],
-  .wl-table [data-col="opm"],
-  .wl-table [data-col="cap"] { display:none; }
   /* 종목명 컬럼 고정 — 가로 스크롤 시 어느 종목인지 유지 */
-  .wl-table [data-col="name"] {
-    position:sticky; left:0; z-index:2;
-    background:var(--bg2); box-shadow:1px 0 0 var(--border2);
-  }
 }
 @media(max-width:600px){
   /* 더 좁은 화면: 등락 추이·투자포인트·다음점검 추가 숨김 */
-  .wl-table [data-col="ret"],
-  .wl-table [data-col="thesis"],
-  .wl-table [data-col="check"] { display:none; }
 }
 
 /* ── 투자노트 상세 드로어 (행 클릭 → 우측 슬라이드) ── */
-.wl-drawer-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:70; opacity:0; transition:opacity .2s; }
-.wl-drawer-backdrop.open { opacity:1; }
-.wl-drawer {
-  position:fixed; top:0; right:0; height:100vh; width:440px; max-width:92vw;
-  background:var(--bg); border-left:1px solid var(--border2); box-shadow:-8px 0 28px rgba(0,0,0,.45);
-  z-index:71; transform:translateX(100%); transition:transform .22s ease; display:flex; flex-direction:column;
-}
-.wl-drawer.open { transform:translateX(0); }
-.wl-drawer-head { padding:14px 16px; border-bottom:1px solid var(--border); flex-shrink:0; }
-.wl-drawer-body { padding:14px 16px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:16px; }
-@media(max-width:600px){ .wl-drawer { width:100vw; } }
 
 @media(max-width:600px){
   /* (스크리너 nth-child(9,10) 숨김 제거 — 컬럼 구성 변경 후 주석과 달리
@@ -533,7 +468,6 @@ textarea.form-input { resize:vertical; min-height:100px; }
    .card--sub 는 각주성 카드를 완전히 평평하게 눕히고 싶을 때 선택적으로 사용. */
 .card--hero { box-shadow: var(--shadow-md); border-color: var(--border2); }
 .card--hero .card-title { font-size: calc(16px*var(--m-title)); }
-.card--sub  { box-shadow: none; }
 
 /* metric-card 좌측 포인트 바 */
 .metric-card::before {
@@ -541,9 +475,6 @@ textarea.form-input { resize:vertical; min-height:100px; }
   width:3px; background:var(--accent, var(--tg));
   border-radius:3px 0 0 3px;
 }
-.metric-card.up   { --accent:var(--red);   background:linear-gradient(135deg,var(--up-glow),transparent 60%); }
-.metric-card.down { --accent:var(--blue);  background:linear-gradient(135deg,var(--down-glow),transparent 60%); }
-.metric-card.tg   { --accent:var(--tg);    background:linear-gradient(135deg,var(--tg-glow),transparent 60%); }
 
 /* ── metric-label — uppercase 제거, 한국어 가독성 ── */
 .metric-label { text-transform:none; letter-spacing:0; font-weight:600; }
@@ -659,12 +590,6 @@ td.ctr, th.ctr { text-align:center; }
 }
 
 /* ── 수급 컬럼 헤더 ── */
-.flow-col-header {
-  padding:7px 10px;
-  font-size:calc(11px*var(--m-label)); font-weight:600;
-  background:var(--bg3);
-  border-bottom:1px solid var(--border);
-}
 
 /* ── 탑바 시장 스트립 ── */
 /* align-items:flex-start — 2단 항목(코스피·코스닥·S&P·나스닥)과 1단 항목(VIX·달러)의
@@ -719,7 +644,6 @@ td { padding:7px 10px; font-size:var(--fs-data); }
 .num-down { color:var(--down); }
 .stock-name { font-size:calc(13px*var(--m-body)); font-weight:500; }
 .stock-code { font-size:calc(11px*var(--m-label)); color:var(--text3); }
-.stock-meta { font-size:calc(11px*var(--m-label)); color:var(--text3); }
 
 /* 메트릭 카드 컴팩트 */
 .metric-value { font-size:var(--fs-big); font-weight:700; font-variant-numeric:tabular-nums; line-height:1; }
@@ -733,9 +657,6 @@ td { padding:7px 10px; font-size:var(--fs-data); }
 .sig-sell   { background:rgba(240,165,0,.12);  color:var(--warn);   border:1px solid rgba(240,165,0,.25); }
 .sig-watch  { background:rgba(240,165,0,.12);  color:var(--accent); border:1px solid rgba(240,165,0,.2); }
 .sig-neutral{ background:rgba(136,152,170,.1); color:var(--neutral); border:1px solid var(--border); }
-.grade-s { background:rgba(240,165,0,.2);   color:#f0a500; font-weight:700; }
-.grade-a { background:rgba(0,192,135,.15);  color:var(--buy); }
-.grade-b { background:rgba(42,171,238,.12); color:var(--tg); }
 
 /* (스켈레톤 로딩 — 상단 'Skeleton loading' 단일 정의 사용, 중복 제거) */
 
@@ -744,10 +665,6 @@ td { padding:7px 10px; font-size:var(--fs-data); }
 .stock-row:hover { background:rgba(255,255,255,.03); }
 
 /* ── Task 8-1: 종목 툴팁 ── */
-.stock-tooltip { position:absolute; z-index:100; background:var(--bg2); border:1px solid var(--border2);
-                 border-radius:8px; padding:10px 12px; min-width:200px; box-shadow:0 8px 24px rgba(0,0,0,.4);
-                 pointer-events:none; opacity:0; transition:opacity .15s; font-size:calc(12px*var(--m-sub)); }
-.stock-tooltip.show { opacity:1; }
 
 /* ── Task 2: 사이드바 ADMIN 섹션 ── */
 .nav-sec-admin { cursor:pointer; user-select:none; }
@@ -828,9 +745,6 @@ textarea.nt-textarea { min-height:340px; height:100%; resize:vertical; font-fami
 .nt-summary { font-size:calc(12px*var(--m-sub)); color:var(--text2); margin-left:auto; }
 .nt-summary b { color:var(--text); }
 .nt-sendbar #i-prog { flex-basis:100%; font-size:calc(12px*var(--m-sub)); padding:8px 10px; background:var(--bg3); border-radius:var(--radius-sm); color:var(--text1); }
-.nt-util { display:flex; align-items:center; gap:10px; padding:10px 14px; flex-wrap:wrap; }
-.nt-util-txt { font-size:calc(12px*var(--m-sub)); color:var(--text2); flex:1; min-width:240px; line-height:1.6; }
-.nt-util-txt b { color:var(--text1); }
 @media (max-width:900px) {
   .nt-editor-grid { grid-template-columns:1fr; }
   textarea.nt-textarea { min-height:220px; }

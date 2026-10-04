@@ -16,8 +16,6 @@ const IND_DEFAULT_COLORS = [
 
 let _indTrendPeriod = 7;
 let _indTrendChart2 = null;
-let _indTrendSelected = null; // null = 전체
-
 async function loadIndTrendChart() {
   const canvas = document.getElementById('ind-trend-chart');
   if (!canvas) return;
@@ -244,10 +242,6 @@ function setIndTrendPeriod(period) {
   document.querySelectorAll('[data-ind-period]').forEach(b =>
     b.classList.toggle('active', b.dataset.indPeriod === String(period)));
   loadIndTrendChart();
-}
-
-function toggleIndTrend(ind) {
-  IND.toggleLegend(ind);
 }
 
 

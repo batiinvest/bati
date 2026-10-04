@@ -593,17 +593,6 @@ function _rpParseBusinessSections(md, stockCode) {
   return result;
 }
 
-// ── 금액 포맷 (억/조) ─────────────────────────────────────────────────────────
-function _fmtBillions(won) {
-  if (won == null) return '—';
-  const abs = Math.abs(won);
-  const sign = won < 0 ? '-' : '';
-  if (abs >= 1e12) return sign + (abs/1e12).toFixed(1) + '조';
-  if (abs >= 1e8)  return sign + (abs/1e8).toFixed(1) + '억';
-  if (abs >= 1e4)  return sign + Math.round(abs/1e4) + '만';
-  return sign + abs.toLocaleString('ko-KR');
-}
-
 // ── MD → 아코디언 섹션 HTML ───────────────────────────────────────────────────
 function _mdToAccordion(md) {
   const lines = md.split('\n');

@@ -292,8 +292,6 @@ function _applyUskrHighlight(label) {
   chart.update('none');
 }
 
-function reloadUskrChart() { loadUskrChart(); }
-
 function setUskrPeriod(period) {
   _uskrPeriod = period;
   document.querySelectorAll('[data-uskr-period]').forEach(b =>

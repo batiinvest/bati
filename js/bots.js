@@ -1025,68 +1025,6 @@ async function saveProChannelConfig() {
   } catch(e) { toast('저장 실패: ' + e.message, 'error'); }
 }
 
-async function saveSmsToken() {
-  if (!isAdmin()) { toast('admin만 가능합니다.', 'error'); return; }
-  const val = document.getElementById('cfg-sms-token')?.value.trim();
-  if (!val) { toast('토큰을 입력해주세요.', 'error'); return; }
-  try {
-    await sb.from('app_config').upsert(
-      { key: 'sms_webhook_token', value: val, updated_at: new Date().toISOString() },
-      { onConflict: 'key' }
-    );
-    toast('토큰 저장 완료', 'success');
-  } catch(e) { toast('저장 실패: ' + e.message, 'error'); }
-}
-
-function copySmsUrl() {
-  const urlEl = document.getElementById('sms-webhook-url');
-  if (!urlEl) return;
-  const text = urlEl.textContent;
-  navigator.clipboard?.writeText(text).then(() => toast('URL 복사됨', 'info'))
-    .catch(() => toast('직접 복사해주세요: ' + text, 'info'));
-}
-
-async function loadSmsDeposits() {
-  const logEl = document.getElementById('sms-deposit-log');
-  if (!logEl) return;
-
-  try {
-    // app_config에서 최근 이력 로드
-    const { data } = await sb.from('app_config').select('value').eq('key', 'sms_deposit_log').maybeSingle();
-    if (!data || !data.value) {
-      logEl.innerHTML = '<div style="font-size:calc(12px*var(--m-sub));color:var(--text2)">아직 처리 이력이 없습니다.</div>';
-      return;
-    }
-    const entries = JSON.parse(data.value).reverse();
-    if (!entries.length) {
-      logEl.innerHTML = '<div style="font-size:calc(12px*var(--m-sub));color:var(--text2)">아직 처리 이력이 없습니다.</div>';
-      return;
-    }
-
-    const STATUS_LABEL = {
-      'auto_extended': ['✅ 자동 처리', 'var(--green)'],
-      'unmatched':     ['❓ 미매칭',   'var(--yellow)'],
-      'error':         ['❌ 오류',     'var(--red)'],
-    };
-
-    logEl.innerHTML = '<div class="table-wrap"><table><thead><tr><th>시각</th><th>은행</th><th>입금자</th><th>금액</th><th>처리</th></tr></thead><tbody>' +
-      entries.map(e => {
-        const [label, color] = STATUS_LABEL[e.action] || ['?', 'var(--text3)'];
-        const time = new Date(e.time).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
-        return `<tr>
-          <td style="font-size:calc(11px*var(--m-label));color:var(--text1)">${time}</td>
-          <td style="font-size:calc(12px*var(--m-sub))">${e.bank||'?'}</td>
-          <td><b>${e.name||'?'}</b>${e.member && e.member !== e.name ? `<br><span style="font-size:calc(11px*var(--m-label));color:var(--text2)">→ ${e.member}</span>` : ''}</td>
-          <td style="font-size:calc(12px*var(--m-sub))">${(e.amount||0).toLocaleString()}원</td>
-          <td style="color:${color};font-size:calc(12px*var(--m-sub));font-weight:600">${label}</td>
-        </tr>`;
-      }).join('') +
-    '</tbody></table></div>';
-  } catch(e) {
-    logEl.innerHTML = `<div style="font-size:calc(12px*var(--m-sub));color:var(--red)">로드 실패: ${e.message}</div>`;
-  }
-}
-
 async function loadProMembers() {
   const listEl = document.getElementById('pro-member-list');
   if (!listEl) return;

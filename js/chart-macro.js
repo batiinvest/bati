@@ -1,35 +1,6 @@
 // chart-macro.js — 글로벌 매크로 차트 (흐름 비교 차트, ETF 배너)
 // 의존: config.js, investment.js (INV_ALL_METRICS, INV)
 
-// ── 매크로 위험 신호 임계값 (투자전문가 기준) ──
-const MACRO_RISK_SIGNALS = {
-  vix:            { caution: 20,    danger: 30,    critical: 40,   dir: 'above' },
-  us10y:          { caution: 4.3,   danger: 4.5,   critical: 5.0,  dir: 'above' },
-  usd_krw:        { caution: 1400,  danger: 1500,  critical: 1600, dir: 'above' },
-  sp500_chg:      { caution: -1.5,  danger: -2.5,  critical: -4.0, dir: 'below' },
-  nasdaq_chg:     { caution: -2.0,  danger: -3.5,  critical: -5.0, dir: 'below' },
-  sp500_fut_chg:  { caution: -1.0,  danger: -2.0,                  dir: 'below' },
-  nasdaq_fut_chg: { caution: -1.5,  danger: -2.5,                  dir: 'below' },
-  wti:            { caution: 90,    danger: 100,                   dir: 'above' },
-};
-
-function _getRisk(key, value) {
-  if (value == null || isNaN(Number(value))) return null;
-  const v = Number(value);
-  const s = MACRO_RISK_SIGNALS[key];
-  if (!s) return null;
-  if (s.dir === 'above') {
-    if (s.critical != null && v >= s.critical) return 'critical';
-    if (s.danger   != null && v >= s.danger)   return 'danger';
-    if (s.caution  != null && v >= s.caution)  return 'caution';
-  } else {
-    if (s.critical != null && v <= s.critical) return 'critical';
-    if (s.danger   != null && v <= s.danger)   return 'danger';
-    if (s.caution  != null && v <= s.caution)  return 'caution';
-  }
-  return null;
-}
-
 async function loadMacroData() {
   // limit 8 — 연휴가 끼면 최신 행 몇 개가 휴장일이라 거래일을 찾을 여유가 필요하다
   const { data } = await sb.from('macro_data')
