@@ -865,3 +865,4 @@ textarea.nt-textarea-sm { min-height:240px; }
 .ae-new-tbl td.ae-etfs { white-space:normal; }
 .ae-etf-chips { display:flex; flex-wrap:wrap; gap:4px; }
 .ae-new-tbl .ae-name { max-width:180px; }
+@media(max-width:500px) { .ae-new-tbl td > .chip { max-width:104px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } }

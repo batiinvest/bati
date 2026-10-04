@@ -7,9 +7,12 @@
 //     KRX 구성비중(COMPST_RTO)은 음수 현금·원화예금까지 분모에 넣어 4개 ETF가 원본과 달랐다(10-04 대조:
 //     PLUS AI반도체소부장·WON 반도체밸류체인·RISE 비메모리·PLUS K제조업). 이 규칙으로 30개 999행 중 999행 일치.
 // 날짜: 현재 = 저장된 최신 거래일, 과거 = 그보다 3거래일 전(원본 예시 09-28 vs 09-23) — 둘 다 고를 수 있다(10-04 사용자 결정)
-// [추가 — 원본에 없음, 10-04 사용자 요청] '신규편입 모아보기': 고른 두 날짜 사이 30개 ETF가 새로 담은 종목을 한 표로.
-//   신규편입 = 표와 같은 기준(비교 날짜 비중 0 또는 없음 → 현재 비중 > 0). 현금(KRD…)과 비교 날짜에 상장 전이던
-//   ETF는 뺀다(상장 전 ETF는 표에서 전 종목이 신규편입으로 찍힌다). 정렬 = 담은 ETF 수 → 현재 비중 합.
+// [추가 — 원본에 없음, 10-04 사용자 요청] '구성 변화 모아보기': 고른 두 날짜 사이 30개 ETF의 변화를 한 표로.
+//   신규편입 = 표와 같은 기준(비교 날짜 비중 0 또는 없음 → 현재 비중 > 0), 종목별로 묶어 담은 ETF 수 → 비중 합 순.
+//   비중 증가·감소 = 아래 표들의 비중차이·증가율을 ETF×종목 한 줄씩 모아 큰 순(증가율 순 / 비중차이 순 선택).
+//     기준선 없이 늘린(줄인) 것 전부를 크기 순으로 늘어놓는다. 신규편입은 증가에서 빼고(증가율이 없다),
+//     비교 날짜 뒤 빠진 종목(편출)은 원본 표처럼 나오지 않는다.
+//   공통: 현금(KRD…)과 비교 날짜에 상장 전이던 ETF는 뺀다(상장 전 ETF는 표에서 전 종목이 신규편입으로 찍힌다).
 // 데이터: active_etfs, active_etf_holdings (백엔드 collect_active_etf.py, 평일 19:35)
 //   두 날짜의 30개 ETF 전체를 한 번 받아(AE.byDate) 탭 표와 모아보기가 같이 쓴다.
 // 의존: config.js (sb, fetchAllPages, escapeHtml, escAttr, escJsStr, loadingHTML, emptyHTML, errorHTML)
@@ -24,6 +27,8 @@ const AE = {
   missing: false, // 테이블 없음(sql/active_etf.sql 실행 전)
   byDate: {},     // 날짜 → { etf_code: [원본 비중 붙인 행] } (Promise)
   newMore: false, // 모아보기 전부 보기
+  view: 'new',    // 모아보기: new 신규편입 · up 비중 증가 · down 비중 감소
+  sort: 'rate',   // 증가·감소 정렬: rate 증가율(감소율) · diff 비중차이
 };
 const AE_NEW_SHOW = 12;   // 모아보기 기본 줄 수
 const AE_PAST_GAP = 3;          // 기본 비교 = 3거래일 전 (원본 예시)
@@ -117,6 +122,18 @@ function toggleAeNewMore() {
   _aeRenderNew();
 }
 
+function setAeView(v) {
+  AE.view = v;
+  AE.newMore = false;
+  _aeRenderNew();
+}
+
+function setAeSort(v) {
+  AE.sort = v;
+  AE.newMore = false;
+  _aeRenderNew();
+}
+
 // 그날 30개 ETF 전체 → { etf_code: [원본 비중 붙인 행] } (한 번 받아 둔다)
 function _aeLoad(d) {
   if (!AE.byDate[d]) {
@@ -168,7 +185,7 @@ async function _aeRenderTab() {
     _aeTable(c, nameOf[c] || c, cur[c] || [], past[c] || [])).join('')}</div>`;
 }
 
-// 신규편입 모아보기 (원본에 없는 추가 — 머리말 참고)
+// 구성 변화 모아보기 (원본에 없는 추가 — 머리말 참고)
 async function _aeRenderNew() {
   const el = document.getElementById('ae-new');
   if (!el) return;
@@ -176,45 +193,84 @@ async function _aeRenderNew() {
   const md = d => d.slice(5).replace('-', '/');
   const tabOf = {};
   AE.groups.forEach((g, i) => g.codes.forEach(c => { tabOf[c] = i; }));
-  const items = {}, skipped = [];
+
+  // ETF×종목 한 줄씩 — 현재 비중 c, 비교 비중 p
+  const pairs = [], skipped = [];
   AE.etfs.forEach(e => {
     if (!cur[e.code]?.length) return;
     if (!past[e.code]?.length) { skipped.push(e.name); return; }   // 비교 날짜에 상장 전
     const pw = Object.fromEntries(past[e.code].map(r => [r.item_code, r.weight]));
     cur[e.code].forEach(r => {
-      if (r.item_code.startsWith('KRD') || !(r.weight > 0) || pw[r.item_code]) return;   // 현금 · 기존 보유
-      const it = items[r.item_code] = items[r.item_code] || { code: r.item_code, name: r.item_name, mkt: r.mkt, etfs: [] };
-      it.etfs.push({ code: e.code, name: e.name, w: r.weight });
+      if (r.item_code.startsWith('KRD') || !(r.weight > 0)) return;   // 현금 · 비중 0
+      const p = pw[r.item_code] || 0;
+      pairs.push({ code: r.item_code, name: r.item_name, mkt: r.mkt, etf: e.code, etfName: e.name,
+                   c: r.weight, p, diff: Math.round((r.weight - p) * 100) / 100, rate: p ? r.weight / p - 1 : null });
     });
   });
-  const list = Object.values(items)
-    .map(it => ({ ...it, sum: it.etfs.reduce((s, x) => s + x.w, 0), etfs: it.etfs.sort((a, b) => b.w - a.w) }))
-    .sort((a, b) => b.etfs.length - a.etfs.length || b.sum - a.sum);
+
+  let list, count;
+  if (AE.view === 'new') {
+    const items = {};
+    pairs.filter(x => !x.p).forEach(x => {
+      const it = items[x.code] = items[x.code] || { code: x.code, name: x.name, mkt: x.mkt, etfs: [] };
+      it.etfs.push(x);
+    });
+    list = Object.values(items)
+      .map(it => ({ ...it, sum: it.etfs.reduce((s, x) => s + x.c, 0), etfs: it.etfs.sort((a, b) => b.c - a.c) }))
+      .sort((a, b) => b.etfs.length - a.etfs.length || b.sum - a.sum);
+    count = `30개 ETF가 새로 담은 종목 ${list.length}개`;
+  } else {
+    const up = AE.view === 'up', k = AE.sort;
+    list = pairs.filter(x => x.p && (up ? x.diff > 0 : x.diff < 0))
+      .sort((a, b) => up ? b[k] - a[k] : a[k] - b[k]);
+    count = `비중을 ${up ? '늘린' : '줄인'} 경우 ${list.length}건 (ETF×종목)`;
+  }
   const shown = AE.newMore ? list : list.slice(0, AE_NEW_SHOW);
   const fs = 'font-size:calc(11px*var(--m-label))';
+  const chip = (v, label, fn, cur) => `<button class="chip chip-sm ${cur === v ? 'active' : ''}" onclick="${fn}('${v}')">${label}</button>`;
+  const etfBtn = (code, name, txt) => `<button class="chip chip-sm" data-no-detail title="${escAttr(name + ' 표로 이동')}"
+      onclick="setAeTab(${tabOf[code]}, true)">${escapeHtml(txt)}</button>`;
+  const rowAttr = it => /^[0-9A-Z]{6}$/.test(it.code)
+    ? `class="stock-row" data-stock-open="${escAttr(it.code)}" data-stock-name="${escAttr(it.name || '')}" data-stock-tab="market"` : '';
+  const sgn = (v, f) => `<span style="color:${v > 0 ? 'var(--up)' : v < 0 ? 'var(--down)' : 'var(--text2)'}">${f(v)}</span>`;
+  const head = AE.view === 'new'
+    ? '<th></th><th>종목명</th><th class="ae-num">ETF 수</th><th>담은 ETF (현재 비중)</th>'
+    : `<th></th><th>종목명</th><th>ETF</th><th class="ae-num">${md(AE.cur)}</th><th class="ae-num">${md(AE.past)}</th>
+       <th class="ae-num">비중차이</th><th class="ae-num">${AE.view === 'up' ? '증가율' : '감소율'}</th>`;
+  const row = AE.view === 'new'
+    ? it => `<tr ${rowAttr(it)}><td class="ae-mkt">${AE_MKT[it.mkt] || ''}</td>
+        <td class="ae-name" title="${escAttr(it.name || '')}">${escapeHtml(it.name || it.code)}</td>
+        <td class="ae-num"><b>${it.etfs.length}</b></td>
+        <td class="ae-etfs"><div class="ae-etf-chips">${it.etfs.map(x => etfBtn(x.etf, x.etfName, `${x.etfName} ${x.c.toFixed(2)}%`)).join('')}</div></td></tr>`
+    : x => `<tr ${rowAttr(x)}><td class="ae-mkt">${AE_MKT[x.mkt] || ''}</td>
+        <td class="ae-name" title="${escAttr(x.name || '')}">${escapeHtml(x.name || x.code)}</td>
+        <td>${etfBtn(x.etf, x.etfName, x.etfName)}</td>
+        <td class="ae-num">${x.c.toFixed(2)}</td><td class="ae-num">${x.p.toFixed(2)}</td>
+        <td class="ae-num">${sgn(x.diff, v => (v > 0 ? '+' : '') + v.toFixed(2))}</td>
+        <td class="ae-num">${sgn(x.rate, v => (v > 0 ? '+' : '') + Math.round(v * 100) + '%')}</td></tr>`;
+  const note = AE.view === 'new'
+    ? "아래 표의 '신규편입'(비교 날짜에 없거나 비중 0)을 30개 ETF에서 종목별로 모은 것 — 담은 ETF 수 → 비중 합 순."
+    : `아래 표들의 비중차이·${AE.view === 'up' ? '증가율' : '증가율(마이너스 = 감소율)'}을 ETF×종목 한 줄씩 모아 ${AE.sort === 'rate' ? (AE.view === 'up' ? '증가율' : '감소율') : '비중차이'}이 큰 순.
+       비중은 주가가 오르내려도 바뀝니다(운용사가 사고팔지 않아도). ${AE.view === 'up' ? '신규편입은 증가율이 없어 신규편입 보기에.' : '비교 날짜 뒤 빠진 종목(편출)은 원본 표처럼 나오지 않습니다.'}`;
   el.innerHTML = `
   <div class="card ae-new-card">
     <div class="card-header" style="flex-wrap:wrap;gap:6px">
-      <span class="card-title">신규편입 모아보기</span>
-      <span class="card-sub" style="margin-right:auto">${md(AE.past)} → ${md(AE.cur)} · 30개 ETF가 새로 담은 종목 ${list.length}개 (현금 제외)</span>
+      <span class="card-title">구성 변화 모아보기</span>
+      <span class="card-sub" style="margin-right:auto">${md(AE.past)} → ${md(AE.cur)} · ${count} (현금 제외)</span>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        ${chip('new', '신규편입', 'setAeView', AE.view)}${chip('up', '비중 증가', 'setAeView', AE.view)}${chip('down', '비중 감소', 'setAeView', AE.view)}
+        ${AE.view === 'new' ? '' : `<span style="width:1px;background:var(--border);margin:0 2px"></span>
+          ${chip('rate', AE.view === 'up' ? '증가율 순' : '감소율 순', 'setAeSort', AE.sort)}${chip('diff', '비중차이 순', 'setAeSort', AE.sort)}`}
+      </div>
     </div>
-    ${!list.length ? `<div style="padding:12px;${fs};color:var(--text2)">이 기간에 새로 담은 종목이 없습니다</div>` : `
+    ${!list.length ? `<div style="padding:12px;${fs};color:var(--text2)">이 기간에 해당하는 종목이 없습니다</div>` : `
     <div class="table-wrap"><table class="ae-tbl ae-new-tbl">
-      <thead><tr><th></th><th>종목명</th><th class="ae-num">ETF 수</th><th>담은 ETF (현재 비중)</th></tr></thead>
-      <tbody>${shown.map(it => {
-        const stock = /^[0-9A-Z]{6}$/.test(it.code);
-        return `<tr ${stock ? `class="stock-row" data-stock-open="${escAttr(it.code)}" data-stock-name="${escAttr(it.name || '')}" data-stock-tab="market"` : ''}>
-          <td class="ae-mkt">${AE_MKT[it.mkt] || ''}</td>
-          <td class="ae-name" title="${escAttr(it.name || '')}">${escapeHtml(it.name || it.code)}</td>
-          <td class="ae-num"><b>${it.etfs.length}</b></td>
-          <td class="ae-etfs"><div class="ae-etf-chips">${it.etfs.map(x => `<button class="chip chip-sm" data-no-detail title="${escAttr(x.name + ' 표로 이동')}"
-              onclick="setAeTab(${tabOf[x.code]}, true)">${escapeHtml(x.name)} ${x.w.toFixed(2)}%</button>`).join('')}</div></td>
-        </tr>`;
-      }).join('')}</tbody>
+      <thead><tr>${head}</tr></thead>
+      <tbody>${shown.map(row).join('')}</tbody>
     </table></div>
     ${list.length > AE_NEW_SHOW ? `<div style="padding:6px 12px;text-align:center"><button class="chip chip-sm" onclick="toggleAeNewMore()">${AE.newMore ? '접기' : `전부 보기 (+${list.length - AE_NEW_SHOW})`}</button></div>` : ''}`}
     <div style="padding:6px 12px 8px;${fs};color:var(--text3);line-height:1.5;border-top:1px solid var(--border)">
-      원본에 없는 추가 표 — 아래 표의 '신규편입'(비교 날짜에 없거나 비중 0)을 30개 ETF에서 모은 것. 담은 ETF를 누르면 그 ETF 표로 갑니다.
+      원본에 없는 추가 표 — ${note} ETF 칩을 누르면 그 ETF 표로 갑니다.
       ${skipped.length ? `<br>비교 날짜에 상장 전이라 뺀 ETF: ${escapeHtml(skipped.join(', '))}` : ''}
     </div>
   </div>`;
