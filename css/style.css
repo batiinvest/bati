@@ -866,3 +866,39 @@ textarea.nt-textarea-sm { min-height:240px; }
 .ae-etf-chips { display:flex; flex-wrap:wrap; gap:4px; }
 .ae-new-tbl .ae-name { max-width:180px; }
 @media(max-width:500px) { .ae-new-tbl td > .chip { max-width:104px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } }
+
+/* ── 투자노트 = 원본 포트폴리오 표 (watchlist.js, 10-04) ── */
+.pb-head { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:.75rem; }
+.pb-sum { margin-bottom:1rem; }
+.pb-kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); }
+.pb-kpi { padding:9px 12px; border-right:1px solid var(--border); }
+.pb-kpi-l { font-size:calc(11px*var(--m-label)); color:var(--text2); }
+.pb-kpi-v { font-size:calc(15px*var(--m-title)); font-weight:700; color:var(--text1); font-variant-numeric:tabular-nums; }
+.pb-kpi-s { font-size:calc(11px*var(--m-label)); color:var(--text2); margin-top:2px; }
+.pb-note { padding:6px 12px; font-size:calc(11px*var(--m-label)); color:var(--text2); line-height:1.6; border-top:1px solid var(--border); }
+.pb-wrap { max-height:75vh; overflow:auto; }
+.pb-tbl { font-size:calc(12px*var(--m-sub)); }
+.pb-tbl th { position:sticky; top:0; background:var(--bg2); z-index:2; padding:5px 7px; }
+.pb-tbl tr.pb-grp th { top:0; text-align:center; color:var(--text3); border-bottom:none; }
+.pb-tbl tr:not(.pb-grp) th { top:24px; }
+.pb-tbl td { padding:4px 7px; }
+.pb-tbl .pb-name { position:sticky; left:0; background:var(--bg2); z-index:1; max-width:140px; overflow:hidden; text-overflow:ellipsis; color:var(--text1); font-weight:600; }
+.pb-tbl th.pb-name { z-index:3; }
+.pb-tbl .pb-txt { max-width:120px; overflow:hidden; text-overflow:ellipsis; color:var(--text2); }
+.pb-tbl tr.pb-hedge td { background:rgba(74,158,255,.06); }
+.pb-tbl tr.pb-hedge td.pb-name { background:var(--bg2); }
+.pb-tbl td.pb-ed { cursor:pointer; text-align:right; background:rgba(245,158,11,.07); min-width:56px; }
+.pb-tbl td.pb-ed:hover { box-shadow:inset 0 0 0 1px var(--border2); }
+.pb-tbl tfoot td { font-weight:700; border-top:2px solid var(--border); }
+.pb-input { width:80px; background:var(--bg); color:var(--text1); border:1px solid var(--tg); border-radius:4px; padding:2px 4px; font-size:inherit; text-align:right; }
+.pb-del { background:none; border:none; color:var(--text3); cursor:pointer; font-size:calc(14px*var(--m-body)); }
+.pb-del:hover { color:var(--down); }
+.pb-bottom { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,2fr); gap:1rem; }
+@media(max-width:900px) { .pb-bottom { grid-template-columns:minmax(0,1fr); } }
+.pb-mini { font-size:calc(12px*var(--m-sub)); width:100%; }
+.pb-mini td, .pb-mini th { padding:5px 10px; }
+.pb-rules { padding:8px 12px 10px; font-size:calc(12px*var(--m-sub)); color:var(--text1); line-height:1.7; white-space:pre-wrap; }
+.pb-rule-h { font-weight:700; margin-top:6px; color:var(--text1); }
+.pb-rule-h:first-child { margin-top:0; }
+.pb-sr { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:5px 2px; border-bottom:1px solid var(--border); font-size:calc(12px*var(--m-sub)); }
+.pb-tbl .ae-num, .pb-mini .ae-num { text-align:right; font-variant-numeric:tabular-nums; }
