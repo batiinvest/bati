@@ -816,3 +816,7 @@ textarea.nt-textarea-sm { min-height:240px; }
 .pb-rule-h:first-child { margin-top:0; }
 .pb-sr { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:5px 2px; border-bottom:1px solid var(--border); font-size:calc(12px*var(--m-sub)); }
 .pb-tbl .ae-num, .pb-mini .ae-num { text-align:right; font-variant-numeric:tabular-nums; }
+
+/* ── 투자경고 해제 (warn-release.js) — 좁은 화면에서 종목명 칸 고정 ── */
+.wr-tbl td, .wr-tbl th { white-space:nowrap; }
+.wr-tbl th:nth-child(2), .wr-tbl td:nth-child(2) { position:sticky; left:0; background:var(--bg2); z-index:1; }
