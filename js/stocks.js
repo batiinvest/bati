@@ -387,7 +387,7 @@ function renderStocks(list) {
   el.innerHTML = `<div class="table-wrap"><table>
     <thead><tr>
       <th>종목명</th><th>코드</th><th>산업</th><th>세부분야</th><th>업종</th>
-      <th class="stock-col-keyword">키워드</th><th>모니터링</th><th>관리</th>
+      <th class="stock-col-keyword" title="뉴스봇 검색·제목 매칭에 쓰는 약칭 (companies.keywords)">뉴스 별칭</th><th>모니터링</th><th>관리</th>
     </tr></thead>
     <tbody>${list.map(s => `<tr>
       <td style="font-weight:600;font-size:calc(13px*var(--m-body))">${escapeHtml(s.name)}</td>
