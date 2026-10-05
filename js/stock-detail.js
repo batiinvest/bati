@@ -159,10 +159,10 @@ async function _sdCheckWatch(code) {
   const bare = String(code).replace(/\.(KS|KQ)$/, '');
   try {
     const { data } = await sb.from('watchlist')
-      .select('id')
+      .select('id,group_name')
       .or(`stock_code.eq.${bare},stock_code.eq.${bare}.KS,stock_code.eq.${bare}.KQ`)
       .limit(1);
-    _sdSetWatchBtn(data && data.length ? 'in' : 'out');
+    _sdSetWatchBtn(data && data.length && data[0].group_name !== '청산' ? 'in' : 'out');   // 청산 기록만 남은 행은 표에 없음
   } catch(e) { /* 조회 실패 시 기본(⭐) 유지 */ }
 }
 
@@ -175,12 +175,18 @@ window.sdToggleWatch = async function(code, name) {
   const bare = String(code).replace(/\.(KS|KQ)$/, '');
   try {
     const { data } = await sb.from('watchlist')
-      .select('id,group_name,quantity,thesis_1,catalyst,target_price,watch_price,risk_1')
+      .select('id,group_name,quantity,target_weight,cur_port,bucket,avg_price')
       .or(`stock_code.eq.${bare},stock_code.eq.${bare}.KS,stock_code.eq.${bare}.KQ`)
       .limit(1);
     const row = data && data[0];
 
-    if (!row) {
+    if (row && row.group_name === '청산') {
+      // ── 청산 기록만 남은 행 → 투자노트 표로 다시 담기 ──
+      const { error } = await sb.from('watchlist').update({ group_name: '관심', updated_at: new Date().toISOString() }).eq('id', row.id);
+      if (error) throw error;
+      _sdSetWatchBtn('in');
+      if (typeof toast === 'function') toast('⭐ 투자노트에 다시 담았습니다.', 'success');
+    } else if (!row) {
       // ── 추가 ──
       const ind = document.getElementById('sd-industry-badge')?.textContent?.trim() || null;
       const { error } = await sb.from('watchlist').insert({
@@ -201,9 +207,9 @@ window.sdToggleWatch = async function(code, name) {
         _sdSetWatchBtn('in');
         return;
       }
-      // 메모가 있는 관심/후보는 실수 삭제 방지 위해 확인
-      const hasNotes = row.thesis_1 || row.catalyst || row.target_price || row.watch_price || row.risk_1;
-      if (hasNotes && !confirm(`'${name}'에 작성한 투자노트(근거·목표가 등)가 함께 삭제됩니다. 관심에서 제거할까요?`)) {
+      // 투자노트 표에 넣은 값(목표비중·현재포트·묶음·매입가)이 있으면 실수 삭제 방지 위해 확인
+      const hasNotes = row.target_weight != null || row.cur_port != null || row.bucket || row.avg_price;
+      if (hasNotes && !confirm(`'${name}'의 투자노트 입력값(목표비중·묶음 등)이 함께 삭제됩니다. 관심에서 제거할까요?`)) {
         _sdSetWatchBtn('in');
         return;
       }

@@ -341,9 +341,9 @@
       <div class="form-group">
         <label class="form-label">모니터링 레벨</label>
         <select class="form-select" id="sa-level">
-          <option value="1">1 - 핵심</option>
-          <option value="2">2 - 관심</option>
-          <option value="3">3 - 일반</option>
+          <option value="full">채팅방</option>
+          <option value="news">뉴스/공시</option>
+          <option value="data" selected>데이터만</option>
         </select>
       </div>
     </div>
@@ -380,9 +380,9 @@
       <div class="form-group">
         <label class="form-label">모니터링 레벨</label>
         <select class="form-select" id="se-level">
-          <option value="1">1 - 핵심</option>
-          <option value="2">2 - 관심</option>
-          <option value="3">3 - 일반</option>
+          <option value="full">채팅방</option>
+          <option value="news">뉴스/공시</option>
+          <option value="data">데이터만</option>
         </select>
       </div>
     </div>
@@ -397,7 +397,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('m-stock-edit')">취소</button>
-      <button class="btn btn-primary" onclick="saveStock()">저장</button>
+      <button class="btn btn-primary" onclick="saveStockEdit()">저장</button>
     </div>
   </div>
 </div>
@@ -412,6 +412,10 @@
       <button class="modal-close" onclick="closeModal('m-assign-sub')">×</button>
     </div>
     <div id="assign-company-list" style="max-height:55vh;overflow-y:auto"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('m-assign-sub')">취소</button>
+      <button class="btn btn-primary" onclick="saveAssign()">저장</button>
+    </div>
   </div>
 </div>
 
@@ -435,27 +439,27 @@
     15. disclosure.js      — 공시 탭                          ← 신규
     17. investment.js      — 시황 페이지 뼈대 (위 참조)
 ════════════════════════════════════════════ -->
-<script src="js/config.js?v=38"></script>
+<script src="js/config.js?v=40"></script>
 <script src="js/auth.js?v=4"></script>
 <script src="js/pages.js?v=19"></script>
 <script src="js/nav.js?v=6"></script>
 <script src="js/detail.js?v=5"></script>
 <script src="js/telegram.js?v=6"></script>
-<script src="js/rooms.js?v=8"></script>
+<script src="js/rooms.js?v=10"></script>
 <script src="js/bots.js?v=12"></script>
-<script src="js/stocks.js?v=5"></script>
+<script src="js/stocks.js?v=7"></script>
 <script src="js/watchlist.js?v=19"></script>
 <script src="js/company.js?v=6"></script>
 <script src="js/screener.js?v=19"></script>
-<script src="js/report-cards.js?v=25"></script>
-<script src="js/report-fnguide.js?v=20"></script>
-<script src="js/report-tabs.js?v=3"></script>
+<script src="js/report-cards.js?v=27"></script>
+<script src="js/report-fnguide.js?v=22"></script>
+<script src="js/report-tabs.js?v=5"></script>
 <script src="js/report-biz.js?v=6"></script>
-<script src="js/report-dart.js?v=14"></script>
-<script src="js/report.js?v=34"></script>
+<script src="js/report-dart.js?v=16"></script>
+<script src="js/report.js?v=36"></script>
 <script src="js/comparison.js?v=12"></script>
 <script src="js/financials.js?v=96"></script>
-<script src="js/stock-detail.js?v=10"></script>
+<script src="js/stock-detail.js?v=12"></script>
 <script src="js/chart-macro.js?v=11"></script>
 <script src="js/chart-industry.js?v=12"></script>
 <script src="js/chart-uskr.js?v=11"></script>

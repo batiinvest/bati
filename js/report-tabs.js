@@ -412,26 +412,3 @@ function _rpFssRenderList() {
     </div>`;
 }
 
-function _rpCatalystCard() {
-  const catalysts = [
-    { horizon: '단기 (1M)',  color: '#f59e0b', items: ['분기 실적 발표', '주요 수주 발표'] },
-    { horizon: '중기 (3M)',  color: '#22d3ee', items: ['신제품 출시', '설비 가동률 개선'] },
-    { horizon: '장기 (12M)', color: '#60a5fa', items: ['시장 점유율 확대', '해외 매출 성장'] },
-  ];
-  return `<div class="card" style="padding:16px">
-    ${_rpSecT('카탈리스트')}
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
-      ${catalysts.map(c => `
-      <div style="padding:10px;border-radius:var(--radius-sm);border:1px solid ${c.color}30;background:${c.color}08">
-        <div style="font-size:calc(11px*var(--m-label));font-weight:700;color:${c.color};margin-bottom:8px">${c.horizon}</div>
-        ${c.items.map(item => `
-        <div style="display:flex;align-items:flex-start;gap:5px;margin-bottom:5px">
-          <span style="color:${c.color};font-size:calc(11px*var(--m-label));margin-top:2px">◦</span>
-          <span style="font-size:calc(12px*var(--m-sub));color:var(--text1)">${item}</span>
-        </div>`).join('')}
-      </div>`).join('')}
-    </div>
-    <div style="margin-top:8px;font-size:calc(11px*var(--m-label));color:var(--text3)">
-      * 투자노트에 카탈리스트를 직접 입력하면 여기에 반영됩니다</div>
-  </div>`;
-}

@@ -80,31 +80,6 @@ function _rpSummaryCard(s) {
 
 // ── 서브 컴포넌트 ─────────────────────────────────────────────────────────────
 
-// 인라인 배지 (가로 레이아웃용 — 작고 컴팩트)
-function _rpOpinionBadgeInline(opinion) {
-  const map = {
-    'buy':'#22c55e','적극매수':'#22c55e','매수':'#22c55e',
-    'hold':'#f59e0b','보유':'#f59e0b','중립':'#f59e0b',
-    'sell':'#ef4444','매도':'#ef4444',
-  };
-  const label = { 'buy':'BUY','매수':'BUY','적극매수':'BUY','hold':'HOLD','보유':'HOLD','중립':'HOLD','sell':'SELL','매도':'SELL' };
-  const key = opinion?.toLowerCase();
-  const col = map[key] || 'var(--text3)';
-  const lbl = label[key] || (opinion || '—');
-  return `<span style="font-size:calc(12px*var(--m-sub));font-weight:800;color:${col};padding:3px 10px;
-    border-radius:100px;background:${col}20;border:1px solid ${col}50">${lbl}</span>`;
-}
-
-function _rpFormatNote(note) {
-  if (!note) return '';
-  return note.split('\n').filter(l => l.trim()).slice(0, 5).map(line =>
-    `<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:4px">
-      <span style="color:#4ade80;font-weight:700;font-size:calc(12px*var(--m-sub));margin-top:1px">•</span>
-      <span>${line.trim()}</span>
-    </div>`
-  ).join('');
-}
-
 function _rpEarningsCard(fin) {
   if (!fin?.length) return `
     <div class="card" style="padding:16px">

@@ -1037,7 +1037,7 @@ function toggleAdminNav() {
 document.addEventListener('keydown', e => {
   // 입력 요소·모달/드로어 열림 상태에선 무시 — 모달 위에서 1~5로 배경 페이지가 바뀌는 문제 방지
   if (e.target.closest('input,textarea,select,[contenteditable="true"]')) return;
-  if (document.querySelector('.modal-overlay.open, .wl-drawer.open, #m-stock-detail, #m-journal, #m-trade')) return;
+  if (document.querySelector('.modal-overlay.open, #m-stock-detail')) return;
   const map = { '1':'investment','2':'screener','3':'watchlist','4':'report','5':'comparison' };
   if (map[e.key]) go(map[e.key]);
   if (e.key === '/') { e.preventDefault(); document.querySelector('.search-box')?.focus(); }

@@ -264,8 +264,8 @@ function _rpPriceVolChart(prices) {
   </div>`;
 }
 
-// ③ 투자의견 컨센서스 — 평균 목표주가·의견 분포·증권사 테이블 + 내 의견
-function _rpConsensusCard(analysts, currentPrice, watch) {
+// ③ 투자의견 컨센서스 — 평균 목표주가·의견 분포·증권사 테이블
+function _rpConsensusCard(analysts, currentPrice) {
   const esc   = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
   const opMap = { '매수': 'BUY', '적극매수': 'BUY', 'buy': 'BUY', '중립': 'HOLD', '보유': 'HOLD', 'hold': 'HOLD', '매도': 'SELL', 'sell': 'SELL' };
   const colMap = { BUY: '#22c55e', HOLD: '#f59e0b', SELL: '#ef4444' };
@@ -284,9 +284,6 @@ function _rpConsensusCard(analysts, currentPrice, watch) {
   items.forEach(a => { const k = opMap[a.opinion?.toLowerCase?.() ? a.opinion.toLowerCase() : a.opinion] || opMap[a.opinion]; if (dist[k] != null) dist[k]++; });
   const distTotal = dist.BUY + dist.HOLD + dist.SELL;
 
-  // 내 의견
-  const myTp  = watch?.target_price || 0;
-  const myUp  = myTp && currentPrice ? (myTp - currentPrice) / currentPrice * 100 : null;
 
   const summaryCol = `
     <div style="display:flex;flex-direction:column;gap:10px;padding-right:14px;border-right:1px solid var(--border)">
@@ -310,18 +307,6 @@ function _rpConsensusCard(analysts, currentPrice, watch) {
             ${k} ${dist[k]}</span>`).join('')}
         </div>
       </div>` : ''}
-      <div style="border-top:1px solid var(--border);padding-top:8px">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">내 의견</span>
-          ${_rpOpinionBadgeInline(watch?.opinion)}
-        </div>
-        ${myTp ? `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-top:5px">
-          목표가 <b>${fmtNum(myTp)}원</b>
-          ${myUp != null ? `<span style="font-weight:700;color:${myUp > 0 ? 'var(--red)' : 'var(--blue)'}">
-            (${myUp > 0 ? '+' : ''}${myUp.toFixed(1)}%)</span>` : ''}</div>`
-          : `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:5px">투자노트에서 목표주가 설정</div>`}
-        <a onclick="go('watchlist')" style="font-size:calc(11px*var(--m-label));color:var(--tg);cursor:pointer">투자노트 편집 →</a>
-      </div>
     </div>`;
 
   const tableCol = items.length ? `

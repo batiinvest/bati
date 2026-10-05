@@ -179,12 +179,10 @@ async function rpLoadReport() {
 
   // 병렬 데이터 로드
   try {
-    const [priceRes, finRes, watchRes, dartRes, analystRes, segRes, compRes, summaryRes] = await Promise.all([
+    const [priceRes, finRes, dartRes, analystRes, segRes, compRes, summaryRes] = await Promise.all([
       sb.from('market_data').select('price,price_change,price_change_rate,market_cap,volume,trading_value,foreign_hold_rate,w52_high,w52_low,per,pbr,base_date,week_return,month_return,quarter_return,year_return')
         .eq('stock_code', _rpStock.code).order('base_date', { ascending: false }).limit(500),
       loadFinPreferred(_rpStock.code, 'bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,debt_ratio,roe,roa,operating_margin,net_margin,ebitda,fcf,da', { limit: 24 }),
-      sb.from('watchlist').select('note,target_price,opinion,buy_price,created_at')
-        .eq('stock_code', _rpStock.code).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       sb.from('dart_reports').select('report_type,receive_date,summary')
         .eq('stock_code', _rpStock.code).order('receive_date', { ascending: false }).limit(1).maybeSingle(),
       sb.from('analyst_opinions').select('firm_name,opinion,target_price,gap_rate,opinion_date')
@@ -206,7 +204,6 @@ async function rpLoadReport() {
     _rpData = {
       price:    priceRes.data   || [],
       fin:      finRows.slice(0, 12),
-      watch:    watchRes.data   || null,
       dart:     dartRes.data    || null,
       analyst:  analystRes.data || [],
       segment:  (segRes.data || []).filter(r => r.segment_type === 'product'),
@@ -290,7 +287,6 @@ async function rpRenderReport() {
 
   const latest  = _rpData.price?.[0]  || {};
   const latestF = _rpData.fin?.[0]    || {};
-  const watch   = _rpData.watch;
   const prices  = _rpData.price       || [];
 
   const price   = latest.price   || 0;
@@ -354,7 +350,6 @@ async function rpRenderReport() {
 function _rpTabOverview() {
   const latest  = _rpData.price?.[0]  || {};
   const latestF = _rpData.fin?.[0]    || {};
-  const watch   = _rpData.watch;
   const prices  = _rpData.price       || [];
   const price   = latest.price   || 0;
 
@@ -362,9 +357,7 @@ function _rpTabOverview() {
   const dartPts  = _rpData.dart?.summary?.investment_points || [];
   const dartRisks = _rpData.dart?.summary?.risk_points || [];
 
-  const bullHTML = watch?.note
-    ? `<div id="rp-bull-points" style="font-size:calc(14px*var(--m-body));color:var(--text1);line-height:1.7">${_rpFormatNote(watch.note)}</div>`
-    : dartPts.length
+  const bullHTML = dartPts.length
       ? `<div style="display:flex;flex-direction:column;gap:5px" id="rp-bull-points">
           ${dartPts.slice(0,4).map(t => `<div style="display:flex;align-items:flex-start;gap:8px">
             <span style="color:#4ade80;font-weight:700;font-size:calc(14px*var(--m-body));margin-top:1px">•</span>
@@ -372,13 +365,7 @@ function _rpTabOverview() {
           </div>`).join('')}
           <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:2px">* DART 분석 기반 자동 추출</div>
         </div>`
-      : `<div style="display:flex;flex-direction:column;gap:6px" id="rp-bull-points">
-          ${['핵심 투자포인트를 투자노트에 작성해주세요','예) HBM 수주 확대로 데이터센터 모멘텀 강화','예) 하반기 ASP 상승 + 원가 하락 → 마진 개선']
-            .map((t,i) => `<div style="display:flex;align-items:flex-start;gap:8px">
-              <span style="color:#4ade80;font-weight:700;font-size:calc(14px*var(--m-body));margin-top:1px">•</span>
-              <span style="font-size:calc(14px*var(--m-body));color:${i===0?'var(--text3)':'var(--border)'}">${t}</span>
-            </div>`).join('')}
-        </div>`;
+      : `<div id="rp-bull-points" style="font-size:calc(13px*var(--m-body));color:var(--text3)">DART 분석 투자포인트가 아직 없습니다</div>`;
 
   const bearHTML = dartRisks.length
     ? `<div style="display:flex;flex-direction:column;gap:5px">
@@ -387,13 +374,7 @@ function _rpTabOverview() {
           <span style="font-size:calc(13px*var(--m-body));color:var(--text1);line-height:1.5">${t}</span>
         </div>`).join('')}
       </div>`
-    : `<div style="display:flex;flex-direction:column;gap:6px">
-        ${['투자노트에 리스크 요인을 추가하세요','예) 미중 무역분쟁 재확대 시 수출 타격','예) 경쟁사 공격적 증설로 공급과잉 우려']
-          .map((t,i) => `<div style="display:flex;align-items:flex-start;gap:8px">
-            <span style="color:#f87171;font-weight:700;font-size:calc(14px*var(--m-body));margin-top:1px">•</span>
-            <span style="font-size:calc(14px*var(--m-body));color:${i===0?'var(--text3)':'var(--border)'}">${t}</span>
-          </div>`).join('')}
-      </div>`;
+    : `<div style="font-size:calc(13px*var(--m-body));color:var(--text3)">DART 분석 리스크가 아직 없습니다</div>`;
 
   return `
   <!-- 시세 및 주주현황 + 주가/거래량 차트 -->
@@ -423,7 +404,7 @@ function _rpTabOverview() {
   </div>
 
   <!-- 투자의견 컨센서스 -->
-  ${_rpConsensusCard(_rpData.analyst || [], price, watch)}
+  ${_rpConsensusCard(_rpData.analyst || [], price)}
 
   <!-- 연간 실적 요약 -->
   ${_rpAnnualTable(_rpData.annual, latest)}
@@ -439,9 +420,7 @@ function _rpTabOverview() {
     ${_rpEarningsCard(_rpData.fin)}
     ${_rpSegmentCard(_rpData.segment)}
   </div>
-
-  <!-- 카탈리스트 -->
-  ${_rpCatalystCard()}`;
+`;
 }
 
 // ── 탭 전환 (RP_TABS 순서 기준) ───────────────────────────────────────────────

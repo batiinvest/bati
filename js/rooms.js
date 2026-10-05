@@ -6,6 +6,17 @@ const IND_EMOJI_MAP = {
   '신재생':'☀️','소비재':'👗','테크':'💻','반도체':'💾',
   '엔터':'🎤','조선':'🚢','우주':'🚀',
 };
+// 상단 '+ 추가'(관리 페이지) — 채팅방 추가 창을 비운 채로 연다
+function openAddModal() {
+  ['a-name', 'a-code', 'a-sub', 'a-chatid', 'a-link', 'a-kw'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const max = document.getElementById('a-max');
+  if (max) max.value = 1000;
+  openModal('m-add');
+}
+
 async function addRoom() {
   if (!canEdit()) { toast('권한이 없습니다.', 'error'); return; }
   const name = document.getElementById('a-name').value.trim();

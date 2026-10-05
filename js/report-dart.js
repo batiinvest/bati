@@ -27,7 +27,6 @@ async function _rpLoadAndRenderDart(body) {
   const dp  = _mdDeepParse(data.raw_md || '');
   const pts  = s.investment_points || [];
   const risks = s.risk_points || [];
-  const watch = _rpData.watch;
 
   // ── 헬퍼 ──
   const esc = escapeHtml;

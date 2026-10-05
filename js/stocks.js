@@ -424,7 +424,7 @@ async function openStockEdit(id) {
   document.getElementById('se-industry').value      = s.industry || '';
   document.getElementById('se-sub').value           = s.sub_industry || '';
   document.getElementById('se-kw').value            = s.keywords || '';
-  document.getElementById('se-active').checked      = s.active !== false;
+  document.getElementById('se-active').value        = s.active !== false ? 'true' : 'false';   // select(활성/비활성)
   document.getElementById('se-level').value         = s.monitoring_level || 'data';
   openModal('m-stock-edit');
 }
@@ -439,7 +439,7 @@ async function saveStockEdit() {
     industry:         document.getElementById('se-industry').value.trim(),
     sub_industry:     document.getElementById('se-sub').value.trim(),
     keywords:         document.getElementById('se-kw').value.trim(),
-    active:           document.getElementById('se-active').checked,
+    active:           document.getElementById('se-active').value === 'true',
     monitoring_level: document.getElementById('se-level').value,
     is_monitored:     ['full','news'].includes(document.getElementById('se-level').value),
   };
@@ -464,6 +464,8 @@ async function addStock() {
     sub_industry: document.getElementById('sa-sub').value.trim(),
     keywords:     document.getElementById('sa-kw').value.trim(),
     active:       true,
+    monitoring_level: document.getElementById('sa-level').value || 'data',
+    is_monitored:     ['full', 'news'].includes(document.getElementById('sa-level').value),
   };
   if (!payload.name || !payload.code) { toast('종목명과 코드는 필수입니다.', 'error'); return; }
   const { data, error } = await sb.from('companies').insert([payload]).select().single();
