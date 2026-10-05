@@ -167,9 +167,9 @@ async function loadIndTrendChart() {
       },
       // onHover는 사용하지 않음 — mousemove로 직접 처리
       scales: {
-        x: { ticks: { color: '#6e7491', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' } },
+        x: { ticks: { color: '#8b90a7', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' } },
         y: {
-          ticks: { color: '#6e7491', font: { size: 11 }, callback: v => v.toFixed(0) },
+          ticks: { color: '#8b90a7', font: { size: 11 }, callback: v => v.toFixed(0) },
           grid: { color: 'rgba(255,255,255,.05)' }
         }
       }

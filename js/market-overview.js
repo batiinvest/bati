@@ -142,7 +142,7 @@ async function loadMarketOverview(maxDate) {
           x: {
             grid: { color: 'rgba(255,255,255,0.05)' },
             ticks: {
-              color: '#6e7491', font: { size: 11 },
+              color: '#8b90a7', font: { size: 11 },
               callback: v => (v > 0 ? '+' : '') + v + '%'
             },
           },

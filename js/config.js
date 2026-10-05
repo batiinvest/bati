@@ -324,7 +324,7 @@ const TEXT_COLOR_KEY = 'bati-text-colors';
 const TEXT_COLOR_KEYS = ['text', 'text1', 'text2', 'text3'];
 const TEXT_COLOR_LABELS = { text: '기본', text1: '본문', text2: '보조', text3: '라벨' };
 // :root 기본값과 정확히 일치해야 함(기본값이면 오버라이드 제거 → :root 상속)
-const TEXT_COLOR_DEFAULTS = { text: '#f0f2f8', text1: '#cfd4e4', text2: '#a8adc4', text3: '#8590ad' };
+const TEXT_COLOR_DEFAULTS = { text: '#f0f2f8', text1: '#cfd4e4', text2: '#a8adc4', text3: '#9aa0b7' };
 
 // #rrggbb 만 허용(소문자 정규화). 그 외는 null.
 const _normHex = h => {

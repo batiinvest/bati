@@ -1233,8 +1233,8 @@ function _rpfDrawChart() {
         tooltip: { backgroundColor: '#1a1d27', titleColor: '#f0f2f8', bodyColor: '#a8adc4' },
       },
       scales: {
-        x: { ticks: { color: '#6e7491', font: { size: 10 }, maxRotation: 45 }, grid: { color: 'rgba(255,255,255,0.05)' } },
-        y: { ticks: { color: '#6e7491', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' }, position: 'left' },
+        x: { ticks: { color: '#8b90a7', font: { size: 10 }, maxRotation: 45 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        y: { ticks: { color: '#8b90a7', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' }, position: 'left' },
         ...(hasY2 ? { y2: { ticks: { color: '#a8adc4', font: { size: 10 }, callback: v => v + '%' }, grid: { drawOnChartArea: false }, position: 'right' } } : {}),
       },
     },

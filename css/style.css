@@ -2,7 +2,7 @@
 :root {
   --bg:#0f1117; --bg2:#1a1d27; --bg3:#222535;
   --border:rgba(255,255,255,0.08); --border2:rgba(255,255,255,0.14);
-  --text:#f0f2f8; --text1:#cfd4e4; --text2:#a8adc4; --text3:#8590ad;
+  --text:#f0f2f8; --text1:#cfd4e4; --text2:#a8adc4; --text3:#9aa0b7;
   --tg:#2AABEE; --tg2:#1e96d3; --green:#2dce89; --red:#f5365c; --yellow:#fb6340;
   --radius:10px; --radius-sm:6px;
 
@@ -778,6 +778,8 @@ textarea.nt-textarea-sm { min-height:240px; }
 .ae-new-card { margin-bottom:1rem; }
 .ae-new-tbl td.ae-etfs { white-space:normal; }
 .ae-etf-chips { display:flex; flex-wrap:wrap; gap:4px; }
+/* ETF 알약은 구성변화 표의 주 내용 → 작은 chip-sm(11px) 대신 보조(12px)로 키워 가독성 확보 */
+.ae-etf-chips .chip.chip-sm { font-size:calc(12px*var(--m-sub)); }
 .ae-new-tbl .ae-name { max-width:180px; }
 @media(max-width:500px) { .ae-new-tbl td > .chip { max-width:104px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } }
 

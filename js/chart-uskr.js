@@ -247,9 +247,9 @@ async function loadUskrChart() {
         }
       },
       scales: {
-        x: { ticks: { color:'#6e7491', font:{size:10} }, grid:{color:'rgba(255,255,255,.05)'} },
+        x: { ticks: { color:'#8b90a7', font:{size:10} }, grid:{color:'rgba(255,255,255,.05)'} },
         y: {
-          ticks: { color:'#6e7491', font:{size:11}, callback: v => {
+          ticks: { color:'#8b90a7', font:{size:11}, callback: v => {
             const ret = v - 100;
             return (ret >= 0 ? '+' : '') + ret.toFixed(0) + '%';
           }},

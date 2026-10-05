@@ -1000,14 +1000,14 @@ function drawCmpChart(canvas, datasets, labels, metaDef) {
       },
       scales: {
         x: {
-          ticks: { color: '#555a70', font: { size: 11 } },
+          ticks: { color: '#8b90a7', font: { size: 11 } },
           grid: { color: 'rgba(255,255,255,.04)' },
           // bar 차트는 grouped
           ...(isBar && datasets.length > 1 ? {} : {}),
         },
         y: {
           ticks: {
-            color: '#555a70', font: { size: 11 },
+            color: '#8b90a7', font: { size: 11 },
             callback: v => {
               if (CMP.normalize && !isBar) return v.toFixed(0) + '%';
               if (Math.abs(v) >= 10000) return (v/10000).toFixed(0) + '만' + metaDef.unit;
@@ -1174,7 +1174,7 @@ function drawCmpRadar(stockDataMap) {
       scales: {
         r: {
           min: 0, max: 100,
-          ticks: { color: '#555a70', font: { size: 10 }, stepSize: 25, backdropColor: 'transparent' },
+          ticks: { color: '#8b90a7', font: { size: 10 }, stepSize: 25, backdropColor: 'transparent' },
           grid: { color: 'rgba(255,255,255,.08)' },
           angleLines: { color: 'rgba(255,255,255,.08)' },
           pointLabels: { color: '#8b90a7', font: { size: 12 } },
