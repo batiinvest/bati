@@ -822,3 +822,38 @@ textarea.nt-textarea-sm { min-height:240px; }
 /* ── 투자경고 해제 (warn-release.js) — 좁은 화면에서 종목명 칸 고정 ── */
 .wr-tbl td, .wr-tbl th { white-space:nowrap; }
 .wr-tbl th:nth-child(2), .wr-tbl td:nth-child(2) { position:sticky; left:0; background:var(--bg2); z-index:1; }
+
+/* ── 수출 데이터 (export-data.js) ── */
+.ex-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:.5rem; }
+.ex-tabs { display:flex; gap:4px; flex-wrap:wrap; }
+.ex-q { background:var(--bg2); color:var(--text1); border:1px solid var(--border); border-radius:6px; padding:4px 8px; font-size:calc(12px*var(--m-sub)); min-width:160px; }
+.ex-asof { font-size:calc(12px*var(--m-sub)); color:var(--text2); margin-left:auto; }
+.ex-desc { font-size:calc(11px*var(--m-label)); color:var(--text3); line-height:1.6; margin-bottom:.75rem; }
+.ex-card { margin-bottom:1rem; }
+.ex-scroll { max-height:70vh; overflow:auto; }
+.ex-tbl { font-size:calc(12px*var(--m-sub)); }
+.ex-tbl th { position:sticky; top:0; background:var(--bg2); z-index:2; padding:6px 8px; white-space:nowrap; }
+.ex-tbl td { padding:4px 8px; white-space:nowrap; }
+.ex-tbl .ex-num { text-align:right; font-variant-numeric:tabular-nums; }
+.ex-tbl .ex-sort { cursor:pointer; user-select:none; }
+.ex-tbl .ex-name { position:sticky; left:0; background:var(--bg2); z-index:1; max-width:220px; overflow:hidden; text-overflow:ellipsis; color:var(--text1); }
+.ex-tbl th.ex-name { z-index:3; }
+.ex-tbl .ex-co { max-width:200px; overflow:hidden; text-overflow:ellipsis; color:var(--text2); }
+.ex-row { cursor:pointer; }
+.ex-row:hover td, .ex-row.active td { background:var(--bg3); }
+.ex-dim { color:var(--text3); }
+.ex-tag { display:inline-block; margin-left:4px; padding:0 4px; border-radius:4px; border:1px solid var(--border); color:var(--text2); font-size:calc(10px*var(--m-label)); vertical-align:1px; }
+.ex-tag.ex-pre { color:var(--warn, #f59e0b); border-color:currentColor; }
+.ex-foot { padding:6px 12px 8px; font-size:calc(11px*var(--m-label)); color:var(--text3); border-top:1px solid var(--border); }
+.ex-meta { padding:4px 12px 8px; font-size:calc(11px*var(--m-label)); color:var(--text2); line-height:1.6; }
+.ex-chart { height:220px; padding:0 12px 8px; }
+.ex-two { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; padding:0 12px 12px; align-items:start; }
+@media (min-width: 1400px) { .ex-two { grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); } }
+.ex-paste { width:760px; }
+.ex-form { display:flex; flex-wrap:wrap; gap:8px 12px; margin:8px 0; font-size:calc(12px*var(--m-sub)); color:var(--text2); }
+.ex-form input, .ex-form select { margin-left:4px; background:var(--bg3); color:var(--text1); border:1px solid var(--border); border-radius:6px; padding:3px 6px; font-size:calc(12px*var(--m-sub)); }
+.ex-text { width:100%; min-height:140px; background:var(--bg3); color:var(--text1); border:1px solid var(--border); border-radius:8px; padding:8px; font-family:ui-monospace,monospace; font-size:calc(12px*var(--m-sub)); }
+@media (max-width: 900px) {
+  .ex-asof { margin-left:0; }
+  .ex-tbl .ex-name { max-width:130px; }
+}
