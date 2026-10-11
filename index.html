@@ -16,7 +16,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
   <!-- ── 스타일 ── -->
-  <link rel="stylesheet" href="css/style.css?v=41">
+  <link rel="stylesheet" href="css/style.css?v=42">
 
   <!-- (구 인라인 스타일 — --blue·#sidebar-overlay는 style.css로 이동) -->
 </head>
@@ -117,6 +117,10 @@
       <div class="nav-item" data-page="financials" data-page-alt="screener" onclick="go('financials')">
         <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="8" width="3" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="6.5" y="5" width="3" height="9" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="3" width="3" height="11" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
         기업 분석
+      </div>
+      <div class="nav-item" data-page="estage" onclick="go('estage')">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M2 13h3V9H2zM6.5 13h3V6h-3zM11 13h3V3h-3z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M2.5 5.5l3-2 3 1.5 4.5-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        실적 국면
       </div>
       <div class="nav-item" data-page="highlow" onclick="go('highlow')">
         <svg viewBox="0 0 16 16" fill="none"><path d="M2 12L6 7l3 3 5-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -449,7 +453,7 @@
 ════════════════════════════════════════════ -->
 <script src="js/config.js?v=41"></script>
 <script src="js/auth.js?v=4"></script>
-<script src="js/pages.js?v=23"></script>
+<script src="js/pages.js?v=24"></script>
 <script src="js/nav.js?v=6"></script>
 <script src="js/detail.js?v=5"></script>
 <script src="js/telegram.js?v=6"></script>
@@ -475,6 +479,7 @@
 <script src="js/highlow.js?v=7"></script>
 <script src="js/active-etf.js?v=6"></script>
 <script src="js/warn-release.js?v=2"></script>
+<script src="js/earnings-stage.js?v=2"></script>
 <script src="js/disclosure.js?v=6"></script>
 <script src="js/sector-earnings.js?v=10"></script>
 <script src="js/export-data.js?v=2"></script>

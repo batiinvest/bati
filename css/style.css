@@ -823,6 +823,55 @@ textarea.nt-textarea-sm { min-height:240px; }
 .wr-tbl td, .wr-tbl th { white-space:nowrap; }
 .wr-tbl th:nth-child(2), .wr-tbl td:nth-child(2) { position:sticky; left:0; background:var(--bg2); z-index:1; }
 
+/* ── 실적 국면 (earnings-stage.js) ── */
+.es-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:.5rem; }
+.es-chips { display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
+.es-chips .chip b { margin-left:2px; }
+.es-sel, .es-q { background:var(--bg2); color:var(--text1); border:1px solid var(--border); border-radius:6px; padding:4px 8px; font-size:calc(12px*var(--m-sub)); }
+.es-q { min-width:140px; }
+.es-chk { font-size:calc(12px*var(--m-sub)); color:var(--text2); display:flex; align-items:center; gap:4px; cursor:pointer; }
+.es-asof { font-size:calc(11px*var(--m-label)); color:var(--text2); margin-left:auto; }
+.es-rule { margin-bottom:.75rem; }
+.es-rule .card-body { font-size:calc(12px*var(--m-sub)); color:var(--text1); line-height:1.7; }
+.es-rule-grid { display:grid; grid-template-columns:auto minmax(0,1fr); gap:3px 10px; align-items:center; margin:6px 0; }
+.es-dim { color:var(--text3); }
+.es-st { display:inline-block; min-width:24px; padding:0 4px; margin-right:2px; border-radius:4px; text-align:center; line-height:18px;
+  font-size:calc(11px*var(--m-label)); font-weight:600; font-variant-numeric:tabular-nums; }
+.es-st-big { min-width:32px; line-height:20px; font-size:calc(12px*var(--m-sub)); }
+.es-st-1 { background:rgba(245,158,11,.2); color:#fbbf24; }
+.es-st-2 { background:#ffc7ce; color:#9c0006; }          /* 원본 '데이터정리' 국면 2 칸 색 */
+.es-st-2-5 { background:rgba(239,68,68,.2); color:#fca5a5; }
+.es-st-3 { background:rgba(96,165,250,.16); color:#93c5fd; }
+.es-st-4 { background:rgba(59,130,246,.32); color:#bfdbfe; }
+.es-st-NA { background:rgba(128,128,128,.16); color:var(--text2); }
+.es-st-none { color:var(--text3); }
+.es-tbl { font-size:calc(12px*var(--m-sub)); width:100%; }
+.es-tbl th { position:sticky; top:0; background:var(--bg2); z-index:2; padding:6px 8px; white-space:nowrap; }
+.es-tbl td { padding:4px 8px; white-space:nowrap; }
+.es-tbl .es-num { text-align:right; font-variant-numeric:tabular-nums; }
+.es-tbl .es-sort { cursor:pointer; user-select:none; }
+.es-tbl .es-name { position:sticky; left:0; background:var(--bg2); z-index:1; color:var(--text1); font-weight:600; }
+.es-tbl th.es-name { z-index:3; }
+.es-tbl .es-ind { max-width:150px; overflow:hidden; text-overflow:ellipsis; }
+.es-trail { letter-spacing:0; }
+.es-row { cursor:pointer; }
+.es-row:hover td, .es-row.active td { background:var(--bg3); }
+.es-link:hover { text-decoration:underline; }
+.es-tag { display:inline-block; margin-left:4px; padding:0 4px; border-radius:4px; border:1px solid var(--border); color:var(--text2);
+  font-size:calc(10px*var(--m-label)); font-weight:400; vertical-align:1px; }
+.es-more { padding:8px 12px; text-align:center; }
+.es-foot { padding:6px 12px 8px; font-size:calc(11px*var(--m-label)); color:var(--text3); line-height:1.6; border-top:1px solid var(--border); }
+.es-card { margin-bottom:1rem; }
+.es-charts { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; padding:0 12px 8px; }
+.es-ctitle { font-size:calc(12px*var(--m-sub)); color:var(--text2); margin-bottom:4px; }
+.es-chart { height:220px; }
+.es-scroll { max-height:60vh; overflow:auto; margin:0 12px 4px; }
+@media (max-width: 900px) {
+  .es-charts { grid-template-columns:minmax(0,1fr); }
+  .es-asof { margin-left:0; }
+  .es-tbl .es-ind { max-width:90px; }
+}
+
 /* ── 수출 데이터 (export-data.js) ── */
 .ex-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:.5rem; }
 .ex-tabs { display:flex; gap:4px; flex-wrap:wrap; }
