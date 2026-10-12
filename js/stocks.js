@@ -475,6 +475,20 @@ async function addStock() {
   closeModal('m-stock-add');
   filterStocks();
   toast(`${payload.name} 추가 완료`, 'success');
+  _fillCorpCode(data);
+}
+
+// DART 고유번호(corp_code)는 브라우저에 DART 키가 없어 백엔드(bot_requests)가 OpenDART 마스터로 채운다.
+// 예전엔 주간 상장사 동기화만 채웠고, 동기화가 건너뛰는 KONEX는 끝내 비어 재무·공시에서 빠졌다.
+async function _fillCorpCode(stock) {
+  try {
+    const id = await enqueueBotRequest('fill_corp_code', { company_id: stock.id });
+    const r = await waitBotRequest(id, { timeoutMs: 180000 });
+    if (r.corp_code) Object.assign(stock, { corp_code: r.corp_code, market: r.market || stock.market });
+    else toast(`${stock.name}: DART 고유번호를 찾지 못했습니다 — 종목코드를 확인하세요.`, 'error');
+  } catch (e) {
+    console.warn('[종목 추가] corp_code 채우기 실패:', e);
+  }
 }
 
 async function deleteStock(id, name) {
