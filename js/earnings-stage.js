@@ -8,8 +8,9 @@
 //     3   = P≠4 ∧ 매출g>영업g · 4 = 매출g<0 · 그 밖 NA   (P가 3이면 2·2.5로 바로 못 간다 — 원본 수식 그대로)
 //   원본 '실적확인' 표시: 0<국면<2.6 → 매수, 국면>2.9 → 매도.
 // 계산은 백엔드 earnings_stage.py(매일 20:10·07:40) — 원본 입력으로 '데이터정리' 51,100칸 전부 재현.
-//   입력은 DataGuide 대신 financials(DART, 연결 우선) → 2026Q2 같은 종목 기준 89% 일치(차이 이유는 백엔드 머리말).
-//   이력이 2023년부터라 국면은 2024Q1부터 — 앞쪽 분기는 직전 국면을 몰라 원본과 덜 맞는다.
+//   입력은 DataGuide 대신 financials(DART, 연결 우선) → 2026Q2 같은 종목 기준 90% 일치(차이 이유는 백엔드 머리말).
+//   국면은 재무 이력 첫해 다음 해 1분기부터 — 이력 2023년~에 2021~2022 백필 중(10-12~, scripts/backfill_fin_range.py).
+//   앞쪽 분기는 직전 국면을 몰라 원본과 덜 맞는다.
 // 원본에서 뺀 것: 주가 선(원본은 분기와 주가 날짜가 한두 분기 어긋나 있고, 우리는 분기별 장기 주가가 없음) · 컨센 추정 분기.
 // 의존: config.js (sb, fetchAllPages, getLatestMarketDate, escapeHtml, escAttr, loadingHTML, emptyHTML, errorHTML, fmtCap), Chart.js
 
@@ -192,7 +193,7 @@ function _esRender() {
     ${!list.length ? emptyHTML('조건에 맞는 종목이 없습니다') : ''}
     ${list.length > shown.length ? `<div class="es-more"><button class="chip chip-sm" onclick="showEsAll()">전부 보기 (${list.length}종목)</button></div>` : ''}
     <div class="es-foot">${list.length}종목 · ${escapeHtml(ES.period || '')} 기준(그 분기가 최근 실적인 종목) · 전년비 빨강 = 증가 · 파랑 = 감소 ·
-      입력은 DART 정기보고서(연결 우선, 없으면 별도). 원본(DataGuide) 결과와 2026Q2 같은 종목 89% 일치 — 다른 이유: 지주사 등 원본과 수치가 다름 · 직전 국면 차이.
+      입력은 DART 정기보고서(연결 우선, 없으면 별도). 원본(DataGuide) 결과와 2026Q2 같은 종목 90% 일치 — 다른 이유: 지주사 등 원본과 수치가 다름 · 직전 국면 차이.
       보험·증권 등은 DART 매출액 칸이 없어, 2025년 이후 상장사는 전년 실적이 없어 국면이 비어 있습니다.</div></div>`;
 }
 
@@ -246,8 +247,8 @@ function _esDetail(d) {
         <td class="es-num">${_esPct(x.sg)}</td><td class="es-num">${_esPct(x.og)}</td><td class="es-num">${_esPct(x.sp, true)}</td>
         <td class="es-num">${x.hi ? '●' : ''}</td><td class="es-num">${_esChip(x.st, x.p)}</td><td class="es-num">${mark(x.st)}</td></tr>`).join('')}</tbody>
     </table></div>
-    <div class="es-foot">8분기 최고 = 당분기 매출이 최근 8분기(당분기 포함) 중 최고 — 이력이 2023년부터라 2024년까지는 8분기가 안 찹니다.
-      국면은 직전 분기 국면에 따라 달라져서 이력 앞쪽(2024년)은 원본과 덜 맞습니다(원본 대조, 같은 종목 기준 2024Q2 61% → 2025Q2 82% → 2026Q2 89%).
+    <div class="es-foot">8분기 최고 = 당분기 매출이 최근 8분기(당분기 포함) 중 최고 — 이 종목 재무 이력이 ${escapeHtml(h[0]?.p || '')}부터라 처음 7분기는 8분기가 다 차지 않습니다.
+      국면은 직전 분기 국면에 따라 달라져서 이력 앞쪽 분기는 원본과 덜 맞을 수 있습니다.
       원본 차트의 주가 선은 뺐습니다(분기별 장기 주가 이력이 없음).</div>
   </div>`;
   if (typeof Chart !== 'undefined' && h.length) _esCharts(h);
