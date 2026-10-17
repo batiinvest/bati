@@ -8,28 +8,32 @@ const BIZ_COLORS = ['#2AABEE','#4ade80','#fb923c','#a78bfa','#f59e0b','#34d399',
 let _rpBizRegion = null;      // { mR, rColor, prods }
 let _rpBizRegionSel = null;   // 선택 품목 (null = 전체)
 
-// ── 탭 진입: 6종 데이터 병렬 로드 후 렌더 ────────────────────────────────────
+// ── 데이터: 6종 병렬 로드 (사업분석 탭·DART 분석 탭 '사업' 공용) ─────────────
+async function _rpBizFetch(code) {
+  const [segRes, rawRes, prodRes] = await Promise.all([
+    sb.from('dart_segment_revenue').select('bsns_year,quarter,segment_type,category,subcategory,revenue,revenue_ratio')
+      .eq('stock_code', code).order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
+    sb.from('dart_raw_material').select('bsns_year,quarter,data_type,product_name,material_name,origin,amount')
+      .eq('stock_code', code).order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
+    sb.from('dart_production').select('bsns_year,quarter,factory_name,capacity,actual,utilization_rate')
+      .eq('stock_code', code).order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
+  ]);
+  const seg = segRes.data || [], raw = rawRes.data || [], prod = prodRes.data || [];
+  return {
+    product: seg.filter(r => r.segment_type === 'product'),
+    region:  seg.filter(r => r.segment_type === 'region'),
+    backlog: seg.filter(r => r.segment_type === 'backlog'),
+    rawUsage: raw.filter(r => r.data_type === 'usage'),
+    rawPrice: raw.filter(r => r.data_type === 'price'),
+    prod,
+  };
+}
+
+// ── 탭 진입: 로드 후 렌더 ────────────────────────────────────────────────────
 async function _rpLoadAndRenderBiz(body) {
   if (!_rpStock || !body) return;
   try {
-    const code = _rpStock.code;
-    const [segRes, rawRes, prodRes] = await Promise.all([
-      sb.from('dart_segment_revenue').select('bsns_year,quarter,segment_type,category,subcategory,revenue,revenue_ratio')
-        .eq('stock_code', code).order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
-      sb.from('dart_raw_material').select('bsns_year,quarter,data_type,product_name,material_name,origin,amount')
-        .eq('stock_code', code).order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
-      sb.from('dart_production').select('bsns_year,quarter,factory_name,capacity,actual,utilization_rate')
-        .eq('stock_code', code).order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
-    ]);
-    const seg = segRes.data || [], raw = rawRes.data || [], prod = prodRes.data || [];
-    body.innerHTML = _rpBizTab({
-      product: seg.filter(r => r.segment_type === 'product'),
-      region:  seg.filter(r => r.segment_type === 'region'),
-      backlog: seg.filter(r => r.segment_type === 'backlog'),
-      rawUsage: raw.filter(r => r.data_type === 'usage'),
-      rawPrice: raw.filter(r => r.data_type === 'price'),
-      prod,
-    });
+    body.innerHTML = _rpBizTab(await _rpBizFetch(_rpStock.code));
   } catch (e) {
     body.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:calc(12px*var(--m-sub))">사업분석 로드 실패: ${e.message}</div>`;
   }
@@ -159,7 +163,17 @@ function _bizTable(m, opts) {
 }
 
 // ── 탭 본문 조립 ─────────────────────────────────────────────────────────────
-function _rpBizTab({ product, region, backlog, rawUsage, rawPrice, prod }) {
+function _rpBizTab(data) {
+  const S = _rpBizSections(data);
+  if (S.allEmpty) return `<div style="padding:40px;text-align:center;color:var(--text2);font-size:calc(13px*var(--m-body))">
+    <div style="font-size:calc(26px*var(--m-title));margin-bottom:10px">📊</div>사업분석 데이터가 없습니다.<br>
+    <span style="font-size:calc(12px*var(--m-sub));color:var(--text3)">DART 분석 MD를 업로드하면 매출·원재료·생산·수주 데이터가 표시됩니다.</span></div>`;
+  return `<div style="display:flex;flex-direction:column;gap:12px">${S.list.map(x => x.html).join('')}</div>`;
+}
+
+// 섹션별 HTML — list: [{ key, html, has }](매출 제품→국내/해외→원재료→가격추이→생산→수주 순).
+// DART 분석 탭 '사업'은 데이터 있는 섹션(has)만 골라 씀
+function _rpBizSections({ product, region, backlog, rawUsage, rawPrice, prod }) {
   const box = inner => `<div data-capture style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">${inner}</div>`;
   const secT = (t, r) => typeof _rpSecT === 'function' ? _rpSecT(t, r || '')
     : `<div style="font-size:calc(13px*var(--m-body));font-weight:700;margin-bottom:10px">${t}</div>`;
@@ -226,12 +240,15 @@ function _rpBizTab({ product, region, backlog, rawUsage, rawPrice, prod }) {
     _bizStack(mB, { fmt: fmtEok }) + _bizTable(mB, { label: '품목', fmt: fmtMil }),
     'DART 업로드 시 수주잔고 추이가 표시됩니다');
 
-  const allEmpty = !mP.items.length && !mR.items.length && !mU.items.length && !mPr.items.length && !(prod && prod.length) && !mB.items.length;
-  if (allEmpty) return `<div style="padding:40px;text-align:center;color:var(--text2);font-size:calc(13px*var(--m-body))">
-    <div style="font-size:calc(26px*var(--m-title));margin-bottom:10px">📊</div>사업분석 데이터가 없습니다.<br>
-    <span style="font-size:calc(12px*var(--m-sub));color:var(--text3)">DART 분석 MD를 업로드하면 매출·원재료·생산·수주 데이터가 표시됩니다.</span></div>`;
-
-  return `<div style="display:flex;flex-direction:column;gap:12px">${s1}${s2}${s3}${s4}${s5}${s6}</div>`;
+  const list = [
+    { key: 'product', html: s1, has: mP.items.length > 0 },
+    { key: 'region',  html: s2, has: mR.items.length > 0 },
+    { key: 'raw',     html: s3, has: mU.items.length > 0 },
+    { key: 'price',   html: s4, has: mPr.items.length > 0 },
+    { key: 'prod',    html: s5, has: !!(prod && prod.length) },
+    { key: 'backlog', html: s6, has: mB.items.length > 0 },
+  ];
+  return { list, allEmpty: !list.some(x => x.has) };
 }
 
 // ── 매출(국내/해외) 품목 필터 ────────────────────────────────────────────────

@@ -1,14 +1,18 @@
 // 기업 분석 리포트 — DART 분석 탭 (lazy 로드·MD 딥파싱·사업섹션 파서·아코디언·업로드) (report.js에서 분할)
 
-// ── DART 탭: lazy fetch + 펀드매니저 리포트 렌더 ─────────────────────────────
+// ── DART 탭: 블로그 기업분석 글 순서로 카드 배치 ─────────────────────────────
+// 기업 정보(기본·주가 희석·보호예수·계열회사) → 주주(주주구성표·대표이사) → 사업(매출·고객 집중도·원재료·생산·수주)
+// → 실적(핵심 지표·분기 실적 추이) → 투자 판단(종합판단·포인트/리스크·증권사 전망·이벤트) → 상세 분석(MD 전문).
+// 카드 하나 = 블로그 이미지 하나(이미지 저장 버튼으로 복사·저장). 순서 기준: blog.naver.com/bati_invest 기업분석 글
 async function _rpLoadAndRenderDart(body) {
   if (!_rpStock) return;
-
-  const { data, error } = await sb.from('dart_reports')
-    .select('report_type,receive_date,raw_md,summary')
-    .eq('stock_code', _rpStock.code)
-    .order('receive_date', { ascending: false })
-    .limit(1).maybeSingle();
+  const code = _rpStock.code;
+  const [{ data, error }, biz] = await Promise.all([
+    sb.from('dart_reports').select('report_type,receive_date,raw_md,summary')
+      .eq('stock_code', code).order('receive_date', { ascending: false }).limit(1).maybeSingle(),
+    // '사업' 차트는 사업분석 탭과 같은 데이터·그리기(report-biz.js)
+    typeof _rpBizFetch === 'function' ? _rpBizFetch(code).catch(() => null) : Promise.resolve(null),
+  ]);
 
   if (error || !data) {
     body.innerHTML = `
@@ -24,25 +28,42 @@ async function _rpLoadAndRenderDart(body) {
   }
 
   const s   = data.summary || {};
-  const dp  = _mdDeepParse(data.raw_md || '', s);
-  const M   = _rpDartModel(data.raw_md || '');
+  const md  = data.raw_md || '';
+  const dp  = _mdDeepParse(md, s);
+  const M   = _rpDartModel(md);
+  const L   = _rpStripRawSections(md).split('\n').map(l => l.replace(/\r$/, ''));
   const esc = escapeHtml;
-  RPP.sites.dart = { code: _rpStock.code, reportType: data.report_type, summary: s, dp, rerender: () => _rpLoadAndRenderDart(body) };
+  RPP.sites.dart = { code, reportType: data.report_type, summary: s, dp, rerender: () => _rpLoadAndRenderDart(body) };
+
+  // 사업: 데이터 있는 섹션만, 국내/해외 매출 다음에 고객 집중도(MD 4-2)
+  const bizList = biz && typeof _rpBizSections === 'function' ? _rpBizSections(biz).list.filter(x => x.has) : [];
+  const cust = _rpDartCustomers(L);
+  const at = Math.max(bizList.findIndex(x => x.key === 'region'), bizList.findIndex(x => x.key === 'product'));
+  const bizHtml = [...bizList.slice(0, at + 1).map(x => x.html), cust, ...bizList.slice(at + 1).map(x => x.html)].join('');
+
+  const perf = _rpDartKpis(M, {}) + _rpDartTrend(M);   // 희석·지분 타일은 '기업 정보·주주'에 있으므로 뺌
+  const pts = M.points?.length || M.risks?.length || s.investment_points?.length || s.risk_points?.length;
+  const judge = _rpDartVerdict(M)
+    + (pts ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px">
+        ${_rpDartPoints('핵심 투자 포인트', M.points, s.investment_points || [], '#4ade80', '투자판단 항목 없음')}
+        ${_rpDartPoints('주요 리스크', M.risks, s.risk_points || [], '#f87171', '리스크 항목 없음')}
+      </div>` : '')
+    + _rpDartEstimates(M) + _rpDartEvents(M);
+  const holders = _rpDartHolders(L, dp) + _rpDartCeo(L);
 
   body.innerHTML = `
-  <div style="display:flex;flex-direction:column;gap:18px">
+  <div style="display:flex;flex-direction:column;gap:14px">
 
-  <!-- ① 리포트 헤더 ─────────────────────────────── -->
+  <!-- 리포트 헤더 -->
   <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;
     padding-bottom:14px;border-bottom:2px solid color-mix(in srgb, var(--tg) 25%, transparent)">
     <div>
       <div style="font-size:calc(20px*var(--m-title));font-weight:800;color:var(--text1)">${esc(dp.stockName || _rpStock?.name || '')}</div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap">
-        <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">${esc(dp.stockCode || _rpStock?.code || '')}</span>
+        <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">${esc(dp.stockCode || code)}</span>
         <span style="font-size:calc(12px*var(--m-sub));padding:2px 9px;border-radius:100px;
           background:color-mix(in srgb, var(--tg) 12%, transparent);color:var(--tg);font-weight:600">${esc(data.report_type||'')}</span>
         <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">접수 ${esc(data.receive_date||'')}</span>
-        ${dp.listedDate ? `<span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">상장 ${esc(dp.listedDate)}</span>` : ''}
         ${dp.updated ? `<span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">검토 ${esc(dp.updated)}</span>` : ''}
         ${dp.receiptNo ? `<a href="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${dp.receiptNo}" target="_blank" rel="noopener"
           style="font-size:calc(12px*var(--m-sub));color:var(--tg);text-decoration:none">DART 원문 ↗</a>` : ''}
@@ -55,102 +76,167 @@ async function _rpLoadAndRenderDart(body) {
     </button>
   </div>
 
-  <!-- ② 종합판단 (1-3) -->
-  ${_rpDartVerdict(M)}
+  ${_rpDartSecHead('기업 정보')}
+  ${_rpDartBasic(dp)}
+  ${_rpDartDilution(L)}
+  ${_rpDartLockup(L)}
+  ${dp.subsidiaries?.length ? _rpDartCard('계열회사', _rpSubsContent(dp.subsidiaries, dp.subsidiarySummary)) : ''}
 
-  <!-- ③ 핵심 지표 (2-7 분기 추이·재고·4-6 수주 + 희석·보호예수·지분) -->
-  ${_rpDartKpis(M, s)}
+  ${holders ? _rpDartSecHead('주주') + holders : ''}
 
-  <!-- ④ 투자 포인트 | 리스크 (1-1·1-2, 누르면 근거) ── -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px">
-    ${_rpDartPoints('핵심 투자 포인트', M.points, s.investment_points || [], '#4ade80', '투자판단 항목 없음')}
-    ${_rpDartPoints('주요 리스크', M.risks, s.risk_points || [], '#f87171', '리스크 항목 없음')}
-  </div>
+  ${bizHtml ? _rpDartSecHead('사업', '산업·제품 설명은 블로그에서 직접 작성') + bizHtml : ''}
 
-  <!-- ⑤ 분기 실적 추이 · ⑥ 증권사 전망 · ⑦ 보고기간 이후 이벤트 -->
-  ${_rpDartTrend(M)}
-  ${_rpDartEstimates(M)}
-  ${_rpDartEvents(M)}
+  ${perf ? _rpDartSecHead('실적') + perf : ''}
 
-  <!-- ⑧ 기업 개요 | 주주 구조 ─────────────────── -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px">
+  ${judge ? _rpDartSecHead('투자 판단', 'MD 분석 요약') + judge : ''}
 
-    <!-- 기업 개요 -->
-    <div data-capture style="${_RPD_CARD}">
-      ${_rpdT('기업 개요', _rpProfileEditBtn('dart'))}
-      <div style="display:flex;flex-direction:column;gap:6px">
-        ${dp.mainBusiness ? `
-          <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.6;padding:8px;
-            background:var(--bg3);border-radius:var(--radius-sm);white-space:pre-line">${esc(dp.mainBusiness)}</div>` : ''}
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
-          ${dp.legalName ? `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);grid-column:1/-1">회사명 <span style="color:var(--text1);font-weight:600">${esc(dp.legalName)}</span></div>` : ''}
-          ${dp.established ? `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1)">설립 <span style="color:var(--text1);font-weight:600">${esc(dp.established)}</span></div>` : ''}
-          ${dp.listedDate  ? `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1)">상장 <span style="color:var(--text1);font-weight:600">${esc(dp.listedDate)}</span></div>` : ''}
-          ${dp.location    ? `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);grid-column:1/-1">소재 <span style="color:var(--text1)">${esc(dp.location)}</span></div>` : ''}
-        </div>
-        ${dp.edited?.length ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3)">* 일부 항목은 MD 내용을 고친 값</div>` : ''}
-      </div>
-    </div>
-
-    <!-- 주주 구조 -->
-    <div data-capture style="${_RPD_CARD}">
-      ${_rpdT('주주 구조', _rpProfileEditBtn('dart'))}
-      <div style="display:flex;flex-direction:column;gap:6px">
-        ${dp.majorShareholder ? `
-          <div style="display:flex;justify-content:space-between;align-items:center;
-            padding:7px 10px;background:var(--bg3);border-radius:var(--radius-sm)">
-            <div>
-              <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1)">${esc(dp.majorShareholder)}</div>
-              <div style="font-size:calc(12px*var(--m-sub));color:var(--text1)">최대주주</div>
-            </div>
-            ${dp.majorShareholderRatio ? `<div style="font-size:calc(16px*var(--m-title));font-weight:800;color:var(--tg)">${esc(dp.majorShareholderRatio)}</div>` : ''}
-          </div>` : ''}
-        ${s.related_party_ratio ? `
-          <div style="display:flex;justify-content:space-between;padding:6px 10px;
-            font-size:calc(12px*var(--m-sub));color:var(--text1)">
-            <span>최대주주+특수관계인</span>
-            <span style="font-weight:700;color:var(--text1)">${s.related_party_ratio.toFixed(1)}%</span>
-          </div>` : ''}
-        ${s.lockup_ratio ? `
-          <div style="display:flex;justify-content:space-between;padding:6px 10px;
-            font-size:calc(12px*var(--m-sub));color:var(--text1)">
-            <span>보호예수 (해제 ${esc(s.lockup_end||'-')})</span>
-            <span style="font-weight:700;color:var(--text1)">${s.lockup_ratio.toFixed(1)}%</span>
-          </div>` : ''}
-        ${dp.majorShareholder ? `
-          <!-- 지분율 바 -->
-          ${(() => {
-            const total = Math.min(s.related_party_ratio||0, 100);
-            return `<div style="margin-top:4px">
-              <div style="height:6px;border-radius:3px;background:var(--border);position:relative;overflow:hidden">
-                <div style="position:absolute;left:0;top:0;height:100%;width:${total}%;
-                  background:linear-gradient(90deg,var(--tg),color-mix(in srgb, var(--tg) 50%, transparent));border-radius:3px"></div>
-              </div>
-              <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:calc(12px*var(--m-sub));color:var(--text1)">
-                <span>0%</span><span style="color:var(--tg);font-weight:600">${total.toFixed(1)}%</span><span>100%</span>
-              </div>
-            </div>`;
-          })()}` : ''}
-      </div>
-    </div>
-  </div>
-
-  <!-- ⑨ 계열사 현황 ───────────────────────────── -->
-  ${dp.subsidiaries?.length ? `
-  <div data-capture style="${_RPD_CARD}">
-    ${_rpdT('계열사 현황')}
-    ${_rpSubsContent(dp.subsidiaries, dp.subsidiarySummary)}
-  </div>` : ''}
-
-  <!-- ⑩ 섹션별 상세 분석 (아코디언) ─────────── -->
-  <div>
-    ${_rpdT('섹션별 상세 분석')}
-    <div style="display:flex;flex-direction:column;gap:4px">
-      ${_mdToAccordion(data.raw_md||'')}
-    </div>
+  ${_rpDartSecHead('상세 분석', 'MD 전문 · 섹션을 누르면 펼침')}
+  <div style="display:flex;flex-direction:column;gap:4px">
+    ${_mdToAccordion(md)}
   </div>
 
   </div>`;
+}
+
+// ── 블로그 순서 카드 (기업 정보·주주·고객 집중도) ─────────────────────────────
+// 블로그에 옮기는 사실 줄·표만 — '원문 대조 검토' 블록, 기준·검토 근거·원문 확인 줄은 뺌
+
+// 큰 구역 제목(블로그 소제목 '기업 정보·주주·사업…'에 대응, 캡처 대상 아님)
+const _rpDartSecHead = (t, sub) => `
+  <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:12px;padding-bottom:6px;border-bottom:1px solid var(--border2)">
+    <span style="font-size:calc(17px*var(--m-title));font-weight:800;color:var(--text)">${t}</span>
+    ${sub ? `<span style="font-size:calc(11px*var(--m-label));color:var(--text3)">${sub}</span>` : ''}
+  </div>`;
+const _rpDartCard = (title, inner, right) => `<div data-capture style="${_RPD_CARD}">${_rpdT(title, right || '')}${inner}</div>`;
+
+// '항목 | 내용' 표(블로그 '기본' 표 모양). 값은 호출하는 쪽에서 이스케이프한 HTML
+const _rpKv = rows => !rows.length ? '' : `
+  <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub))">
+    ${rows.map(([k, v]) => `<tr>
+      <td style="padding:7px 10px;background:var(--bg3);color:var(--text2);white-space:nowrap;border-bottom:1px solid var(--border);width:130px;vertical-align:top">${escapeHtml(k)}</td>
+      <td style="padding:7px 10px;color:var(--text1);border-bottom:1px solid var(--border);line-height:1.6;overflow-wrap:anywhere">${v}</td>
+    </tr>`).join('')}
+  </table>`;
+
+// 소절 줄에서 검토·메타를 뺀 사실 줄. '#### 원문 대조 검토' 블록은 다음 제목 또는 빈 줄 두 개까지(생성기 양식)
+function _rpMdFacts(sec) {
+  const out = [];
+  let skip = false, blank = 0;
+  for (const l of sec || []) {
+    if (/^#{3,6}\s/.test(l)) {
+      skip = /^#{4,6}\s*(원문 대조 검토|원문·API)/.test(l);
+      blank = 0;
+      if (skip) continue;
+    } else if (skip) {
+      blank = l.trim() ? 0 : blank + 1;
+      if (blank >= 2) skip = false;
+      continue;
+    }
+    if (/^[-*]\s*(기준|검토 근거|원문 확인|판단 기준)[:：]/.test(l)) continue;
+    out.push(l);
+  }
+  return out;
+}
+const _rpMdVal = (sec, key) => (sec || []).map(l => l.match(new RegExp(`^[-*]\\s*${key}[:：]\\s*(.+)$`))?.[1]?.trim()).find(Boolean) || null;
+// 첫 표의 원문 줄(구분선 포함)과 그 위의 '단위:' 줄
+function _rpMdTableRaw(sec) {
+  const i = (sec || []).findIndex(l => /^\|/.test(l));
+  if (i < 0) return { lines: [], unit: null };
+  const lines = [];
+  for (let j = i; j < sec.length && /^\|/.test(sec[j]); j++) lines.push(sec[j]);
+  let unit = null;
+  for (let j = i - 1; j >= 0 && j >= i - 4; j--) { const m = sec[j].match(/^단위[:：]\s*(.+)$/); if (m) { unit = m[1].trim(); break; } }
+  return { lines, unit };
+}
+const _rpMdUnitLine = u => u ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin:10px 0 4px">단위: ${escapeHtml(u)}</div>` : '';
+const _rpFirstSentence = t => (String(t || '').match(/^.+?[.。](?=\s|$)/) || [t])[0];
+
+// 기본 — 회사명·설립일·상장일·소재지·주요사업(사용자 수정값 반영, 고치지 않은 주요사업은 전문)
+function _rpDartBasic(dp) {
+  const e = escapeHtml;
+  const biz = (dp.edited || []).includes('mainBusiness') ? dp.mainBusiness : dp.orig?.mainBusiness;
+  const rows = [['회사명', dp.legalName], ['설립일', dp.established], ['상장일', dp.listedDate], ['소재지', dp.location], ['주요사업', biz]]
+    .filter(([, v]) => v).map(([k, v]) => [k, k === '주요사업' ? `<span style="white-space:pre-line">${e(v)}</span>` : e(v)]);
+  if (!rows.length) return '';
+  const note = dp.edited?.length ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">* 일부 항목은 MD 내용을 고친 값</div>` : '';
+  return _rpDartCard('기본', _rpKv(rows) + note, _rpProfileEditBtn('dart'));
+}
+
+// 주가 희석 — 발행주식수·잠재 물량·희석 리스크 + 희석 표(2-2)
+function _rpDartDilution(L) {
+  const sec = _rpMdSec(L, /^### 2-2\./);
+  if (!sec) return '';
+  const rows = ['현재 발행주식수', '전체 잠재 물량', '희석 리스크']
+    .map(k => [k, _rpMdVal(sec, k)]).filter(([, v]) => v).map(([k, v]) => [k, _rpMdInline(v)]);
+  const t = _rpMdTableRaw(sec);
+  if (!rows.length && !t.lines.length) return '';
+  return _rpDartCard('주가 희석', _rpKv(rows) + (t.lines.length ? _rpMdUnitLine(t.unit) + _rpMdTable(t.lines) : ''));
+}
+
+// 보호예수 및 매각제한(2-3) — 표가 없으면 '물량 없음' 한 줄
+function _rpDartLockup(L) {
+  const sec = _rpMdSec(L, /^### 2-3\./);
+  if (!sec) return '';
+  const f = _rpMdFacts(sec).filter(l => l.trim());
+  if (!f.some(l => /^\|/.test(l))) {
+    const t = f.join(' ').trim();
+    const msg = !t || /없습니다|없음/.test(t) ? '보고서 기준 보호예수·매각제한 물량 없음' : t;
+    return _rpDartCard('보호예수 및 매각제한', `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.6">${_rpMdInline(msg)}</div>`);
+  }
+  return _rpDartCard('보호예수 및 매각제한', `<div style="display:flex;flex-direction:column;gap:4px">${_rpMdBlocks(f)}</div>`);
+}
+
+// 주주구성표(3-1) — 최대주주(수정값 반영)·특수관계인 합계·판단 첫 문장 + 주주 표
+function _rpDartHolders(L, dp) {
+  const sec = _rpMdSec(L, /^### 3-1\./);
+  if (!sec) return '';
+  const e = escapeHtml, rows = [];
+  if (dp.majorShareholder) rows.push(['최대주주', e(dp.majorShareholder) + (dp.majorShareholderRatio ? ` <b style="color:var(--tg)">${e(dp.majorShareholderRatio)}</b>` : '')]);
+  const rel = _rpMdVal(sec, '최대주주 및 특수관계인 지분');
+  if (rel) rows.push(['최대주주 및 특수관계인', e(rel)]);
+  const judge = _rpMdVal(sec, '투자판단');
+  const t = _rpMdTableRaw(sec);
+  if (!rows.length && !t.lines.length) return '';
+  return _rpDartCard('주주구성표', _rpKv(rows)
+    + (judge ? `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.6;margin-top:8px">${_rpMdInline(_rpFirstSentence(judge))}</div>` : '')
+    + (t.lines.length ? `<div style="margin-top:10px">${_rpMdTable(t.lines)}</div>` : ''), _rpProfileEditBtn('dart'));
+}
+
+// 대표이사(3-2) — 사람마다 '항목 | 내용' 표(블로그 대표이사 표 모양). '#### 이름 (직위)' + '- 항목: 값', 주요경력은 들여쓴 목록
+function _rpDartCeo(L) {
+  const sec = _rpMdSec(L, /^### 3-2\./);
+  if (!sec) return '';
+  const e = escapeHtml, people = [];
+  let cur = null, inCareer = false;
+  for (const l of _rpMdFacts(sec)) {
+    const h = l.match(/^#{4,6}\s+(.+)$/);
+    if (h) { cur = { name: h[1].trim(), rows: [], career: [] }; people.push(cur); inCareer = false; continue; }
+    if (!cur) continue;
+    const sub = l.match(/^\s{2,}[-*]\s+(.+)$/);
+    if (sub && inCareer) { cur.career.push(sub[1].trim()); continue; }
+    const kv = l.match(/^[-*]\s*([^:：]+?)[:：]\s*(.*)$/);
+    if (kv) {
+      inCareer = /경력/.test(kv[1]);
+      if (inCareer) { if (kv[2]) cur.career.push(kv[2].trim()); }
+      else if (kv[2]) cur.rows.push([kv[1].trim(), e(kv[2].trim())]);
+    }
+  }
+  if (!people.length) {   // 양식이 다르면 MD 그대로
+    const f = _rpMdFacts(sec);
+    return f.some(l => l.trim()) ? _rpDartCard('대표이사', `<div style="display:flex;flex-direction:column;gap:4px">${_rpMdBlocks(f)}</div>`) : '';
+  }
+  return _rpDartCard('대표이사', people.map(p => _rpKv([
+    ['성명', e(p.name)], ...p.rows,
+    ...(p.career.length ? [['주요경력', p.career.map(e).join('<br>')]] : []),
+  ])).join('<div style="height:10px"></div>'));
+}
+
+// 고객 집중도(4-2 '#### 고객사 및 매출 집중도')
+function _rpDartCustomers(L) {
+  const sec = _rpMdSec(L, /^#### 고객사 및 매출 집중도/);
+  const f = _rpMdFacts(sec).filter(l => l.trim());
+  if (!f.length) return '';
+  return _rpDartCard('고객 집중도', `<div style="display:flex;flex-direction:column;gap:4px">${_rpMdBlocks(f)}</div>`);
 }
 
 // ── DART 탭 화면 모델 — 생성기 MD의 소절·표에서 카드용 데이터를 한곳에서 읽음 ─────────────
@@ -812,7 +898,12 @@ function _rpSubsContent(subs, summary) {
     summaryHTML = `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:baseline;font-size:calc(11px*var(--m-label));margin-bottom:10px;
       padding:8px 11px;background:var(--bg3);border-radius:var(--radius-sm)">
       ${chip('계열사', summary.count)}${chip('매출합계', summary.revenueSum)}${chip('손실', summary.lossCount, '#f5a623')}
-      ${summary.financeCheck ? `<span style="color:#ef4444;flex-basis:100%;line-height:1.5">⚠ ${esc(summary.financeCheck)}</span>` : ''}</div>`;
+      ${summary.financeCheck
+        // '자본잠식 계열회사는 확인되지 않음'처럼 문제없음 문구는 경고색 없이(예전엔 항상 빨간 ⚠)
+        ? (/확인되지 않|없음|없습니다/.test(summary.financeCheck)
+          ? `<span style="color:var(--text2);flex-basis:100%;line-height:1.5">${esc(summary.financeCheck)}</span>`
+          : `<span style="color:#ef4444;flex-basis:100%;line-height:1.5">⚠ ${esc(summary.financeCheck)}</span>`)
+        : ''}</div>`;
   }
 
   // ── 단일 표 렌더 ──────────────────────────────────────────────────────────
