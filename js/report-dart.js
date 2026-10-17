@@ -25,25 +25,8 @@ async function _rpLoadAndRenderDart(body) {
 
   const s   = data.summary || {};
   const dp  = _mdDeepParse(data.raw_md || '');
-  const pts  = s.investment_points || [];
-  const risks = s.risk_points || [];
-
-  // ── 헬퍼 ──
+  const M   = _rpDartModel(data.raw_md || '');
   const esc = escapeHtml;
-  const kv  = (k, v, c) => v ? `
-    <div style="padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);
-      border:1px solid var(--border);min-width:0">
-      <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:3px;white-space:nowrap">${k}</div>
-      <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:${c||'var(--text1)'}; word-break:break-all">${esc(v)}</div>
-    </div>` : '';
-  const sectionTitle = t => typeof _rpSecT === 'function' ? _rpSecT(t) : `
-    <div style="font-size:calc(11px*var(--m-label));font-weight:700;text-transform:uppercase;letter-spacing:.8px;
-      color:var(--text2);margin-bottom:10px">${t}</div>`;
-  const bullet = (text, color) => `
-    <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;margin-bottom:4px;
-      background:${color}08;border-radius:var(--radius-sm);border-left:2px solid ${color}50">
-      <span style="font-size:calc(13px*var(--m-body));color:var(--text1);line-height:1.6">${_rpMdInline(text)}</span>
-    </div>`;
 
   body.innerHTML = `
   <div style="display:flex;flex-direction:column;gap:18px">
@@ -71,42 +54,29 @@ async function _rpLoadAndRenderDart(body) {
     </button>
   </div>
 
-  <!-- ② 핵심 지표 대시보드 ──────────────────────── -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px">
-    ${kv('주식 희석률',
-      s.dilution_ratio != null ? s.dilution_ratio.toFixed(2)+'%' : null,
-      (s.dilution_ratio||0) > 5 ? 'var(--red)' : '#4ade80')}
-    ${kv('보호예수 비율', s.lockup_ratio ? s.lockup_ratio.toFixed(1)+'%' : null)}
-    ${kv('보호예수 해제일', s.lockup_end)}
-    ${kv('최대주주+특관 지분',
-      s.related_party_ratio ? s.related_party_ratio.toFixed(1)+'%' : null,
-      (s.related_party_ratio||0) >= 30 ? '#4ade80' : 'var(--red)')}
-    ${kv('최대주주', dp.majorShareholder)}
-    ${kv('계열사', dp.subsidiaries?.length ? dp.subsidiaries.length+'개사' : null)}
-  </div>
+  <!-- ② 종합판단 (1-3) -->
+  ${_rpDartVerdict(M)}
 
-  <!-- ③ 투자 포인트 | 리스크 ────────────────────── -->
+  <!-- ③ 핵심 지표 (2-7 분기 추이·재고·4-6 수주 + 희석·보호예수·지분) -->
+  ${_rpDartKpis(M, s)}
+
+  <!-- ④ 투자 포인트 | 리스크 (1-1·1-2, 누르면 근거) ── -->
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px">
-    <div style="background:var(--bg2);border:1px solid #4ade8030;border-radius:var(--radius-sm);padding:14px">
-      ${sectionTitle('핵심 투자 포인트')}
-      ${pts.length
-        ? pts.map(t => bullet(t,'#4ade80')).join('')
-        : `<div style="font-size:calc(12px*var(--m-sub));color:var(--text2);padding:8px">투자판단 항목 없음</div>`}
-    </div>
-    <div style="background:var(--bg2);border:1px solid #f8717130;border-radius:var(--radius-sm);padding:14px">
-      ${sectionTitle('주요 리스크')}
-      ${risks.length
-        ? risks.map(t => bullet(t,'#f87171')).join('')
-        : `<div style="font-size:calc(12px*var(--m-sub));color:var(--text2);padding:8px">리스크 항목 없음</div>`}
-    </div>
+    ${_rpDartPoints('핵심 투자 포인트', M.points, s.investment_points || [], '#4ade80', '투자판단 항목 없음')}
+    ${_rpDartPoints('주요 리스크', M.risks, s.risk_points || [], '#f87171', '리스크 항목 없음')}
   </div>
 
-  <!-- ④ 기업 개요 | 주주 구조 ─────────────────── -->
+  <!-- ⑤ 분기 실적 추이 · ⑥ 증권사 전망 · ⑦ 보고기간 이후 이벤트 -->
+  ${_rpDartTrend(M)}
+  ${_rpDartEstimates(M)}
+  ${_rpDartEvents(M)}
+
+  <!-- ⑧ 기업 개요 | 주주 구조 ─────────────────── -->
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px">
 
     <!-- 기업 개요 -->
-    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
-      ${sectionTitle('기업 개요')}
+    <div style="${_RPD_CARD}">
+      ${_rpdT('기업 개요')}
       <div style="display:flex;flex-direction:column;gap:6px">
         ${dp.mainBusiness ? `
           <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.6;padding:8px;
@@ -120,8 +90,8 @@ async function _rpLoadAndRenderDart(body) {
     </div>
 
     <!-- 주주 구조 -->
-    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
-      ${sectionTitle('주주 구조')}
+    <div style="${_RPD_CARD}">
+      ${_rpdT('주주 구조')}
       <div style="display:flex;flex-direction:column;gap:6px">
         ${dp.majorShareholder ? `
           <div style="display:flex;justify-content:space-between;align-items:center;
@@ -162,21 +132,444 @@ async function _rpLoadAndRenderDart(body) {
     </div>
   </div>
 
-  <!-- ⑤ 계열사 현황 ───────────────────────────── -->
+  <!-- ⑨ 계열사 현황 ───────────────────────────── -->
   ${dp.subsidiaries?.length ? `
-  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
-    ${sectionTitle('계열사 현황')}
+  <div style="${_RPD_CARD}">
+    ${_rpdT('계열사 현황')}
     ${_rpSubsContent(dp.subsidiaries, dp.subsidiarySummary)}
   </div>` : ''}
 
-  <!-- ⑥ 섹션별 상세 분석 (아코디언) ─────────── -->
+  <!-- ⑩ 섹션별 상세 분석 (아코디언) ─────────── -->
   <div>
-    ${sectionTitle('섹션별 상세 분석')}
+    ${_rpdT('섹션별 상세 분석')}
     <div style="display:flex;flex-direction:column;gap:4px">
       ${_mdToAccordion(data.raw_md||'')}
     </div>
   </div>
 
+  </div>`;
+}
+
+// ── DART 탭 화면 모델 — 생성기 MD의 소절·표에서 카드용 데이터를 한곳에서 읽음 ─────────────
+// 소제목 이름('#### 분기별 추이' 등)에 기대므로 생성기 양식이 바뀌면 여기만 고친다.
+// 못 찾은 항목은 null → 그 카드는 숨김(06월 생성분 옛 양식 MD는 대부분 null = 예전 화면 그대로)
+
+const _RPD_CARD = 'background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px';
+const _rpdT = (t, right) => typeof _rpSecT === 'function' ? _rpSecT(t, right || '') : `
+  <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1);margin-bottom:10px">${t}</div>`;
+
+// 표 한 줄 → 칸 배열. \| (생성기가 \\|로 두 번 이스케이프한 것 포함)는 칸 구분이 아닌 글자 '|'
+const _rpMdCells = r => r.replace(/\\+\|/g, '\u0001').split('|').slice(1, -1).map(c => c.trim().replace(/\u0001/g, '|'));
+
+// 제목 줄(re)부터 같은·상위 단계 제목 전까지
+function _rpMdSec(lines, re) {
+  const si = lines.findIndex(l => re.test(l));
+  if (si < 0) return null;
+  const lv = (lines[si].match(/^#+/) || ['######'])[0].length;
+  const ei = lines.findIndex((l, i) => i > si && /^#{1,6}\s/.test(l) && l.match(/^#+/)[0].length <= lv);
+  return lines.slice(si + 1, ei > 0 ? ei : lines.length);
+}
+// 줄 묶음의 첫 표 → { hdr, rows } (구분선 제외)
+function _rpMdFirstTable(sec) {
+  const i = sec ? sec.findIndex(l => /^\|/.test(l)) : -1;
+  if (i < 0) return null;
+  const rows = [];
+  for (let j = i; j < sec.length && /^\|/.test(sec[j]); j++)
+    if (!/^\|[-:\s|]+$/.test(sec[j])) rows.push(_rpMdCells(sec[j]));
+  return rows.length > 1 ? { hdr: rows[0], rows: rows.slice(1) } : null;
+}
+// '1,234.5' '-12.3%' '268.9' → 수 / '산출 불가'·'-'·'' → null
+const _rpNum = s => {
+  const m = String(s ?? '').replace(/,/g, '').match(/^\s*(-?\d+(?:\.\d+)?)/);
+  return m ? parseFloat(m[1]) : null;
+};
+// '[신한투자증권](url) (2026-10-08)' → { text, url, date }
+const _rpMdLinkCell = c => {
+  const m = String(c || '').match(/^\[((?:\\.|[^\]\\])+)\]\((https?:\/\/[^)\s]+)\)\s*(?:\((\d{4}-\d{2}-\d{2})\))?/);
+  return m ? { text: m[1].replace(_RPD_ESC, '$1'), url: m[2], date: m[3] || null }
+           : { text: String(c || '').replace(_RPD_ESC, '$1'), url: null, date: null };
+};
+// 억원 → '2,165억' / '1.49조'
+const _rpEok = v => v == null ? '—' : Math.abs(v) >= 10000 ? `${(v / 10000).toFixed(2)}조` : `${Math.round(v).toLocaleString()}억`;
+// '26.2Q' → 전년 같은 분기 '25.2Q'
+const _rpPrevYearQ = p => { const m = String(p).match(/^(\d{2})\.(\d)Q$/); return m ? `${String(+m[1] - 1).padStart(2, '0')}.${m[2]}Q` : null; };
+// 전년 동기 대비 — 둘 다 플러스면 증감률(상승 빨강·하락 파랑, 한국식), 부호가 바뀌면 흑자/적자전환
+function _rpYoY(cur, prev) {
+  if (cur == null || prev == null) return null;
+  if (prev > 0 && cur > 0) {
+    const p = (cur - prev) / prev * 100;
+    return { text: `${p >= 0 ? '+' : ''}${p.toFixed(1)}%`, color: p >= 0 ? 'var(--red)' : 'var(--blue)' };
+  }
+  if (prev <= 0 && cur > 0) return { text: '흑자전환', color: 'var(--red)' };
+  if (prev > 0 && cur <= 0) return { text: '적자전환', color: 'var(--blue)' };
+  if (cur === prev) return { text: '적자지속', color: 'var(--text3)' };
+  return cur > prev ? { text: '적자축소', color: 'var(--red)' } : { text: '적자확대', color: 'var(--blue)' };
+}
+
+function _rpDartModel(md) {
+  const L = (md || '').split('\n').map(l => l.replace(/\r$/, ''));
+  const lab = (sec, key) => (sec || []).map(l => l.match(new RegExp(`^[-*]\\s*${key}[:：]\\s*(.+)$`))?.[1]?.trim()).find(Boolean) || null;
+  const out = {};
+
+  // 종합판단: 1-3 검토의견 → 없으면 2-9 '종합 검토의견' 첫 줄
+  const s13 = _rpMdSec(L, /^### 1-3\./);
+  out.verdict = lab(s13, '검토의견')
+    || (_rpMdSec(L, /^#### 종합 검토의견/) || []).map(l => l.match(/^[-*]\s+(.+)$/)?.[1]?.trim()).find(Boolean) || null;
+  out.scope = lab(s13, '판단 범위');
+
+  // 투자포인트·리스크: 굵은 제목 줄 + 그 아래 '- 근거/투자 의미/확인 조건'
+  const items = sec => {
+    if (!sec) return null;
+    const list = [];
+    for (const l of sec) {
+      const b = l.trim().match(/^\*\*(.+)\*\*$/);
+      if (b) list.push({ title: b[1].trim(), lines: [] });
+      else if (list.length && /^[-*]\s+/.test(l)) list[list.length - 1].lines.push(l.replace(/^[-*]\s+/, '').trim());
+    }
+    return list;
+  };
+  out.points = items(_rpMdSec(L, /^### 1-1\./));
+  out.risks  = items(_rpMdSec(L, /^### 1-2\./));
+
+  // 분기 추이(2-7): 첫 열 항목명, 나머지 '23.1Q'… — 손익·현금흐름은 개별 분기, 재무상태는 분기말
+  const tr = _rpMdFirstTable(_rpMdSec(L, /^#### 분기별 추이\s*$/));
+  if (tr) {
+    const row = re => { const r = tr.rows.find(r => re.test(r[0])); return r ? r.slice(1).map(_rpNum) : null; };
+    const revenue = row(/^매출액/);
+    out.trend = revenue && {
+      periods: tr.hdr.slice(1), revenue,
+      basis: tr.rows.find(r => /재무제표 기준/.test(r[0]))?.slice(1) || [],
+      op: row(/^영업이익\(/), opm: row(/^영업이익률/), fcf: row(/^잉여현금흐름/), debt: row(/^부채비율/),
+    };
+  }
+
+  // 재고 회전일수(2-7): '| 지표 | 2025.2Q | 2026.2Q | 변화 |'의 단분기 회전일수 행
+  const inv = _rpMdFirstTable(_rpMdSec(L, /^#### 재고자산 회전율/));
+  const invRow = inv?.rows.find(r => /^단분기 회전일수/.test(r[0]));
+  out.invDays = invRow ? { prev: _rpNum(invRow[1]), cur: _rpNum(invRow[2]) } : null;
+
+  // 수주잔고(4-6): 제목의 단위('백만원'·'천 USD' 등) + 합계 행(품목 하나면 그 행)
+  const blIdx = L.findIndex(l => /^#### 수주잔고 추이/.test(l));
+  if (blIdx >= 0) {
+    const bt = _rpMdFirstTable(_rpMdSec(L, /^#### 수주잔고 추이/));
+    const r = bt && (bt.rows.find(r => r[0] === '합계') || (bt.rows.length === 1 ? bt.rows[0] : null));
+    if (r) out.backlog = { unit: (L[blIdx].match(/단위[:：]\s*([^)]+)\)/) || [])[1]?.trim() || '', periods: bt.hdr.slice(1), values: r.slice(1).map(_rpNum) };
+  }
+
+  // 증권사 전망: 영업이익(2-7)·매출(4-1) 추정 표 + 리포트 표(2-9)를 증권사·발행일로 합침
+  const est = re => {
+    const t = _rpMdFirstTable(_rpMdSec(L, re));
+    return t ? { cols: t.hdr.slice(1), rows: t.rows.map(r => ({ ..._rpMdLinkCell(r[0]), vals: r.slice(1).map(_rpNum) })) } : null;
+  };
+  const estOp = est(/^#### 증권사 영업이익 추정/), estRev = est(/^#### 증권사 매출 추정/);
+  const rsec = _rpMdSec(L, /^#### 증권사 리포트/) || [];
+  const rt = _rpMdFirstTable(rsec);
+  const reports = (rt?.rows || []).map(r => ({ ..._rpMdLinkCell(r[1]), date: r[0], opinion: r[2] || '', tp: r[3] || '', change: r[4] || '' }));
+  const rnote = {};   // '**신한투자증권 | 제목**' 아래 '- 자체 검토:'
+  let cur = null;
+  for (const l of rsec) {
+    const b = l.trim().match(/^\*\*(.+?)\s*\|\s*(.+)\*\*$/);
+    if (b) { cur = rnote[b[1].trim()] = { headline: b[2].trim(), review: null }; continue; }
+    const rv = cur && l.match(/^[-*]\s*자체 검토[:：]\s*(.+)$/);
+    if (rv) cur.review = rv[1].trim();
+  }
+  const bmap = new Map();
+  const bget = (text, url, date) => {
+    const k = `${text}|${date || ''}`;
+    if (!bmap.has(k)) bmap.set(k, { broker: text, url, date, opinion: '', tp: '', change: '', rev: {}, op: {} });
+    return bmap.get(k);
+  };
+  for (const [t, key] of [[estRev, 'rev'], [estOp, 'op']])
+    for (const r of t?.rows || []) { const b = bget(r.text, r.url, r.date); t.cols.forEach((c, i) => { b[key][c] = r.vals[i]; }); }
+  for (const r of reports) Object.assign(bget(r.text, r.url, r.date), { opinion: r.opinion, tp: r.tp, change: r.change, url: r.url || null });
+  out.brokers = [...bmap.values()].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  out.estCols = [...new Set([...(estOp?.cols || []), ...(estRev?.cols || [])])];
+
+  // 보고기간 이후 이벤트: 후속 공시(2-8) + 리포트·뉴스(2-9), 최근 순
+  const events = [];
+  out.eventRange = (lab(_rpMdSec(L, /^### 2-8\./), '조회 범위') || '').match(/\d{4}-\d{2}-\d{2}\s*~\s*\d{4}-\d{2}-\d{2}/)?.[0] || null;
+  for (const r of _rpMdFirstTable(_rpMdSec(L, /^#### 후속 공시 목록/))?.rows || []) {
+    const k = _rpMdLinkCell(r[1]);
+    events.push({ date: r[0], kind: '공시', title: k.text, url: k.url, tag: r[2] || '', scope: r[3] || '', text: null, opinion: null });
+  }
+  // 같은 날 공시에 내용·검토의견을 붙임 — '원문 검토 반영' 공시 우선
+  const attach = (date, text, opinion) => {
+    const same = events.filter(e => e.kind === '공시' && e.date === date && !e.text);
+    const ev = same.find(e => /원문 검토 반영/.test(e.scope)) || same[0];
+    if (ev) { ev.text = text; ev.opinion = opinion; }
+  };
+  // 확인된 투자 영향(2-8): '- 날짜: 내용' + 다음 줄 '- 검토의견: …'
+  const imp = _rpMdSec(L, /^#### 확인된 투자 영향/) || [];
+  imp.forEach((l, i) => {
+    const m = l.match(/^[-*]\s*(\d{4}-\d{2}-\d{2})[:：]\s*(.+)$/);
+    if (m) attach(m[1], m[2], imp[i + 1]?.match(/^[-*]\s*검토의견[:：]\s*(.+)$/)?.[1] || null);
+  });
+  // 주요 뉴스(2-9): '**날짜 | 제목**' + 구분·확인 내용·자체 검토. '구분: 공시'는 같은 날 공시 항목에 합침(중복 표시 방지)
+  let nv = null;
+  const flush = () => {
+    if (!nv) return;
+    if (nv.isDisc && events.some(e => e.kind === '공시' && e.date === nv.date)) attach(nv.date, nv.text || nv.title, nv.opinion);
+    else events.push(nv);
+    nv = null;
+  };
+  for (const l of _rpMdSec(L, /^#### 주요 뉴스/) || []) {
+    const b = l.trim().match(/^\*\*(\d{4}-\d{2}-\d{2})\s*\|\s*(.+)\*\*$/);
+    if (b) { flush(); nv = { date: b[1], kind: '뉴스', title: b[2].trim(), url: null, tag: '', scope: '', text: null, opinion: null, isDisc: false }; continue; }
+    if (!nv) continue;
+    const g = l.match(/^[-*]\s*구분[:：]\s*(.+)$/);
+    if (g) { nv.isDisc = /^공시/.test(g[1]); nv.url = g[1].match(/\]\((https?:\/\/[^)\s]+)\)/)?.[1] || null; nv.tag = g[1].split(/[.。]/)[0].trim(); continue; }
+    const t = l.match(/^[-*]\s*확인 내용[:：]\s*(.+)$/);
+    if (t) { nv.text = t[1].trim(); continue; }
+    const o = l.match(/^[-*]\s*자체 검토[:：]\s*(.+)$/);
+    if (o) nv.opinion = o[1].trim();
+  }
+  flush();
+  for (const r of reports) {
+    const n = rnote[r.text];
+    const tp = r.tp && !/미확인|미제시/.test(r.tp) ? ` · 목표주가 ${r.tp}` : '';
+    events.push({ date: r.date, kind: '리포트', title: `${r.text} ${r.opinion}${tp}`, url: r.url, tag: '', scope: r.change,
+      text: n?.headline ? `「${n.headline}」` : null, opinion: n?.review || null });
+  }
+  out.events = events.filter(e => /^\d{4}-\d{2}-\d{2}$/.test(e.date)).sort((a, b) => b.date.localeCompare(a.date));
+  return out;
+}
+
+// ── DART 탭 카드 ─────────────────────────────────────────────────────────────
+
+// ② 종합판단
+function _rpDartVerdict(m) {
+  if (!m.verdict) return '';
+  return `<div style="${_RPD_CARD};border-left:3px solid var(--tg)">
+    ${_rpdT('종합판단')}
+    <div style="font-size:calc(13px*var(--m-body));color:var(--text);line-height:1.7;overflow-wrap:anywhere">${_rpMdInline(m.verdict)}</div>
+    ${m.scope ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px;line-height:1.5;overflow-wrap:anywhere">${_rpMdInline(m.scope)}</div>` : ''}
+  </div>`;
+}
+
+// ③ 핵심 지표 — 최신 분기와 전년 같은 분기 비교. 희석·보호예수·지분은 업로드 시 요약(summary)
+function _rpDartKpis(m, s) {
+  const esc = escapeHtml, tiles = [];
+  const tile = (label, value, sub, subColor) => `
+    <div style="padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);min-width:0">
+      <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</div>
+      <div style="font-size:calc(15px*var(--m-title));font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap">${value}</div>
+      ${sub ? `<div style="font-size:calc(11px*var(--m-label));color:${subColor || 'var(--text3)'};margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sub}</div>` : ''}
+    </div>`;
+  const lastIdx = arr => { let i = (arr || []).length - 1; while (i >= 0 && arr[i] == null) i--; return i; };
+  let asOf = '';
+  const t = m.trend;
+  if (t) {
+    const li = lastIdx(t.revenue);
+    if (li >= 0) {
+      asOf = t.periods[li];
+      const pi = t.periods.indexOf(_rpPrevYearQ(asOf));
+      const at = (arr, i) => arr && i >= 0 ? arr[i] : null;
+      const flow = (label, arr) => {
+        const v = at(arr, li); if (v == null) return;
+        const y = _rpYoY(v, at(arr, pi));
+        tiles.push(tile(label, _rpEok(v), y ? `YoY ${y.text}` : '', y?.color));
+      };
+      const ratio = (label, arr) => {
+        const v = at(arr, li); if (v == null) return;
+        const p = at(arr, pi);
+        tiles.push(tile(label, `${v.toFixed(2)}%`, p != null ? `전년 ${p.toFixed(2)}% · ${v - p >= 0 ? '+' : ''}${(v - p).toFixed(2)}%p` : ''));
+      };
+      flow('매출액', t.revenue); flow('영업이익', t.op); ratio('영업이익률', t.opm);
+      flow('간이 FCF', t.fcf); ratio('부채비율', t.debt);
+    }
+  }
+  const bl = m.backlog;
+  const bi = bl ? lastIdx(bl.values) : -1;
+  if (bi >= 0) {
+    const toEok = { '백만원': 1e-2, '천원': 1e-5, '원': 1e-8, '억원': 1 }[bl.unit.replace(/\s/g, '')];
+    const v = bl.values[bi], lab = bl.periods[bi], pi = bl.periods.indexOf(_rpPrevYearQ(lab));
+    const y = _rpYoY(v, pi >= 0 ? bl.values[pi] : null);
+    tiles.push(tile(`수주잔고${lab !== asOf ? ` (${esc(lab)})` : ''}`,
+      toEok ? _rpEok(v * toEok) : `${Math.round(v).toLocaleString()} ${esc(bl.unit)}`, y ? `YoY ${y.text}` : '', y?.color));
+  }
+  const iv = m.invDays;
+  if (iv?.cur != null) {
+    const d = iv.prev != null ? iv.cur - iv.prev : null;
+    tiles.push(tile('재고 회전일수', `${iv.cur.toFixed(1)}일`, d != null ? `전년 ${iv.prev.toFixed(1)}일 · ${d >= 0 ? '+' : ''}${d.toFixed(1)}일` : ''));
+  }
+  if (s.dilution_ratio != null)
+    tiles.push(tile('주식 희석률', `${(+s.dilution_ratio).toFixed(2)}%`, s.dilution_ratio > 5 ? '잠재 물량 5% 초과' : '', 'var(--warn)'));
+  if (s.lockup_ratio) tiles.push(tile('보호예수', `${(+s.lockup_ratio).toFixed(1)}%`, s.lockup_end ? `해제 ${esc(s.lockup_end)}` : ''));
+  if (s.related_party_ratio) tiles.push(tile('최대주주+특관', `${(+s.related_party_ratio).toFixed(1)}%`, ''));
+  if (!tiles.length) return '';
+  return `<div>
+    ${_rpdT('핵심 지표', asOf ? `${esc(asOf)} 기준 · YoY = 전년 같은 분기` : '')}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px">${tiles.join('')}</div>
+  </div>`;
+}
+
+// ④ 투자 포인트·리스크 — 신양식은 제목을 누르면 근거·투자 의미·확인 조건, 옛 양식은 요약 문장 목록
+function _rpDartPoints(title, list, fallback, color, emptyText) {
+  const box = inner => `<div style="background:var(--bg2);border:1px solid ${color}30;border-radius:var(--radius-sm);padding:14px">${inner}</div>`;
+  if (list && list.length) {
+    return box(_rpdT(title, '눌러서 근거 보기') + list.map(it => `
+      <details style="margin-bottom:4px;background:${color}08;border-radius:var(--radius-sm);border-left:2px solid ${color}50">
+        <summary style="cursor:pointer;padding:7px 10px;font-size:calc(13px*var(--m-body));color:var(--text1);line-height:1.6;overflow-wrap:anywhere">${_rpMdInline(it.title)}</summary>
+        ${it.lines.length ? `<div style="padding:0 10px 9px 24px;display:flex;flex-direction:column;gap:3px">
+          ${it.lines.map(l => `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.6;overflow-wrap:anywhere">${_rpMdLabeled(l)}</div>`).join('')}
+        </div>` : ''}
+      </details>`).join(''));
+  }
+  return box(_rpdT(title) + (fallback.length
+    ? fallback.map(t => `
+      <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;margin-bottom:4px;
+        background:${color}08;border-radius:var(--radius-sm);border-left:2px solid ${color}50">
+        <span style="font-size:calc(13px*var(--m-body));color:var(--text1);line-height:1.6">${_rpMdInline(t)}</span>
+      </div>`).join('')
+    : `<div style="font-size:calc(12px*var(--m-sub));color:var(--text2);padding:8px">${emptyText}</div>`));
+}
+
+// ⑤ 분기 실적 추이 — 매출·영업이익·간이 FCF를 항목별 작은 막대(각자 눈금, 0 기준선 위아래).
+// 규모가 다른 값을 한 축에 겹치지 않음. 막대에 마우스를 올리면 그 분기 값 전부
+function _rpDartTrend(m) {
+  const t = m.trend;
+  if (!t) return '';
+  const P = t.periods, n = P.length;
+  const tip = i => [P[i],
+    t.revenue?.[i] != null && `매출 ${_rpEok(t.revenue[i])}`,
+    t.op?.[i] != null && `영업이익 ${_rpEok(t.op[i])}`,
+    t.opm?.[i] != null && `영업이익률 ${t.opm[i].toFixed(2)}%`,
+    t.fcf?.[i] != null && `간이 FCF ${_rpEok(t.fcf[i])}`].filter(Boolean).join(' · ');
+  const H = 64;
+  const bars = (label, arr, colorOf) => {
+    if (!arr || arr.every(v => v == null)) return '';
+    const vals = arr.map(v => v ?? 0);
+    const maxP = Math.max(0, ...vals), maxN = Math.max(0, ...vals.map(v => -v)), span = (maxP + maxN) || 1;
+    const zero = Math.round(H * maxP / span);   // 위에서부터 0 기준선까지
+    let li = arr.length - 1; while (li >= 0 && arr[li] == null) li--;
+    const cols = arr.map((v, i) => {
+      const h = v == null ? 0 : Math.max(v ? 2 : 0, Math.round(Math.abs(v) / span * H));
+      const up = v != null && v >= 0;
+      return `<div title="${escAttr(tip(i))}" style="flex:1;min-width:0;position:relative;height:${H}px">
+        ${v == null ? '' : `<div style="position:absolute;left:14%;right:14%;height:${h}px;background:${colorOf(v)};
+          ${up ? `bottom:${H - zero}px;border-radius:3px 3px 0 0` : `top:${zero}px;border-radius:0 0 3px 3px`};${i === li ? '' : 'opacity:.7'}"></div>`}
+      </div>`;
+    }).join('');
+    return `<div style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:4px">
+        <span>${label}</span>
+        ${li >= 0 ? `<span style="white-space:nowrap">${escapeHtml(P[li])} <b style="color:var(--text1)">${_rpEok(arr[li])}</b></span>` : ''}
+      </div>
+      <div style="position:relative;display:flex;gap:2px">
+        ${cols}
+        <div style="position:absolute;left:0;right:0;top:${zero}px;border-top:1px solid var(--border2);pointer-events:none"></div>
+      </div>
+    </div>`;
+  };
+  const labels = P.map((p, i) => {
+    const q = p.match(/^(\d{2})\.(\d)Q$/);
+    return `<div style="flex:1;min-width:0;text-align:center;font-size:calc(10px*var(--m-label));line-height:1.25;
+      color:${i === n - 1 ? 'var(--tg)' : 'var(--text3)'}">${q ? `${q[2] === '1' || i === 0 ? q[1] : '&nbsp;'}<br>${q[2]}Q` : escapeHtml(p)}</div>`;
+  }).join('');
+  const sign = v => v >= 0 ? 'var(--red)' : 'var(--blue)';
+  const mixed = new Set(t.basis.filter(Boolean)).size > 1;
+  return `<div style="${_RPD_CARD}">
+    ${_rpdT('분기 실적 추이', '단위 억원 · 개별 분기 · 막대에 올리면 값')}
+    ${bars('매출액', t.revenue, () => 'var(--tg)')}
+    ${bars('영업이익', t.op, sign)}
+    ${bars('간이 FCF (영업현금흐름 − 유형·무형자산 취득)', t.fcf, sign)}
+    <div style="display:flex;gap:2px;margin-top:4px">${labels}</div>
+    ${mixed ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">연결·별도 기준이 바뀐 분기가 있어 단순 비교에 유의</div>` : ''}
+  </div>`;
+}
+
+// ⑥ 증권사 전망 — 증권사별 발행 당시 의견·목표주가·매출/영업이익 추정(억원)
+function _rpDartEstimates(m) {
+  const B = m.brokers;
+  if (!B || !B.length) return '';
+  const esc = escapeHtml, cols = m.estCols;
+  const hasRev = B.some(b => Object.values(b.rev).some(v => v != null));
+  const num = v => v == null ? '—' : Math.round(v).toLocaleString();
+  // 첫 열(증권사) 고정 — 좁은 화면에서 추정 열을 가로로 넘겨도 어느 증권사인지 보이게
+  const stick = 'position:sticky;left:0;z-index:1;background:inherit;';
+  const th = (t, al, st) => `<th style="${st || ''}padding:6px 8px;text-align:${al || 'left'};color:var(--text2);font-weight:600;border-bottom:1px solid var(--border);white-space:nowrap;vertical-align:bottom">${t}</th>`;
+  const td = (v, al, st) => `<td style="${st || ''}padding:6px 8px;text-align:${al || 'left'};border-bottom:1px solid var(--border);vertical-align:top;font-variant-numeric:tabular-nums">${v}</td>`;
+  const head = `<tr style="background:var(--bg3)">${th('증권사 · 발행일', 'left', stick)}${th('의견')}${th('목표주가', 'right')}
+    ${cols.map(c => th(`${esc(c)}<div style="font-weight:400;color:var(--text3);font-size:calc(10px*var(--m-label))">${hasRev ? '매출 / 영업이익' : '영업이익'}</div>`, 'right')).join('')}</tr>`;
+  const rows = B.map(b => {
+    const url = safeUrl(b.url);
+    const name = url ? `<a href="${escAttr(url)}" target="_blank" rel="noopener" style="color:var(--text1);font-weight:600;text-decoration:none">${esc(b.broker)} <span style="color:var(--tg)">↗</span></a>`
+                     : `<span style="color:var(--text1);font-weight:600">${esc(b.broker)}</span>`;
+    return `<tr style="background:var(--bg2)">
+      ${td(`${name}<div style="font-size:calc(11px*var(--m-label));color:var(--text3)">${esc(b.date || '')}</div>`, 'left', stick)}
+      ${td(`<span style="color:var(--text1)">${esc(b.opinion || '—')}</span>`)}
+      ${td(`<span style="color:var(--text1);white-space:nowrap">${esc(b.tp || '—')}</span>${b.change ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);white-space:nowrap">${esc(b.change)}</div>` : ''}`, 'right')}
+      ${cols.map(c => td(`${hasRev ? `<div style="color:var(--text1)">${num(b.rev[c])}</div>` : ''}<div style="color:${hasRev ? 'var(--text2)' : 'var(--text1)'}">${num(b.op[c])}</div>`, 'right')).join('')}
+    </tr>`;
+  }).join('');
+  // 참고: 공시 분기 합(전년 4개 분기 완비 시) · 올해 누적 — 연간 추정과 비교용
+  let ref = '';
+  const t = m.trend;
+  if (t) {
+    const yy = t.periods.map(p => p.match(/^(\d{2})\.\dQ$/)?.[1]).filter(Boolean);
+    const last = yy[yy.length - 1];
+    const sumY = (arr, y) => {
+      const idx = t.periods.map((p, i) => p.startsWith(`${y}.`) ? i : -1).filter(i => i >= 0);
+      const vals = idx.map(i => arr?.[i]).filter(v => v != null);
+      return { n: idx.length, ok: vals.length === idx.length && idx.length > 0, sum: vals.reduce((a, b) => a + b, 0) };
+    };
+    const parts = [];
+    if (last) {
+      const py = String(+last - 1).padStart(2, '0');
+      const pr = sumY(t.revenue, py), po = sumY(t.op, py);
+      if (pr.ok && pr.n === 4) parts.push(`20${py}년 매출 ${_rpEok(pr.sum)}${po.ok ? ` · 영업이익 ${_rpEok(po.sum)}` : ''}`);
+      const cr = sumY(t.revenue, last), co = sumY(t.op, last);
+      if (cr.ok && cr.n < 4) parts.push(`20${last}년 1~${cr.n}분기 매출 ${_rpEok(cr.sum)}${co.ok ? ` · 영업이익 ${_rpEok(co.sum)}` : ''}`);
+    }
+    if (parts.length) ref = `참고(공시 분기 합): ${parts.join(' / ')}`;
+  }
+  return `<div style="${_RPD_CARD}">
+    ${_rpdT('증권사 전망', '발행 당시 추정 · 컨센서스 아님 · 단위 억원')}
+    <div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-sm)">
+      <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub))"><thead>${head}</thead><tbody>${rows}</tbody></table>
+    </div>
+    ${ref ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">${ref}</div>` : ''}
+  </div>`;
+}
+
+// ⑦ 보고기간 이후 이벤트 — 공시·리포트·뉴스 최근 순. 제목만 점검한 공시는 흐리게
+function _rpDartEvents(m) {
+  const E = m.events;
+  if (!E || !E.length) return '';
+  const esc = escapeHtml;
+  const KC = { '공시': 'var(--tg)', '리포트': 'var(--warn)', '뉴스': 'var(--text2)' };
+  const row = e => {
+    const url = safeUrl(e.url), dim = /^제목 점검$/.test(e.scope);
+    const title = `<span style="color:${dim ? 'var(--text2)' : 'var(--text1)'}">${esc(e.title)}</span>${url ? ' <span style="color:var(--tg)">↗</span>' : ''}`;
+    const c = KC[e.kind] || 'var(--text2)';
+    return `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="flex-shrink:0;width:76px;font-size:calc(11px*var(--m-label));color:var(--text2);font-variant-numeric:tabular-nums">
+        ${esc(e.date)}
+        <div style="margin-top:3px"><span style="display:inline-block;padding:0 7px;border-radius:100px;font-size:calc(10px*var(--m-label));font-weight:600;
+          background:color-mix(in srgb, ${c} 14%, transparent);color:${c}">${esc(e.kind)}</span></div>
+      </div>
+      <div style="min-width:0;flex:1">
+        <div style="font-size:calc(12px*var(--m-sub));font-weight:600;line-height:1.5;overflow-wrap:anywhere">
+          ${url ? `<a href="${escAttr(url)}" target="_blank" rel="noopener" style="text-decoration:none">${title}</a>` : title}
+          ${e.tag ? `<span style="font-weight:400;font-size:calc(11px*var(--m-label));color:var(--text3);margin-left:4px">${esc(e.tag)}</span>` : ''}
+          ${e.scope ? `<span style="font-weight:400;font-size:calc(11px*var(--m-label));color:var(--text3);margin-left:4px">· ${esc(e.scope)}</span>` : ''}
+        </div>
+        ${e.text ? `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.6;margin-top:2px;overflow-wrap:anywhere">${_rpMdInline(e.text)}</div>` : ''}
+        ${e.opinion ? `<details style="margin-top:2px">
+          <summary style="cursor:pointer;font-size:calc(11px*var(--m-label));color:var(--tg)">자체 검토</summary>
+          <div style="font-size:calc(12px*var(--m-sub));color:var(--text2);line-height:1.6;margin-top:2px;overflow-wrap:anywhere">${_rpMdInline(e.opinion)}</div>
+        </details>` : ''}
+      </div>
+    </div>`;
+  };
+  const N = 6, rest = E.slice(N);
+  return `<div style="${_RPD_CARD}">
+    ${_rpdT('보고기간 이후 이벤트', m.eventRange ? `${esc(m.eventRange)} · 공시·리포트·뉴스` : '공시·리포트·뉴스')}
+    ${E.slice(0, N).map(row).join('')}
+    ${rest.length ? `<details style="margin-top:6px">
+      <summary style="cursor:pointer;font-size:calc(12px*var(--m-sub));color:var(--tg);padding:4px 0">이전 ${rest.length}건 더 보기</summary>
+      ${rest.map(row).join('')}
+    </details>` : ''}
   </div>`;
 }
 
@@ -326,6 +719,13 @@ function _rpSubsContent(subs, summary) {
     font-variant-numeric:tabular-nums">${v}</td>`;
   const COLS = 11;
 
+  // 3곳 이상·절반 이상이 같은 검토의견이면 표 위에 한 번만(원익IPS는 6곳 중 5곳이 같은 문장이었음)
+  const opCount = {};
+  subs.forEach(s => { if (s.opinion) opCount[s.opinion] = (opCount[s.opinion] || 0) + 1; });
+  const common = Object.keys(opCount).find(o => opCount[o] >= 3 && opCount[o] * 2 >= subs.length) || null;
+  if (common) summaryHTML += `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);line-height:1.55;margin:-4px 0 10px">
+    <span style="color:var(--text2)">공통 검토의견 (${opCount[common]}곳)</span> · ${esc(common)}</div>`;
+
   const rows = subs.map(s => {
     const insolvent = (s.note && s.note.includes('자본잠식')) || (s.equity != null && s.equity < 0);
     const isLoss = s.netIncome != null && s.netIncome < 0;
@@ -350,7 +750,7 @@ function _rpSubsContent(subs, summary) {
       ${td(s.liabilities != null ? fmtKW(s.liabilities) : '—', 'right', 'var(--text2)')}
       ${td(debtRatio != null ? Math.round(debtRatio).toLocaleString() + '%' : '—', 'right', debtRatio != null && debtRatio > 200 ? '#f5a623' : 'var(--text1)')}
       ${td(badge, 'center')}
-    </tr>${s.opinion ? `<tr style="${rowBg}"><td colspan="${COLS + 1}" style="padding:2px 9px 9px;border-bottom:1px solid var(--border);
+    </tr>${s.opinion && s.opinion !== common ? `<tr style="${rowBg}"><td colspan="${COLS + 1}" style="padding:2px 9px 9px;border-bottom:1px solid var(--border);
       font-size:calc(11px*var(--m-label));color:var(--text3);line-height:1.55;white-space:normal">
       <span style="color:var(--text2)">검토의견</span> · ${esc(s.opinion)}</td></tr>` : ''}`;
   }).join('');
@@ -728,8 +1128,7 @@ function _rpMdLabeled(t) {
 // 숫자 칸(정렬 미지정 열의 자동 우측 정렬용): 1,234 / -12.5% / (3,000) / +1.3%p / 6,345.90억원 / 3,225,945주
 const _RPD_NUM = /^[-+]?\(?[\d,]*\.?\d+\)?\s*(%p?|원|억원|억|조원|조|백만원|천원|만원|주|대|회|일|배|개사|개|명)?$/;
 function _rpMdTable(tableLines) {
-  // \| (생성기가 \\|로 두 번 이스케이프한 것 포함)는 칸 구분이 아닌 글자 '|'
-  const cells = r => r.replace(/\\+\|/g, '\u0001').split('|').slice(1, -1).map(c => c.trim().replace(/\u0001/g, '|'));
+  const cells = _rpMdCells;
   const isSep = l => /^\|[-:\s|]+$/.test(l);
   const sep = tableLines.find(isSep);
   const align = sep ? cells(sep).map(c => /^:-+:$/.test(c) ? 'center' : /^-+:$/.test(c) ? 'right' : /^:-+$/.test(c) ? 'left' : null) : [];
