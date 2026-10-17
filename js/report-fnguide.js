@@ -449,17 +449,17 @@ async function _rpLoadAndRenderProfile(body) {
   }
 }
 
-// 기업개요 탭 렌더 — 기본정보·최근공시(연혁)·매출구성·내수/수출·생산·계열사
-function _rpProfileTab({ comp, dart, dp, discs, region, prod, latest, segment, backlog }) {
-  const esc = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
-  const secT = t => `<div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
+// 탭 카드 공용 — 제목·상자·빈 칸 문구 (기업개요·지분현황 탭과, 그 카드를 그대로 쓰는 DART 분석 탭)
+const _rpTabSecT = t => `<div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
     <span style="width:3px;height:13px;background:var(--tg);border-radius:2px"></span>
     <span style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1)">${t}</span></div>`;
-  const box = inner => `<div data-capture style="background:var(--bg2);border:1px solid var(--border);
+const _rpTabBox = inner => `<div data-capture style="background:var(--bg2);border:1px solid var(--border);
     border-radius:var(--radius-sm);padding:14px">${inner}</div>`;
-  const empty = msg => `<div style="font-size:calc(12px*var(--m-sub));color:var(--text3);padding:10px 0;text-align:center">${msg}</div>`;
+const _rpTabEmpty = msg => `<div style="font-size:calc(12px*var(--m-sub));color:var(--text3);padding:10px 0;text-align:center">${msg}</div>`;
 
-  // ── ① 기업 기본정보 표 ─────────────────────────────────────────────────
+// 기업 기본정보 카드 — 기업개요·DART 분석 탭 공용. site = [수정] 창이 저장 후 다시 그릴 탭(RPP.sites 키)
+function _rpProfileInfoCard({ comp = {}, dart, dp = {}, latest = {} }, site = 'profile') {
+  const esc = escapeHtml, secT = _rpTabSecT, box = _rpTabBox, empty = _rpTabEmpty;
   const shares = _rpShares(latest);
   const infoRows = [
     ['회사명', dp.legalName ? esc(dp.legalName) : null],
@@ -475,8 +475,8 @@ function _rpProfileTab({ comp, dart, dp, discs, region, prod, latest, segment, b
   ].filter(([, v]) => v != null);
 
   // 제목 오른쪽 [수정](관리자·에디터, MD 업로드된 종목만) — report-dart.js의 기본정보 수정 창
-  const editBtn = dart && typeof _rpProfileEditBtn === 'function' ? _rpProfileEditBtn('profile') : '';
-  const infoHTML = box(`
+  const editBtn = dart && typeof _rpProfileEditBtn === 'function' ? _rpProfileEditBtn(site) : '';
+  return box(`
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">${secT('기업 기본정보')}${editBtn}</div>
     ${infoRows.length ? `
     <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub))">
@@ -489,6 +489,25 @@ function _rpProfileTab({ comp, dart, dp, discs, region, prod, latest, segment, b
     ${dart?.receive_date ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">
       * DART ${esc(dart.report_type || '')} 기준 [접수: ${esc(dart.receive_date)}]${dp.edited?.length ? ' · 일부 항목은 MD 내용을 고친 값' : ''}</div>` : ''}`
     : empty('DART 리포트(.md)를 업로드하면 기본정보가 표시됩니다')}`);
+}
+
+// 계열사 현황 카드 — 기업개요·DART 분석 탭 공용 (내용은 report-dart.js _rpSubsContent)
+function _rpProfileSubsCard(dp = {}) {
+  const subs = dp.subsidiaries || [];
+  return _rpTabBox(`
+    ${_rpTabSecT('계열사 현황')}
+    ${subs.length && typeof _rpSubsContent === 'function'
+      ? _rpSubsContent(subs, dp.subsidiarySummary)
+      : _rpTabEmpty('DART 업로드 시 계열사 현황이 표시됩니다')}`);
+}
+
+// 기업개요 탭 렌더 — 기본정보·최근공시(연혁)·매출구성·내수/수출·생산·계열사
+function _rpProfileTab({ comp, dart, dp, discs, region, prod, latest, segment, backlog }) {
+  const esc = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
+  const secT = _rpTabSecT, box = _rpTabBox, empty = _rpTabEmpty;
+
+  // ── ① 기업 기본정보 표 ─────────────────────────────────────────────────
+  const infoHTML = _rpProfileInfoCard({ comp, dart, dp, latest });
 
   // ── ② 최근 공시 (연혁 타임라인) ────────────────────────────────────────
   const discHTML = box(`
@@ -651,12 +670,7 @@ function _rpProfileTab({ comp, dart, dp, discs, region, prod, latest, segment, b
   }
 
   // ── ⑥ 계열사 현황 (상세 — 공용 _rpSubsContent) ────────────────────────
-  const subs = dp.subsidiaries || [];
-  const subsHTML = box(`
-    ${secT('계열사 현황')}
-    ${subs.length && typeof _rpSubsContent === 'function'
-      ? _rpSubsContent(subs, dp.subsidiarySummary)
-      : empty('DART 업로드 시 계열사 현황이 표시됩니다')}`);
+  const subsHTML = _rpProfileSubsCard(dp);
 
   return `<div style="display:flex;flex-direction:column;gap:12px">
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px">
@@ -678,7 +692,8 @@ function _rpProfileTab({ comp, dart, dp, discs, region, prod, latest, segment, b
 
 const RPF = { stmt: 'is', view: 'annual', rows: [] };
 
-async function _rpLoadAndRenderFinAnalysis(body) {
+// opts.view: 처음 보기('annual' 기본 · 'quarter') — DART 분석 탭 '실적'이 이 탭을 그대로 분기 보기로 씀
+async function _rpLoadAndRenderFinAnalysis(body, opts = {}) {
   if (!_rpStock || !body) return;
   try {
     const { data } = await sb.from('financials')
@@ -687,7 +702,7 @@ async function _rpLoadAndRenderFinAnalysis(body) {
       .order('bsns_year', { ascending: true }).order('quarter', { ascending: true });
     RPF.rows = finNormalizeQuarters(finPreferFs(data));   // 연결 우선 + 4분기 연간값 행 정리
     RPF._annual = null; // 연간 합산 캐시 무효화
-    RPF.stmt = 'is'; RPF.view = 'annual'; RPF.sel = _rpfDefaultSel('is');
+    RPF.stmt = 'is'; RPF.view = opts.view === 'quarter' ? 'quarter' : 'annual'; RPF.sel = _rpfDefaultSel('is');
     if (!RPF.rows.length) {
       body.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center;font-size:calc(12px*var(--m-sub))">재무 데이터 없음</div>';
       return;
@@ -698,8 +713,8 @@ async function _rpLoadAndRenderFinAnalysis(body) {
         <button id="rpf-st-bs" class="chip"        onclick="rpfSet('stmt','bs')">재무상태표</button>
         <button id="rpf-st-cf" class="chip"        onclick="rpfSet('stmt','cf')">현금흐름표</button>
         <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
-          <button id="rpf-vw-annual"  class="chip chip-sm active" onclick="rpfSet('view','annual')">연간</button>
-          <button id="rpf-vw-quarter" class="chip chip-sm"        onclick="rpfSet('view','quarter')">분기</button>
+          <button id="rpf-vw-annual"  class="chip chip-sm${RPF.view === 'annual' ? ' active' : ''}" onclick="rpfSet('view','annual')">연간</button>
+          <button id="rpf-vw-quarter" class="chip chip-sm${RPF.view === 'quarter' ? ' active' : ''}" onclick="rpfSet('view','quarter')">분기</button>
           <span style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-left:6px">* 단위: 억원, % · IFRS연결</span>
         </div>
       </div>
@@ -823,8 +838,7 @@ function _rpfChart(title, labels, bars, lines, opts = {}) {
 }
 
 // ── 계정과목 정의 ─────────────────────────────────────────────────────────────
-// stmt를 넘기면 재무분석 탭 상태(RPF.stmt)와 무관하게 정의만 씀(DART 분석 탭 '재무제표' 표)
-function _rpfRowDefs(stmt = RPF.stmt) {
+function _rpfRowDefs() {
   const taxCalc = r => r.pretax_income != null && r.net_income != null ? r.pretax_income - r.net_income : null;
   const gpCalc  = r => r.gross_profit ?? (r.revenue != null && r.cogs != null ? r.revenue - r.cogs : null);
   const defs = {
@@ -872,7 +886,7 @@ function _rpfRowDefs(stmt = RPF.stmt) {
       { k: 'fcf',                label: 'FCF',              bold: 1, sign: 1 },
     ],
   };
-  return defs[stmt] || defs.is;
+  return defs[RPF.stmt] || defs.is;
 }
 
 // ── 렌더 ─────────────────────────────────────────────────────────────────────
@@ -964,7 +978,7 @@ function rpfRender() {
   if (!RPF.sel.length) RPF.sel = _rpfDefaultSel(RPF.stmt).filter(k => validKeys.has(k));
 
   const table = `
-  <div style="overflow-x:auto;margin-top:12px">
+  <div data-capture="재무제표 표" style="overflow-x:auto;margin-top:12px">
     <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub));white-space:nowrap">
       <thead><tr style="background:var(--bg3)">
         <th style="padding:7px 10px;text-align:left;color:var(--text2);font-weight:600;

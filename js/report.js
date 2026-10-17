@@ -347,15 +347,9 @@ async function rpRenderReport() {
 }
 
 // ── 기업현황 탭 (FnGuide c1010001 — 시세·논거·컨센서스·연간실적·밸류·트렌드) ──
-function _rpTabOverview() {
-  const latest  = _rpData.price?.[0]  || {};
-  const latestF = _rpData.fin?.[0]    || {};
-  const prices  = _rpData.price       || [];
-  const price   = latest.price   || 0;
-
-  // Bull / Bear HTML — 템플릿 리터럴 밖에서 미리 계산
-  const dartPts  = _rpData.dart?.summary?.investment_points || [];
-  const dartRisks = _rpData.dart?.summary?.risk_points || [];
+// 핵심 투자포인트·리스크(Bull/Bear) 카드 — 기업현황·DART 분석 탭 공용 (DART 업로드 시 요약 summary의 제목 목록)
+function _rpBullBearCard(dartPts = [], dartRisks = []) {
+  dartPts = dartPts || []; dartRisks = dartRisks || [];
 
   const bullHTML = dartPts.length
       ? `<div style="display:flex;flex-direction:column;gap:5px" id="rp-bull-points">
@@ -377,13 +371,6 @@ function _rpTabOverview() {
     : `<div style="font-size:calc(13px*var(--m-body));color:var(--text3)">DART 분석 리스크가 아직 없습니다</div>`;
 
   return `
-  <!-- 시세 및 주주현황 + 주가/거래량 차트 -->
-  ${_rpQuoteCard(latest, prices)}
-
-  <!-- 오늘의 공시·뉴스 요약 (있을 때만) -->
-  ${_rpSummaryCard(_rpData.summary)}
-
-  <!-- 핵심 투자 논거 (Bull/Bear) -->
   <div class="card" style="padding:16px">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <div>
@@ -401,7 +388,24 @@ function _rpTabOverview() {
           ${bearHTML}
         </div>
     </div>
-  </div>
+  </div>`;
+}
+
+function _rpTabOverview() {
+  const latest  = _rpData.price?.[0]  || {};
+  const latestF = _rpData.fin?.[0]    || {};
+  const prices  = _rpData.price       || [];
+  const price   = latest.price   || 0;
+
+  return `
+  <!-- 시세 및 주주현황 + 주가/거래량 차트 -->
+  ${_rpQuoteCard(latest, prices)}
+
+  <!-- 오늘의 공시·뉴스 요약 (있을 때만) -->
+  ${_rpSummaryCard(_rpData.summary)}
+
+  <!-- 핵심 투자 논거 (Bull/Bear) -->
+  ${_rpBullBearCard(_rpData.dart?.summary?.investment_points, _rpData.dart?.summary?.risk_points)}
 
   <!-- 투자의견 컨센서스 -->
   ${_rpConsensusCard(_rpData.analyst || [], price)}

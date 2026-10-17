@@ -48,14 +48,47 @@ function _rpInsBadge(s) {
   return parts.join(' ');
 }
 
+// 주주 구성 카드 — 지분현황·DART 분석 탭 공용 (상자·제목은 report-fnguide.js _rpTabBox·_rpTabSecT)
+function _rpOwnSummaryCard({ dp = {}, s = {}, dart, latest = {} }) {
+  const esc = escapeHtml, secT = _rpTabSecT, box = _rpTabBox, empty = _rpTabEmpty;
+  const rp = s.related_party_ratio != null ? +s.related_party_ratio : null;
+  const fr = latest?.foreign_hold_rate != null ? +latest.foreign_hold_rate : null;
+  const freeFloat = rp != null ? Math.max(0, 100 - rp) : null;
+  const other = rp != null && fr != null ? Math.max(0, 100 - rp - fr) : null;
+  const kv = (label, val, sub) => `
+    <div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm)">
+      <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:3px">${label}</div>
+      <div style="font-size:calc(16px*var(--m-title));font-weight:800;font-variant-numeric:tabular-nums">${val}</div>
+      ${sub ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:2px">${sub}</div>` : ''}
+    </div>`;
+  return box(`
+    ${secT('주주 구성')}
+    ${(rp != null || dp.majorShareholder || fr != null) ? `
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px">
+      ${dp.majorShareholder ? kv('최대주주', esc(dp.majorShareholder), dp.majorShareholderRatio ? '지분 ' + esc(dp.majorShareholderRatio) : '') : ''}
+      ${rp != null ? kv('최대주주+특수관계인', rp.toFixed(1) + '%') : ''}
+      ${fr != null ? kv('외국인 지분율', fr.toFixed(2) + '%', latest.base_date ? '기준 ' + latest.base_date : '') : ''}
+      ${freeFloat != null ? kv('유동주식비율 (추정)', freeFloat.toFixed(1) + '%', '100% − 최대주주측') : ''}
+      ${s.lockup_ratio ? kv('보호예수', (+s.lockup_ratio).toFixed(1) + '%', s.lockup_end ? '해제 ' + esc(s.lockup_end) : '') : ''}
+    </div>
+    ${rp != null ? `
+    <div style="display:flex;height:16px;border-radius:5px;overflow:hidden;background:var(--border)">
+      <div style="flex:${rp};background:var(--tg)" title="최대주주+특관 ${rp.toFixed(1)}%"></div>
+      ${fr != null ? `<div style="flex:${Math.min(fr, freeFloat)};background:#f59e0b" title="외국인 ${fr.toFixed(2)}%"></div>` : ''}
+      ${other != null ? `<div style="flex:${other};background:#4ade80" title="기타 유동 ${other.toFixed(1)}%"></div>` : ''}
+    </div>
+    <div style="display:flex;gap:12px;margin-top:6px;font-size:calc(11px*var(--m-label));color:var(--text2);flex-wrap:wrap">
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--tg)"></span> 최대주주+특관 ${rp.toFixed(1)}%</span>
+      ${fr != null ? `<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#f59e0b"></span> 외국인 ${fr.toFixed(2)}%</span>` : ''}
+      ${other != null ? `<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#4ade80"></span> 기타 유동 ${other.toFixed(1)}%</span>` : ''}
+    </div>` : ''}
+    ${dart?.receive_date ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:8px">* DART ${esc(dart.report_type || '')} 기준 [접수: ${esc(dart.receive_date)}] · 외국인 지분율은 시장 데이터</div>` : ''}`
+    : empty('DART 리포트(.md)를 업로드하면 주주 구성이 표시됩니다')}`);
+}
+
 function _rpOwnershipTab({ discs, dp, s, dart, prices, latest }) {
   const esc = typeof escapeHtml === 'function' ? escapeHtml : (v => v ?? '');
-  const secT = t => `<div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
-    <span style="width:3px;height:13px;background:var(--tg);border-radius:2px"></span>
-    <span style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1)">${t}</span></div>`;
-  const box = inner => `<div data-capture style="background:var(--bg2);border:1px solid var(--border);
-    border-radius:var(--radius-sm);padding:14px">${inner}</div>`;
-  const empty = msg => `<div style="font-size:calc(12px*var(--m-sub));color:var(--text3);padding:10px 0;text-align:center">${msg}</div>`;
+  const secT = _rpTabSecT, box = _rpTabBox, empty = _rpTabEmpty;
 
   // ── ① 내부자거래·주가 차트 ─────────────────────────────────────────────
   let chartHTML = empty('주가 데이터 없음');
@@ -132,39 +165,7 @@ function _rpOwnershipTab({ discs, dp, s, dart, prices, latest }) {
   }
 
   // ── ② 주주 구성 요약 ───────────────────────────────────────────────────
-  const rp = s.related_party_ratio != null ? +s.related_party_ratio : null;
-  const fr = latest?.foreign_hold_rate != null ? +latest.foreign_hold_rate : null;
-  const freeFloat = rp != null ? Math.max(0, 100 - rp) : null;
-  const other = rp != null && fr != null ? Math.max(0, 100 - rp - fr) : null;
-  const kv = (label, val, sub) => `
-    <div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm)">
-      <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:3px">${label}</div>
-      <div style="font-size:calc(16px*var(--m-title));font-weight:800;font-variant-numeric:tabular-nums">${val}</div>
-      ${sub ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:2px">${sub}</div>` : ''}
-    </div>`;
-  const ownHTML = box(`
-    ${secT('주주 구성')}
-    ${(rp != null || dp.majorShareholder || fr != null) ? `
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px">
-      ${dp.majorShareholder ? kv('최대주주', esc(dp.majorShareholder), dp.majorShareholderRatio ? '지분 ' + esc(dp.majorShareholderRatio) : '') : ''}
-      ${rp != null ? kv('최대주주+특수관계인', rp.toFixed(1) + '%') : ''}
-      ${fr != null ? kv('외국인 지분율', fr.toFixed(2) + '%', latest.base_date ? '기준 ' + latest.base_date : '') : ''}
-      ${freeFloat != null ? kv('유동주식비율 (추정)', freeFloat.toFixed(1) + '%', '100% − 최대주주측') : ''}
-      ${s.lockup_ratio ? kv('보호예수', (+s.lockup_ratio).toFixed(1) + '%', s.lockup_end ? '해제 ' + esc(s.lockup_end) : '') : ''}
-    </div>
-    ${rp != null ? `
-    <div style="display:flex;height:16px;border-radius:5px;overflow:hidden;background:var(--border)">
-      <div style="flex:${rp};background:var(--tg)" title="최대주주+특관 ${rp.toFixed(1)}%"></div>
-      ${fr != null ? `<div style="flex:${Math.min(fr, freeFloat)};background:#f59e0b" title="외국인 ${fr.toFixed(2)}%"></div>` : ''}
-      ${other != null ? `<div style="flex:${other};background:#4ade80" title="기타 유동 ${other.toFixed(1)}%"></div>` : ''}
-    </div>
-    <div style="display:flex;gap:12px;margin-top:6px;font-size:calc(11px*var(--m-label));color:var(--text2);flex-wrap:wrap">
-      <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--tg)"></span> 최대주주+특관 ${rp.toFixed(1)}%</span>
-      ${fr != null ? `<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#f59e0b"></span> 외국인 ${fr.toFixed(2)}%</span>` : ''}
-      ${other != null ? `<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#4ade80"></span> 기타 유동 ${other.toFixed(1)}%</span>` : ''}
-    </div>` : ''}
-    ${dart?.receive_date ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:8px">* DART ${esc(dart.report_type || '')} 기준 [접수: ${esc(dart.receive_date)}] · 외국인 지분율은 시장 데이터</div>` : ''}`
-    : empty('DART 리포트(.md)를 업로드하면 주주 구성이 표시됩니다')}`);
+  const ownHTML = _rpOwnSummaryCard({ dp, s, dart, latest });
 
   // ── ③ 외국인 지분율 추이 ───────────────────────────────────────────────
   let frHTML = '';
