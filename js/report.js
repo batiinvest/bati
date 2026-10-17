@@ -361,7 +361,7 @@ function _rpTabOverview() {
       ? `<div style="display:flex;flex-direction:column;gap:5px" id="rp-bull-points">
           ${dartPts.slice(0,4).map(t => `<div style="display:flex;align-items:flex-start;gap:8px">
             <span style="color:#4ade80;font-weight:700;font-size:calc(14px*var(--m-body));margin-top:1px">•</span>
-            <span style="font-size:calc(13px*var(--m-body));color:var(--text1);line-height:1.5">${t}</span>
+            <span style="font-size:calc(13px*var(--m-body));color:var(--text1);line-height:1.5">${escapeHtml(t)}</span>
           </div>`).join('')}
           <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:2px">* DART 분석 기반 자동 추출</div>
         </div>`
@@ -371,7 +371,7 @@ function _rpTabOverview() {
     ? `<div style="display:flex;flex-direction:column;gap:5px">
         ${dartRisks.slice(0,4).map(t => `<div style="display:flex;align-items:flex-start;gap:8px">
           <span style="color:#f87171;font-weight:700;font-size:calc(14px*var(--m-body));margin-top:1px">•</span>
-          <span style="font-size:calc(13px*var(--m-body));color:var(--text1);line-height:1.5">${t}</span>
+          <span style="font-size:calc(13px*var(--m-body));color:var(--text1);line-height:1.5">${escapeHtml(t)}</span>
         </div>`).join('')}
       </div>`
     : `<div style="font-size:calc(13px*var(--m-body));color:var(--text3)">DART 분석 리스크가 아직 없습니다</div>`;

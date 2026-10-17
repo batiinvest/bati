@@ -212,7 +212,9 @@ function _mdDeepParse(md) {
   const sec2 = secLines('2. 기업정보');
   const basic = subLines('2-1', sec2);
   const mainBusinessRaw = lv('주요사업', basic);
-  const mainBusiness = mainBusinessRaw?.slice(0, 120) + (mainBusinessRaw?.length > 120 ? '...' : '');
+  const mainBusiness = mainBusinessRaw
+    ? mainBusinessRaw.slice(0, 120) + (mainBusinessRaw.length > 120 ? '...' : '')
+    : null;   // 없으면 null — 'undefined' 문자열이 카드에 찍히던 문제
 
   // 2-4 계열회사 (단위: 천원) — 관계·지분율·역할·국가·매출·순손익·자본·자산·부채·검토의견
   const subSec = subLines('2-4', sec2);
@@ -263,7 +265,8 @@ function _mdDeepParse(md) {
   const sec3 = secLines('3. 주주');
   const sh = subLines('3-1', sec3);
   const majorRaw = lv('최대주주', sh);
-  const majorShareholder   = majorRaw?.split('(')[0]?.trim() || majorRaw;
+  // 끝의 '(32.90%)'만 떼어냄 — split('(')는 '(주)원익홀딩스'처럼 괄호로 시작하는 이름을 빈 값으로 만들었음
+  const majorShareholder   = majorRaw?.replace(/\s*\(\s*[\d.]+\s*%\s*\)\s*$/, '').trim() || majorRaw;
   const majorShRatioRaw    = lv('최대주주', sh)?.match(/([\d.]+)%/);
   const majorShareholderRatio = majorShRatioRaw ? majorShRatioRaw[1]+'%' : null;
 
@@ -386,20 +389,38 @@ function _rpParseBusinessSections(md, stockCode) {
     return { value: isNaN(n) ? null : n, isPct: false };
   };
 
-  // 특정 h3 섹션의 테이블 행 추출
-  const getSectionTable = h3 => {
+  const parseRow = r => r.split('|').slice(1,-1).map(c => c.trim());
+
+  // 특정 h3 섹션의 h3~다음 h2/h3 사이 줄
+  const sectionLines = h3 => {
     const si = lines.findIndex(l => l.startsWith('### ') && l.includes(h3));
     if (si < 0) return [];
     const ei = lines.findIndex((l,i) => i > si && /^#{2,3} /.test(l));
-    return lines.slice(si, ei > 0 ? ei : lines.length)
-      .filter(l => /^\|/.test(l) && !/^\|[-:\s|]+$/.test(l));
+    return lines.slice(si, ei > 0 ? ei : lines.length);
   };
 
-  // 키워드(소제목) 다음의 '첫 번째 연속 표'만 추출 — 한 섹션에 표 여러 개일 때 분리용
+  // 특정 h3 섹션에서 '기간 열(25.1Q)이 있는 첫 표'의 행만 추출.
+  // 같은 섹션의 '증권사 매출 추정'(26.3QE·연간E) 표가 섞이면 추정치가 과거 분기 매출로 저장됐음
+  const getSectionTable = h3 => {
+    const sec = sectionLines(h3);
+    for (let i = 1; i < sec.length; i++) {
+      if (!/^\|/.test(sec[i]) || /^\|/.test(sec[i - 1])) continue;   // 표의 첫 줄에서만 시작
+      const tbl = [];
+      for (let j = i; j < sec.length && /^\|/.test(sec[j]); j++)
+        if (!/^\|[-:\s|]+$/.test(sec[j])) tbl.push(sec[j]);
+      if (tbl.length && parseRow(tbl[0]).some(h => parsePeriod(h))) return tbl;
+    }
+    return [];
+  };
+
+  // 소제목(#### 생산능력 추이 등) 다음의 '첫 번째 연속 표'만 추출 — 한 섹션에 표 여러 개일 때 분리용.
+  // 4장 안의 제목 줄에서만 찾음(요약 본문에 같은 낱말이 나와도 무시), 표 없이 다음 제목이 나오면 빈 값(다른 절 표를 집지 않음)
+  const sec4 = Math.max(0, lines.findIndex(l => /^## 4\./.test(l)));
   const firstTableAfter = kw => {
-    let i = lines.findIndex(l => l.includes(kw));
+    let i = lines.findIndex((l, j) => j >= sec4 && /^#{2,6}\s/.test(l) && l.includes(kw));
     if (i < 0) return [];
-    while (i < lines.length && !/^\s*\|/.test(lines[i])) i++;
+    for (i++; i < lines.length && !/^\s*\|/.test(lines[i]); i++)
+      if (/^#{2,6}\s/.test(lines[i])) return [];
     const tbl = [];
     while (i < lines.length && /^\s*\|/.test(lines[i])) {
       const t = lines[i].trim();
@@ -408,8 +429,6 @@ function _rpParseBusinessSections(md, stockCode) {
     }
     return tbl;
   };
-
-  const parseRow = r => r.split('|').slice(1,-1).map(c => c.trim());
 
   const result = { segmentRevenue: [], rawMaterial: [], production: [], orderBacklog: [] };
 
@@ -521,27 +540,72 @@ function _rpParseBusinessSections(md, stockCode) {
     const numOnly = v => { const s = (v || '').replace(/,/g, '').replace(/[^\d.\-]/g, '').trim();
       const n = parseFloat(s); return s === '' || isNaN(n) ? null : Math.round(n); };
     const pctOnly = v => { const m = (v || '').match(/(-?[\d.]+)\s*%/); return m ? parseFloat(m[1]) : null; };
-    const byItem = (tbl, field, parse) => {
-      if (tbl.length < 2) return;
+    const pKey = p => `${p.bsns_year}_${p.quarter}`;
+    // 표 → { 품목: Map(기간키 → { p, v }) }
+    const byItem = (tbl, parse) => {
+      const out = {};
+      if (tbl.length < 2) return out;
       const h = parseRow(tbl[0]); let d = h.findIndex(x => parsePeriod(x)); if (d < 1) d = 1;
       const P = h.slice(d).map(parsePeriod);
       for (const row of tbl.slice(1)) {
         const cols = parseRow(row); const name = (cols[0] || '').trim();
         if (!name || name === '합계') continue;
-        cols.slice(d).forEach((v, pi) => { if (P[pi]) put(name, P[pi], field, parse(v)); });
+        const m = (out[name] ||= new Map());
+        cols.slice(d).forEach((v, pi) => { if (P[pi]) m.set(pKey(P[pi]), { p: P[pi], v: parse(v) }); });
       }
+      return out;
+    };
+    // 누적 → 분기: 1분기는 그대로, 2~4분기는 같은 해 직전 분기 누적을 뺌.
+    // 직전 누적이 없거나 결과가 음수면 비움(지어내지 않음)
+    const deCum = m => {
+      const q = new Map();
+      for (const [k, { p, v }] of m) {
+        const n = +p.quarter.slice(1);
+        const prev = n > 1 ? m.get(`${p.bsns_year}_Q${n - 1}`)?.v : 0;
+        const d = v == null || prev == null ? null : v - prev;
+        q.set(k, { p, v: d != null && d >= 0 ? d : null });
+      }
+      return q;
     };
     const tCap = firstTableAfter('생산능력 추이');
     const tAct = firstTableAfter('생산실적 추이');
     const tUtil = firstTableAfter('가동률 추이');
     if (tCap.length || tAct.length || tUtil.length) {
-      byItem(tCap, 'capacity', numOnly);
-      byItem(tAct, 'actual', numOnly);
-      if (tUtil.length >= 2) {  // '평균가동률' 행만 utilization_rate로
-        const h = parseRow(tUtil[0]); let d = h.findIndex(x => parsePeriod(x)); if (d < 1) d = 1;
-        const P = h.slice(d).map(parsePeriod);
-        const urow = tUtil.slice(1).find(row => /가동률/.test(parseRow(row)[0] || ''));
-        if (urow) parseRow(urow).slice(d).forEach((v, pi) => { if (P[pi]) put('평균가동률', P[pi], 'utilization_rate', pctOnly(v)); });
+      // 4-5 기준 문구가 '누적'이라고 밝힌 경우(반기·3분기·연간 = 기간 누적 공시)만 분기값으로 바꿔 저장.
+      // 밝히지 않은 MD는 공시값 그대로(주성엔지니어링처럼 분기마다 공시 방식이 섞인 회사가 있어 숫자 모양으로 추측하지 않음)
+      const cumulative = sectionLines('4-5').some(l => /^[-*]\s*기준[:：]/.test(l) && l.includes('누적'));
+      const capRaw = byItem(tCap, numOnly), actRaw = byItem(tAct, numOnly);
+      const conv = o => Object.fromEntries(Object.entries(o).map(([n, m]) => [n, cumulative ? deCum(m) : m]));
+      const cap = conv(capRaw), act = conv(actRaw);
+      for (const [name, m] of Object.entries(cap)) for (const { p, v } of m.values()) put(name, p, 'capacity', v);
+      for (const [name, m] of Object.entries(act)) for (const { p, v } of m.values()) put(name, p, 'actual', v);
+
+      // 가동률: '…가동률' 행(평균가동률) + 생산능력·실적 표와 같은 품목 행(반도체·디스플레이 등).
+      // 가동가능시간 같은 보조 행은 % 값이 없어 건너뜀
+      const utilRaw = byItem(tUtil, pctOnly);
+      for (const [rowName, m] of Object.entries(utilRaw)) {
+        const name = /가동률/.test(rowName) ? '평균가동률' : rowName;
+        if (name !== '평균가동률' && !capRaw[name] && !actRaw[name]) continue;
+        let out = m;
+        if (cumulative) {
+          // 누적 가동률은 빼서 분기값을 만들 수 없음. 공시 가동률이 누적 실적÷누적 능력과 맞는(±1%p) 품목만
+          // 분기 실적÷분기 능력으로 다시 계산하고, 아니면 1분기(누적=분기)만 남김
+          const c = capRaw[name], a = actRaw[name];
+          let checked = 0;
+          const fits = !!(c && a) && [...m].every(([k, { v }]) => {
+            const cv = c.get(k)?.v, av = a.get(k)?.v;
+            if (v == null || cv == null || av == null || cv === 0) return true;
+            checked++;
+            return Math.abs(av / cv * 100 - v) <= 1;
+          }) && checked > 0;
+          out = new Map([...m].map(([k, { p, v }]) => {
+            if (p.quarter === 'Q1') return [k, { p, v }];
+            if (!fits) return [k, { p, v: null }];
+            const cq = cap[name].get(k)?.v, aq = act[name].get(k)?.v;
+            return [k, { p, v: cq && aq != null ? Math.round(aq / cq * 1000) / 10 : null }];
+          }));
+        }
+        for (const { p, v } of out.values()) put(name, p, 'utilization_rate', v);
       }
     } else {
       const t45 = getSectionTable('4-5');
@@ -721,6 +785,17 @@ function _rpParseMd(text) {
       .filter(Boolean);
   }
 
+  // 신양식 1-1 투자포인트 / 1-2 핵심 리스크 — 굵은 제목 줄(**제목 [태그]**) 하나가 항목 하나.
+  // 섹션이 없으면 null(옛 양식 → '- 투자판단:' 줄로 폴백), 섹션은 있는데 항목이 없으면 [] (폴백하지 않음)
+  function boldTitles(h3re) {
+    const si = lines.findIndex(l => h3re.test(l));
+    if (si < 0) return null;
+    const ei = lines.findIndex((l, i) => i > si && /^#{2,3} /.test(l));
+    return lines.slice(si + 1, ei > 0 ? ei : lines.length)
+      .map(l => l.trim().match(/^\*\*(.+)\*\*$/)?.[1].trim())
+      .filter(Boolean);
+  }
+
   const stockCode  = tableVal('문서 개요', '종목코드') || '';
   const stockName  = tableVal('문서 개요', '회사명') || '';
   const reportType = tableVal('문서 개요', '원문 기준') || '';
@@ -746,8 +821,8 @@ function _rpParseMd(text) {
       lockup_ratio:       lockupRatio,
       lockup_end:         lockupEnd,
       related_party_ratio: relatedPartyRatio,
-      investment_points:  allTagged('투자판단'),
-      risk_points:        allTagged('리스크'),
+      investment_points:  boldTitles(/^### 1-1\./) ?? allTagged('투자판단'),
+      risk_points:        boldTitles(/^### 1-2\./) ?? allTagged('리스크'),
       review_points:      allTagged('검토의견'),
     },
   };
