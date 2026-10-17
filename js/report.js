@@ -301,7 +301,7 @@ async function rpRenderReport() {
   ${_rpSnapshotBand(latest, _rpData.annual, _rpData.company)}
 
   <!-- ② FnGuide식 메인 탭 네비게이션 (지표밴드 바로 아래·sticky) ──── -->
-  <div class="card" style="padding:0;overflow:hidden;position:sticky;top:0;z-index:var(--z-sticky)">
+  <div class="card" data-capture-off style="padding:0;overflow:hidden;position:sticky;top:0;z-index:var(--z-sticky)">
     <div style="display:flex;background:var(--bg2);overflow-x:auto;scrollbar-width:none">
       ${RP_TABS.map((t,i) => `
         <button onclick="rpSetTab(${i})" id="rp-tabbtn-${i}"
@@ -440,7 +440,7 @@ async function rpSetTab(idx) {
 
   // 나머지 탭 — 카드 래퍼 안에 로딩 후 각 로더가 채움
   const name = RP_TABS[idx] || '';
-  body.innerHTML = `<div class="card" style="padding:14px" id="rp-tab-card">
+  body.innerHTML = `<div class="card" data-capture-off style="padding:14px" id="rp-tab-card">
     <div style="text-align:center;color:var(--text2);padding:40px">
       <span class="loading"></span> ${name} 로딩 중...</div></div>`;
   const card = document.getElementById('rp-tab-card');
@@ -463,7 +463,7 @@ function _rpTabFlow(prices) {
   const recent = prices.slice(0, 20).reverse();
   const maxTV  = Math.max(...recent.map(r => r.trading_value || 0));
   return `
-  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
+  <div data-capture style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
     ${_rpSecT('거래대금 추이', '* 최근 20거래일 · 색상=등락 방향')}
     <div style="display:flex;gap:2px;align-items:flex-end;height:60px">
       ${recent.map(r => {

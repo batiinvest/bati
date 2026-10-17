@@ -75,7 +75,7 @@ async function _rpLoadAndRenderDart(body) {
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px">
 
     <!-- 기업 개요 -->
-    <div style="${_RPD_CARD}">
+    <div data-capture style="${_RPD_CARD}">
       ${_rpdT('기업 개요')}
       <div style="display:flex;flex-direction:column;gap:6px">
         ${dp.mainBusiness ? `
@@ -90,7 +90,7 @@ async function _rpLoadAndRenderDart(body) {
     </div>
 
     <!-- 주주 구조 -->
-    <div style="${_RPD_CARD}">
+    <div data-capture style="${_RPD_CARD}">
       ${_rpdT('주주 구조')}
       <div style="display:flex;flex-direction:column;gap:6px">
         ${dp.majorShareholder ? `
@@ -134,7 +134,7 @@ async function _rpLoadAndRenderDart(body) {
 
   <!-- ⑨ 계열사 현황 ───────────────────────────── -->
   ${dp.subsidiaries?.length ? `
-  <div style="${_RPD_CARD}">
+  <div data-capture style="${_RPD_CARD}">
     ${_rpdT('계열사 현황')}
     ${_rpSubsContent(dp.subsidiaries, dp.subsidiarySummary)}
   </div>` : ''}
@@ -339,7 +339,7 @@ function _rpDartModel(md) {
 // ② 종합판단
 function _rpDartVerdict(m) {
   if (!m.verdict) return '';
-  return `<div style="${_RPD_CARD};border-left:3px solid var(--tg)">
+  return `<div data-capture style="${_RPD_CARD};border-left:3px solid var(--tg)">
     ${_rpdT('종합판단')}
     <div style="font-size:calc(13px*var(--m-body));color:var(--text);line-height:1.7;overflow-wrap:anywhere">${_rpMdInline(m.verdict)}</div>
     ${m.scope ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px;line-height:1.5;overflow-wrap:anywhere">${_rpMdInline(m.scope)}</div>` : ''}
@@ -397,7 +397,7 @@ function _rpDartKpis(m, s) {
   if (s.lockup_ratio) tiles.push(tile('보호예수', `${(+s.lockup_ratio).toFixed(1)}%`, s.lockup_end ? `해제 ${esc(s.lockup_end)}` : ''));
   if (s.related_party_ratio) tiles.push(tile('최대주주+특관', `${(+s.related_party_ratio).toFixed(1)}%`, ''));
   if (!tiles.length) return '';
-  return `<div>
+  return `<div data-capture>
     ${_rpdT('핵심 지표', asOf ? `${esc(asOf)} 기준 · YoY = 전년 같은 분기` : '')}
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px">${tiles.join('')}</div>
   </div>`;
@@ -405,7 +405,7 @@ function _rpDartKpis(m, s) {
 
 // ④ 투자 포인트·리스크 — 신양식은 제목을 누르면 근거·투자 의미·확인 조건, 옛 양식은 요약 문장 목록
 function _rpDartPoints(title, list, fallback, color, emptyText) {
-  const box = inner => `<div style="background:var(--bg2);border:1px solid ${color}30;border-radius:var(--radius-sm);padding:14px">${inner}</div>`;
+  const box = inner => `<div data-capture style="background:var(--bg2);border:1px solid ${color}30;border-radius:var(--radius-sm);padding:14px">${inner}</div>`;
   if (list && list.length) {
     return box(_rpdT(title, '눌러서 근거 보기') + list.map(it => `
       <details style="margin-bottom:4px;background:${color}08;border-radius:var(--radius-sm);border-left:2px solid ${color}50">
@@ -468,7 +468,7 @@ function _rpDartTrend(m) {
   }).join('');
   const sign = v => v >= 0 ? 'var(--red)' : 'var(--blue)';
   const mixed = new Set(t.basis.filter(Boolean)).size > 1;
-  return `<div style="${_RPD_CARD}">
+  return `<div data-capture style="${_RPD_CARD}">
     ${_rpdT('분기 실적 추이', '단위 억원 · 개별 분기 · 막대에 올리면 값')}
     ${bars('매출액', t.revenue, () => 'var(--tg)')}
     ${bars('영업이익', t.op, sign)}
@@ -523,7 +523,7 @@ function _rpDartEstimates(m) {
     }
     if (parts.length) ref = `참고(공시 분기 합): ${parts.join(' / ')}`;
   }
-  return `<div style="${_RPD_CARD}">
+  return `<div data-capture style="${_RPD_CARD}">
     ${_rpdT('증권사 전망', '발행 당시 추정 · 컨센서스 아님 · 단위 억원')}
     <div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-sm)">
       <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub))"><thead>${head}</thead><tbody>${rows}</tbody></table>
@@ -563,7 +563,7 @@ function _rpDartEvents(m) {
     </div>`;
   };
   const N = 6, rest = E.slice(N);
-  return `<div style="${_RPD_CARD}">
+  return `<div data-capture style="${_RPD_CARD}">
     ${_rpdT('보고기간 이후 이벤트', m.eventRange ? `${esc(m.eventRange)} · 공시·리포트·뉴스` : '공시·리포트·뉴스')}
     ${E.slice(0, N).map(row).join('')}
     ${rest.length ? `<details style="margin-top:6px">

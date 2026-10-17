@@ -53,7 +53,7 @@ function _rpOwnershipTab({ discs, dp, s, dart, prices, latest }) {
   const secT = t => `<div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
     <span style="width:3px;height:13px;background:var(--tg);border-radius:2px"></span>
     <span style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1)">${t}</span></div>`;
-  const box = inner => `<div style="background:var(--bg2);border:1px solid var(--border);
+  const box = inner => `<div data-capture style="background:var(--bg2);border:1px solid var(--border);
     border-radius:var(--radius-sm);padding:14px">${inner}</div>`;
   const empty = msg => `<div style="font-size:calc(12px*var(--m-sub));color:var(--text3);padding:10px 0;text-align:center">${msg}</div>`;
 

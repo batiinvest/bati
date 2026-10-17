@@ -451,7 +451,7 @@ function _rpProfileTab({ comp, dart, dp, discs, region, prod, latest, segment, b
   const secT = t => `<div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
     <span style="width:3px;height:13px;background:var(--tg);border-radius:2px"></span>
     <span style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1)">${t}</span></div>`;
-  const box = inner => `<div style="background:var(--bg2);border:1px solid var(--border);
+  const box = inner => `<div data-capture style="background:var(--bg2);border:1px solid var(--border);
     border-radius:var(--radius-sm);padding:14px">${inner}</div>`;
   const empty = msg => `<div style="font-size:calc(12px*var(--m-sub));color:var(--text3);padding:10px 0;text-align:center">${msg}</div>`;
 
@@ -799,7 +799,7 @@ function _rpfChart(title, labels, bars, lines, opts = {}) {
         : `<span style="width:12px;height:2.5px;border-radius:2px;background:${s.color};display:inline-block"></span>`}
       ${s.name}</span>`).join('');
 
-  return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px">
+  return `<div data-capture style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px">
       <span style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--text1)">${title}</span>
       <div style="display:flex;gap:10px;flex-wrap:wrap">${legend}</div>

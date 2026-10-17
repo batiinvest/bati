@@ -160,7 +160,7 @@ function _bizTable(m, opts) {
 
 // ── 탭 본문 조립 ─────────────────────────────────────────────────────────────
 function _rpBizTab({ product, region, backlog, rawUsage, rawPrice, prod }) {
-  const box = inner => `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">${inner}</div>`;
+  const box = inner => `<div data-capture style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">${inner}</div>`;
   const secT = (t, r) => typeof _rpSecT === 'function' ? _rpSecT(t, r || '')
     : `<div style="font-size:calc(13px*var(--m-body));font-weight:700;margin-bottom:10px">${t}</div>`;
   const empty = msg => `<div style="font-size:calc(12px*var(--m-sub));color:var(--text3);padding:20px 0;text-align:center">${msg}</div>`;
