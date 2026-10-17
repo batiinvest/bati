@@ -42,7 +42,7 @@ async function _rpLoadAndRenderDart(body) {
   const bullet = (text, color) => `
     <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;margin-bottom:4px;
       background:${color}08;border-radius:var(--radius-sm);border-left:2px solid ${color}50">
-      <span style="font-size:calc(13px*var(--m-body));color:var(--text1);line-height:1.6">${esc(text)}</span>
+      <span style="font-size:calc(13px*var(--m-body));color:var(--text1);line-height:1.6">${_rpMdInline(text)}</span>
     </div>`;
 
   body.innerHTML = `
@@ -59,6 +59,9 @@ async function _rpLoadAndRenderDart(body) {
           background:color-mix(in srgb, var(--tg) 12%, transparent);color:var(--tg);font-weight:600">${esc(data.report_type||'')}</span>
         <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">접수 ${esc(data.receive_date||'')}</span>
         ${dp.listedDate ? `<span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">상장 ${esc(dp.listedDate)}</span>` : ''}
+        ${dp.updated ? `<span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">검토 ${esc(dp.updated)}</span>` : ''}
+        ${dp.receiptNo ? `<a href="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${dp.receiptNo}" target="_blank" rel="noopener"
+          style="font-size:calc(12px*var(--m-sub));color:var(--tg);text-decoration:none">DART 원문 ↗</a>` : ''}
       </div>
     </div>
     <button onclick="document.getElementById('rp-dart-file').click()"
@@ -83,7 +86,7 @@ async function _rpLoadAndRenderDart(body) {
   </div>
 
   <!-- ③ 투자 포인트 | 리스크 ────────────────────── -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px">
     <div style="background:var(--bg2);border:1px solid #4ade8030;border-radius:var(--radius-sm);padding:14px">
       ${sectionTitle('핵심 투자 포인트')}
       ${pts.length
@@ -99,7 +102,7 @@ async function _rpLoadAndRenderDart(body) {
   </div>
 
   <!-- ④ 기업 개요 | 주주 구조 ─────────────────── -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px">
 
     <!-- 기업 개요 -->
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
@@ -207,6 +210,12 @@ function _mdDeepParse(md) {
     const l = lines.find(l => /\|\s*회사명\s*\|/.test(l));
     return l ? l.split('|')[2]?.trim() : null;
   })();
+  const docVal = key => {   // 문서 개요 표 '| 키 | 값 |'
+    const l = lines.find(l => new RegExp(`^\\|\\s*${key}\\s*\\|`).test(l));
+    return l ? l.split('|')[2]?.trim() || null : null;
+  };
+  const receiptNo = (docVal('접수번호') || '').match(/^\d{14}$/)?.[0] || null;   // DART 원문 링크용
+  const updated = docVal('업데이트');
 
   // 2-1 기본정보
   const sec2 = secLines('2. 기업정보');
@@ -271,7 +280,7 @@ function _mdDeepParse(md) {
   const majorShareholderRatio = majorShRatioRaw ? majorShRatioRaw[1]+'%' : null;
 
   return {
-    stockCode, stockName,
+    stockCode, stockName, receiptNo, updated,
     mainBusiness,
     established: lv('설립일', basic),
     listedDate:  lv('상장일', basic),
@@ -657,106 +666,200 @@ function _rpParseBusinessSections(md, stockCode) {
 }
 
 // ── MD → 아코디언 섹션 HTML ───────────────────────────────────────────────────
-function _mdToAccordion(md) {
-  const lines = md.split('\n');
-  const esc  = escapeHtml;
-  const inl  = s => esc(s)
-    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    .replace(/`(.+?)`/g,'<code style="background:var(--bg3);padding:1px 4px;border-radius:3px;font-size:calc(11px*var(--m-label))">$1</code>');
-  const keyword = t => {
-    if (/^투자판단[:：]/.test(t)) return `<span style="color:#4ade80;font-weight:600">${inl(t)}</span>`;
-    if (/^리스크[:：]/.test(t))   return `<span style="color:#f87171;font-weight:600">${inl(t)}</span>`;
-    if (/^검토의견[:：]/.test(t)) return `<span style="color:#60a5fa;font-weight:600">${inl(t)}</span>`;
-    if (/^중요도[:：]/.test(t))   return `<span style="color:#f59e0b;font-weight:600">${inl(t)}</span>`;
-    return inl(t);
-  };
+// 섹션(## )마다 헤더만 먼저 그리고 본문은 처음 펼칠 때 렌더(RPD.secs) — 원익IPS MD를 한 번에 그리면 DOM 13.8만 노드였음
 
-  let html = '', i = 0, secOpen = false, secN = 0;
+// DART 탭 상태 — 상세 분석 섹션 원문 줄
+const RPD = { secs: [] };
 
-  const parseTable = tableLines => {
-    const rows = tableLines.filter(l => !/^\|[-:\s|]+$/.test(l));
-    if (!rows.length) return '';
-    const cols = r => r.split('|').slice(1,-1).map(c => c.trim());
-    const hdr = cols(rows[0]);
-    return `<div style="overflow-x:auto;margin:4px 0">
-      <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub))">
-        <thead><tr style="background:var(--bg2)">
-          ${hdr.map(h=>`<th style="padding:5px 8px;text-align:left;font-weight:600;color:var(--text1);
-            border-bottom:1px solid var(--border);white-space:nowrap">${inl(h)}</th>`).join('')}
-        </tr></thead>
-        <tbody>
-          ${rows.slice(1).map((r,ri)=>`<tr style="background:${ri%2?'var(--bg3)':''}">
-            ${cols(r).map(c=>`<td style="padding:4px 8px;color:var(--text1);
-              border-bottom:1px solid var(--border);line-height:1.5;font-size:calc(12px*var(--m-sub))">${inl(c)}</td>`).join('')}
-          </tr>`).join('')}
-        </tbody>
-      </table></div>`;
-  };
+// 원자료 덤프(원문 변환본·원문 XML·API JSON = 5~7장)는 화면·저장에서 뺀다 — 원익IPS 기준 MD 6MB의 98%·DOM의 92%.
+// 분석(1~4장)·변경사항(8장~)만 남기고 원문은 헤더의 'DART 원문' 링크로 대신함. 코드블록 안의 '## '는 제목으로 보지 않음.
+// 옛 양식(06월 생성분)은 5장 안에 '## 원문 XML: 접수번호.xml'이 따로 ## 제목으로 있음
+const _RPD_RAW_SEC = /^##\s+(?:\d+\.\s*(?:보고서 원문 전체 변환|재무정보 전체|정기보고서 주요정보 전체)|원문 XML:.*)\s*$/;
+const _rpFenceClose = open => new RegExp(`^${open[0] === '`' ? '`' : '~'}{${open.length},}\\s*$`);
+function _rpStripRawSections(md) {
+  const out = [];
+  let skip = false, close = null;
+  for (const line of (md || '').split('\n')) {
+    const t = line.trim();
+    if (close) { if (close.test(t)) close = null; }
+    else if (/^(`{3,}|~{3,})/.test(t)) close = _rpFenceClose(t.match(/^(`{3,}|~{3,})/)[1]);
+    else if (/^## /.test(line)) skip = _RPD_RAW_SEC.test(t);
+    if (!skip) out.push(line);
+  }
+  return out.join('\n');
+}
 
+// 인라인: [글](url) → 원문 칩(safeUrl 통과분만), **굵게**, `코드`, <br>, [공시 확인]·[증권사 전망] 태그.
+// \[ \] \* \| 같은 마크다운 이스케이프는 글자 그대로 — 자리표시로 잠시 빼 둬서 굵게·태그로 오인하지 않게 함
+// (공시 제목 '[분기별공시(개별회사용)]'처럼 대괄호가 든 링크 글자가 생성기에서 \[ \]로 나옴)
+const _RPD_ESC = /\\([\\`*_{}\[\]()#+\-.!|])/g;
+const _rpMdText = s => escapeHtml(s.replace(_RPD_ESC, (m, c) => `\u0002${c.charCodeAt(0)}\u0003`))
+  .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text)">$1</strong>')
+  .replace(/`([^`]+)`/g, '<code style="background:var(--bg3);padding:1px 4px;border-radius:3px;font-size:calc(11px*var(--m-label))">$1</code>')
+  .replace(/&lt;br\s*\/?&gt;/gi, '<br>')
+  .replace(/\[((?:공시|증권사|회사|언론|자체)[^\[\]]{0,12})\]/g, (m, tag) => {
+    const c = /전망|추정/.test(tag) ? 'var(--warn)' : 'var(--tg)';
+    return `<span style="display:inline-block;padding:0 7px;margin-left:2px;border-radius:100px;font-size:calc(10px*var(--m-label));font-weight:600;vertical-align:1px;white-space:nowrap;background:color-mix(in srgb, ${c} 14%, transparent);color:${c}">${tag}</span>`;
+  })
+  .replace(/\u0002(\d+)\u0003/g, (m, c) => escapeHtml(String.fromCharCode(+c)));
+function _rpMdInline(s) {
+  const re = /\[((?:\\.|[^\]\\\n])+)\]\((https?:\/\/[^)\s]+)\)/g;   // 링크 글자 안의 \] 허용
+  let html = '', last = 0, m;
+  while ((m = re.exec(s))) {
+    html += _rpMdText(s.slice(last, m.index));
+    const url = safeUrl(m[2]);
+    html += url
+      ? `<a href="${escAttr(url)}" target="_blank" rel="noopener" style="display:inline-block;padding:0 7px;margin:0 2px;border-radius:100px;font-size:calc(11px*var(--m-label));line-height:1.6;white-space:nowrap;text-decoration:none;vertical-align:1px;background:color-mix(in srgb, var(--tg) 12%, transparent);color:var(--tg)">${escapeHtml(m[1].replace(_RPD_ESC, '$1'))} ↗</a>`
+      : _rpMdText(m[0]);
+    last = re.lastIndex;
+  }
+  return html + _rpMdText(s.slice(last));
+}
+
+// '라벨: 내용' 줄은 라벨만 굵게. 투자판단·리스크·검토의견·중요도는 라벨에 의미색(예전엔 줄 전체를 칠해 긴 문단이 읽기 힘들었음)
+const _RPD_KEY = { '투자판단': 'var(--green)', '리스크': 'var(--danger)', '검토의견': 'var(--tg)', '중요도': 'var(--warn)' };
+function _rpMdLabeled(t) {
+  const m = t.match(/^([^:：\[\]()*`|]{1,16}?)\s*[:：](?:\s+(.*))?$/);
+  if (!m) return _rpMdInline(t);
+  const col = _RPD_KEY[m[1].trim()];
+  return `<b style="color:${col || 'var(--text)'};font-weight:${col ? 700 : 600}">${escapeHtml(m[1].trim())}</b> ${_rpMdInline(m[2] || '')}`;
+}
+
+// 숫자 칸(정렬 미지정 열의 자동 우측 정렬용): 1,234 / -12.5% / (3,000) / +1.3%p / 6,345.90억원 / 3,225,945주
+const _RPD_NUM = /^[-+]?\(?[\d,]*\.?\d+\)?\s*(%p?|원|억원|억|조원|조|백만원|천원|만원|주|대|회|일|배|개사|개|명)?$/;
+function _rpMdTable(tableLines) {
+  // \| (생성기가 \\|로 두 번 이스케이프한 것 포함)는 칸 구분이 아닌 글자 '|'
+  const cells = r => r.replace(/\\+\|/g, '\u0001').split('|').slice(1, -1).map(c => c.trim().replace(/\u0001/g, '|'));
+  const isSep = l => /^\|[-:\s|]+$/.test(l);
+  const sep = tableLines.find(isSep);
+  const align = sep ? cells(sep).map(c => /^:-+:$/.test(c) ? 'center' : /^-+:$/.test(c) ? 'right' : /^:-+$/.test(c) ? 'left' : null) : [];
+  const rows = tableLines.filter(l => !isSep(l));
+  if (!rows.length) return '';
+  const hdr = cells(rows[0]);
+  const body = rows.slice(1).map(cells);
+  // 열이 많은 표(분기 추이 등)는 내용 폭대로 펼쳐 가로 스크롤 + 첫 열 고정 — 100% 폭에 욱여넣으면 항목명이 한 글자씩 줄바꿈됐음
+  const wide = hdr.length > 5;
+  const stick = wide ? 'position:sticky;left:0;z-index:1;min-width:88px;max-width:180px;white-space:normal;' : '';
+  // 정렬 미지정 열은 값의 60% 이상이 숫자일 때만 우측 정렬(열 단위) — 칸마다 판정하면 '항목|값' 표가 들쭉날쭉해짐
+  const auto = hdr.map((_, k) => {
+    const vals = body.map(r => r[k]).filter(v => v && v !== '-');
+    return vals.length && vals.filter(v => _RPD_NUM.test(v)).length / vals.length >= 0.6 ? 'right' : 'left';
+  });
+  const al = k => align[k] || auto[k];
+  return `<div style="overflow-x:auto;margin:4px 0;border:1px solid var(--border);border-radius:var(--radius-sm)">
+    <table style="${wide ? 'width:max-content;min-width:100%' : 'width:100%'};border-collapse:collapse;font-size:calc(12px*var(--m-sub));font-variant-numeric:tabular-nums">
+      <thead><tr style="background:var(--bg3)">
+        ${hdr.map((h, k) => `<th style="${k === 0 ? stick : ''}background:inherit;padding:5px 8px;text-align:${al(k)};font-weight:600;color:var(--text1);
+          border-bottom:1px solid var(--border);white-space:nowrap">${_rpMdInline(h)}</th>`).join('')}
+      </tr></thead>
+      <tbody>
+        ${body.map((r, ri) => `<tr style="background:${ri % 2 ? 'color-mix(in srgb, var(--bg3) 55%, var(--bg2))' : 'var(--bg2)'}">
+          ${r.map((c, k) => { const a = al(k); return `<td style="${k === 0 ? stick : ''}background:inherit;padding:4px 8px;text-align:${a};color:var(--text1);
+            border-bottom:1px solid var(--border);line-height:1.5;${a === 'right' ? 'white-space:nowrap;' : wide && k ? 'max-width:320px;' : ''}">${_rpMdInline(c)}</td>`; }).join('')}
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+// 섹션 본문 줄 → HTML
+function _rpMdBlocks(lines) {
+  let html = '', i = 0;
+  const text = 'font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.6;min-width:0;overflow-wrap:anywhere';
   while (i < lines.length) {
     const line = lines[i].trimEnd();
+    const t = line.trim();
 
-    if (/^# /.test(line)) { i++; continue; }
-
-    if (/^## /.test(line)) {
-      if (secOpen) html += '</div></div>';
-      secN++;
-      const title = line.replace(/^## /,'').trim();
-      const sid = `dac-${secN}`;
-      // 1번 섹션(문서 개요)은 기본 닫힘, 나머지는 기본 닫힘
-      html += `
-        <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden">
-          <div onclick="(function(b,a){b.style.display=b.style.display==='none'?'flex':'none';
-              a.style.transform=b.style.display==='none'?'rotate(0)':'rotate(90deg)'})(
-              document.getElementById('${sid}'),this.querySelector('span'))"
-            style="padding:9px 14px;background:var(--bg2);cursor:pointer;display:flex;
-              align-items:center;gap:8px;font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1);user-select:none">
-            <span style="font-size:calc(11px*var(--m-label));color:var(--text2);transition:transform .15s">▶</span>
-            ${esc(title)}
-          </div>
-          <div id="${sid}" style="display:none;padding:12px 14px;flex-direction:column;gap:6px">`;
-      secOpen = true;
-      i++; continue;
+    const fm = t.match(/^(`{3,}|~{3,})/);
+    if (fm) {   // 코드블록 — 높이 제한 스크롤 상자
+      const close = _rpFenceClose(fm[1]), body = [];
+      for (i++; i < lines.length && !close.test(lines[i].trim()); i++) body.push(lines[i]);
+      i++;
+      html += `<pre style="margin:4px 0;padding:8px 10px;max-height:320px;overflow:auto;background:var(--bg3);border-radius:var(--radius-sm);
+        font-size:calc(11px*var(--m-label));color:var(--text2);white-space:pre">${escapeHtml(body.join('\n'))}</pre>`;
+      continue;
     }
 
-    if (/^### /.test(line)) {
-      html += `<div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--tg);margin-top:10px;margin-bottom:4px;
-        padding-bottom:3px;border-bottom:1px solid var(--border2)">${esc(line.replace(/^### /,'').trim())}</div>`;
+    const h = line.match(/^(#{3,6})\s+(.*)$/);
+    if (h) {
+      const n = h[1].length, title = _rpMdInline(h[2].trim());
+      html += n === 3
+        ? `<div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--tg);margin-top:10px;margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid var(--border2)">${title}</div>`
+        : n === 4
+        ? `<div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--text1);margin-top:6px">${title}</div>`
+        : `<div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text2);margin-top:4px">${title}</div>`;
       i++; continue;
     }
-    if (/^#### /.test(line)) {
-      html += `<div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--text1);margin-top:6px">${esc(line.replace(/^#### /,'').trim())}</div>`;
-      i++; continue;
-    }
-    if (/^##### /.test(line)) {
-      html += `<div style="font-size:calc(11px*var(--m-label));font-weight:600;color:var(--text2);margin-top:4px">${esc(line.replace(/^##### /,'').trim())}</div>`;
-      i++; continue;
-    }
-    if (/^---+$/.test(line.trim())) { i++; continue; }
+    if (/^---+$/.test(t)) { i++; continue; }
+
+    // 생성기의 접기 블록(<details>/<summary> 줄 단독)만 실제 태그로 — 그 외 HTML은 글자로 이스케이프
+    if (t === '<details>') { html += `<details style="margin:2px 0">`; i++; continue; }
+    if (t === '</details>') { html += `</details>`; i++; continue; }
+    const sm = t.match(/^<summary>(.*)<\/summary>$/);
+    if (sm) { html += `<summary style="cursor:pointer;font-size:calc(11px*var(--m-label));color:var(--text2);padding:2px 0">${_rpMdInline(sm[1])}</summary>`; i++; continue; }
 
     if (/^\|/.test(line)) {
       const tbl = [];
       while (i < lines.length && /^\|/.test(lines[i].trimEnd())) { tbl.push(lines[i].trimEnd()); i++; }
-      html += parseTable(tbl);
+      html += _rpMdTable(tbl);
       continue;
     }
 
-    if (/^[-*] /.test(line)) {
-      const t = line.replace(/^[-*] /,'').trim();
-      html += `<div style="display:flex;align-items:flex-start;gap:6px;padding:1px 0">
-        <span style="color:var(--text2);font-size:calc(11px*var(--m-label));margin-top:5px;flex-shrink:0">◦</span>
-        <span style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.6">${keyword(t)}</span>
+    const li = line.match(/^(\s*)[-*]\s+(.*)$/);
+    if (li) {   // 들여쓴 목록(대표 경력 등)은 단계별 들여쓰기
+      const lv = Math.min(3, Math.floor(li[1].replace(/\t/g, '  ').length / 2));
+      html += `<div style="display:flex;align-items:flex-start;gap:6px;padding:1px 0 1px ${lv * 16}px">
+        <span style="color:var(--text2);font-size:calc(11px*var(--m-label));margin-top:5px;flex-shrink:0">${lv ? '·' : '◦'}</span>
+        <span style="${text}">${_rpMdLabeled(li[2].trim())}</span>
       </div>`;
       i++; continue;
     }
 
-    if (!line.trim()) { i++; continue; }
-    html += `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.6">${inl(line.trim())}</div>`;
+    if (!t) { i++; continue; }
+    const bold = t.match(/^\*\*(.+)\*\*$/);   // 굵은 제목 줄(투자포인트·리스크 항목 등)
+    html += bold
+      ? `<div style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text);margin-top:8px;overflow-wrap:anywhere">${_rpMdInline(bold[1])}</div>`
+      : `<div style="${text}">${_rpMdLabeled(t)}</div>`;
     i++;
   }
-
-  if (secOpen) html += '</div></div>';
   return html;
+}
+
+function _mdToAccordion(md) {
+  const src = md || '';
+  const kept = _rpStripRawSections(src);
+  RPD.secs = [];
+  let close = null;
+  for (const line of kept.split('\n')) {
+    const t = line.trim();
+    if (close) { if (close.test(t)) close = null; }
+    else if (/^(`{3,}|~{3,})/.test(t)) close = _rpFenceClose(t.match(/^(`{3,}|~{3,})/)[1]);
+    else if (/^## /.test(line)) { RPD.secs.push({ title: t.replace(/^##\s+/, ''), lines: [] }); continue; }
+    if (RPD.secs.length) RPD.secs[RPD.secs.length - 1].lines.push(line);   // 첫 ## 이전(# 제목)은 버림
+  }
+  const html = RPD.secs.map((s, i) => `
+    <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden">
+      <div onclick="rpDartAcc(${i})"
+        style="padding:9px 14px;background:var(--bg2);cursor:pointer;display:flex;
+          align-items:center;gap:8px;font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1);user-select:none">
+        <span id="dac-l-${i}" style="font-size:calc(11px*var(--m-label));color:var(--text2);width:12px">▶</span>
+        ${escapeHtml(s.title)}
+      </div>
+      <div id="dac-${i}" style="display:none;padding:12px 14px"></div>
+    </div>`).join('');
+  const note = kept.length < src.length
+    ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);padding:4px 2px">원문 변환본·원문 XML·API 원자료(5~7장)는 화면에서 뺐습니다 — 위 'DART 원문' 링크에서 확인</div>`
+    : '';
+  return html + note;
+}
+
+// 아코디언 펼침/접힘 — 처음 펼칠 때 본문 렌더
+function rpDartAcc(i) {
+  toggleSection(`dac-${i}`, `dac-l-${i}`, ['▼', '▶'], () => {
+    const el = document.getElementById(`dac-${i}`);
+    if (!el || el.dataset.r || !RPD.secs[i]) return;
+    el.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px">${_rpMdBlocks(RPD.secs[i].lines)}</div>`;
+    el.dataset.r = '1';
+  });
 }
 
 // ── DART MD 파서 ─────────────────────────────────────────────────────────────
@@ -847,7 +950,7 @@ async function rpUploadDart(input) {
     stock_name:   parsed.stock_name,
     report_type:  parsed.report_type,
     receive_date: parsed.receive_date,
-    raw_md:       text,
+    raw_md:       _rpStripRawSections(text),   // 파싱은 원본 전체로, 저장은 원자료(5~7장) 뺀 본 — 원익IPS 6MB→약 0.1MB
     summary:      parsed.summary,
   }, { onConflict: 'stock_code,report_type' });
 
