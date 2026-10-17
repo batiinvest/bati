@@ -777,12 +777,13 @@ function _rpParseBusinessSections(md, stockCode) {
   };
 
   // "3,596 (42%)" → {amount:3596, ratio:42.00} / "3,596" → {amount:3596, ratio:null}
+  // (소수까지 읽음 — 억원 표의 1,234.5를 백만원으로 바꿀 때 .5를 버리지 않게)
   const parseAmtRatio = s => {
     const str = (s||'').trim();
     if (!str || str === '-') return { amount: null, ratio: null };
     const rm = str.match(/\((\d+\.?\d*)%\)/);
     const ratio = rm ? parseFloat(rm[1]) : null;
-    const n = parseInt(str.replace(/\(.*?\)/,'').replace(/,/g,'').replace(/-/g,'').trim());
+    const n = parseFloat(str.replace(/\(.*?\)/,'').replace(/,/g,'').replace(/-/g,'').trim());
     const neg = /^-/.test(str.replace(/\(.*?\)/,'').trim());
     const amount = isNaN(n) ? null : (neg ? -n : n);
     return { amount, ratio };
@@ -808,7 +809,22 @@ function _rpParseBusinessSections(md, stockCode) {
     return lines.slice(si, ei > 0 ? ei : lines.length);
   };
 
-  // 특정 h3 섹션에서 '기간 열(25.1Q)이 있는 첫 표'의 행만 추출.
+  // 표 단위 → 백만원 배율. 사업분석 탭이 4-1·4-2·4-3·4-6을 '백만원'으로 그리므로 저장 전에 맞춤.
+  // 외화가 섞였거나(천 USD 등) 금액이 아닌 단위(대수·천C/S·'천')는 환산할 수 없어 f=null → 저장하지 않음.
+  // 단위 표기가 없는 표는 예전처럼 백만원으로 봄(f=1)
+  const TO_MIL = { '원': 1e-6, '천원': 1e-3, '백만원': 1, '억원': 100, '십억원': 1e3, '조원': 1e6 };
+  const unitFactor = ls => {   // 표 위쪽 줄(가까운 것부터)의 '단위: …'
+    for (let i = ls.length - 1; i >= 0; i--) {
+      const m = ls[i].match(/단위[:：]\s*([^)|]+)/);
+      if (!m) continue;
+      const unit = m[1].trim(), raw = unit.replace(/\s+/g, '');
+      if (/USD|JPY|EUR|CNY|CAD|GBP|HKD|달러|위안|엔화/i.test(raw)) return { unit, f: null };
+      return { unit, f: TO_MIL[raw.split(/[,/·%]/)[0]] ?? null };
+    }
+    return { unit: null, f: 1 };
+  };
+
+  // 특정 h3 섹션에서 '기간 열(25.1Q)이 있는 첫 표'의 행만 추출(+ 그 표의 단위 uf).
   // 같은 섹션의 '증권사 매출 추정'(26.3QE·연간E) 표가 섞이면 추정치가 과거 분기 매출로 저장됐음
   const getSectionTable = h3 => {
     const sec = sectionLines(h3);
@@ -817,7 +833,7 @@ function _rpParseBusinessSections(md, stockCode) {
       const tbl = [];
       for (let j = i; j < sec.length && /^\|/.test(sec[j]); j++)
         if (!/^\|[-:\s|]+$/.test(sec[j])) tbl.push(sec[j]);
-      if (tbl.length && parseRow(tbl[0]).some(h => parsePeriod(h))) return tbl;
+      if (tbl.length && parseRow(tbl[0]).some(h => parsePeriod(h))) { tbl.uf = unitFactor(sec.slice(0, i)); return tbl; }
     }
     return [];
   };
@@ -826,11 +842,13 @@ function _rpParseBusinessSections(md, stockCode) {
   // 4장 안의 제목 줄에서만 찾음(요약 본문에 같은 낱말이 나와도 무시), 표 없이 다음 제목이 나오면 빈 값(다른 절 표를 집지 않음)
   const sec4 = Math.max(0, lines.findIndex(l => /^## 4\./.test(l)));
   const firstTableAfter = kw => {
-    let i = lines.findIndex((l, j) => j >= sec4 && /^#{2,6}\s/.test(l) && l.includes(kw));
-    if (i < 0) return [];
-    for (i++; i < lines.length && !/^\s*\|/.test(lines[i]); i++)
+    const h = lines.findIndex((l, j) => j >= sec4 && /^#{2,6}\s/.test(l) && l.includes(kw));
+    if (h < 0) return [];
+    let i = h + 1;
+    for (; i < lines.length && !/^\s*\|/.test(lines[i]); i++)
       if (/^#{2,6}\s/.test(lines[i])) return [];
     const tbl = [];
+    tbl.uf = unitFactor(lines.slice(h, i));   // 제목 '(단위: 백만원)' 또는 제목~표 사이 줄
     while (i < lines.length && /^\s*\|/.test(lines[i])) {
       const t = lines[i].trim();
       if (!/^\|[-:\s|]+$/.test(t)) tbl.push(t);
@@ -839,14 +857,21 @@ function _rpParseBusinessSections(md, stockCode) {
     return tbl;
   };
 
-  const result = { segmentRevenue: [], rawMaterial: [], production: [], orderBacklog: [] };
+  // skipped: 단위를 백만원으로 바꿀 수 없어 저장하지 않은 표(업로드 알림용)
+  const result = { segmentRevenue: [], rawMaterial: [], production: [], orderBacklog: [], skipped: [] };
+  const toMil = (n, uf) => Math.round(n * uf.f);
+  const usable = (tbl, label) => {
+    if (tbl.length < 2) return false;
+    if (tbl.uf?.f == null) { result.skipped.push(`${label}(${(tbl.uf?.unit || '단위 불명').slice(0, 20)})`); return false; }
+    return true;
+  };
 
   // ── 4-1. 매출(제품별) ─ 차원 컬럼(사업부문·품목) 자동 감지 ──────────────────
   // 헤더에서 기간("25.1Q") 컬럼이 처음 나오는 위치 이전까지를 차원 컬럼으로 본다.
   //   "| 사업부문 | 품목 | 23.1Q | ... |" → 차원 2개(category=사업부문, subcategory=품목)
   //   "| 구분 | 25.1Q | ... |"           → 차원 1개(category=구분)
   const t41 = getSectionTable('4-1');
-  if (t41.length >= 2) {
+  if (usable(t41, '4-1 제품별 매출')) {
     const header = parseRow(t41[0]);
     let dimN = header.findIndex(h => parsePeriod(h));  // 첫 기간 컬럼 위치
     if (dimN < 1) dimN = 1;                             // 기간 미인식 시 차원 1개로 폴백
@@ -863,7 +888,7 @@ function _rpParseBusinessSections(md, stockCode) {
         result.segmentRevenue.push({
           stock_code: stockCode, ...periods[pi],
           segment_type: 'product', category, subcategory,
-          revenue: amount, revenue_ratio: ratio,
+          revenue: toMil(amount, t41.uf), revenue_ratio: ratio,
         });
       });
     }
@@ -871,7 +896,7 @@ function _rpParseBusinessSections(md, stockCode) {
 
   // ── 4-2. 매출(국내/해외) ─────────────────────────────────────────────────
   const t42 = getSectionTable('4-2');
-  if (t42.length >= 2) {
+  if (usable(t42, '4-2 국내/해외 매출')) {
     const periods = parseRow(t42[0]).slice(2).map(parsePeriod);
     for (const row of t42.slice(1)) {
       const cols = parseRow(row);
@@ -881,12 +906,12 @@ function _rpParseBusinessSections(md, stockCode) {
         if (!periods[pi]) return;
         const str = v.replace(/,/g,'').trim();
         if (!str || str === '-') return;
-        const n = parseInt(str);
+        const n = parseFloat(str);
         if (isNaN(n)) return;
         result.segmentRevenue.push({
           stock_code: stockCode, ...periods[pi],
           segment_type: 'region', category, subcategory: sub||'',
-          revenue: n, revenue_ratio: null,
+          revenue: toMil(n, t42.uf), revenue_ratio: null,
         });
       });
     }
@@ -894,7 +919,7 @@ function _rpParseBusinessSections(md, stockCode) {
 
   // ── 4-3. 원재료 ──────────────────────────────────────────────────────────
   const t43 = getSectionTable('4-3');
-  if (t43.length >= 2) {
+  if (usable(t43, '4-3 원재료')) {
     const periods = parseRow(t43[0]).slice(2).map(parsePeriod);
     for (const row of t43.slice(1)) {
       const cols = parseRow(row);
@@ -902,12 +927,12 @@ function _rpParseBusinessSections(md, stockCode) {
       if (!mname || pname === '합계') continue;
       cols.slice(2).forEach((v, pi) => {
         if (!periods[pi]) return;
-        const n = parseInt(v.replace(/,/g,'').trim());
+        const n = parseFloat(v.replace(/,/g,'').trim());
         if (isNaN(n)) return;
         result.rawMaterial.push({
           stock_code: stockCode, ...periods[pi],
           data_type: 'usage', product_name: pname||'', material_name: mname,
-          origin: '', amount: n,
+          origin: '', amount: toMil(n, t43.uf),
         });
       });
     }
@@ -1038,7 +1063,7 @@ function _rpParseBusinessSections(md, stockCode) {
   // 같은 4-6 섹션의 스냅샷(수주총액/기납품액…)·판매계약 표가 섞이지 않도록 소제목 기준 첫 표만.
   // 잔고는 기말 잔액(stock). 매출처럼 합산하지 않음. segment_type='backlog'로 저장.
   const t46 = firstTableAfter('수주잔고 추이');
-  if (t46.length >= 2) {
+  if (usable(t46, '4-6 수주잔고')) {
     const header = parseRow(t46[0]);
     let dimN = header.findIndex(h => parsePeriod(h));
     const periods = dimN >= 1 ? header.slice(dimN).map(parsePeriod) : [];
@@ -1050,12 +1075,12 @@ function _rpParseBusinessSections(md, stockCode) {
         if (!category || category === '합계') continue;
         cols.slice(dimN).forEach((v, pi) => {
           if (!periods[pi]) return;
-          const n = parseInt((v || '').replace(/,/g, '').trim(), 10);
+          const n = parseFloat((v || '').replace(/,/g, '').trim());
           if (isNaN(n)) return;
           result.orderBacklog.push({
             stock_code: stockCode, ...periods[pi],
             segment_type: 'backlog', category, subcategory: '',
-            revenue: n, revenue_ratio: null,
+            revenue: toMil(n, t46.uf), revenue_ratio: null,
           });
         });
       }
@@ -1381,7 +1406,10 @@ async function rpUploadDart(input) {
         { onConflict: 'stock_code,bsns_year,quarter,factory_name' }));
     await Promise.all(saves);
     const counts = `세그먼트 ${segRows.length}건 / 원재료 ${rawRows.length}건 / 생산 ${prodRows.length}건`;
-    toast(`${parsed.stock_name} DART 저장 완료 (${counts})`, 'success');
+    if (biz.skipped.length)   // 백만원으로 못 바꾼 표 — 사업분석 탭에 틀린 단위로 그리지 않도록 저장 안 함
+      toast(`${parsed.stock_name} DART 저장 완료 (${counts}) · 백만원으로 바꿀 수 없는 단위라 저장 안 함: ${biz.skipped.join(', ')}`, 'warn');
+    else
+      toast(`${parsed.stock_name} DART 저장 완료 (${counts})`, 'success');
   } catch(e) {
     toast(`DART 기본 저장 완료, 사업 섹션 저장 실패: ${e.message}`, 'warn');
   }
