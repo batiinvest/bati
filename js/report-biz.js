@@ -216,7 +216,8 @@ function _rpBizTab({ product, region, backlog, rawUsage, rawPrice, prod }) {
     'DART 업로드 시 원재료 단가 추이가 표시됩니다');
 
   // ⑤ 생산력 (생산능력·생산실적·가동률)
-  const s5 = box(secT('생산능력 및 가동률', prod && prod.length ? '단위: 공시값' : '') + _bizProduction(prod || []));
+  // 업로드 파서가 MD 기준 문구에 '누적'이 있으면 분기값으로 바꿔 저장(원익IPS 등), 없으면 공시값 그대로
+  const s5 = box(secT('생산능력 및 가동률', prod && prod.length ? '단위: 공시 단위 · 누적 공시는 분기로 환산' : '') + _bizProduction(prod || []));
 
   // ⑥ 수주현황 (수주잔고 기말)
   const bRows = _bizSeriesClean((backlog || []).filter(r => (r.category || '').trim() !== '합계'), r => (r.category || '').trim());
