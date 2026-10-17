@@ -563,27 +563,29 @@ async function _sdFinancial(body, code, name) {
 async function _sdSupply(body, code, name) {
   try {
     const { data: hist } = await sb.from('market_data')
-      .select('base_date,price,price_change_rate,foreign_net_buy,foreign_hold_rate,foreign_hold_qty,program_net_buy,short_sell_qty,loan_balance_rate,volume,trading_value')
+      .select('base_date,price,price_change_rate,foreign_net_buy,institution_net_buy,foreign_hold_rate,foreign_hold_qty,program_net_buy,short_sell_qty,loan_balance_rate,volume,trading_value')
       .eq('stock_code', code)
       .order('base_date', { ascending:false }).limit(30);
 
     const { data: latest } = await sb.from('market_data')
-      .select('foreign_hold_rate,foreign_hold_qty,foreign_net_buy,program_net_buy,short_sell_qty,loan_balance_rate,volume,trading_value,listing_shares')
+      .select('foreign_hold_rate,foreign_hold_qty,foreign_net_buy,institution_net_buy,program_net_buy,short_sell_qty,loan_balance_rate,volume,trading_value,listing_shares')
       .eq('stock_code', code)
       .order('base_date',{ascending:false}).limit(1).maybeSingle();
 
     const r = latest || {};
     const rows = (hist||[]).slice().reverse();
 
-    // 외국인 누적 (최근 5일/10일/20일)
-    const fNet = (days) => {
+    // 외국인·기관 누적 (최근 5일/10일/20일)
+    const fNet = (days, k = 'foreign_net_buy') => {
       const sl = rows.slice(-days);
-      const sum = sl.reduce((a,h)=>a+(h.foreign_net_buy||0),0);
+      const sum = sl.reduce((a,h)=>a+(h[k]||0),0);
       return `<span style="color:${sum>=0?'var(--red)':'var(--blue)'}">${sum>=0?'+':''}${sum.toLocaleString()}</span>`;
     };
+    const iNet = days => fNet(days, 'institution_net_buy');
+    const netCell = v => `<td style="text-align:right;color:${(v||0)<0?'var(--blue)':'var(--red)'}">${v!=null?v.toLocaleString():'—'}</td>`;
 
     body.innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px">
         ${_sdSec('외국인 수급', `
           ${_sdRow2('보유율', r.foreign_hold_rate!=null?r.foreign_hold_rate.toFixed(2)+'%':'—')}
           ${_sdRow2('보유수량', r.foreign_hold_qty!=null?_sdNum(r.foreign_hold_qty)+'주':'—')}
@@ -593,6 +595,13 @@ async function _sdSupply(body, code, name) {
           ${_sdRow2('10일 누적', fNet(10)+'주')}
           ${_sdRow2('20일 누적', fNet(20)+'주')}
         `, 'var(--tg)')}
+        ${_sdSec('기관 수급', `
+          ${_sdRow2('당일 순매수', r.institution_net_buy!=null?`<span style="color:${(r.institution_net_buy||0)>=0?'var(--red)':'var(--blue)'}">
+            ${r.institution_net_buy.toLocaleString()}주</span>`:'—')}
+          ${_sdRow2('5일 누적', iNet(5)+'주')}
+          ${_sdRow2('10일 누적', iNet(10)+'주')}
+          ${_sdRow2('20일 누적', iNet(20)+'주')}
+        `, '#fb6340')}
         ${_sdSec('프로그램 · 공매도', `
           ${_sdRow2('프로그램 순매수', r.program_net_buy!=null?`<span style="color:${(r.program_net_buy||0)>=0?'var(--red)':'var(--blue)'}">
             ${_sdNum(r.program_net_buy)}주</span>`:'—')}
@@ -610,7 +619,7 @@ async function _sdSupply(body, code, name) {
       <div class="table-wrap"><table>
         <thead><tr>
           <th>기준일</th><th style="text-align:right">종가</th><th style="text-align:right">등락률</th>
-          <th style="text-align:right">외국인순매수</th><th style="text-align:right">외국인보유율</th>
+          <th style="text-align:right">외국인순매수</th><th style="text-align:right">기관순매수</th><th style="text-align:right">외국인보유율</th>
           <th style="text-align:right">프로그램순매수</th><th style="text-align:right">공매도</th>
           <th style="text-align:right">융자잔고율</th>
         </tr></thead>
@@ -620,9 +629,7 @@ async function _sdSupply(body, code, name) {
             <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${h.base_date}</td>
             <td style="text-align:right;font-weight:600">${fmtPrice(h.price)}</td>
             <td style="text-align:right;color:${chgColor(hc)};font-weight:600">${chgStr(hc)}</td>
-            <td style="text-align:right;color:${(h.foreign_net_buy||0)<0?'var(--blue)':'var(--red)'}">
-              ${h.foreign_net_buy!=null?h.foreign_net_buy.toLocaleString():'—'}
-            </td>
+            ${netCell(h.foreign_net_buy)}${netCell(h.institution_net_buy)}
             <td style="text-align:right">${h.foreign_hold_rate!=null?h.foreign_hold_rate.toFixed(1)+'%':'—'}</td>
             <td style="text-align:right;color:${(h.program_net_buy||0)<0?'var(--blue)':'var(--red)'}">
               ${h.program_net_buy!=null?h.program_net_buy.toLocaleString():'—'}

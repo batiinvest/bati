@@ -236,15 +236,31 @@ function _rpEarningsCard(fin) {
 }
 
 // ── 종합 투자 판단 (펀드매니저 관점) ─────────────────────────────────────────
+// ROE·ROA 연간 기준 — 저장 roe·roa는 분기 순이익 ÷ 기말 자본·자산(연환산 안 함)이라 신호등·종합 판단의
+// 연간 기준(ROE 20%·15% 등)과 바로 비교할 수 없다(원익IPS 26Q2 저장 ROE 8.4% = 한 분기치).
+// 최근 4개 분기 순이익 합 ÷ 마지막 분기 기말 자본·자산. fin = 최신 분기 먼저(_rpData.fin),
+// from = 몇 분기 앞에서 시작할지(1 = 직전 분기까지의 4개 분기 — 추세 비교용). 연속 4개 분기가 없으면 null
+function _rpTtmRatios(fin, from = 0) {
+  const none = { roe: null, roa: null, period: null };
+  const q = (fin || []).filter(r => /^Q[1-4]$/.test(r.quarter)).slice(from, from + 4);
+  if (q.length < 4 || q.some(r => r.net_income == null)) return none;
+  const idx = r => Number(r.bsns_year) * 4 + Number(String(r.quarter).slice(1));
+  if (q.some((r, i) => i > 0 && idx(q[i - 1]) - idx(r) !== 1)) return none;
+  const ni = q.reduce((s, r) => s + r.net_income, 0);
+  const te = q[0].total_equity, ta = q[0].total_assets;
+  return { roe: te > 0 ? ni / te * 100 : null, roa: ta > 0 ? ni / ta * 100 : null, period: `${q[0].bsns_year} ${q[0].quarter}` };
+}
+
 function _rpSynthesis(latestF, latest, fin) {
   const per = latest?.per, pbr = latest?.pbr;
-  const roe = latestF?.roe, roa = latestF?.roa;
+  const t0 = _rpTtmRatios(fin), t1 = _rpTtmRatios(fin, 1);   // ROE·ROA는 최근 4분기(연간 기준)
+  const roe = t0.roe, roa = t0.roa;
   const opm = latestF?.operating_margin, npm = latestF?.net_margin;
   const debt = latestF?.debt_ratio;
   const prev = fin?.[1];
 
-  // QoQ 추세
-  const roeTrend = roe != null && prev?.roe != null ? roe - prev.roe : null;
+  // 추세 — ROE는 한 분기 밀린 최근 4분기와, 영업이익률은 직전 분기와
+  const roeTrend = roe != null && t1.roe != null ? roe - t1.roe : null;
   const opmTrend = opm != null && prev?.operating_margin != null ? opm - prev.operating_margin : null;
 
   const signals = [];
@@ -283,7 +299,7 @@ function _rpSynthesis(latestF, latest, fin) {
   if (roeTrend != null && Math.abs(roeTrend) >= 1.5)
     signals.push({
       type: roeTrend > 0 ? 'good' : 'warn', icon: roeTrend > 0 ? '📈' : '📉',
-      msg: `ROE ${roeTrend > 0 ? '개선' : '악화'} (${roeTrend > 0 ? '+' : ''}${roeTrend.toFixed(1)}%p QoQ) — 수익성 ${roeTrend > 0 ? '회복 신호' : '훼손 주의'}` });
+      msg: `ROE ${roeTrend > 0 ? '개선' : '악화'} (${roeTrend > 0 ? '+' : ''}${roeTrend.toFixed(1)}%p · 최근 4분기, 직전 분기 대비) — 수익성 ${roeTrend > 0 ? '회복 신호' : '훼손 주의'}` });
 
   // 영업이익률 추세
   if (opmTrend != null && Math.abs(opmTrend) >= 2)
@@ -811,13 +827,14 @@ function _rpValuationCard(latestF, latest) {
       : `<span style="font-size:calc(11px*var(--m-label));color:#60a5fa"> ▼${Math.abs(d).toFixed(1)}</span>`;
   };
 
-  // PER/PBR 역사적 추세 (시장 데이터 기준)
+  // PER/PBR 역사적 추세 (시장 데이터 기준) · ROE·ROA는 최근 4분기 순이익 기준(_rpTtmRatios — 신호등이 연간 기준)
   const prevMkt = prices[1] || {};
+  const t0 = _rpTtmRatios(fin), t1 = _rpTtmRatios(fin, 1);
   const metrics = [
     { key:'per', label:'PER', desc:'주가수익비율',   val: latest?.per,   peer: ps?.per, unit:'x', fmt: v=>v.toFixed(1), lowerBetter:true,  prevVal: prevMkt?.per },
     { key:'pbr', label:'PBR', desc:'주가순자산비율', val: latest?.pbr,   peer: ps?.pbr, unit:'x', fmt: v=>v.toFixed(2), lowerBetter:true,  prevVal: prevMkt?.pbr },
-    { key:'roe', label:'ROE', desc:'자기자본이익률', val: latestF?.roe,  peer: ps?.roe, unit:'%', fmt: v=>v.toFixed(1), lowerBetter:false, prevVal: prev?.roe },
-    { key:'roa', label:'ROA', desc:'총자산이익률',  val: latestF?.roa,  peer: ps?.roa, unit:'%', fmt: v=>v.toFixed(1), lowerBetter:false, prevVal: prev?.roa },
+    { key:'roe', label:'ROE', desc:'자기자본이익률 · 최근 4분기', val: t0.roe, peer: ps?.roe, unit:'%', fmt: v=>v.toFixed(1), lowerBetter:false, prevVal: t1.roe },
+    { key:'roa', label:'ROA', desc:'총자산이익률 · 최근 4분기',  val: t0.roa, peer: ps?.roa, unit:'%', fmt: v=>v.toFixed(1), lowerBetter:false, prevVal: t1.roa },
   ];
 
   // ── PER·PBR 12분기 밸류에이션 밴드 차트 ──

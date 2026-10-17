@@ -242,6 +242,15 @@ function _rpOwnershipTab({ discs, dp, s, dart, prices, latest }) {
 // ═══ 최근리포트 탭 (FnGuide c1080001 스타일) ═════════════════════════════════
 // 증권사 투자의견 이력 — 일자/제공처/의견(직전 대비)/목표가(직전 대비 ▲▼N=)/괴리율
 
+// 3개월 컨센서스 요약 — 최근리포트 탭·DART 분석 종합분석 공용. rows = analyst_opinions 최신순
+function _rpConsensusSummary(rows, price) {
+  const recent = (rows || []).filter(o => (Date.now() - new Date(o.opinion_date).getTime()) < 90 * 86400e3);
+  const tps = recent.map(o => o.target_price).filter(v => v > 0);
+  const avgTp = tps.length ? Math.round(tps.reduce((s, v) => s + v, 0) / tps.length) : null;
+  const upside = avgTp && price ? (avgTp - price) / price * 100 : null;
+  return { recent, tps, avgTp, upside, buy: recent.filter(o => ['1', '2'].includes(o.opinion_code)).length };
+}
+
 async function _rpLoadAndRenderReports(body) {
   if (!_rpStock || !body) return;
   try {
@@ -258,10 +267,7 @@ async function _rpLoadAndRenderReports(body) {
     const price = _rpData.price?.[0]?.price || 0;
 
     // 3개월 컨센서스 요약
-    const recent = rows.filter(o => (Date.now() - new Date(o.opinion_date).getTime()) < 90 * 86400e3);
-    const tps = recent.map(o => o.target_price).filter(v => v > 0);
-    const avgTp = tps.length ? Math.round(tps.reduce((s, v) => s + v, 0) / tps.length) : null;
-    const upside = avgTp && price ? (avgTp - price) / price * 100 : null;
+    const { recent, tps, avgTp, upside } = _rpConsensusSummary(rows, price);
     const kv = (label, val, sub, subCol) => `
       <div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);text-align:center">
         <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:3px">${label}</div>

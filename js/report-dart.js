@@ -4,40 +4,47 @@
 // 기업 정보(기본·주가 희석·보호예수·계열회사) → 주주(주주구성표·대표이사) → 사업(매출·고객 집중도·원재료·생산·수주)
 // → 실적(핵심 지표·분기 실적 추이) → 투자 판단(종합판단·포인트/리스크·증권사 전망·이벤트) → 상세 분석(MD 전문).
 // 카드 하나 = 블로그 이미지 하나(이미지 저장 버튼으로 복사·저장). 순서 기준: blog.naver.com/bati_invest 기업분석 글
+// DART 분석 = 종합분석 — 앞 탭들의 결과를 모아 맨 위 '종합분석 결과'로 요약하고, 아래에 근거 구역을 둔다.
+// 구역은 그 탭의 함수를 그대로 씀(같은 내용을 따로 만들지 않음):
+//   기업 정보 = 기업개요 · 주주·지분 = 지분현황 · 사업 = 사업분석 · 실적 = 재무분석 · 밸류에이션·지표 = 기업현황·투자지표
+//   시장 평가 = 최근리포트 · 수급 = 수급흐름 · 공시·이벤트 = 금감원공시. 무거운 탭은 화면에 다가올 때 불러옴(_rpDartLazy).
+// MD는 MD에만 있는 내용(주가 희석·보호예수·주주 명세·대표이사·고객 집중도·종합판단·증권사 추정·이벤트·상세)만 더하고
+// '보고서 시점'으로 표기 — 같은 항목이 DB에도 있으면 DB(최신)를 앞에 둔다. MD가 없어도 DB 항목으로 종합은 나옴.
 async function _rpLoadAndRenderDart(body) {
   if (!_rpStock) return;
   const code = _rpStock.code;
-  // 다른 탭에 있는 카드는 그 탭의 함수를 그대로 씀(같은 내용을 따로 만들지 않음):
-  //   기본정보·계열사 = 기업개요 탭, 주주 구성 = 지분현황 탭, 사업 = 사업분석 탭, 실적 = 재무분석 탭, 투자포인트 = 기업현황 탭
-  //   이 탭만의 카드는 MD에만 있는 내용(주가 희석·보호예수·주주 명세·대표이사·고객 집중도·종합판단·증권사 추정·이벤트·상세)
-  const [{ data, error }, biz, comp] = await Promise.all([
-    sb.from('dart_reports').select('report_type,receive_date,raw_md,summary')
-      .eq('stock_code', code).order('receive_date', { ascending: false }).limit(1).maybeSingle(),
+  const q = (pr, d) => Promise.resolve(pr).then(r => r?.data ?? d).catch(() => d);
+  const [{ data }, biz, comp, stage, flowV, flow20, ana] = await Promise.all([
+    Promise.resolve(sb.from('dart_reports').select('report_type,receive_date,raw_md,summary')
+      .eq('stock_code', code).order('receive_date', { ascending: false }).limit(1).maybeSingle()).catch(() => ({ data: null })),
     typeof _rpBizFetch === 'function' ? _rpBizFetch(code).catch(() => null) : Promise.resolve(null),
-    Promise.resolve(sb.from('companies').select('corp_code,market,sector,product,industry,sub_industry')
-      .eq('code', code).maybeSingle()).then(r => r.data || {}).catch(() => ({})),
+    q(sb.from('companies').select('corp_code,market,sector,product,industry,sub_industry').eq('code', code).maybeSingle(), {}),
+    q(sb.from('earnings_stage').select('period,stage,fs_div').eq('stock_code', code).maybeSingle(), null),
+    typeof _rpFlowVerdict === 'function' ? _rpFlowVerdict(code).catch(() => null) : Promise.resolve(null),
+    q(sb.from('market_data').select('base_date,foreign_net_buy,institution_net_buy,market_warn_code')
+      .eq('stock_code', code).order('base_date', { ascending: false }).limit(20), []),
+    q(sb.from('analyst_opinions').select('firm_name,opinion,target_price,opinion_date,opinion_code')
+      .eq('stock_code', code).order('opinion_date', { ascending: false }).limit(100), []),
   ]);
+  // 공시 — 금감원공시 탭과 같은 목록(150건) · 지분현황 탭과 같은 지분 공시(40건)
+  const cc = comp?.corp_code;
+  const [discAll, discOwn] = cc ? await Promise.all([
+    q(sb.from('daily_disclosures').select('base_date,report_nm,category,rcept_no,insider_summary')
+      .eq('corp_code', cc).order('base_date', { ascending: false }).limit(150), []),
+    q(sb.from('daily_disclosures').select('base_date,report_nm,category,rcept_no,insider_summary')
+      .eq('corp_code', cc).in('category', typeof _RP_OWN_CATS !== 'undefined' ? _RP_OWN_CATS : []).order('base_date', { ascending: false }).limit(40), []),
+  ]) : [[], []];
+  if (_rpStock?.code !== code) return;   // 그 사이 다른 종목으로 바뀜
 
-  if (error || !data) {
-    body.innerHTML = `
-      <div style="padding:32px;text-align:center;color:var(--text2);font-size:calc(13px*var(--m-body))">
-        <div style="margin-bottom:12px;font-size:calc(28px*var(--m-title))">📄</div>
-        <div style="font-weight:600;margin-bottom:6px;font-size:calc(15px*var(--m-title))">DART 분석 리포트 없음</div>
-        <div style="font-size:calc(12px*var(--m-sub));margin-bottom:16px">사업보고서 분석 MD 파일을 업로드하면 여기에 표시됩니다</div>
-        <button onclick="document.getElementById('rp-dart-file').click()"
-          style="padding:8px 18px;border:1px solid var(--tg);border-radius:var(--radius-sm);
-            background:none;color:var(--tg);font-size:calc(13px*var(--m-body));cursor:pointer">DART 업로드</button>
-      </div>`;
-    return;
-  }
-
-  const s   = data.summary || {};
-  const md  = data.raw_md || '';
-  const dp  = _mdDeepParse(md, s);
+  const s   = data?.summary || {};
+  const md  = data?.raw_md || '';
+  const dp  = md ? _mdDeepParse(md, s) : {};
   const M   = _rpDartModel(md);
-  const L   = _rpStripRawSections(md).split('\n').map(l => l.replace(/\r$/, ''));
+  const L   = md ? _rpStripRawSections(md).split('\n').map(l => l.replace(/\r$/, '')) : [];
   const esc = escapeHtml;
-  RPP.sites.dart = { code, reportType: data.report_type, summary: s, dp, rerender: () => _rpLoadAndRenderDart(body) };
+  const latest = _rpData?.price?.[0] || {};
+  const latestF = _rpData?.fin?.[0] || {};
+  if (data) RPP.sites.dart = { code, reportType: data.report_type, summary: s, dp, rerender: () => _rpLoadAndRenderDart(body) };
 
   // 사업: 데이터 있는 섹션만, 국내/해외 매출 다음에 고객 집중도(MD 4-2)
   const bizList = biz && typeof _rpBizSections === 'function' ? _rpBizSections(biz).list.filter(x => x.has) : [];
@@ -45,11 +52,10 @@ async function _rpLoadAndRenderDart(body) {
   const at = Math.max(bizList.findIndex(x => x.key === 'region'), bizList.findIndex(x => x.key === 'product'));
   const bizHtml = [...bizList.slice(0, at + 1).map(x => x.html), cust, ...bizList.slice(at + 1).map(x => x.html)].join('');
 
-  const latest = _rpData?.price?.[0] || {};
+  const ctx = { data, s, M, stage, flowV, flow20, ana, discAll, discOwn, latest, latestF };
+  const box = (inner, title) => `<div data-capture style="${_RPD_CARD}">${title ? _rpdT(title) : ''}${inner}</div>`;
+  const lazy = (key, title) => box(`<div data-rpd-lazy="${key}"><div style="text-align:center;color:var(--text2);padding:20px"><span class="loading"></span> 불러오는 중...</div></div>`, title);
   const pts = s.investment_points?.length || s.risk_points?.length;
-  const judge = _rpDartVerdict(M)
-    + (pts && typeof _rpBullBearCard === 'function' ? _rpBullBearCard(s.investment_points, s.risk_points) : '')
-    + _rpDartEstimates(M) + _rpDartEvents(M);
 
   body.innerHTML = `
   <div style="display:flex;flex-direction:column;gap:14px">
@@ -61,59 +67,253 @@ async function _rpLoadAndRenderDart(body) {
       <div style="font-size:calc(20px*var(--m-title));font-weight:800;color:var(--text1)">${esc(dp.stockName || _rpStock?.name || '')}</div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap">
         <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">${esc(dp.stockCode || code)}</span>
-        <span style="font-size:calc(12px*var(--m-sub));padding:2px 9px;border-radius:100px;
+        ${data ? `<span style="font-size:calc(12px*var(--m-sub));padding:2px 9px;border-radius:100px;
           background:color-mix(in srgb, var(--tg) 12%, transparent);color:var(--tg);font-weight:600">${esc(data.report_type||'')}</span>
-        <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">접수 ${esc(data.receive_date||'')}</span>
+        <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">MD 접수 ${esc(data.receive_date||'')}</span>
         ${dp.updated ? `<span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">검토 ${esc(dp.updated)}</span>` : ''}
         ${dp.receiptNo ? `<a href="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${dp.receiptNo}" target="_blank" rel="noopener"
-          style="font-size:calc(12px*var(--m-sub));color:var(--tg);text-decoration:none">DART 원문 ↗</a>` : ''}
+          style="font-size:calc(12px*var(--m-sub));color:var(--tg);text-decoration:none">DART 원문 ↗</a>` : ''}`
+        : `<span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">DART 분석 MD 없음 — 업로드하면 MD 항목(희석·대표이사·종합판단 등)이 더해집니다</span>`}
       </div>
     </div>
     <button onclick="document.getElementById('rp-dart-file').click()"
       style="padding:5px 12px;font-size:calc(11px*var(--m-label));border:1px solid var(--border);
         border-radius:var(--radius-sm);background:var(--bg3);color:var(--text2);cursor:pointer;white-space:nowrap">
-      최신 업로드
+      ${data ? '최신 업로드' : 'DART 업로드'}
     </button>
   </div>
 
-  ${_rpDartSecHead('기업 정보')}
+  ${_rpDartSecHead('종합분석 결과', '앞 탭들의 결과 · 판정은 앱에 이미 있는 기준만 · 줄을 누르면 근거로')}
+  ${_rpDartOverview(ctx)}
+  ${M.verdict ? _rpDartVerdict(M, data) : ''}
+  ${pts && typeof _rpBullBearCard === 'function' ? _rpBullBearCard(s.investment_points, s.risk_points) : ''}
+
+  ${_rpDartSecHead('기업 정보', '', ['기업개요'], 'info')}
   ${_rpProfileInfoCard({ comp, dart: data, dp, latest }, 'dart')}
   ${_rpDartDilution(L)}
   ${_rpDartLockup(L)}
   ${dp.subsidiaries?.length ? _rpProfileSubsCard(dp) : ''}
 
-  ${_rpDartSecHead('주주')}
-  ${_rpOwnSummaryCard({ dp, s, dart: data, latest })}
+  ${_rpDartSecHead('주주 · 지분', '', ['지분현황'], 'own')}
+  ${typeof _rpOwnershipTab === 'function' ? _rpOwnershipTab({ discs: discOwn, dp, s, dart: data, prices: _rpData?.price || [], latest }) : ''}
   ${_rpDartHolders(L)}
   ${_rpDartCeo(L)}
 
-  ${bizHtml ? _rpDartSecHead('사업', '산업·제품 설명은 블로그에서 직접 작성') + bizHtml : ''}
+  ${_rpDartSecHead('사업', '산업·제품 설명은 블로그에서 직접 작성', ['사업분석'], 'biz')}
+  ${bizHtml || box(`<div style="font-size:calc(12px*var(--m-sub));color:var(--text3);padding:10px 0;text-align:center">DART 업로드 시 사업 데이터가 표시됩니다</div>`)}
 
-  ${_rpDartSecHead('실적', '재무분석 탭과 같은 화면 · 표의 항목을 누르면 차트에 추가')}
-  <div id="rpd-fin"><div style="text-align:center;color:var(--text2);padding:24px"><span class="loading"></span> 재무 로딩 중...</div></div>
+  ${_rpDartSecHead('실적', '표의 항목을 누르면 차트에 추가', ['재무분석'], 'perf')}
+  ${lazy('fin')}
 
-  ${judge ? _rpDartSecHead('투자 판단', 'MD 분석 요약') + judge : ''}
+  ${_rpDartSecHead('밸류에이션 · 투자지표', '', ['기업현황', '투자지표'], 'val')}
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:12px">
+    ${typeof _rpValuationCard === 'function' ? _rpValuationCard(latestF, latest) : ''}
+    ${typeof _rpFinHealthCard === 'function' ? _rpFinHealthCard(latestF) : ''}
+  </div>
+  ${lazy('inv', '투자지표')}
 
-  ${_rpDartSecHead('상세 분석', 'MD 전문 · 섹션을 누르면 펼침')}
+  ${_rpDartSecHead('시장 평가', '증권사 의견·목표가', ['최근리포트'], 'mkt')}
+  ${lazy('rep', '증권사 투자의견 이력')}
+  ${_rpDartEstimates(M)}
+
+  ${_rpDartSecHead('수급', '', ['수급흐름'], 'flow')}
+  <div data-rpd-lazy="flow"><div style="text-align:center;color:var(--text2);padding:20px"><span class="loading"></span> 불러오는 중...</div></div>
+
+  ${_rpDartSecHead('공시 · 이벤트', '', ['금감원공시'], 'disc')}
+  ${lazy('fss', '공시 목록')}
+  ${_rpDartEvents(M)}
+
+  ${md ? `${_rpDartSecHead('상세 분석', 'MD 전문 · 섹션을 누르면 펼침')}
   <div style="display:flex;flex-direction:column;gap:4px">
     ${_mdToAccordion(md)}
-  </div>
+  </div>` : ''}
 
   </div>`;
 
-  // 실적 = 재무분석 탭 그대로(분기 보기로 엶)
-  const finEl = document.getElementById('rpd-fin');
-  if (finEl && typeof _rpLoadAndRenderFinAnalysis === 'function') _rpLoadAndRenderFinAnalysis(finEl, { view: 'quarter' });
+  _rpDartLazy(body);
+}
+
+// 화면에 다가오면 그 탭의 로더를 부름 — 탭 9개 데이터를 한꺼번에 받지 않게
+const RPD_LAZY = {
+  fin:  el => _rpLoadAndRenderFinAnalysis(el, { view: 'quarter' }),
+  inv:  el => _rpLoadAndRenderInvMetrics(el),
+  rep:  el => _rpLoadAndRenderReports(el),
+  flow: el => _rpLoadAndRenderFlow(el),
+  fss:  el => _rpLoadAndRenderFss(el),
+};
+function _rpDartLazy(root) {
+  const els = [...root.querySelectorAll('[data-rpd-lazy]')];
+  const run = el => {
+    const fn = RPD_LAZY[el.dataset.rpdLazy];
+    el.removeAttribute('data-rpd-lazy');
+    if (typeof fn === 'function') Promise.resolve().then(() => fn(el)).catch(e => {
+      el.innerHTML = `<div style="padding:16px;text-align:center;color:var(--red);font-size:calc(12px*var(--m-sub))">불러오기 실패: ${escapeHtml(e?.message || String(e))}</div>`;
+    });
+  };
+  if (!('IntersectionObserver' in window)) { els.forEach(run); return; }
+  const io = new IntersectionObserver(es => es.forEach(en => {
+    if (!en.isIntersecting) return;
+    io.unobserve(en.target);
+    run(en.target);
+  }), { rootMargin: '800px 0px' });
+  els.forEach(el => io.observe(el));
+}
+
+// 전년 같은 분기 대비 — 둘 다 플러스면 증감률(상승 빨강·하락 파랑), 부호가 바뀌면 흑자/적자전환
+function _rpdYoY(cur, prev) {
+  if (cur == null || prev == null) return '';
+  let t, c;
+  if (prev > 0 && cur > 0) { const p = (cur - prev) / prev * 100; t = `YoY ${p >= 0 ? '+' : ''}${p.toFixed(1)}%`; c = p >= 0 ? 'var(--red)' : 'var(--blue)'; }
+  else if (prev <= 0 && cur > 0) { t = '흑자전환'; c = 'var(--red)'; }
+  else if (prev > 0 && cur <= 0) { t = '적자전환'; c = 'var(--blue)'; }
+  else { t = cur > prev ? '적자축소' : cur < prev ? '적자확대' : '적자지속'; c = cur > prev ? 'var(--red)' : 'var(--blue)'; }
+  return `<span style="color:${c};font-weight:600">${t}</span>`;
+}
+
+// ── 종합분석 결과 ──────────────────────────────────────────────────────────────
+// 앞 탭들의 결과를 구분별 한 줄로. 판정은 앱에 이미 있는 것만 — 신호등(_rpSignal, 기업현황)·실적 국면(원본 표시)·
+// 수급 칸·빈집·태린이아빠 후보(기업분석 표)·종합 판단 신호(_rpSynthesis, 기업현황). 새 기준은 만들지 않음.
+// ROE는 최근 4분기 순이익 기준(_rpTtmRatios — 신호등이 연간 기준). 줄마다 기준일, 누르면 아래 근거 구역으로
+function _rpDartOverview(x) {
+  const e = escapeHtml, rows = [];
+  const add = (key, label, fact, basis) => { if (fact) rows.push({ key, label, fact, basis: basis || '' }); };
+  const chip = sig => sig ? ` <span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:100px;background:${sig.color}20;color:${sig.color};font-weight:700">${sig.label}</span>` : '';
+  const sig = (k, v) => typeof _rpSignal === 'function' ? _rpSignal(k, v) : null;
+  const num = v => v == null ? '—' : Math.round(v).toLocaleString();
+  const signed = v => `<span style="color:${v >= 0 ? 'var(--red)' : 'var(--blue)'}">${v >= 0 ? '+' : ''}${Math.round(v).toLocaleString()}</span>`;
+  const fin = _rpData?.fin || [];
+  const f0 = fin.find(r => /^Q[1-4]$/.test(r.quarter));
+  const fPer = f0 ? `${f0.bsns_year} ${f0.quarter}` : '';
+
+  // 사업 — 최근 분기 제품별 매출 구성(사업분석)
+  const seg = (_rpData?.segment || []).filter(r => (r.category || '').trim() !== '합계' && (r.subcategory || '').trim() !== '합계');
+  if (seg.length) {
+    const pk = r => `${r.bsns_year} ${r.quarter}`, lastP = pk(seg[seg.length - 1]), by = {};
+    for (const r of seg.filter(r => pk(r) === lastP)) {
+      const n = typeof _rpSegLabel === 'function' ? _rpSegLabel(r) : (r.category || '').trim();
+      if (n) by[n] = (by[n] || 0) + (+r.revenue || 0);
+    }
+    const tot = Object.values(by).reduce((a, v) => a + v, 0);
+    const top = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    if (tot > 0) add('biz', '사업', '매출 구성 ' + top.map(([n, v]) => `${e(n)} <b>${(v / tot * 100).toFixed(0)}%</b>`).join(' · '), lastP);
+  }
+
+  // 실적 — 최근 분기 매출·영업이익 전년비(재무분석) + 실적 국면(실적 국면 페이지, 원본 '실적확인' 표시)
+  if (f0) {
+    const fy = fin.find(r => String(r.bsns_year) === String(Number(f0.bsns_year) - 1) && r.quarter === f0.quarter);
+    const st = x.stage?.stage;
+    const stTxt = st ? ` · 실적 국면 ${typeof _esChip === 'function' ? _esChip(st, x.stage.period) : e(st)}`
+      + (typeof ES_BUY === 'function' && ES_BUY(st) ? ' <span style="color:var(--red);font-weight:600">원본 표시 매수</span>'
+        : typeof ES_SELL === 'function' && ES_SELL(st) ? ' <span style="color:var(--blue);font-weight:600">원본 표시 매도</span>' : '')
+      + (x.stage.period && x.stage.period !== `${f0.bsns_year}Q${String(f0.quarter).slice(1)}` ? ` <span style="color:var(--text3)">(${e(x.stage.period)})</span>` : '') : '';
+    add('perf', '실적', `매출 <b>${fmtCap(f0.revenue)}</b> ${_rpdYoY(f0.revenue, fy?.revenue)} · 영업이익 <b>${fmtCap(f0.operating_profit)}</b> ${_rpdYoY(f0.operating_profit, fy?.operating_profit)}${stTxt}`, fPer);
+  }
+
+  // 수익성·건전성 — 신호등(기업현황 밸류에이션·재무 건전성 카드와 같은 기준)
+  if (f0) {
+    const t = typeof _rpTtmRatios === 'function' ? _rpTtmRatios(fin) : {};
+    const opm = f0.revenue > 0 && f0.operating_profit != null ? f0.operating_profit / f0.revenue * 100 : null;
+    const parts = [];
+    if (t.roe != null) parts.push(`ROE(최근 4분기) <b>${t.roe.toFixed(1)}%</b>${chip(sig('roe', t.roe))}`);
+    if (opm != null) parts.push(`영업이익률 <b>${opm.toFixed(1)}%</b>${chip(sig('opm', opm))}`);
+    if (f0.debt_ratio != null) parts.push(`부채비율 <b>${f0.debt_ratio.toFixed(0)}%</b>${chip(sig('debt', f0.debt_ratio))}`);
+    add('val', '수익성 · 건전성', parts.join(' · '), fPer);
+  }
+
+  // 밸류에이션 — PER·PBR 신호등 + 업종 중앙값(기업현황) + 종합 판단 신호(_rpSynthesis)
+  {
+    const L = x.latest, ps = _rpData?.peerStats, parts = [];
+    if (L.per) parts.push(`PER <b>${L.per.toFixed(1)}x</b>${chip(sig('per', L.per))}${ps?.per ? ` <span style="color:var(--text2)">업종 ${ps.per.toFixed(1)}x</span>` : ''}`);
+    if (L.pbr) parts.push(`PBR <b>${L.pbr.toFixed(2)}x</b>${chip(sig('pbr', L.pbr))}${ps?.pbr ? ` <span style="color:var(--text2)">업종 ${ps.pbr.toFixed(2)}x</span>` : ''}`);
+    const syn = typeof _rpSynthesis === 'function' && f0 ? _rpSynthesis(x.latestF, L, fin).filter(g => g.type !== 'neutral') : [];
+    const synHtml = syn.length ? `<div style="margin-top:4px;display:flex;flex-direction:column;gap:2px">${syn.map(g => {
+      const c = g.type === 'good' ? '#22c55e' : g.type === 'bad' ? '#ef4444' : '#f59e0b';
+      return `<div style="font-size:calc(11.5px*var(--m-sub));color:var(--text1)"><span style="color:${c};font-weight:700">●</span> ${e(g.msg)}</div>`;
+    }).join('')}</div>` : '';
+    if (parts.length || synHtml) add('val', '밸류에이션', parts.join(' · ') + synHtml, L.base_date || '');
+  }
+
+  // 시장 평가 — 3개월 컨센서스(최근리포트 탭과 같은 계산)
+  if (x.ana?.length && typeof _rpConsensusSummary === 'function') {
+    const c = _rpConsensusSummary(x.ana, x.latest.price);
+    add('mkt', '시장 평가', c.recent.length
+      ? `3개월 평균 목표가 <b>${num(c.avgTp)}원</b>${c.upside != null ? ` <span style="color:${c.upside >= 0 ? 'var(--red)' : 'var(--blue)'}">현재가 대비 ${c.upside >= 0 ? '+' : ''}${c.upside.toFixed(1)}%</span>` : ''} · 의견 ${c.recent.length}건(매수 ${c.buy})`
+      : `최근 3개월 의견 없음 <span style="color:var(--text2)">· 마지막 ${e(x.ana[0].firm_name || '')} ${e(x.ana[0].opinion || '')}</span>`,
+      x.ana[0]?.opinion_date || '');
+  }
+
+  // 수급 — 수급 칸·빈집·주도 업종(수급흐름 탭·기업분석 표와 같은 판정) + 20거래일 외국인·기관 누적
+  {
+    const v = x.flowV, parts = [];
+    const gg = v?.flow_gauge && typeof flowGauge === 'function' ? flowGauge(v.flow_gauge) : null;
+    const fq = v && typeof _finFlowQ === 'function' ? _finFlowQ(v) : null;
+    if (gg) parts.push(`수급 칸 ${flowGaugeBar(gg)} <b style="color:${gg.color}">${gg.label}</b>`);
+    if (fq) parts.push(`<b>${fq.label}</b>`);
+    if (v?.lead_flags) parts.push(v.lead_flags.lead ? '<b style="color:#f59e0b">주도 업종</b>' : '주도 업종 아님');
+    const sum = k => { const vals = (x.flow20 || []).map(r => r[k]).filter(n => n != null); return vals.length ? vals.reduce((a, n) => a + n, 0) : null; };
+    const fs = sum('foreign_net_buy'), is = sum('institution_net_buy');
+    if (fs != null || is != null) parts.push(`20거래일 외국인 ${fs != null ? signed(fs) : '—'}주 · 기관 ${is != null ? signed(is) : '—'}주`);
+    add('flow', '수급', parts.join(' · '), v?.base_date || x.flow20?.[0]?.base_date || '');
+  }
+
+  // 지분·내부자 — 최대주주측 지분(MD 요약) + 최근 90일 지분 공시·내부자 매매(지분현황 탭과 같은 공시)
+  {
+    const parts = [];
+    if (x.s.related_party_ratio != null) parts.push(`최대주주+특관 <b>${(+x.s.related_party_ratio).toFixed(1)}%</b> <span style="color:var(--text3)">(MD)</span>`);
+    const since = new Date(Date.now() - 90 * 86400e3).toISOString().slice(0, 10);
+    const own = (x.discOwn || []).filter(d => (d.base_date || '') >= since);
+    if (own.length) {
+      const buy = own.reduce((a, d) => a + (+d.insider_summary?.buy || 0), 0), sell = own.reduce((a, d) => a + (+d.insider_summary?.sell || 0), 0);
+      parts.push(`최근 90일 지분 공시 <b>${own.length}건</b>${buy || sell ? ` · 취득 <span style="color:var(--red)">${num(buy)}주</span> / 처분 <span style="color:var(--blue)">${num(sell)}주</span>` : ''}`);
+    } else if (x.discOwn) parts.push('최근 90일 지분 공시 없음');
+    add('own', '지분 · 내부자', parts.join(' · '), own[0]?.base_date || '');
+  }
+
+  // 공시 — 최근 30일 공시(금감원공시 탭과 같은 목록) + 시장경고(기업분석 표와 같은 이름)
+  {
+    const parts = [];
+    const w = x.flow20?.[0]?.market_warn_code;
+    if (w && w !== '00') parts.push(`<b style="color:var(--danger, #ef4444)">시장경고 ${e((typeof _FIN_WARN_LABEL !== 'undefined' && _FIN_WARN_LABEL[w]) || w)}</b>`);
+    const since = new Date(Date.now() - 30 * 86400e3).toISOString().slice(0, 10);
+    const rec = (x.discAll || []).filter(d => (d.base_date || '') >= since);
+    if (rec.length) {
+      const cnt = {};
+      rec.forEach(d => { const c = d.category || '기타'; cnt[c] = (cnt[c] || 0) + 1; });
+      parts.push(`최근 30일 공시 <b>${rec.length}건</b> <span style="color:var(--text2)">(${Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c, n]) => `${e(c)} ${n}`).join(' · ')})</span>`);
+    } else if (x.discAll?.length) parts.push('최근 30일 공시 없음');
+    add('disc', '공시', parts.join(' · '), rec[0]?.base_date || '');
+  }
+
+  // 리스크 — MD 1-2 제목(보고서 시점)
+  if (x.s.risk_points?.length)
+    add('risk', '리스크 (MD)', x.s.risk_points.slice(0, 2).map(t => e(t)).join(' · '), x.data?.receive_date ? `MD ${x.data.receive_date}` : '');
+
+  if (!rows.length) return `<div data-capture style="${_RPD_CARD}"><div style="font-size:calc(12px*var(--m-sub));color:var(--text3);padding:10px 0;text-align:center">종합할 데이터가 없습니다</div></div>`;
+  return `<div data-capture style="${_RPD_CARD}">
+    ${_rpdT('종합분석 결과', '구분별 최신 데이터 · 줄 끝은 기준일')}
+    <table style="width:100%;table-layout:fixed;border-collapse:collapse;font-size:calc(12px*var(--m-sub))">
+      <colgroup><col style="width:92px"><col></colgroup>
+      ${rows.map(r => `<tr onclick="document.getElementById('rpd-sec-${r.key}')?.scrollIntoView({behavior:'smooth',block:'start'})" style="cursor:pointer">
+        <td style="padding:8px 10px;background:var(--bg3);color:var(--text2);border-bottom:1px solid var(--border);vertical-align:top;font-weight:600;white-space:normal">${r.label}</td>
+        <td style="padding:8px 10px;color:var(--text1);border-bottom:1px solid var(--border);line-height:1.6;overflow-wrap:anywhere;white-space:normal">${r.fact}${r.basis
+          ? ` <span style="color:var(--text3);font-size:calc(11px*var(--m-label));white-space:nowrap">· ${e(r.basis)}</span>` : ''}</td>
+      </tr>`).join('')}
+    </table>
+    <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">* 판정은 앱의 기존 기준(신호등·실적 국면 원본 표시·수급 칸·빈집) · ROE는 최근 4분기 순이익 기준 · (MD)는 보고서 시점</div>
+  </div>`;
 }
 
 // ── 블로그 순서 카드 (기업 정보·주주·고객 집중도) ─────────────────────────────
 // 블로그에 옮기는 사실 줄·표만 — '원문 대조 검토' 블록, 기준·검토 근거·원문 확인 줄은 뺌
 
 // 큰 구역 제목(블로그 소제목 '기업 정보·주주·사업…'에 대응, 캡처 대상 아님)
-const _rpDartSecHead = (t, sub) => `
-  <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:12px;padding-bottom:6px;border-bottom:1px solid var(--border2)">
+// tabs = 이 구역이 가져온 원본 탭(버튼으로 이동), id = 종합분석 결과 줄에서 스크롤해 올 곳
+const _rpDartSecHead = (t, sub, tabs, id) => `
+  <div${id ? ` id="rpd-sec-${id}"` : ''} style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:12px;padding-bottom:6px;border-bottom:1px solid var(--border2);scroll-margin-top:70px">
     <span style="font-size:calc(17px*var(--m-title));font-weight:800;color:var(--text)">${t}</span>
     ${sub ? `<span style="font-size:calc(11px*var(--m-label));color:var(--text3)">${sub}</span>` : ''}
+    ${(tabs || []).length ? `<span style="margin-left:auto;display:flex;gap:4px">${tabs.map(tb => `<button class="chip chip-sm"
+      onclick="rpSetTab(RP_TABS.indexOf('${escJsStr(tb)}'))" title="${escAttr(tb)} 탭에서 보기">${escapeHtml(tb)} 탭 ↗</button>`).join('')}</span>` : ''}
   </div>`;
 const _rpDartCard = (title, inner, right) => `<div data-capture style="${_RPD_CARD}">${_rpdT(title, right || '')}${inner}</div>`;
 
@@ -373,10 +573,10 @@ function _rpDartModel(md) {
 // ── DART 탭 카드 ─────────────────────────────────────────────────────────────
 
 // ② 종합판단
-function _rpDartVerdict(m) {
+function _rpDartVerdict(m, data) {
   if (!m.verdict) return '';
   return `<div data-capture style="${_RPD_CARD};border-left:3px solid var(--tg)">
-    ${_rpdT('종합판단')}
+    ${_rpdT('MD 종합판단', data?.receive_date ? `보고서 시점 · ${escapeHtml(data.report_type || '')} 접수 ${escapeHtml(data.receive_date)}` : '보고서 시점')}
     <div style="font-size:calc(13px*var(--m-body));color:var(--text);line-height:1.7;overflow-wrap:anywhere">${_rpMdInline(m.verdict)}</div>
     ${m.scope ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px;line-height:1.5;overflow-wrap:anywhere">${_rpMdInline(m.scope)}</div>` : ''}
   </div>`;

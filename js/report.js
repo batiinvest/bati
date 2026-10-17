@@ -241,7 +241,7 @@ async function _rpLoadPeerStats() {
   const [mktRes, finRes] = await Promise.all([
     sb.from('market_data').select('stock_code,per,pbr')
       .in('stock_code', codes).order('base_date', { ascending: false }),
-    sb.from('financials').select('stock_code,fs_div,roe,roa,operating_margin')
+    sb.from('financials').select('stock_code,fs_div,is_cumulative,bsns_year,quarter,net_income,total_equity,total_assets,operating_margin')
       .in('stock_code', codes)
       .order('bsns_year', { ascending: false }).order('quarter', { ascending: false }),
   ]);
@@ -251,9 +251,10 @@ async function _rpLoadPeerStats() {
   for (const r of (mktRes.data || [])) {
     if (!latestMkt[r.stock_code]) latestMkt[r.stock_code] = r;
   }
-  for (const r of finPreferFs(finRes.data)) {   // 종목별 CFS 우선·OFS 폴백
-    if (!latestFin[r.stock_code]) latestFin[r.stock_code] = r;
-  }
+  // 종목별 CFS 우선·OFS 폴백 + 4분기 연간값 행 정리 → 최신 행(영업이익률)·최근 4분기 ROE·ROA(이 종목과 같은 기준)
+  const finBy = {};
+  for (const r of finNormalizeQuarters(finPreferFs(finRes.data))) (finBy[r.stock_code] ||= []).push(r);
+  for (const [c, rows] of Object.entries(finBy)) latestFin[c] = { ...rows[0], ..._rpTtmRatios(rows) };
 
   // 5. 중앙값 계산
   const median = arr => {
@@ -339,7 +340,8 @@ async function rpRenderReport() {
     _set('rp-cap-val', latest.market_cap ? fmtCap(latest.market_cap) : '—');
     _set('rp-per-val', latest.per ? latest.per.toFixed(1)+'x' : '—');
     _set('rp-pbr-val', latest.pbr ? latest.pbr.toFixed(2) : '—');
-    if (latestF.roe != null) _set('rp-roe-val', latestF.roe.toFixed(1) + '%');
+    const ttm = _rpTtmRatios(_rpData.fin);   // 최근 4분기 순이익 기준(연간)
+    if (ttm.roe != null) _set('rp-roe-val', ttm.roe.toFixed(1) + '%');
     const comp = _rpData.company;
     if (comp?.market)   _set('rp-market-badge', comp.market);
     if (comp?.industry) _set('rp-industry-badge', comp.industry);
@@ -457,9 +459,62 @@ async function rpSetTab(idx) {
     case '지분현황':   await _rpLoadAndRenderOwnership(card); return;    // FnGuide c1070001
     case '최근리포트': await _rpLoadAndRenderReports(card); return;      // FnGuide c1080001
     case '금감원공시': await _rpLoadAndRenderFss(card); return;
-    case '수급흐름':   card.innerHTML = _rpTabFlow(_rpData.price); return;
+    case '수급흐름':   await _rpLoadAndRenderFlow(card); return;
     case 'DART 분석':  await _rpLoadAndRenderDart(card); return;
   }
+}
+
+// ── 수급흐름 탭 ─────────────────────────────────────────────────────────────────
+// 다른 화면에 있는 수급 기능을 모음: 수급 단계(기업분석 표·수급 지도와 같은 판정 — config.js flowGauge·flowIsEmpty·
+// taerinEval, financials.js _finFlowQ) + 거래대금 추이 + 외국인·기관·프로그램 수급(종목 상세 창 수급 탭 _sdSupply)
+
+// 판정(collect_flow_empty, 평일 18:50)이 있는 가장 최근 행 — 장중엔 오늘 행에 판정이 아직 없다(getFlowVerdicts와 같은 이유)
+async function _rpFlowVerdict(code) {
+  for (const cols of ['base_date,flow_gauge,flow_pctl,lead_flags', 'base_date,flow_pctl']) {   // 칸·주도 컬럼은 SQL 실행 후 생김
+    const { data, error } = await sb.from('market_data').select(cols).eq('stock_code', code)
+      .not('flow_quad', 'is', null).order('base_date', { ascending: false }).limit(1).maybeSingle();
+    if (!error) return data || null;
+    if (error.code !== '42703') throw error;
+  }
+  return null;
+}
+
+// 수급 단계 카드 — 수급 칸(바닥→상단 5칸·방향·단계 이름)·빈집·태린이아빠 후보. 이름·기준은 기업분석 표와 같음
+function _rpFlowStageCard(v) {
+  const gg = v?.flow_gauge && typeof flowGauge === 'function' ? flowGauge(v.flow_gauge) : null;
+  const q  = v && typeof _finFlowQ === 'function' ? _finFlowQ(v) : null;
+  const te = v?.lead_flags && typeof taerinEval === 'function' ? taerinEval(v.flow_gauge, v.lead_flags, v.flow_pctl) : null;
+  const row = (k, val, tip) => `<tr${tip ? ` title="${escAttr(tip)}"` : ''}>
+    <td style="padding:7px 10px;background:var(--bg3);color:var(--text2);white-space:nowrap;border-bottom:1px solid var(--border);width:130px">${k}</td>
+    <td style="padding:7px 10px;color:var(--text1);border-bottom:1px solid var(--border)">${val}</td></tr>`;
+  const rows = [
+    gg && row('수급 칸', `${flowGaugeBar(gg)} <b style="color:${gg.color}">${gg.label}</b> <span style="color:var(--text2)">· ${gg.fill}/5칸 — ${escapeHtml(gg.tip)}</span>`,
+      flowGaugeTip(v.flow_gauge, gg)),
+    q && row('빈집', `<b>${q.label}</b> <span style="color:var(--text2)">· 칸 2개 이하가 빈집, 주도 업종 안이면 '빈집'</span>`),
+    v?.lead_flags && row('주도 업종', v.lead_flags.lead ? '<b style="color:#f59e0b">주도 업종</b>' : '주도 업종 아님'),
+    v?.lead_flags?.rs != null && row('RS', `${v.lead_flags.rs}`),
+    te && row('태린이아빠 후보', te.label ? `<b style="color:#f59e0b">${te.label}</b>` : '해당 없음'),
+  ].filter(Boolean);
+  return `<div data-capture style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
+    ${_rpSecT('수급 단계', v?.base_date ? `기준 ${escapeHtml(v.base_date)} · 기업분석 표와 같은 판정` : '')}
+    ${rows.length ? `<table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub))">${rows.join('')}</table>`
+      : `<div style="font-size:calc(12px*var(--m-sub));color:var(--text3);padding:10px 0;text-align:center">수급 판정 없음(수급 수집 대상 밖이거나 판정 전)</div>`}
+  </div>`;
+}
+
+async function _rpLoadAndRenderFlow(body) {
+  if (!_rpStock || !body) return;
+  const v = await _rpFlowVerdict(_rpStock.code).catch(() => null);
+  body.innerHTML = `<div style="display:flex;flex-direction:column;gap:12px">
+    ${_rpFlowStageCard(v)}
+    ${_rpTabFlow(_rpData.price)}
+    <div data-capture style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
+      ${_rpSecT('외국인 · 기관 · 프로그램 수급', '단위 주 · 종목 상세 창 수급 탭과 같음')}
+      <div class="rp-flow-sd"></div>
+    </div>
+  </div>`;
+  const el = body.querySelector('.rp-flow-sd');
+  if (el && typeof _sdSupply === 'function') await _sdSupply(el, _rpStock.code, _rpStock.name);
 }
 
 function _rpTabFlow(prices) {
@@ -483,8 +538,6 @@ function _rpTabFlow(prices) {
       <span>${(recent[0]?.base_date || '').slice(2)}</span>
       <span>${(recent[recent.length-1]?.base_date || '').slice(2)}</span>
     </div>
-    <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:8px">
-      * 외국인/기관 상세 수급은 수급 분석 기능 연동 예정</div>
   </div>`;
 }
 
