@@ -6,7 +6,10 @@
 // 화면 밖 복제본을 캡처(깜빡임 없음) — 흰 배경이면 밝은 색 변수, Chart.js 차트는 3배 해상도로 다시 그림(흰 배경이면 글자·격자 색도)
 // 조작 줄 등 이미지에 넣지 않을 요소는 data-no-capture
 
-const CAP = { lib: null, fonts: new Map(), target: null, hideT: 0, busy: false, light: false, zoom: 1.3, bar: null };
+const CAP = { lib: null, fonts: new Map(), target: null, hideT: 0, busy: false, light: false, zoom: 1.3, fit: true, bar: null };
+// 가로 966px(fit): 이미지를 블로그 본문 폭에 딱 맞는 가로 966px로 그대로 그림(글자를 그 크기로 직접 그림).
+// 큰 이미지(가로 ~2,900px)를 올리면 네이버가 본문 폭으로 줄이며 다시 압축해 작은 글자가 뭉개졌음(160%로도 흐리다는 피드백)
+const _CAP_FIT_W = 966;
 // 크기(zoom): 카드를 1/zoom 폭으로 다시 배치해 캡처 → 블로그가 본문 폭(약 966px)으로 늘려 보여줄 때 글자·차트가 zoom배로 커짐.
 // 화면 폭 그대로 찍으면 해상도가 높아도 글자가 화면과 같은 11~12px로 보여 블로그 본문(17px 안팎)보다 작고 흐려 보였음
 const _CAP_ZOOMS = [1, 1.3, 1.6];
@@ -14,13 +17,14 @@ try {
   CAP.light = localStorage.getItem('bati-capture-light') === '1';
   const z = parseFloat(localStorage.getItem('bati-capture-zoom'));
   if (_CAP_ZOOMS.includes(z)) CAP.zoom = z;
+  if (localStorage.getItem('bati-capture-fit') === '0') CAP.fit = false;
 } catch (e) {}
 
 // 흰 배경용 색 변수 — 의미색(상승 빨강·하락 파랑 등)은 흰 바탕에서 읽히게 조금 진하게
 const _CAP_LIGHT = {
   '--bg': '#ffffff', '--bg2': '#ffffff', '--bg3': '#f3f5f9',
   '--border': 'rgba(15,23,42,0.10)', '--border2': 'rgba(15,23,42,0.18)',
-  '--text': '#0f172a', '--text1': '#1e293b', '--text2': '#475569', '--text3': '#64748b',
+  '--text': '#0f172a', '--text1': '#1e293b', '--text2': '#334155', '--text3': '#475569',   // 보조 글자도 진하게(압축·축소에 약한 옅은 회색 회피)
   '--tg': '#1689cf', '--tg2': '#1276b3', '--red': '#e11d48', '--up': '#e11d48', '--blue': '#2563eb', '--down': '#2563eb', '--sell': '#2563eb',
   '--green': '#16a34a', '--buy': '#059669', '--warn': '#b7791f', '--accent': '#b7791f', '--danger': '#dc2626', '--yellow': '#ea580c',
 };
@@ -180,14 +184,16 @@ async function _capRun(mode) {
   let tmp = null;
   try {
     const lib = await _capLoadLib();
-    // 배치 폭 = 화면 폭 ÷ 크기(최소 360px). 이미지 가로 픽셀은 화면 폭의 3배 안팎으로 유지(배치 폭 × 3×크기)
+    // 배치 폭 = 화면 폭 ÷ 크기(최소 360px).
+    // 가로 966px 켜짐: 배율 = 966 ÷ 배치 폭 → 이미지 가로가 정확히 966px(글자를 최종 크기로 직접 그림)
+    // 꺼짐: 배치 폭 × 3×크기 ≈ 화면 폭의 3배(인쇄·확대용 고해상도)
     const width = Math.max(360, Math.round(el.getBoundingClientRect().width / CAP.zoom));
-    const chartRatio = Math.max(1, Math.min(3 * CAP.zoom, 12000 / width));
+    const chartRatio = CAP.fit ? _CAP_FIT_W / width : Math.max(1, Math.min(3 * CAP.zoom, 12000 / width));
     tmp = _capClone(el, CAP.light, chartRatio, width);
     const node = tmp.node;
     const nr = node.getBoundingClientRect();
     // 아주 큰 상자는 긴 변 12,000px 안으로(브라우저 캔버스 한도·메모리)
-    const pixelRatio = Math.max(1, Math.min(chartRatio, 12000 / Math.max(nr.width, nr.height, 1)));
+    const pixelRatio = CAP.fit ? chartRatio : Math.max(1, Math.min(chartRatio, 12000 / Math.max(nr.width, nr.height, 1)));
     const blob = await lib.toBlob(node, {
       pixelRatio, backgroundColor: _capBg(el, node, CAP.light), fontEmbedCSS: await _capFontCSS(node),
       filter: n => !(n.dataset && 'noCapture' in n.dataset),
@@ -226,16 +232,19 @@ function _capBar() {
   b.innerHTML = btn('copy', '복사', '고해상도 이미지를 클립보드로 — 블로그 에디터에 Ctrl+V')
     + btn('save', 'PNG', '고해상도 PNG 파일로 저장')
     + btn('zoom', '크기', '블로그에 붙였을 때 글자 크기(100→130→160%). 클수록 카드를 좁게 다시 배치해 글자·차트가 커짐')
+    + btn('fit', '가로 966', '켜짐: 블로그 본문 폭(966px)에 맞춘 이미지 — 블로그가 다시 줄이지 않아 글자가 선명 / 꺼짐: 화면의 3배 고해상도')
     + btn('light', '흰 배경', '흰 바탕으로 캡처(켜고 끄기, 이 기기에 기억)');
   b.addEventListener('click', e => {
     const act = e.target.closest('[data-cap]')?.dataset.cap;
     if (!act || CAP.busy) return;
-    if (act === 'light' || act === 'zoom') {
+    if (act === 'light' || act === 'zoom' || act === 'fit') {
       if (act === 'light') CAP.light = !CAP.light;
+      else if (act === 'fit') CAP.fit = !CAP.fit;
       else CAP.zoom = _CAP_ZOOMS[(_CAP_ZOOMS.indexOf(CAP.zoom) + 1) % _CAP_ZOOMS.length];
       try {
         localStorage.setItem('bati-capture-light', CAP.light ? '1' : '0');
         localStorage.setItem('bati-capture-zoom', String(CAP.zoom));
+        localStorage.setItem('bati-capture-fit', CAP.fit ? '1' : '0');
       } catch (err) {}
       _capBarState(false);
       _capPlace();   // 버튼 글자 폭이 바뀌어도 카드 오른쪽 끝에 맞춤
@@ -252,10 +261,14 @@ function _capBar() {
 function _capBarState(busy) {
   const b = CAP.bar;
   if (!b) return;
-  const lt = b.querySelector('[data-cap="light"]');
-  lt.style.background = CAP.light ? 'color-mix(in srgb, var(--tg) 22%, var(--bg3))' : 'var(--bg3)';
-  lt.style.color = CAP.light ? 'var(--tg)' : 'var(--text1)';
-  lt.setAttribute('aria-pressed', CAP.light ? 'true' : 'false');
+  const toggle = (sel, on) => {
+    const x = b.querySelector(sel);
+    x.style.background = on ? 'color-mix(in srgb, var(--tg) 22%, var(--bg3))' : 'var(--bg3)';
+    x.style.color = on ? 'var(--tg)' : 'var(--text1)';
+    x.setAttribute('aria-pressed', on ? 'true' : 'false');
+  };
+  toggle('[data-cap="light"]', CAP.light);
+  toggle('[data-cap="fit"]', CAP.fit);
   b.querySelector('[data-cap="zoom"]').textContent = `크기 ${Math.round(CAP.zoom * 100)}%`;
   b.querySelectorAll('[data-cap="copy"],[data-cap="save"]').forEach(x => { x.disabled = busy; x.style.opacity = busy ? '.5' : '1'; });
   b.querySelector('[data-cap="copy"]').textContent = busy ? '만드는 중…' : '복사';
