@@ -823,7 +823,8 @@ function _rpfChart(title, labels, bars, lines, opts = {}) {
 }
 
 // ── 계정과목 정의 ─────────────────────────────────────────────────────────────
-function _rpfRowDefs() {
+// stmt를 넘기면 재무분석 탭 상태(RPF.stmt)와 무관하게 정의만 씀(DART 분석 탭 '재무제표' 표)
+function _rpfRowDefs(stmt = RPF.stmt) {
   const taxCalc = r => r.pretax_income != null && r.net_income != null ? r.pretax_income - r.net_income : null;
   const gpCalc  = r => r.gross_profit ?? (r.revenue != null && r.cogs != null ? r.revenue - r.cogs : null);
   const defs = {
@@ -871,7 +872,7 @@ function _rpfRowDefs() {
       { k: 'fcf',                label: 'FCF',              bold: 1, sign: 1 },
     ],
   };
-  return defs[RPF.stmt] || defs.is;
+  return defs[stmt] || defs.is;
 }
 
 // ── 렌더 ─────────────────────────────────────────────────────────────────────

@@ -214,6 +214,39 @@ async function _capRun(mode) {
   }
 }
 
+// ── 표 복사 — 카드의 표를 HTML 표(+탭 구분 글자)로 클립보드에 → 블로그 에디터에 붙이면 표 그대로 ──
+// 긴 분기 표는 이미지로 찍으면 화면에 보이는 부분만 담기고 블로그에서도 글자가 작아, 블로그 표로 붙이는 게 나음.
+// 카드에 표가 여러 개면 칸이 가장 많은 표. 링크 칩·색 표시 등은 빼고 글자만, 숫자 칸은 오른쪽 정렬 유지
+function _capPickTable(el) {
+  const tables = [...el.querySelectorAll('table')].filter(t => !t.closest('[data-no-capture]'));
+  return tables.sort((a, b) => b.querySelectorAll('td,th').length - a.querySelectorAll('td,th').length)[0] || null;
+}
+async function _capCopyTable() {
+  const t = CAP.target && _capPickTable(CAP.target);
+  if (!t) return;
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const rows = [...t.rows].filter(r => r.offsetParent !== null || !t.offsetParent);   // 접힌(숨긴) 행 제외
+  const cellText = c => c.innerText.replace(/ /g, ' ').replace(/[ \t]+/g, ' ').trim();
+  const html = '<table border="1" style="border-collapse:collapse">' + rows.map(r => '<tr>' + [...r.cells].map(c => {
+    const tag = c.tagName === 'TH' || r.parentElement?.tagName === 'THEAD' ? 'th' : 'td';
+    const right = getComputedStyle(c).textAlign === 'right';
+    const span = (c.colSpan > 1 ? ` colspan="${c.colSpan}"` : '') + (c.rowSpan > 1 ? ` rowspan="${c.rowSpan}"` : '');
+    return `<${tag}${span} style="padding:4px 8px;border:1px solid #ccc${right ? ';text-align:right' : ''}${tag === 'th' ? ';background:#f3f5f9' : ''}">`
+      + esc(cellText(c)).replace(/\n+/g, '<br>') + `</${tag}>`;
+  }).join('') + '</tr>').join('') + '</table>';
+  const tsv = rows.map(r => [...r.cells].map(c => cellText(c).replace(/\s*\n\s*/g, ' ')).join('\t')).join('\n');
+  try {
+    await navigator.clipboard.write([new ClipboardItem({
+      'text/html': new Blob([html], { type: 'text/html' }),
+      'text/plain': new Blob([tsv], { type: 'text/plain' }),
+    })]);
+    toast(`표를 복사했습니다(${rows.length}행) — 블로그 에디터에서 Ctrl+V`, 'success');
+  } catch (e) {
+    try { await navigator.clipboard.writeText(tsv); toast('표를 글자로 복사했습니다(엑셀 붙여넣기용)', 'warn'); }
+    catch (e2) { toast('표 복사 실패: ' + (e2?.message || e2), 'error'); }
+  }
+}
+
 // ── 떠 있는 버튼 막대 ──────────────────────────────────────────────────────
 function _capBar() {
   if (CAP.bar) return CAP.bar;
@@ -225,11 +258,13 @@ function _capBar() {
     background:var(--bg3);color:var(--text1);font-family:inherit;font-size:calc(11px*var(--m-label));cursor:pointer;white-space:nowrap">${label}</button>`;
   b.innerHTML = btn('copy', '복사', '고해상도 이미지를 클립보드로 — 블로그 에디터에 Ctrl+V')
     + btn('save', 'PNG', '고해상도 PNG 파일로 저장')
+    + btn('table', '표 복사', '카드의 표를 표 그대로 복사 — 블로그 에디터에 붙이면 표로 들어감(긴 분기 표에 권장)')
     + btn('zoom', '크기', '블로그에 붙였을 때 글자 크기(100→130→160%). 클수록 카드를 좁게 다시 배치해 글자·차트가 커짐')
     + btn('light', '흰 배경', '흰 바탕으로 캡처(켜고 끄기, 이 기기에 기억)');
   b.addEventListener('click', e => {
     const act = e.target.closest('[data-cap]')?.dataset.cap;
     if (!act || CAP.busy) return;
+    if (act === 'table') { _capCopyTable(); return; }
     if (act === 'light' || act === 'zoom') {
       if (act === 'light') CAP.light = !CAP.light;
       else CAP.zoom = _CAP_ZOOMS[(_CAP_ZOOMS.indexOf(CAP.zoom) + 1) % _CAP_ZOOMS.length];
@@ -278,7 +313,9 @@ function _capPlace() {
 }
 function _capShow(card) {
   CAP.target = card;
-  _capBar().style.display = 'flex';
+  const b = _capBar();
+  b.querySelector('[data-cap="table"]').style.display = _capPickTable(card) ? '' : 'none';   // 표 있는 카드에서만
+  b.style.display = 'flex';
   _capPlace();
 }
 function _capHide() {

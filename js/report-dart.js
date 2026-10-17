@@ -7,11 +7,16 @@
 async function _rpLoadAndRenderDart(body) {
   if (!_rpStock) return;
   const code = _rpStock.code;
-  const [{ data, error }, biz] = await Promise.all([
+  const [{ data, error }, biz, fin] = await Promise.all([
     sb.from('dart_reports').select('report_type,receive_date,raw_md,summary')
       .eq('stock_code', code).order('receive_date', { ascending: false }).limit(1).maybeSingle(),
     // '사업' 차트는 사업분석 탭과 같은 데이터·그리기(report-biz.js)
     typeof _rpBizFetch === 'function' ? _rpBizFetch(code).catch(() => null) : Promise.resolve(null),
+    // '실적' 재무제표 표·차트는 재무 DB — 재무분석 탭과 같은 정리(연결 우선·4분기 연간값 정리)
+    Promise.resolve(sb.from('financials').select(RPD_FIN_SELECT).eq('stock_code', code)
+      .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }))
+      .then(r => typeof finNormalizeQuarters === 'function' ? finNormalizeQuarters(finPreferFs(r.data || [])) : (r.data || []))
+      .catch(() => []),
   ]);
 
   if (error || !data) {
@@ -41,7 +46,10 @@ async function _rpLoadAndRenderDart(body) {
   const at = Math.max(bizList.findIndex(x => x.key === 'region'), bizList.findIndex(x => x.key === 'product'));
   const bizHtml = [...bizList.slice(0, at + 1).map(x => x.html), cust, ...bizList.slice(at + 1).map(x => x.html)].join('');
 
-  const perf = _rpDartKpis(M, {}) + _rpDartTrend(M);   // 희석·지분 타일은 '기업 정보·주주'에 있으므로 뺌
+  // 실적: 블로그처럼 재무제표 표 → 분기 매출·영업이익률 → GPM·판관비율, 이어서 MD 기준 핵심 지표·분기 실적 추이
+  // (희석·지분 타일은 '기업 정보·주주'에 있으므로 뺌)
+  const F = _rpDartFinFill(fin, M.trend);
+  const perf = _rpDartFinTable(F.rows, F.filled) + _rpDartFinCharts(F.rows) + _rpDartKpis(M, {}) + _rpDartTrend(M);
   const pts = M.points?.length || M.risks?.length || s.investment_points?.length || s.risk_points?.length;
   const judge = _rpDartVerdict(M)
     + (pts ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px">
@@ -229,6 +237,84 @@ function _rpDartCeo(L) {
     ['성명', e(p.name)], ...p.rows,
     ...(p.career.length ? [['주요경력', p.career.map(e).join('<br>')]] : []),
   ])).join('<div style="height:10px"></div>'));
+}
+
+// ── 실적: 재무제표(손익·분기) 표 + 분기별 매출·영업이익률 / GPM·판관비율 차트 ──────────────
+// 블로그 '재무제표' 표 모양(최근 13개 분기 + 전분기·전년동기 대비). 재무 DB(financials) 기준 — 계정·이익률 정의와
+// 차트는 재무분석 탭(report-fnguide.js _rpfRowDefs·_rpfOpm·_rpfChart)과 같음
+const RPD_FIN_SELECT = 'fs_div,is_cumulative,bsns_year,quarter,revenue,cogs,gross_profit,sga,rd_expense,operating_profit,other_operating_income,other_operating_expense,pretax_income,net_income,operating_margin,net_margin';
+const _rpDartFinQuarters = rows => (rows || []).filter(r => /^Q[1-4]$/.test(r.quarter)).slice(-13);
+// 재무 DB에 영업이익이 빈 분기는 MD 분기별 추이(2-7, DART 원문 대조값)로 보충 — 원익IPS는 2023Q4 이후 대부분 비어 있었음
+// (10-17 기준 2026Q2에 영업이익 빈 종목은 240810·041190 둘뿐 = 수집기 계정 매핑 누락)
+function _rpDartFinFill(rows, trend) {
+  if (!rows?.length || !trend?.op) return { rows: rows || [], filled: 0 };
+  const map = {};
+  trend.periods.forEach((p, i) => {
+    const m = String(p).match(/^(\d{2})\.(\d)Q$/);
+    if (m && trend.op[i] != null) map[`20${m[1]}Q${m[2]}`] = trend.op[i] * 1e8;
+  });
+  let filled = 0;
+  const out = rows.map(r => {
+    const v = map[`${r.bsns_year}${r.quarter}`];
+    if (r.operating_profit != null || v == null) return r;
+    filled++;
+    return { ...r, operating_profit: v };
+  });
+  return { rows: out, filled };
+}
+const _rpDartFinLabel = r => `${String(r.bsns_year).slice(2)} ${r.quarter}`;
+
+function _rpDartFinTable(rows, filled) {
+  const P = _rpDartFinQuarters(rows);
+  if (P.length < 2 || typeof _rpfRowDefs !== 'function') return '';
+  const last = P[P.length - 1];
+  const prevQ = rows[rows.indexOf(last) - 1] || null;
+  const prevY = rows.find(x => Number(x.bsns_year) === Number(last.bsns_year) - 1 && x.quarter === last.quarter) || null;
+  const eok = v => v == null ? '—' : (v / 1e8).toLocaleString('ko-KR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const pct = v => v == null ? '—' : v.toFixed(1);
+  const grow = (cur, old, isPct) => {   // 재무분석 탭과 같은 규칙(상승 빨강·하락 파랑)
+    if (cur == null || old == null) return '<span style="color:var(--text3)">—</span>';
+    const d = isPct ? cur - old : (old === 0 ? null : (cur - old) / Math.abs(old) * 100);
+    if (d == null) return '<span style="color:var(--text3)">—</span>';
+    const c = d > 0 ? 'var(--red)' : d < 0 ? 'var(--blue)' : 'var(--text3)';
+    return `<span style="color:${c}">${d >= 0 ? '+' : ''}${d.toFixed(1)}${isPct ? 'p' : ''}</span>`;
+  };
+  const th = (t, al, extra) => `<th style="padding:6px 7px;text-align:${al};color:var(--text2);font-weight:600;border-bottom:1px solid var(--border);white-space:nowrap;${extra || ''}">${t}</th>`;
+  const head = `<tr style="background:var(--bg3)">${th('항목', 'left', 'position:sticky;left:0;background:var(--bg3)')}
+    ${P.map((r, i) => th(_rpDartFinLabel(r), 'right', i === P.length - 1 ? 'color:var(--tg)' : '')).join('')}
+    ${th('전분기대비<br>(QoQ)', 'right', 'line-height:1.3')}${th('전년동기대비<br>(YoY)', 'right', 'line-height:1.3')}</tr>`;
+  const body = _rpfRowDefs('is').map(d => {
+    const val = r => r ? (d.calc ? d.calc(r) : r[d.k]) : null;
+    const cells = P.map((r, i) => {
+      const v = val(r);
+      return `<td style="padding:5px 7px;text-align:right;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border);
+        color:${d.sign && v != null && v < 0 ? 'var(--blue)' : 'var(--text1)'};${d.bold ? 'font-weight:700;' : ''}${i === P.length - 1 ? 'background:color-mix(in srgb, var(--tg) 5%, transparent)' : ''}">${d.pct ? pct(v) : eok(v)}</td>`;
+    }).join('');
+    const g = o => `<td style="padding:5px 7px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border)">${grow(val(last), val(o), !!d.pct)}</td>`;
+    return `<tr><td style="padding:5px 7px;color:var(--text1);border-bottom:1px solid var(--border);position:sticky;left:0;background:var(--bg2);white-space:nowrap;
+      ${d.bold ? 'font-weight:700;' : ''}padding-left:${7 + (d.ind || 0) * 12}px">${d.ind ? '<span style="color:var(--text3)">· </span>' : ''}${d.label}${d.pct ? ' <span style="color:var(--text3)">(%)</span>' : ''}</td>${cells}${g(prevQ)}${g(prevY)}</tr>`;
+  }).join('');
+  return _rpDartCard('재무제표 (손익·분기)', `
+    <div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-sm)">
+      <table style="width:100%;border-collapse:collapse;font-size:calc(11.5px*var(--m-sub))"><thead>${head}</thead><tbody>${body}</tbody></table>
+    </div>
+    <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">* 이익률은 금액으로 다시 계산 · 법인세비용은 세전이익−순이익 · 강조 열은 최근 분기${filled ? ' · 재무 DB에 빈 영업이익 일부는 MD(DART 원문) 값으로 보충' : ''}</div>`,
+    '단위 억원·% · 재무 DB(연결 우선)');
+}
+
+function _rpDartFinCharts(rows) {
+  const P = _rpDartFinQuarters(rows);
+  if (P.length < 2 || typeof _rpfChart !== 'function') return '';
+  const labels = P.map(_rpDartFinLabel);
+  const gp = r => r.gross_profit ?? (r.revenue != null && r.cogs != null ? r.revenue - r.cogs : null);
+  const ratio = (num, r) => num != null && r.revenue ? num / r.revenue * 100 : null;
+  const opm = typeof _rpfOpm === 'function' ? _rpfOpm : (r => ratio(r.operating_profit, r));
+  return _rpfChart('분기별 매출 · 영업이익률', labels,
+      [{ name: '매출액(억원)', color: '#2AABEE', vals: P.map(r => r.revenue != null ? r.revenue / 1e8 : null) }],
+      [{ name: '영업이익률(%)', color: '#f5365c', vals: P.map(opm) }])
+    + _rpfChart('GPM · 판관비율', labels, [],
+      [{ name: 'GPM(%)', color: '#2dce89', vals: P.map(r => ratio(gp(r), r)) },
+       { name: '판관비율(%)', color: '#fba323', vals: P.map(r => ratio(r.sga, r)) }]);
 }
 
 // 고객 집중도(4-2 '#### 고객사 및 매출 집중도')
