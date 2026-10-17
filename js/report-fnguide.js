@@ -433,7 +433,10 @@ async function _rpLoadAndRenderProfile(body) {
     }
 
     const dart = dartRes.data || null;
-    const dp   = dart?.raw_md && typeof _mdDeepParse === 'function' ? _mdDeepParse(dart.raw_md) : {};
+    const dp   = dart?.raw_md && typeof _mdDeepParse === 'function' ? _mdDeepParse(dart.raw_md, dart.summary) : {};
+    // 기본정보 [수정] 창이 쓸 정보(report-dart.js RPP) — 저장 후 이 탭을 다시 그림
+    if (dart && typeof RPP !== 'undefined')
+      RPP.sites.profile = { code: _rpStock.code, reportType: dart.report_type, summary: dart.summary || {}, dp, rerender: () => _rpLoadAndRenderProfile(body) };
 
     body.innerHTML = _rpProfileTab({
       comp: compRes.data || {}, dart, dp, discs,
@@ -459,19 +462,22 @@ function _rpProfileTab({ comp, dart, dp, discs, region, prod, latest, segment, b
   // ── ① 기업 기본정보 표 ─────────────────────────────────────────────────
   const shares = _rpShares(latest);
   const infoRows = [
+    ['회사명', dp.legalName ? esc(dp.legalName) : null],
     ['설립일 / 상장일', [dp.established, dp.listedDate].filter(Boolean).map(esc).join(' / ') || null],
     ['본사 소재지', dp.location ? esc(dp.location) : null],
     ['시장 / 업종', [comp.market, comp.sector].filter(Boolean).map(esc).join(' / ') || null],
     ['분석 산업', [comp.industry, comp.sub_industry].filter(Boolean).map(esc).join(' · ') || null],
     ['주력 제품', comp.product ? esc(comp.product) : null],
-    ['주요 사업', dp.mainBusiness ? esc(dp.mainBusiness) : null],
+    ['주요 사업', dp.mainBusiness ? `<span style="white-space:pre-line">${esc(dp.mainBusiness)}</span>` : null],
     ['발행주식수 <span style="opacity:.6">(추정)</span>', shares ? fmtNum(shares) + '주' : null],
     ['최대주주', dp.majorShareholder
       ? esc(dp.majorShareholder) + (dp.majorShareholderRatio ? ` <b style="color:var(--tg)">${esc(dp.majorShareholderRatio)}</b>` : '') : null],
   ].filter(([, v]) => v != null);
 
+  // 제목 오른쪽 [수정](관리자·에디터, MD 업로드된 종목만) — report-dart.js의 기본정보 수정 창
+  const editBtn = dart && typeof _rpProfileEditBtn === 'function' ? _rpProfileEditBtn('profile') : '';
   const infoHTML = box(`
-    ${secT('기업 기본정보')}
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">${secT('기업 기본정보')}${editBtn}</div>
     ${infoRows.length ? `
     <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub))">
       ${infoRows.map(([k, v]) => `<tr>
@@ -481,7 +487,7 @@ function _rpProfileTab({ comp, dart, dp, discs, region, prod, latest, segment, b
       </tr>`).join('')}
     </table>
     ${dart?.receive_date ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">
-      * DART ${esc(dart.report_type || '')} 기준 [접수: ${esc(dart.receive_date)}]</div>` : ''}`
+      * DART ${esc(dart.report_type || '')} 기준 [접수: ${esc(dart.receive_date)}]${dp.edited?.length ? ' · 일부 항목은 MD 내용을 고친 값' : ''}</div>` : ''}`
     : empty('DART 리포트(.md)를 업로드하면 기본정보가 표시됩니다')}`);
 
   // ── ② 최근 공시 (연혁 타임라인) ────────────────────────────────────────

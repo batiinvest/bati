@@ -24,9 +24,10 @@ async function _rpLoadAndRenderDart(body) {
   }
 
   const s   = data.summary || {};
-  const dp  = _mdDeepParse(data.raw_md || '');
+  const dp  = _mdDeepParse(data.raw_md || '', s);
   const M   = _rpDartModel(data.raw_md || '');
   const esc = escapeHtml;
+  RPP.sites.dart = { code: _rpStock.code, reportType: data.report_type, summary: s, dp, rerender: () => _rpLoadAndRenderDart(body) };
 
   body.innerHTML = `
   <div style="display:flex;flex-direction:column;gap:18px">
@@ -76,22 +77,24 @@ async function _rpLoadAndRenderDart(body) {
 
     <!-- 기업 개요 -->
     <div data-capture style="${_RPD_CARD}">
-      ${_rpdT('기업 개요')}
+      ${_rpdT('기업 개요', _rpProfileEditBtn('dart'))}
       <div style="display:flex;flex-direction:column;gap:6px">
         ${dp.mainBusiness ? `
           <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.6;padding:8px;
-            background:var(--bg3);border-radius:var(--radius-sm)">${esc(dp.mainBusiness)}</div>` : ''}
+            background:var(--bg3);border-radius:var(--radius-sm);white-space:pre-line">${esc(dp.mainBusiness)}</div>` : ''}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
+          ${dp.legalName ? `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);grid-column:1/-1">회사명 <span style="color:var(--text1);font-weight:600">${esc(dp.legalName)}</span></div>` : ''}
           ${dp.established ? `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1)">설립 <span style="color:var(--text1);font-weight:600">${esc(dp.established)}</span></div>` : ''}
           ${dp.listedDate  ? `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1)">상장 <span style="color:var(--text1);font-weight:600">${esc(dp.listedDate)}</span></div>` : ''}
           ${dp.location    ? `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);grid-column:1/-1">소재 <span style="color:var(--text1)">${esc(dp.location)}</span></div>` : ''}
         </div>
+        ${dp.edited?.length ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3)">* 일부 항목은 MD 내용을 고친 값</div>` : ''}
       </div>
     </div>
 
     <!-- 주주 구조 -->
     <div data-capture style="${_RPD_CARD}">
-      ${_rpdT('주주 구조')}
+      ${_rpdT('주주 구조', _rpProfileEditBtn('dart'))}
       <div style="display:flex;flex-direction:column;gap:6px">
         ${dp.majorShareholder ? `
           <div style="display:flex;justify-content:space-between;align-items:center;
@@ -573,8 +576,100 @@ function _rpDartEvents(m) {
   </div>`;
 }
 
+// ── MD 기본정보 수정 ───────────────────────────────────────────────────────────
+// MD에서 읽은 기본정보(2-1 기본·3-1 최대주주)를 사용자가 고친 값은 dart_reports.summary.profile_edits({필드: 값})에 저장.
+// 표시할 때 MD 값 대신 쓰고(_mdDeepParse), 새 MD를 올려도 이어받음(rpUploadDart). 빈 값 = 그 항목 숨김, 키 없음 = MD 값
+const RP_PROFILE_FIELDS = [
+  { k: 'legalName', label: '회사명' },
+  { k: 'established', label: '설립일' },
+  { k: 'listedDate', label: '상장일' },
+  { k: 'location', label: '소재지' },
+  { k: 'mainBusiness', label: '주요사업', multi: true },
+  { k: 'majorShareholder', label: '최대주주' },
+  { k: 'majorShareholderRatio', label: '최대주주 지분율', ph: '예: 32.90%' },
+];
+// 수정 창 상태 — 탭마다 { code, reportType, summary, dp, rerender } 등록(site: 'dart' | 'profile')
+const RPP = { sites: {}, open: null };
+
+// [수정] 버튼(관리자·에디터만, 캡처 이미지에서는 빠짐)
+const _rpProfileEditBtn = site => (typeof isEditor === 'function' && isEditor())
+  ? `<button data-no-capture class="btn btn-sm" onclick="rpProfileOpen('${site}')"
+      style="padding:1px 9px;font-size:calc(11px*var(--m-label))">수정</button>`
+  : '';
+
+function rpProfileOpen(site) {
+  const c = RPP.sites[site];
+  if (!c) return;
+  RPP.open = site;
+  document.getElementById('m-rp-profile')?.remove();
+  const esc = escapeHtml;
+  const rows = RP_PROFILE_FIELDS.map(({ k, label, multi, ph }) => {
+    const orig = c.dp.orig?.[k] || '', edited = (c.dp.edited || []).includes(k);
+    const cur = edited ? (c.dp[k] || '') : orig;   // 고치지 않은 주요사업은 잘리기 전 전문으로
+    const input = multi
+      ? `<textarea id="rpp-${k}" class="form-input rpp-in" rows="3" placeholder="${escAttr(ph || '')}">${esc(cur)}</textarea>`
+      : `<input id="rpp-${k}" class="form-input rpp-in" value="${escAttr(cur)}" placeholder="${escAttr(ph || '')}">`;
+    return `<div class="form-group" style="margin-bottom:12px">
+      <label class="form-label" for="rpp-${k}">${label}${edited ? ' <span style="color:var(--tg);font-weight:400">· 수정됨</span>' : ''}</label>
+      ${input}
+      <div style="display:flex;gap:8px;align-items:flex-start;margin-top:4px;font-size:calc(11px*var(--m-label));color:var(--text3);line-height:1.5">
+        <span style="flex:1;min-width:0;overflow-wrap:anywhere">MD 원래 값: ${orig ? esc(orig) : '(없음)'}</span>
+        <button type="button" class="btn btn-sm" data-orig="${escAttr(orig)}" style="padding:1px 8px;flex-shrink:0"
+          onclick="this.closest('.form-group').querySelector('.rpp-in').value = this.dataset.orig">원래 값</button>
+      </div>
+    </div>`;
+  }).join('');
+  const ov = document.createElement('div');
+  ov.id = 'm-rp-profile';
+  ov.className = 'modal-overlay open';
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  ov.innerHTML = `
+    <div class="modal" style="width:560px">
+      <div class="modal-header"><span class="modal-title">기본정보 수정 · ${esc(c.dp.stockName || c.code)}</span>
+        <button class="modal-close" onclick="document.getElementById('m-rp-profile').remove()" aria-label="닫기">×</button></div>
+      <div style="font-size:calc(12px*var(--m-sub));color:var(--text2);line-height:1.6;margin-bottom:12px">
+        업로드한 MD의 기본정보 대신 보여줄 값입니다. 비우면 그 항목을 숨기고, 새 MD를 올려도 고친 값은 유지됩니다.</div>
+      ${rows}
+      <div class="modal-footer">
+        <button class="btn" style="margin-right:auto" onclick="document.querySelectorAll('#m-rp-profile [data-orig]').forEach(b => b.click())">전체 원래 값</button>
+        <button class="btn" onclick="document.getElementById('m-rp-profile').remove()">취소</button>
+        <button class="btn btn-primary" id="rpp-save" onclick="rpProfileSave()">저장</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+}
+
+async function rpProfileSave() {
+  const c = RPP.sites[RPP.open];
+  if (!c) return;
+  const edits = {};
+  for (const { k } of RP_PROFILE_FIELDS) {
+    const v = (document.getElementById(`rpp-${k}`)?.value || '').trim();
+    if (v !== String(c.dp.orig?.[k] || '').trim()) edits[k] = v;   // MD 값과 같으면 수정 아님
+  }
+  const summary = { ...(c.summary || {}) };
+  if (Object.keys(edits).length) summary.profile_edits = edits;
+  else delete summary.profile_edits;
+  const btn = document.getElementById('rpp-save');
+  if (btn) { btn.disabled = true; btn.textContent = '저장 중…'; }
+  // 권한이 없으면 오류 없이 0행이 갱신될 수 있어 갱신된 행을 돌려받아 확인
+  const { data, error } = await sb.from('dart_reports').update({ summary })
+    .eq('stock_code', c.code).eq('report_type', c.reportType).select('stock_code');
+  if (error || !data?.length) {
+    if (btn) { btn.disabled = false; btn.textContent = '저장'; }
+    toast('저장 실패: ' + (error?.message || '권한이 없거나 리포트를 찾지 못했습니다'), 'error');
+    return;
+  }
+  document.getElementById('m-rp-profile')?.remove();
+  const n = Object.keys(edits).length;
+  toast(n ? `기본정보 ${n}개 항목을 저장했습니다` : '기본정보를 MD 원래 값으로 되돌렸습니다', 'success');
+  c.summary = summary;
+  c.rerender?.();
+}
+
 // ── MD 깊은 파싱 (렌더 전용) ──────────────────────────────────────────────────
-function _mdDeepParse(md) {
+// summary를 넘기면 사용자가 고친 기본정보(profile_edits)를 적용 — orig: MD 원래 값, edited: 고친 항목
+function _mdDeepParse(md, summary) {
   const lines = md.split('\n');
 
   function secLines(h2keyword) {
@@ -672,8 +767,9 @@ function _mdDeepParse(md) {
   const majorShRatioRaw    = lv('최대주주', sh)?.match(/([\d.]+)%/);
   const majorShareholderRatio = majorShRatioRaw ? majorShRatioRaw[1]+'%' : null;
 
-  return {
+  const out = {
     stockCode, stockName, receiptNo, updated,
+    legalName:   lv('회사명', basic),
     mainBusiness,
     established: lv('설립일', basic),
     listedDate:  lv('상장일', basic),
@@ -683,6 +779,14 @@ function _mdDeepParse(md) {
     majorShareholder,
     majorShareholderRatio,
   };
+  // 사용자 수정값 적용(주요사업 원래 값은 자르기 전 전문)
+  out.orig = {}; out.edited = [];
+  const edits = summary?.profile_edits || {};
+  for (const { k } of RP_PROFILE_FIELDS) {
+    out.orig[k] = (k === 'mainBusiness' ? mainBusinessRaw : out[k]) || null;
+    if (typeof edits[k] === 'string') { out[k] = edits[k].trim() || null; out.edited.push(k); }
+  }
+  return out;
 }
 
 // ── 계열사 현황 상세 렌더 (2-4 파싱결과 공용 — 기업개요 탭·DART 탭) · 단위 천원 ──
@@ -1369,6 +1473,12 @@ async function rpUploadDart(input) {
   if (!parsed.stock_code) { toast('종목코드를 파싱할 수 없습니다 (문서 개요 섹션 확인)', 'warn'); return; }
 
   toast('저장 중...', 'info');
+  // 사용자가 고친 기본정보(profile_edits)는 새 MD에도 이어받음 — 이 종목의 가장 최근 리포트 기준
+  try {
+    const { data: prev } = await sb.from('dart_reports').select('summary')
+      .eq('stock_code', parsed.stock_code).order('receive_date', { ascending: false }).limit(1).maybeSingle();
+    if (prev?.summary?.profile_edits) parsed.summary.profile_edits = prev.summary.profile_edits;
+  } catch (e) {}
   const { error } = await sb.from('dart_reports').upsert({
     stock_code:   parsed.stock_code,
     stock_name:   parsed.stock_name,

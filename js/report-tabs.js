@@ -25,7 +25,7 @@ async function _rpLoadAndRenderOwnership(body) {
       discs = data || [];
     }
     const dart = dartRes.data || null;
-    const dp = dart?.raw_md && typeof _mdDeepParse === 'function' ? _mdDeepParse(dart.raw_md) : {};
+    const dp = dart?.raw_md && typeof _mdDeepParse === 'function' ? _mdDeepParse(dart.raw_md, dart.summary) : {};   // 사용자 수정 기본정보 반영
     body.innerHTML = _rpOwnershipTab({
       discs, dp, s: dart?.summary || {}, dart,
       prices: _rpData.price || [], latest: _rpData.price?.[0] || {},
