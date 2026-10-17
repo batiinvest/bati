@@ -192,7 +192,7 @@ async function rpLoadReport() {
         .select('bsns_year,quarter,segment_type,category,subcategory,revenue,revenue_ratio')
         .eq('stock_code', _rpStock.code).in('segment_type',['product','region','backlog'])
         .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
-      sb.from('companies').select('market,sector,product,industry,sub_industry')
+      sb.from('companies').select('market,sector,product,industry,sub_industry,wics_sector')
         .eq('code', _rpStock.code).maybeSingle(),
       // 오늘의 공시·뉴스 요약 (백엔드 18:55 생성 — 최신 1건)
       sb.from('daily_summaries').select('base_date,disclosure_cnt,news_cnt,is_major,ai_summary,items')
@@ -374,15 +374,15 @@ function _rpBullBearCard(dartPts = [], dartRisks = []) {
 
   return `
   <div class="card" style="padding:16px">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-        <div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px">
+        <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px">
           <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1);margin-bottom:10px;display:flex;align-items:center;gap:7px">
             <span style="width:3px;height:13px;border-radius:2px;background:#4ade80;display:inline-block"></span>
             핵심 투자포인트 (Bull Case)
           </div>
           ${bullHTML}
         </div>
-        <div style="border-left:1px solid var(--border);padding-left:16px">
+        <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px">
           <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1);margin-bottom:10px;display:flex;align-items:center;gap:7px">
             <span style="width:3px;height:13px;border-radius:2px;background:#f87171;display:inline-block"></span>
             주요 리스크 (Bear Case)

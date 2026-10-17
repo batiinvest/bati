@@ -18,22 +18,27 @@ async function _rpLoadAndRenderDart(body) {
     Promise.resolve(sb.from('dart_reports').select('report_type,receive_date,raw_md,summary')
       .eq('stock_code', code).order('receive_date', { ascending: false }).limit(1).maybeSingle()).catch(() => ({ data: null })),
     typeof _rpBizFetch === 'function' ? _rpBizFetch(code).catch(() => null) : Promise.resolve(null),
-    q(sb.from('companies').select('corp_code,market,sector,product,industry,sub_industry').eq('code', code).maybeSingle(), {}),
+    q(sb.from('companies').select('corp_code,market,sector,product,industry,sub_industry,wics_sector').eq('code', code).maybeSingle(), {}),
     q(sb.from('earnings_stage').select('period,stage,fs_div').eq('stock_code', code).maybeSingle(), null),
     typeof _rpFlowVerdict === 'function' ? _rpFlowVerdict(code).catch(() => null) : Promise.resolve(null),
-    q(sb.from('market_data').select('base_date,foreign_net_buy,institution_net_buy,market_warn_code')
+    q(sb.from('market_data').select('base_date,price,foreign_net_buy,institution_net_buy,market_warn_code')
       .eq('stock_code', code).order('base_date', { ascending: false }).limit(20), []),
     q(sb.from('analyst_opinions').select('firm_name,opinion,target_price,opinion_date,opinion_code')
       .eq('stock_code', code).order('opinion_date', { ascending: false }).limit(100), []),
   ]);
   // 공시 — 금감원공시 탭과 같은 목록(150건) · 지분현황 탭과 같은 지분 공시(40건)
   const cc = comp?.corp_code;
-  const [discAll, discOwn] = cc ? await Promise.all([
+  const since90 = new Date(Date.now() - 90 * 86400e3).toISOString().slice(0, 10);
+  const [discAll, discOwn, own90] = cc ? await Promise.all([
     q(sb.from('daily_disclosures').select('base_date,report_nm,category,rcept_no,insider_summary')
       .eq('corp_code', cc).order('base_date', { ascending: false }).limit(150), []),
     q(sb.from('daily_disclosures').select('base_date,report_nm,category,rcept_no,insider_summary')
       .eq('corp_code', cc).in('category', typeof _RP_OWN_CATS !== 'undefined' ? _RP_OWN_CATS : []).order('base_date', { ascending: false }).limit(40), []),
-  ]) : [[], []];
+    // 종합분석 '지분' 줄 — 최근 90일 건수는 count로 정확히(지분현황 목록 40건에서 세면 삼성전자 824건이 40건으로 잘림)
+    Promise.resolve(sb.from('daily_disclosures').select('base_date,category,insider_summary', { count: 'exact' })
+      .eq('corp_code', cc).in('category', typeof _RP_OWN_CATS !== 'undefined' ? _RP_OWN_CATS : []).gte('base_date', since90)
+      .order('base_date', { ascending: false }).limit(1000)).then(r => ({ rows: r.data || [], count: r.count ?? (r.data || []).length })).catch(() => null),
+  ]) : [[], [], null];
   if (_rpStock?.code !== code) return;   // 그 사이 다른 종목으로 바뀜
 
   const s   = data?.summary || {};
@@ -52,7 +57,7 @@ async function _rpLoadAndRenderDart(body) {
   const at = Math.max(bizList.findIndex(x => x.key === 'region'), bizList.findIndex(x => x.key === 'product'));
   const bizHtml = [...bizList.slice(0, at + 1).map(x => x.html), cust, ...bizList.slice(at + 1).map(x => x.html)].join('');
 
-  const ctx = { data, s, M, stage, flowV, flow20, ana, discAll, discOwn, latest, latestF };
+  const ctx = { data, s, M, comp, stage, flowV, flow20, ana, discAll, own90, latest, latestF };
   const box = (inner, title) => `<div data-capture style="${_RPD_CARD}">${title ? _rpdT(title) : ''}${inner}</div>`;
   const lazy = (key, title) => box(`<div data-rpd-lazy="${key}"><div style="text-align:center;color:var(--text2);padding:20px"><span class="loading"></span> 불러오는 중...</div></div>`, title);
   const pts = s.investment_points?.length || s.risk_points?.length;
@@ -83,10 +88,10 @@ async function _rpLoadAndRenderDart(body) {
     </button>
   </div>
 
-  ${_rpDartSecHead('종합분석 결과', '앞 탭들의 결과 · 판정은 앱에 이미 있는 기준만 · 줄을 누르면 근거로')}
+  ${_rpDartSecHead('종합분석 결과')}
   ${_rpDartOverview(ctx)}
   ${M.verdict ? _rpDartVerdict(M, data) : ''}
-  ${pts && typeof _rpBullBearCard === 'function' ? _rpBullBearCard(s.investment_points, s.risk_points) : ''}
+  ${pts && typeof _rpBullBearCard === 'function' ? `<div id="rpd-sec-risk" style="scroll-margin-top:70px">${_rpBullBearCard(s.investment_points, s.risk_points)}</div>` : ''}
 
   ${_rpDartSecHead('기업 정보', '', ['기업개요'], 'info')}
   ${_rpProfileInfoCard({ comp, dart: data, dp, latest }, 'dart')}
@@ -171,19 +176,28 @@ function _rpdYoY(cur, prev) {
 }
 
 // ── 종합분석 결과 ──────────────────────────────────────────────────────────────
-// 앞 탭들의 결과를 구분별 한 줄로. 판정은 앱에 이미 있는 것만 — 신호등(_rpSignal, 기업현황)·실적 국면(원본 표시)·
-// 수급 칸·빈집·태린이아빠 후보(기업분석 표)·종합 판단 신호(_rpSynthesis, 기업현황). 새 기준은 만들지 않음.
-// ROE는 최근 4분기 순이익 기준(_rpTtmRatios — 신호등이 연간 기준). 줄마다 기준일, 누르면 아래 근거 구역으로
+// 앞 탭들의 결과를 구분별 한 줄로 + 맨 위 '긍정 / 주의' — 앱에 이미 있는 판정만 모아 나눔(새 점수·가중치 없음):
+//   신호등 양호/주의(_rpSignal, 보통은 뺌) · 종합 판단 신호 good/warn·bad(_rpSynthesis, 기업현황) · 실적 국면 원본 표시 매수/매도 ·
+//   수급 단계 이제 시작·채우는 중 / 꺾임·다 찼다(원저자 말: 꺾이면 비중 축소, 다 찼다 = 과열권) · 주도 업종 빈집·태린이아빠 후보 ·
+//   시장경고 · MD 리스크. ROE는 최근 4분기 순이익 기준(_rpTtmRatios), 금융업은 이익률·부채비율 판정 안 함(_rpIsFinancial)
 function _rpDartOverview(x) {
-  const e = escapeHtml, rows = [];
+  const e = escapeHtml, rows = [], pos = [], neg = [];
   const add = (key, label, fact, basis) => { if (fact) rows.push({ key, label, fact, basis: basis || '' }); };
+  const JC = typeof RP_JUDGE_COLOR !== 'undefined' ? RP_JUDGE_COLOR : { good: '#22c55e', mid: '#8b90a7', caution: '#f59e0b' };
   const chip = sig => sig ? ` <span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:100px;background:${sig.color}20;color:${sig.color};font-weight:700">${sig.label}</span>` : '';
-  const sig = (k, v) => typeof _rpSignal === 'function' ? _rpSignal(k, v) : null;
+  const none = t => ` <span style="color:var(--text3)">${t}</span>`;
+  const sigOf = (k, v) => typeof _rpSignal === 'function' ? _rpSignal(k, v) : null;
+  // 신호등 하나 — 값·칩을 그리고 양호/주의면 긍정/주의 목록에도
+  const light = (name, val, sig) => {
+    if (sig?.grade === 'strong') pos.push(`${name} ${val} 양호`);
+    if (sig?.grade === 'weak') neg.push(`${name} ${val} 주의`);
+    return `${name} <b>${val}</b>${chip(sig)}`;
+  };
   const num = v => v == null ? '—' : Math.round(v).toLocaleString();
-  const signed = v => `<span style="color:${v >= 0 ? 'var(--red)' : 'var(--blue)'}">${v >= 0 ? '+' : ''}${Math.round(v).toLocaleString()}</span>`;
   const fin = _rpData?.fin || [];
   const f0 = fin.find(r => /^Q[1-4]$/.test(r.quarter));
   const fPer = f0 ? `${f0.bsns_year} ${f0.quarter}` : '';
+  const finCo = typeof _rpIsFinancial === 'function' && _rpIsFinancial(x.comp);
 
   // 사업 — 최근 분기 제품별 매출 구성(사업분석)
   const seg = (_rpData?.segment || []).filter(r => (r.category || '').trim() !== '합계' && (r.subcategory || '').trim() !== '합계');
@@ -202,10 +216,15 @@ function _rpDartOverview(x) {
   if (f0) {
     const fy = fin.find(r => String(r.bsns_year) === String(Number(f0.bsns_year) - 1) && r.quarter === f0.quarter);
     const st = x.stage?.stage;
-    const stTxt = st ? ` · 실적 국면 ${typeof _esChip === 'function' ? _esChip(st, x.stage.period) : e(st)}`
-      + (typeof ES_BUY === 'function' && ES_BUY(st) ? ' <span style="color:var(--red);font-weight:600">원본 표시 매수</span>'
-        : typeof ES_SELL === 'function' && ES_SELL(st) ? ' <span style="color:var(--blue);font-weight:600">원본 표시 매도</span>' : '')
-      + (x.stage.period && x.stage.period !== `${f0.bsns_year}Q${String(f0.quarter).slice(1)}` ? ` <span style="color:var(--text3)">(${e(x.stage.period)})</span>` : '') : '';
+    let stTxt;
+    if (st) {
+      const buy = typeof ES_BUY === 'function' && ES_BUY(st), sell = typeof ES_SELL === 'function' && ES_SELL(st);
+      if (buy) pos.push(`실적 국면 ${st} (원본 매수)`);
+      if (sell) neg.push(`실적 국면 ${st} (원본 매도)`);
+      stTxt = ` · 실적 국면 ${typeof _esChip === 'function' ? _esChip(st, x.stage.period) : e(st)}`
+        + (buy ? ` <span style="color:${JC.good};font-weight:600">원본 표시 매수</span>` : sell ? ` <span style="color:${JC.caution};font-weight:600">원본 표시 매도</span>` : '')
+        + (x.stage.period && x.stage.period !== `${f0.bsns_year}Q${String(f0.quarter).slice(1)}` ? none(`(${e(x.stage.period)})`) : '');
+    } else stTxt = ` · 실적 국면${none(`판정 없음${x.stage?.period ? ` (${e(x.stage.period)})` : ''}`)}`;
     add('perf', '실적', `매출 <b>${fmtCap(f0.revenue)}</b> ${_rpdYoY(f0.revenue, fy?.revenue)} · 영업이익 <b>${fmtCap(f0.operating_profit)}</b> ${_rpdYoY(f0.operating_profit, fy?.operating_profit)}${stTxt}`, fPer);
   }
 
@@ -213,23 +232,27 @@ function _rpDartOverview(x) {
   if (f0) {
     const t = typeof _rpTtmRatios === 'function' ? _rpTtmRatios(fin) : {};
     const opm = f0.revenue > 0 && f0.operating_profit != null ? f0.operating_profit / f0.revenue * 100 : null;
-    const parts = [];
-    if (t.roe != null) parts.push(`ROE(최근 4분기) <b>${t.roe.toFixed(1)}%</b>${chip(sig('roe', t.roe))}`);
-    if (opm != null) parts.push(`영업이익률 <b>${opm.toFixed(1)}%</b>${chip(sig('opm', opm))}`);
-    if (f0.debt_ratio != null) parts.push(`부채비율 <b>${f0.debt_ratio.toFixed(0)}%</b>${chip(sig('debt', f0.debt_ratio))}`);
+    const parts = [t.roe != null ? light('ROE(최근 4분기)', `${t.roe.toFixed(1)}%`, sigOf('roe', t.roe)) : `ROE(최근 4분기)${none('판정 없음 — 연속 4개 분기 없음')}`];
+    if (finCo) {
+      if (f0.debt_ratio != null) parts.push(`부채비율 <b>${f0.debt_ratio.toFixed(0)}%</b>`);
+      parts.push(none('금융업 — 이익률·부채비율 판정 안 함'));
+    } else {
+      if (opm != null) parts.push(light('영업이익률', `${opm.toFixed(1)}%`, sigOf('opm', opm)));
+      if (f0.debt_ratio != null) parts.push(light('부채비율', `${f0.debt_ratio.toFixed(0)}%`, sigOf('debt', f0.debt_ratio)));
+    }
     add('val', '수익성 · 건전성', parts.join(' · '), fPer);
   }
 
-  // 밸류에이션 — PER·PBR 신호등 + 업종 중앙값(기업현황) + 종합 판단 신호(_rpSynthesis)
+  // 밸류에이션 — PER·PBR 신호등 + 업종 중앙값(기업현황) + 종합 판단 신호(_rpSynthesis — 짧은 이름만, 문장은 아래 밸류에이션 카드)
   {
     const L = x.latest, ps = _rpData?.peerStats, parts = [];
-    if (L.per) parts.push(`PER <b>${L.per.toFixed(1)}x</b>${chip(sig('per', L.per))}${ps?.per ? ` <span style="color:var(--text2)">업종 ${ps.per.toFixed(1)}x</span>` : ''}`);
-    if (L.pbr) parts.push(`PBR <b>${L.pbr.toFixed(2)}x</b>${chip(sig('pbr', L.pbr))}${ps?.pbr ? ` <span style="color:var(--text2)">업종 ${ps.pbr.toFixed(2)}x</span>` : ''}`);
+    const peer = (v, d) => v ? ` <span style="color:var(--text2)">업종 ${v.toFixed(d)}x</span>` : '';
+    if (L.per != null) parts.push((L.per > 0 ? light('PER', `${L.per.toFixed(1)}x`, sigOf('per', L.per)) : `PER <b>적자</b>${none(`(${L.per.toFixed(1)}x)`)}`) + peer(ps?.per, 1));
+    if (L.pbr != null) parts.push((L.pbr > 0 ? light('PBR', `${L.pbr.toFixed(2)}x`, sigOf('pbr', L.pbr)) : `PBR <b>${L.pbr.toFixed(2)}x</b>`) + peer(ps?.pbr, 2));
     const syn = typeof _rpSynthesis === 'function' && f0 ? _rpSynthesis(x.latestF, L, fin).filter(g => g.type !== 'neutral') : [];
-    const synHtml = syn.length ? `<div style="margin-top:4px;display:flex;flex-direction:column;gap:2px">${syn.map(g => {
-      const c = g.type === 'good' ? '#22c55e' : g.type === 'bad' ? '#ef4444' : '#f59e0b';
-      return `<div style="font-size:calc(11.5px*var(--m-sub));color:var(--text1)"><span style="color:${c};font-weight:700">●</span> ${e(g.msg)}</div>`;
-    }).join('')}</div>` : '';
+    syn.forEach(g => (g.type === 'good' ? pos : neg).push(g.tag || g.msg));
+    const synHtml = syn.length ? `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px 10px;font-size:calc(11.5px*var(--m-sub))">
+      <span style="color:var(--text2)">종합 판단 신호</span>${syn.map(g => `<span title="${escAttr(g.msg)}" style="color:var(--text1)"><span style="color:${g.type === 'good' ? JC.good : JC.caution};font-weight:700">●</span> ${e(g.tag || g.msg)}</span>`).join('')}</div>` : '';
     if (parts.length || synHtml) add('val', '밸류에이션', parts.join(' · ') + synHtml, L.base_date || '');
   }
 
@@ -238,59 +261,93 @@ function _rpDartOverview(x) {
     const c = _rpConsensusSummary(x.ana, x.latest.price);
     add('mkt', '시장 평가', c.recent.length
       ? `3개월 평균 목표가 <b>${num(c.avgTp)}원</b>${c.upside != null ? ` <span style="color:${c.upside >= 0 ? 'var(--red)' : 'var(--blue)'}">현재가 대비 ${c.upside >= 0 ? '+' : ''}${c.upside.toFixed(1)}%</span>` : ''} · 의견 ${c.recent.length}건(매수 ${c.buy})`
-      : `최근 3개월 의견 없음 <span style="color:var(--text2)">· 마지막 ${e(x.ana[0].firm_name || '')} ${e(x.ana[0].opinion || '')}</span>`,
+      : `최근 3개월 의견 없음${none(`· 마지막 ${e(x.ana[0].firm_name || '')} ${e(x.ana[0].opinion || '')}`)}`,
       x.ana[0]?.opinion_date || '');
   }
 
-  // 수급 — 수급 칸·빈집·주도 업종(수급흐름 탭·기업분석 표와 같은 판정) + 20거래일 외국인·기관 누적
+  // 수급 — 수급 칸·빈집·주도 업종·태린이아빠 후보(수급흐름 탭·기업분석 표와 같은 판정) + 20거래일 외국인·기관 누적
   {
     const v = x.flowV, parts = [];
     const gg = v?.flow_gauge && typeof flowGauge === 'function' ? flowGauge(v.flow_gauge) : null;
     const fq = v && typeof _finFlowQ === 'function' ? _finFlowQ(v) : null;
-    if (gg) parts.push(`수급 칸 ${flowGaugeBar(gg)} <b style="color:${gg.color}">${gg.label}</b>`);
-    if (fq) parts.push(`<b>${fq.label}</b>`);
+    const fk = v && typeof _finFlowKey === 'function' ? _finFlowKey(v) : null;
+    const te = v?.lead_flags && typeof taerinEval === 'function' ? taerinEval(v.flow_gauge, v.lead_flags, v.flow_pctl) : null;
+    if (gg) {
+      parts.push(`수급 칸 ${flowGaugeBar(gg)} <b style="color:${gg.color}">${gg.label}</b>`);
+      if (gg.key === 'start' || gg.key === 'fill') pos.push(`수급 ${gg.label}`);
+      if (gg.key === 'top' || gg.key === 'turn') neg.push(`수급 ${gg.label}`);
+    } else if (!v) parts.push(`수급${none('판정 없음(수집 대상 밖이거나 판정 전)')}`);
+    if (fq) { parts.push(`<b>${fq.label}</b>`); if (fk === 'fill') pos.push('주도 업종 빈집'); }
     if (v?.lead_flags) parts.push(v.lead_flags.lead ? '<b style="color:#f59e0b">주도 업종</b>' : '주도 업종 아님');
-    const sum = k => { const vals = (x.flow20 || []).map(r => r[k]).filter(n => n != null); return vals.length ? vals.reduce((a, n) => a + n, 0) : null; };
-    const fs = sum('foreign_net_buy'), is = sum('institution_net_buy');
-    if (fs != null || is != null) parts.push(`20거래일 외국인 ${fs != null ? signed(fs) : '—'}주 · 기관 ${is != null ? signed(is) : '—'}주`);
+    if (te?.label) { parts.push(`태린이아빠 후보 <b style="color:#f59e0b">${te.label}</b>`); pos.push(`태린이아빠 후보 ${te.label}`); }
+    // 금액 = 순매수 주식 수 × 그날 종가(근사 — 오늘의 수급 메시지와 같은 방식). 주식 수는 칸에 마우스를 올리면
+    const acc = k => { let w = 0, q = 0, n = 0; for (const r of x.flow20 || []) if (r[k] != null) { q += r[k]; n++; if (r.price) w += r[k] * r.price; } return n ? { w, q } : null; };
+    const amt = a => a ? `<span title="${escAttr(`${a.q >= 0 ? '+' : ''}${a.q.toLocaleString()}주`)}" style="color:${a.w >= 0 ? 'var(--red)' : 'var(--blue)'};font-weight:600">${a.w >= 0 ? '+' : ''}${fmtCap(a.w)}</span>` : '—';
+    const fa = acc('foreign_net_buy'), ia = acc('institution_net_buy');
+    if (fa || ia) parts.push(`20거래일 외국인 ${amt(fa)} · 기관 ${amt(ia)}${none('(주식 수×종가)')}`);
     add('flow', '수급', parts.join(' · '), v?.base_date || x.flow20?.[0]?.base_date || '');
   }
 
-  // 지분·내부자 — 최대주주측 지분(MD 요약) + 최근 90일 지분 공시·내부자 매매(지분현황 탭과 같은 공시)
+  // 지분 — 최대주주측 지분(MD 요약) + 최근 90일 지분 공시 건수(종류별) + 임원·주요주주 취득/처분.
+  // insider_summary는 그날 그 회사 보고서 전체의 합계를 그날 행마다 똑같이 적어 둔 값 → 날짜마다 한 번만 더함
+  // (행마다 더하면 삼성전자 07-21 하루치가 761번 더해짐). 대량보유(5% 보유자)는 임원·주요주주 매매가 아니라 건수만
   {
     const parts = [];
-    if (x.s.related_party_ratio != null) parts.push(`최대주주+특관 <b>${(+x.s.related_party_ratio).toFixed(1)}%</b> <span style="color:var(--text3)">(MD)</span>`);
-    const since = new Date(Date.now() - 90 * 86400e3).toISOString().slice(0, 10);
-    const own = (x.discOwn || []).filter(d => (d.base_date || '') >= since);
-    if (own.length) {
-      const buy = own.reduce((a, d) => a + (+d.insider_summary?.buy || 0), 0), sell = own.reduce((a, d) => a + (+d.insider_summary?.sell || 0), 0);
-      parts.push(`최근 90일 지분 공시 <b>${own.length}건</b>${buy || sell ? ` · 취득 <span style="color:var(--red)">${num(buy)}주</span> / 처분 <span style="color:var(--blue)">${num(sell)}주</span>` : ''}`);
-    } else if (x.discOwn) parts.push('최근 90일 지분 공시 없음');
-    add('own', '지분 · 내부자', parts.join(' · '), own[0]?.base_date || '');
+    if (x.s.related_party_ratio != null) parts.push(`최대주주+특관 <b>${(+x.s.related_party_ratio).toFixed(1)}%</b>${none('(MD)')}`);
+    const o = x.own90;
+    if (o?.count) {
+      const cnt = {};
+      o.rows.forEach(d => { const c = d.category || '기타'; cnt[c] = (cnt[c] || 0) + 1; });
+      const days = new Map();
+      for (const d of o.rows) {
+        const si = d.insider_summary;
+        if (!si || d.category === '대량보유' || !(si.buy || si.sell)) continue;
+        days.set(`${d.base_date}|${si.type || ''}`, si);
+      }
+      let buy = 0, sell = 0;
+      days.forEach(si => { buy += +si.buy || 0; sell += +si.sell || 0; });
+      parts.push(`최근 90일 지분 공시 <b>${o.count.toLocaleString()}건</b>${none(`(${Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c, n]) => `${e(c)} ${n}`).join(' · ')}${o.count > o.rows.length ? ` · 최근 ${o.rows.length}건 기준` : ''})`)}`
+        + (buy || sell ? ` · 임원·주요주주 취득 <span style="color:var(--red)">${num(buy)}주</span> / 처분 <span style="color:var(--blue)">${num(sell)}주</span>` : ''));
+    } else if (o) parts.push('최근 90일 지분 공시 없음');
+    add('own', '지분', parts.join(' · '), o?.rows?.[0]?.base_date || '');
   }
 
   // 공시 — 최근 30일 공시(금감원공시 탭과 같은 목록) + 시장경고(기업분석 표와 같은 이름)
   {
     const parts = [];
     const w = x.flow20?.[0]?.market_warn_code;
-    if (w && w !== '00') parts.push(`<b style="color:var(--danger, #ef4444)">시장경고 ${e((typeof _FIN_WARN_LABEL !== 'undefined' && _FIN_WARN_LABEL[w]) || w)}</b>`);
+    if (w && w !== '00') {
+      const wl = (typeof _FIN_WARN_LABEL !== 'undefined' && _FIN_WARN_LABEL[w]) || w;
+      parts.push(`<b style="color:${JC.caution}">시장경고 ${e(wl)}</b>`);
+      neg.push(`시장경고 ${wl}`);
+    }
     const since = new Date(Date.now() - 30 * 86400e3).toISOString().slice(0, 10);
     const rec = (x.discAll || []).filter(d => (d.base_date || '') >= since);
     if (rec.length) {
       const cnt = {};
       rec.forEach(d => { const c = d.category || '기타'; cnt[c] = (cnt[c] || 0) + 1; });
-      parts.push(`최근 30일 공시 <b>${rec.length}건</b> <span style="color:var(--text2)">(${Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c, n]) => `${e(c)} ${n}`).join(' · ')})</span>`);
-    } else if (x.discAll?.length) parts.push('최근 30일 공시 없음');
+      parts.push(`최근 30일 공시 <b>${rec.length}건</b>${none(`(${Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c, n]) => `${e(c)} ${n}`).join(' · ')})`)}`);
+    } else if (x.discAll) parts.push('최근 30일 공시 없음');
     add('disc', '공시', parts.join(' · '), rec[0]?.base_date || '');
   }
 
-  // 리스크 — MD 1-2 제목(보고서 시점)
-  if (x.s.risk_points?.length)
+  // 리스크 — MD 1-2 제목(보고서 시점). 누르면 아래 투자포인트·리스크 카드로
+  if (x.s.risk_points?.length) {
     add('risk', '리스크 (MD)', x.s.risk_points.slice(0, 2).map(t => e(t)).join(' · '), x.data?.receive_date ? `MD ${x.data.receive_date}` : '');
+    neg.push(`MD 리스크 ${x.s.risk_points.length}건`);
+  }
 
   if (!rows.length) return `<div data-capture style="${_RPD_CARD}"><div style="font-size:calc(12px*var(--m-sub));color:var(--text3);padding:10px 0;text-align:center">종합할 데이터가 없습니다</div></div>`;
+  const side = (title, list, color) => `<div style="background:${color}12;border:1px solid ${color}40;border-radius:var(--radius-sm);padding:10px 12px">
+    <div style="font-size:calc(12px*var(--m-sub));font-weight:800;color:${color};margin-bottom:6px">${title} ${list.length}</div>
+    ${list.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px 6px">${list.map(t => `<span style="font-size:calc(11.5px*var(--m-sub));color:var(--text1);background:var(--bg2);border:1px solid var(--border);border-radius:100px;padding:1px 8px">${e(t)}</span>`).join('')}</div>`
+      : `<div style="font-size:calc(11.5px*var(--m-sub));color:var(--text3)">해당 없음</div>`}
+  </div>`;
   return `<div data-capture style="${_RPD_CARD}">
-    ${_rpdT('종합분석 결과', '구분별 최신 데이터 · 줄 끝은 기준일')}
+    ${_rpdT('종합분석 결과', '줄을 누르면 근거로 · 줄 끝은 기준일')}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:8px;margin-bottom:10px">
+      ${side('긍정', pos, JC.good)}${side('주의', neg, JC.caution)}
+    </div>
     <table style="width:100%;table-layout:fixed;border-collapse:collapse;font-size:calc(12px*var(--m-sub))">
       <colgroup><col style="width:92px"><col></colgroup>
       ${rows.map(r => `<tr onclick="document.getElementById('rpd-sec-${r.key}')?.scrollIntoView({behavior:'smooth',block:'start'})" style="cursor:pointer">
@@ -299,7 +356,7 @@ function _rpDartOverview(x) {
           ? ` <span style="color:var(--text3);font-size:calc(11px*var(--m-label));white-space:nowrap">· ${e(r.basis)}</span>` : ''}</td>
       </tr>`).join('')}
     </table>
-    <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">* 판정은 앱의 기존 기준(신호등·실적 국면 원본 표시·수급 칸·빈집) · ROE는 최근 4분기 순이익 기준 · (MD)는 보고서 시점</div>
+    <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">* 긍정·주의는 앱의 기존 판정(신호등 양호/주의·종합 판단 신호·실적 국면 원본 표시·수급 단계·시장경고·MD 리스크)을 모은 것 — 점수·가중치 없음 · ROE는 최근 4분기 순이익 기준 · (MD)는 보고서 시점</div>
   </div>`;
 }
 

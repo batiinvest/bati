@@ -251,12 +251,20 @@ function _rpTtmRatios(fin, from = 0) {
   return { roe: te > 0 ? ni / te * 100 : null, roa: ta > 0 ? ni / ta * 100 : null, period: `${q[0].bsns_year} ${q[0].quarter}` };
 }
 
+// 금융업(은행·증권·보험·카드·다각화금융) — 부채비율·영업이익률·순이익률 기준(제조업용)을 적용하지 않음
+// (은행 부채비율은 늘 1,000%대, 영업수익 정의가 달라 영업이익률이 100%를 넘음 — KB금융 102.8%·1,283%)
+const _rpIsFinancial = comp => comp?.wics_sector === '금융' || comp?.industry === '금융';
+
+// 판정 색 — 빨강은 한국식 '상승'(+)과 겹쳐 '주의'로 쓰지 않음. 양호 초록 · 보통 회색 · 주의 주황
+const RP_JUDGE_COLOR = { good: '#22c55e', mid: '#8b90a7', caution: '#f59e0b' };
+
 function _rpSynthesis(latestF, latest, fin) {
   const per = latest?.per, pbr = latest?.pbr;
   const t0 = _rpTtmRatios(fin), t1 = _rpTtmRatios(fin, 1);   // ROE·ROA는 최근 4분기(연간 기준)
   const roe = t0.roe, roa = t0.roa;
-  const opm = latestF?.operating_margin, npm = latestF?.net_margin;
-  const debt = latestF?.debt_ratio;
+  const finCo = _rpIsFinancial(_rpData?.company);   // 금융업은 이익률·부채비율 신호를 내지 않음
+  const opm = finCo ? null : latestF?.operating_margin, npm = finCo ? null : latestF?.net_margin;
+  const debt = finCo ? null : latestF?.debt_ratio;
   const prev = fin?.[1];
 
   // 추세 — ROE는 한 분기 밀린 최근 4분기와, 영업이익률은 직전 분기와
@@ -267,48 +275,48 @@ function _rpSynthesis(latestF, latest, fin) {
 
   // 퀄리티 프리미엄 — 고PER + 고ROE (비싸지만 근거 있는 프리미엄)
   if (per != null && per > 20 && roe != null && roe > 15 && opm != null && opm > 10)
-    signals.push({ type:'good', icon:'💎',
+    signals.push({ type:'good', icon:'💎', tag: '퀄리티 프리미엄',
       msg: `PER ${per?.toFixed(1)}x + ROE ${roe?.toFixed(1)}% — 퀄리티 프리미엄. 높은 수익성이 고평가를 정당화 (PEG 관점 추가 확인 권장)` });
 
   // Value Trap 경고 — 수익성 대비 고평가
   if (per > 15 && roe != null && roe < 5)
-    signals.push({ type:'warn', icon:'⚠️',
+    signals.push({ type:'warn', icon:'⚠️', tag: '수익성 대비 고평가',
       msg: `PER ${per?.toFixed(1)}x 대비 ROE ${roe?.toFixed(1)}% — 수익성 대비 고평가, 가치함정(Value Trap) 주의` });
 
   // 저평가 가치주
-  if (per != null && per < 10 && pbr != null && pbr < 1)
-    signals.push({ type:'good', icon:'✅',
+  if (per > 0 && per < 10 && pbr > 0 && pbr < 1)   // PER 음수 = 적자 — 저평가 아님
+    signals.push({ type:'good', icon:'✅', tag: '저평가 가치주 구간',
       msg: `PER ${per?.toFixed(1)}x · PBR ${pbr?.toFixed(2)}x — 저평가 가치주 구간` });
 
   // 고수익 우량주
   if (roe != null && roe > 20 && opm != null && opm > 15)
-    signals.push({ type:'good', icon:'✅',
+    signals.push({ type:'good', icon:'✅', tag: '고수익성 우량주',
       msg: `ROE ${roe?.toFixed(1)}% · 영업이익률 ${opm?.toFixed(1)}% — 고수익성 우량주` });
 
   // 자본배분 여력 — 저부채 + 고마진 = 추가 투자/환원 여력
   if (debt != null && debt < 60 && opm != null && opm > 15 && npm != null && npm > 10)
-    signals.push({ type:'good', icon:'🏗️',
+    signals.push({ type:'good', icon:'🏗️', tag: '저부채+고마진',
       msg: `부채비율 ${debt?.toFixed(0)}% · 순이익률 ${npm?.toFixed(1)}% — 저부채+고마진, 자본배분 여력 충분 (배당·자사주·M&A 잠재력)` });
 
   // 부채 과다
   if (debt != null && debt > 200)
-    signals.push({ type:'bad', icon:'🔴',
+    signals.push({ type:'bad', icon:'🔴', tag: '레버리지 과다',
       msg: `부채비율 ${debt?.toFixed(0)}% — 레버리지 과다, 금리 위험 노출` });
 
   // ROE 추세
   if (roeTrend != null && Math.abs(roeTrend) >= 1.5)
     signals.push({
-      type: roeTrend > 0 ? 'good' : 'warn', icon: roeTrend > 0 ? '📈' : '📉',
+      type: roeTrend > 0 ? 'good' : 'warn', icon: roeTrend > 0 ? '📈' : '📉', tag: `ROE ${roeTrend > 0 ? '개선' : '악화'}`,
       msg: `ROE ${roeTrend > 0 ? '개선' : '악화'} (${roeTrend > 0 ? '+' : ''}${roeTrend.toFixed(1)}%p · 최근 4분기, 직전 분기 대비) — 수익성 ${roeTrend > 0 ? '회복 신호' : '훼손 주의'}` });
 
   // 영업이익률 추세
   if (opmTrend != null && Math.abs(opmTrend) >= 2)
     signals.push({
-      type: opmTrend > 0 ? 'good' : 'warn', icon: opmTrend > 0 ? '📈' : '📉',
+      type: opmTrend > 0 ? 'good' : 'warn', icon: opmTrend > 0 ? '📈' : '📉', tag: `영업이익률 ${opmTrend > 0 ? '상승' : '하락'}`,
       msg: `영업이익률 ${opmTrend > 0 ? '상승' : '하락'} (${opmTrend > 0 ? '+' : ''}${opmTrend.toFixed(1)}%p QoQ)` });
 
   if (!signals.length)
-    signals.push({ type:'neutral', icon:'ℹ️', msg: '특이 신호 없음 — 추가 정성 분석 필요' });
+    signals.push({ type:'neutral', icon:'ℹ️', tag: '특이 신호 없음', msg: '특이 신호 없음 — 추가 정성 분석 필요' });
 
   return signals;
 }
@@ -317,6 +325,7 @@ function _rpSynthesis(latestF, latest, fin) {
 // 반환: { color, bg, icon, grade } — 강(녹)/중(황)/약(적)
 function _rpSignal(type, val) {
   if (val == null) return null;
+  if ((type === 'per' || type === 'pbr') && val <= 0) return null;   // 적자·자본잠식 — 낮다고 '양호'가 아님
   const rules = {
     // 낮을수록 좋음
     per:      val < 10  ? 'strong' : val < 20  ? 'mid' : 'weak',
@@ -332,9 +341,9 @@ function _rpSignal(type, val) {
   };
   const grade = rules[type] || 'mid';
   const map = {
-    strong: { color:'#22c55e', bg:'#22c55e18', icon:'●', label:'양호' },
-    mid:    { color:'#f59e0b', bg:'#f59e0b18', icon:'●', label:'보통' },
-    weak:   { color:'#ef4444', bg:'#ef444418', icon:'●', label:'주의' },
+    strong: { color: RP_JUDGE_COLOR.good,    bg: RP_JUDGE_COLOR.good + '18',    icon:'●', label:'양호' },
+    mid:    { color: RP_JUDGE_COLOR.mid,     bg: RP_JUDGE_COLOR.mid + '18',     icon:'●', label:'보통' },
+    weak:   { color: RP_JUDGE_COLOR.caution, bg: RP_JUDGE_COLOR.caution + '18', icon:'●', label:'주의' },
   };
   return { ...map[grade], grade };
 }
@@ -980,12 +989,13 @@ function _rpValuationCard(latestF, latest) {
   // peer 대비 평가: lowerBetter → 낮을수록 저평가 / 높을수록 고평가
   const peerJudge = (val, peer, lowerBetter) => {
     if (val == null || peer == null) return null;
+    if (lowerBetter && (val <= 0 || peer <= 0)) return null;   // 적자 PER — 낮다고 유리하지 않음
     const diff = (val - peer) / peer * 100;
     const isGood = lowerBetter ? diff < -15 : diff > 15;
     const isBad  = lowerBetter ? diff > 15  : diff < -15;
     return {
       diff,
-      color: isGood ? '#4ade80' : isBad ? '#f87171' : '#f59e0b',
+      color: isGood ? RP_JUDGE_COLOR.good : isBad ? RP_JUDGE_COLOR.caution : RP_JUDGE_COLOR.mid,
       label: isGood ? '업종 대비 유리' : isBad ? '업종 대비 불리' : '업종 수준',
       diffStr: (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%',
     };
@@ -995,9 +1005,9 @@ function _rpValuationCard(latestF, latest) {
     ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3)">
         ${ps.industry} 동종 ${ps.count}개사 중앙값 비교
         <span style="margin-left:4px">|</span>
-        <span style="margin-left:4px"><span style="color:#4ade80">●</span> 유리
-        <span style="color:#f59e0b">●</span> 중립
-        <span style="color:#f87171">●</span> 불리</span>
+        <span style="margin-left:4px"><span style="color:${RP_JUDGE_COLOR.good}">●</span> 유리
+        <span style="color:${RP_JUDGE_COLOR.mid}">●</span> 중립
+        <span style="color:${RP_JUDGE_COLOR.caution}">●</span> 불리</span>
       </div>`
     : `<div style="font-size:calc(11px*var(--m-label));color:var(--text3)">업종 비교 로딩 중...</div>`;
 
@@ -1018,7 +1028,7 @@ function _rpValuationCard(latestF, latest) {
         펀드매니저 종합 판단
       </div>
       ${synthesis.map(s => {
-        const col = s.type==='good'?'#4ade80' : s.type==='bad'?'#f87171' : s.type==='warn'?'#f59e0b' : 'var(--text2)';
+        const col = s.type==='good' ? RP_JUDGE_COLOR.good : (s.type==='bad' || s.type==='warn') ? RP_JUDGE_COLOR.caution : 'var(--text2)';
         return `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.5">
           <span style="color:${col};font-weight:700">●</span> ${s.msg}</div>`;
       }).join('')}
@@ -1032,7 +1042,7 @@ function _rpValuationCard(latestF, latest) {
         const sig   = _rpSignal(m.key, m.val);
         const judge = peerJudge(m.val, m.peer, m.lowerBetter);
         // 포지션 바: 업종 내 상대 위치 (0~100%)
-        const barPct = m.val != null && m.peer != null
+        const barPct = m.val != null && m.peer != null && (!m.lowerBetter || (m.val > 0 && m.peer > 0))
           ? Math.min(100, Math.max(0, m.lowerBetter
               ? (1 - m.val / (m.peer * 2)) * 100        // 낮을수록 왼쪽 = 좋음
               : (m.val / (m.peer * 2)) * 100))           // 높을수록 오른쪽 = 좋음
@@ -1092,6 +1102,7 @@ function _rpValuationCard(latestF, latest) {
 }
 
 function _rpFinHealthCard(f) {
+  const finCo = _rpIsFinancial(_rpData?.company);   // 금융업 — 부채비율·이익률 기준 적용 안 함
   const fin  = _rpData.fin || [];
   const prev = fin[1] || {};
   const ps   = _rpData.peerStats || null;
@@ -1135,6 +1146,7 @@ function _rpFinHealthCard(f) {
 
   // 재무 → 투자 연결 스토리
   const _finStory = () => {
+    if (finCo) return `<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:8px">* 금융업은 부채비율·이익률 기준(제조업용)을 적용하지 않음</div>`;
     const debt = f.debt_ratio, opm = f.operating_margin, npm = f.net_margin;
     const stories = [];
     if (debt != null && opm != null && debt < 60 && opm > 15)
@@ -1160,7 +1172,9 @@ function _rpFinHealthCard(f) {
     ${_rpSecT('재무 건전성', '* 단위: %, 원')}
     <div style="display:flex;flex-direction:column;gap:6px">
       ${rows.map(k => {
-        const sig  = _rpSignal(k.key, k.val);
+        const noJudge = finCo && ['debt', 'opm', 'npm'].includes(k.key);
+        const sig  = noJudge ? null : _rpSignal(k.key, k.val);
+        if (noJudge) k = { ...k, hint: null };
         const disp = k.fmt(k.val) + k.unit;
         return `<div style="display:flex;align-items:center;gap:10px;padding:7px 12px;
           border-radius:var(--radius-sm);border-left:3px solid ${sig?.color||'var(--border)'};
