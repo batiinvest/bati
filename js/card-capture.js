@@ -266,8 +266,15 @@ function _capPlace() {
   if (!t || !b || b.style.display === 'none') return;
   const r = t.getBoundingClientRect();
   if (!t.isConnected || r.bottom < 40 || r.top > innerHeight - 20) { _capHide(); return; }
-  b.style.top = `${Math.max(6, r.top + 6)}px`;
-  b.style.left = `${Math.max(6, r.right - b.offsetWidth - 6)}px`;
+  // 카드 바깥에 띄움 — 안쪽 오른쪽 위에 두면 제목 줄의 [수정]·기준일·토글 버튼을 가려 누를 수 없었음.
+  // ① 카드 위쪽 밖 → ② 화면 맨 위라 공간이 없으면 카드 아래쪽 밖 → ③ 둘 다 안 되면(화면보다 긴 카드) 보이는 영역 안 아래쪽
+  const bh = b.offsetHeight;
+  let top;
+  if (r.top - bh - 4 >= 4) top = r.top - bh - 4;
+  else if (r.bottom + bh + 4 <= innerHeight) top = r.bottom + 4;
+  else top = Math.max(4, Math.min(r.bottom, innerHeight) - bh - 6);
+  b.style.top = `${top}px`;
+  b.style.left = `${Math.max(6, r.right - b.offsetWidth)}px`;
 }
 function _capShow(card) {
   CAP.target = card;
