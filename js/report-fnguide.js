@@ -131,7 +131,8 @@ function _rpQuoteCard(latest, prices) {
 
   return `<div class="card" style="padding:16px">
     ${_rpSecT('시세 및 주주현황', latest?.base_date ? `[기준: ${latest.base_date}]` : '')}
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;align-items:start">
+      <!-- 380px: 시세 표(값 칸 줄바꿈 없음)가 들어가는 폭 — 320px이면 카드 폭 700px대에서 표가 차트 칸을 덮었음 -->
 
       <!-- 좌: 시세 표 -->
       <div>
@@ -882,11 +883,12 @@ function rpfRender() {
 
   // ── 차트 (Chart.js — 표 항목 선택형: 항목 클릭 시 그래프에 추가/제거) ──
   const chartCtl = `
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+    <div data-no-capture style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
       <span style="font-size:calc(11px*var(--m-label));color:var(--text3)">표의 <b style="color:var(--text2)">항목을 클릭</b>하면 그래프에 추가/제거됩니다 · 선택 <b id="rpf-sel-count" style="color:var(--tg)">${(RPF.sel || []).length}</b>개</span>
       <button onclick="rpfClearSeries()" class="chip chip-sm" style="padding:2px 10px;font-size:calc(11px*var(--m-label))">전체 해제</button>
     </div>`;
-  const charts = chartCtl + `<div style="position:relative;height:340px;margin-bottom:12px"><canvas id="rpf-chart-canvas"></canvas></div>`;
+  // data-capture: 이미지 저장 버튼 대상(조작 줄은 data-no-capture로 이미지에서 뺌)
+  const charts = `<div data-capture="재무 추이 차트">${chartCtl}<div style="position:relative;height:340px;margin-bottom:12px"><canvas id="rpf-chart-canvas"></canvas></div></div>`;
 
   // ── 상세 표 ──
   const eok = v => v == null ? '—'
@@ -1008,7 +1010,7 @@ function rpfRender() {
   // 손익 뷰: 손익 요약(성장·수익성 + 흑자적자·마진추세·판관비 경고 배지)
   const isTop = RPF.stmt === 'is' ? _rpfIsSummary(periods) : '';
   const bsDonuts = RPF.stmt === 'bs' ? `
-    <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin:6px 0 14px">
+    <div data-capture="자산구성·자본구조" style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin:6px 0 14px">
       <div style="width:210px;height:190px"><canvas id="rpf-donut-a"></canvas></div>
       <div style="width:210px;height:190px"><canvas id="rpf-donut-b"></canvas></div>
     </div>` : '';

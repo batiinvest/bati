@@ -3,10 +3,18 @@
 // 대상: .card 또는 [data-capture] 중 가장 안쪽 상자([data-capture-off]는 제외 — 탭 전체 래퍼·탭 막대)
 // html-to-image(CDN, 처음 누를 때 로드)로 최대 3배 해상도. 화면 캡처는 글자가 몇 픽셀뿐이라 블로그가 줄이면 번짐
 // 글꼴: 이미지 안에서는 페이지 글꼴을 못 쓰므로 카드가 실제 쓰는 Pretendard 굵기만 임베드(굵기당 약 0.77MB, 9개 전부면 7MB)
-// 흰 배경: 화면 밖 복제본에 밝은 색 변수를 입혀 캡처(화면 깜빡임 없음). Chart.js 캔버스는 그려진 그대로 복사됨
+// 화면 밖 복제본을 캡처(깜빡임 없음) — 흰 배경이면 밝은 색 변수, Chart.js 차트는 3배 해상도로 다시 그림(흰 배경이면 글자·격자 색도)
+// 조작 줄 등 이미지에 넣지 않을 요소는 data-no-capture
 
-const CAP = { lib: null, fonts: new Map(), target: null, hideT: 0, busy: false, light: false, bar: null };
-try { CAP.light = localStorage.getItem('bati-capture-light') === '1'; } catch (e) {}
+const CAP = { lib: null, fonts: new Map(), target: null, hideT: 0, busy: false, light: false, zoom: 1.3, bar: null };
+// 크기(zoom): 카드를 1/zoom 폭으로 다시 배치해 캡처 → 블로그가 본문 폭(약 966px)으로 늘려 보여줄 때 글자·차트가 zoom배로 커짐.
+// 화면 폭 그대로 찍으면 해상도가 높아도 글자가 화면과 같은 11~12px로 보여 블로그 본문(17px 안팎)보다 작고 흐려 보였음
+const _CAP_ZOOMS = [1, 1.3, 1.6];
+try {
+  CAP.light = localStorage.getItem('bati-capture-light') === '1';
+  const z = parseFloat(localStorage.getItem('bati-capture-zoom'));
+  if (_CAP_ZOOMS.includes(z)) CAP.zoom = z;
+} catch (e) {}
 
 // 흰 배경용 색 변수 — 의미색(상승 빨강·하락 파랑 등)은 흰 바탕에서 읽히게 조금 진하게
 const _CAP_LIGHT = {
@@ -54,33 +62,103 @@ async function _capFontCSS(node) {
   return rules.join('\n');
 }
 
-// 흰 배경: 화면 밖에 같은 폭으로 복제 + 밝은 색 변수
-function _capLightClone(el) {
+// 캡처용 복제본: 화면 밖 홀더(같은 폭)에 복제. 흰 배경이면 밝은 색 변수를 입힘.
+// 캔버스는 복제하면 비므로 — Chart.js 차트는 같은 데이터로 3배 해상도로 다시 그리고(흰 배경이면 글자·격자 색도 바꿈),
+// 그 밖의 캔버스는 그려진 그림을 복사
+function _capClone(el, light, ratio, width) {
   const holder = document.createElement('div');
-  holder.style.cssText = `position:fixed;left:-100000px;top:0;width:${el.getBoundingClientRect().width}px;pointer-events:none`;
-  for (const [k, v] of Object.entries(_CAP_LIGHT)) holder.style.setProperty(k, v);
-  holder.style.color = _CAP_LIGHT['--text'];
+  const ps = getComputedStyle(el.parentElement || document.body);   // 원래 자리에서 물려받던 글자 속성
+  holder.style.cssText = `position:fixed;left:-100000px;top:0;width:${width}px;pointer-events:none`;
+  holder.style.font = ps.font;
+  holder.style.color = light ? _CAP_LIGHT['--text'] : ps.color;
+  if (light) for (const [k, v] of Object.entries(_CAP_LIGHT)) holder.style.setProperty(k, v);
   const clone = el.cloneNode(true);
-  const src = el.querySelectorAll('canvas'), dst = clone.querySelectorAll('canvas');
-  src.forEach((c, i) => { try { dst[i].getContext('2d').drawImage(c, 0, 0); } catch (e) {} });   // 복제 캔버스는 비어 있음
   clone.style.margin = '0';
   holder.appendChild(clone);
   document.body.appendChild(holder);
+  const src = el.querySelectorAll('canvas'), dst = clone.querySelectorAll('canvas');
+  src.forEach((c, i) => _capCanvas(c, dst[i], light, ratio, holder));
   return { node: clone, done: () => holder.remove() };
 }
 
-// 이미지 바탕: 카드 자기 배경(투명 래퍼면 흰 배경 모드는 흰색, 아니면 페이지 배경)
-function _capBg(node, light) {
-  const c = getComputedStyle(node).backgroundColor;
-  if (c && !/rgba\(.*,\s*0\)$|transparent/.test(c)) return c;
-  return light ? _CAP_LIGHT['--bg'] : getComputedStyle(document.body).backgroundColor;
+// 어두운 테마용 밝은 무채색(글자 #a8adc4·#8b90a7·#e8ecf1, 격자 rgba(255,255,255,.05) 등)만 흰 바탕용으로.
+// 계열 색(채도 있는 색)·어두운 색은 그대로. 색이 아닌 문자열(라벨 등)은 파싱 실패로 그대로
+const _capCtx = document.createElement('canvas').getContext('2d');
+function _capLightColor(v) {
+  if (typeof v !== 'string') return v;
+  _capCtx.fillStyle = '#000'; _capCtx.fillStyle = v;
+  const s = _capCtx.fillStyle;   // '#rrggbb' 또는 'rgba(r, g, b, a)' — 색이 아니면 '#000000'
+  let r, g, b, a = 1, m;
+  if ((m = s.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i))) [r, g, b] = m.slice(1).map(x => parseInt(x, 16));
+  else if ((m = s.match(/^rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)$/))) { [r, g, b] = m.slice(1, 4).map(Number); if (m[4] != null) a = +m[4]; }
+  else return v;
+  const lum = 0.299 * r + 0.587 * g + 0.114 * b, chroma = Math.max(r, g, b) - Math.min(r, g, b);
+  if (lum < 120 || chroma > 45) return v;
+  if (a < 0.6) return `rgba(15,23,42,${Math.min(0.22, a * 1.6 + 0.03).toFixed(2)})`;   // 격자·옅은 선
+  return lum > 215 ? '#1e293b' : '#475569';                                           // 제목 / 눈금·범례 글자
+}
+// 평범한 객체·배열만 깊이 복사(함수·그라디언트 등은 그대로), 값마다 fix 적용
+const _capDeep = (v, fix) => Array.isArray(v) ? v.map(x => _capDeep(x, fix))
+  : v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype
+    ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, _capDeep(x, fix)]))
+    : fix(v);
+
+function _capCanvas(src, dst, light, ratio, holder) {
+  if (!dst) return;
+  const chart = window.Chart?.getChart?.(src);
+  // 복제본은 폭이 좁아질 수 있으므로(크기 옵션) 복제본 안 부모 폭에 맞춰 다시 그림.
+  // 높이는 고정 높이 차트면 그대로, 비율 유지 차트면 원래 비율로
+  const p = dst.parentElement, pcs = p && getComputedStyle(p);
+  const pw = p ? p.clientWidth - parseFloat(pcs.paddingLeft) - parseFloat(pcs.paddingRight) : 0;
+  const w = Math.round(Math.min(src.clientWidth, pw > 0 ? pw : src.clientWidth));
+  const keepAspect = chart?.config?.options?.maintainAspectRatio !== false;
+  const h = Math.round(keepAspect && src.clientWidth ? w * src.clientHeight / src.clientWidth : src.clientHeight);
+  if (chart && w && h) {
+    let off = null, tmp = null;
+    try {
+      off = document.createElement('canvas');
+      off.width = w; off.height = h; off.style.cssText = `width:${w}px;height:${h}px`;
+      holder.appendChild(off);   // 문서에 붙어 있어야 그려짐
+      const cfg = chart.config, fix = light ? _capLightColor : (x => x);
+      tmp = new window.Chart(off, {
+        type: cfg.type,
+        data: { labels: [...(cfg.data.labels || [])], datasets: cfg.data.datasets.map(d => _capDeep({ ...d, data: [...(d.data || [])] }, fix)) },
+        options: Object.assign(_capDeep(cfg.options || {}, fix),
+          { responsive: false, maintainAspectRatio: false, animation: false, devicePixelRatio: ratio, events: [] }),
+        plugins: cfg.plugins || [],
+      });
+      const img = new Image();
+      img.src = off.toDataURL('image/png');
+      img.style.cssText = `display:block;width:${w}px;height:${h}px`;
+      dst.replaceWith(img);
+      return;
+    } catch (e) {
+      // 다시 그리기 실패 → 아래 그림 복사로
+    } finally {
+      try { tmp?.destroy(); } catch (e) {}
+      off?.remove();
+    }
+  }
+  try { dst.getContext('2d').drawImage(src, 0, 0); dst.style.maxWidth = '100%'; dst.style.height = 'auto'; } catch (e) {}
+}
+
+// 이미지 바탕 — 흰 배경: 카드 자기 배경(투명이면 흰색) / 어두운 배경: 카드 또는 가장 가까운 조상의 배경
+const _capSolid = c => c && !/rgba\(.*,\s*0\)$|transparent/.test(c);
+function _capBg(el, node, light) {
+  if (light) { const c = getComputedStyle(node).backgroundColor; return _capSolid(c) ? c : _CAP_LIGHT['--bg']; }
+  for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+    const c = getComputedStyle(n).backgroundColor;
+    if (_capSolid(c)) return c;
+  }
+  return getComputedStyle(document.body).backgroundColor;
 }
 
 // 파일명: 종목명(또는 페이지명)_카드제목_YYYYMMDD.png
 function _capFileName(el) {
+  // data-capture="제목"이 있으면 그것, 없으면 첫 굵은 글자(이미지에서 빠지는 조작 줄 제외)
   const head = [...el.querySelectorAll('span,div,b,strong,h1,h2,h3,h4')]
-    .find(x => !x.children.length && x.textContent.trim().length >= 2 && parseInt(getComputedStyle(x).fontWeight, 10) >= 700);
-  const title = (head?.textContent.trim() || '카드').slice(0, 24);
+    .find(x => !x.children.length && !x.closest('[data-no-capture]') && x.textContent.trim().length >= 2 && parseInt(getComputedStyle(x).fontWeight, 10) >= 700);
+  const title = (el.dataset.capture || head?.textContent.trim() || '카드').slice(0, 24);
   // 기업 리포트 화면(#rp-… 안)의 카드면 종목명, 아니면 페이지 제목
   const page = (typeof _rpStock !== 'undefined' && _rpStock?.name && el.closest('[id^="rp-"]') && _rpStock.name)
     || (typeof A !== 'undefined' && typeof PAGE_META !== 'undefined' && PAGE_META[A.page]?.title) || 'BatiInvest';
@@ -102,13 +180,16 @@ async function _capRun(mode) {
   let tmp = null;
   try {
     const lib = await _capLoadLib();
-    tmp = CAP.light ? _capLightClone(el) : null;
-    const node = tmp ? tmp.node : el;
-    const r = node.getBoundingClientRect();
-    // 최대 3배, 아주 큰 상자는 긴 변 12,000px 안으로(브라우저 캔버스 한도·메모리)
-    const pixelRatio = Math.max(1, Math.min(3, 12000 / Math.max(r.width, r.height, 1)));
+    // 배치 폭 = 화면 폭 ÷ 크기(최소 360px). 이미지 가로 픽셀은 화면 폭의 3배 안팎으로 유지(배치 폭 × 3×크기)
+    const width = Math.max(360, Math.round(el.getBoundingClientRect().width / CAP.zoom));
+    const chartRatio = Math.max(1, Math.min(3 * CAP.zoom, 12000 / width));
+    tmp = _capClone(el, CAP.light, chartRatio, width);
+    const node = tmp.node;
+    const nr = node.getBoundingClientRect();
+    // 아주 큰 상자는 긴 변 12,000px 안으로(브라우저 캔버스 한도·메모리)
+    const pixelRatio = Math.max(1, Math.min(chartRatio, 12000 / Math.max(nr.width, nr.height, 1)));
     const blob = await lib.toBlob(node, {
-      pixelRatio, backgroundColor: _capBg(node, CAP.light), fontEmbedCSS: await _capFontCSS(node),
+      pixelRatio, backgroundColor: _capBg(el, node, CAP.light), fontEmbedCSS: await _capFontCSS(node),
       filter: n => !(n.dataset && 'noCapture' in n.dataset),
     });
     if (!blob) throw new Error('이미지를 만들지 못했습니다');
@@ -142,16 +223,22 @@ function _capBar() {
     + 'background:color-mix(in srgb, var(--bg) 90%, transparent);border:1px solid var(--border2);box-shadow:0 4px 14px rgba(0,0,0,.35)';
   const btn = (act, label, tip) => `<button data-cap="${act}" title="${tip}" style="padding:3px 8px;border-radius:5px;border:1px solid var(--border);
     background:var(--bg3);color:var(--text1);font-family:inherit;font-size:calc(11px*var(--m-label));cursor:pointer;white-space:nowrap">${label}</button>`;
-  b.innerHTML = btn('copy', '복사', '3배 해상도 이미지를 클립보드로 — 블로그 에디터에 Ctrl+V')
-    + btn('save', 'PNG', '3배 해상도 PNG 파일로 저장')
+  b.innerHTML = btn('copy', '복사', '고해상도 이미지를 클립보드로 — 블로그 에디터에 Ctrl+V')
+    + btn('save', 'PNG', '고해상도 PNG 파일로 저장')
+    + btn('zoom', '크기', '블로그에 붙였을 때 글자 크기(100→130→160%). 클수록 카드를 좁게 다시 배치해 글자·차트가 커짐')
     + btn('light', '흰 배경', '흰 바탕으로 캡처(켜고 끄기, 이 기기에 기억)');
   b.addEventListener('click', e => {
     const act = e.target.closest('[data-cap]')?.dataset.cap;
     if (!act || CAP.busy) return;
-    if (act === 'light') {
-      CAP.light = !CAP.light;
-      try { localStorage.setItem('bati-capture-light', CAP.light ? '1' : '0'); } catch (err) {}
+    if (act === 'light' || act === 'zoom') {
+      if (act === 'light') CAP.light = !CAP.light;
+      else CAP.zoom = _CAP_ZOOMS[(_CAP_ZOOMS.indexOf(CAP.zoom) + 1) % _CAP_ZOOMS.length];
+      try {
+        localStorage.setItem('bati-capture-light', CAP.light ? '1' : '0');
+        localStorage.setItem('bati-capture-zoom', String(CAP.zoom));
+      } catch (err) {}
       _capBarState(false);
+      _capPlace();   // 버튼 글자 폭이 바뀌어도 카드 오른쪽 끝에 맞춤
       return;
     }
     _capRun(act);
@@ -169,6 +256,7 @@ function _capBarState(busy) {
   lt.style.background = CAP.light ? 'color-mix(in srgb, var(--tg) 22%, var(--bg3))' : 'var(--bg3)';
   lt.style.color = CAP.light ? 'var(--tg)' : 'var(--text1)';
   lt.setAttribute('aria-pressed', CAP.light ? 'true' : 'false');
+  b.querySelector('[data-cap="zoom"]').textContent = `크기 ${Math.round(CAP.zoom * 100)}%`;
   b.querySelectorAll('[data-cap="copy"],[data-cap="save"]').forEach(x => { x.disabled = busy; x.style.opacity = busy ? '.5' : '1'; });
   b.querySelector('[data-cap="copy"]').textContent = busy ? '만드는 중…' : '복사';
 }
