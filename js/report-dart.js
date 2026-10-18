@@ -1513,7 +1513,9 @@ function _rpMdInline(s) {
 }
 
 // '라벨: 내용' 줄은 라벨만 굵게. 투자판단·리스크·검토의견·중요도는 라벨에 의미색(예전엔 줄 전체를 칠해 긴 문단이 읽기 힘들었음)
-const _RPD_KEY = { '투자판단': 'var(--green)', '리스크': 'var(--danger)', '검토의견': 'var(--tg)', '중요도': 'var(--warn)' };
+// 상세 분석 줄 머리 이름표 색 — 10-18 MD에 근거·판단 전환 조건·해석 한계·범위 유의가 더해짐(사실 → 해석 → 바뀌는 조건 → 한계)
+const _RPD_KEY = { '투자판단': 'var(--green)', '리스크': 'var(--danger)', '검토의견': 'var(--tg)', '중요도': 'var(--warn)',
+  '판단 전환 조건': 'var(--warn)', '근거': 'var(--text2)', '해석 한계': 'var(--text3)', '범위 유의': 'var(--text3)' };
 function _rpMdLabeled(t) {
   const m = t.match(/^([^:：\[\]()*`|]{1,16}?)\s*[:：](?:\s+(.*))?$/);
   if (!m) return _rpMdInline(t);
