@@ -35,7 +35,7 @@ async function _rpLoadAndRenderDart(body) {
     q(sb.from('daily_disclosures').select('base_date,report_nm,category,rcept_no,insider_summary')
       .eq('corp_code', cc).in('category', typeof _RP_OWN_CATS !== 'undefined' ? _RP_OWN_CATS : []).order('base_date', { ascending: false }).limit(40), []),
     // 종합분석 '지분' 줄 — 최근 90일 건수는 count로 정확히(지분현황 목록 40건에서 세면 삼성전자 824건이 40건으로 잘림)
-    Promise.resolve(sb.from('daily_disclosures').select('base_date,category,insider_summary', { count: 'exact' })
+    Promise.resolve(sb.from('daily_disclosures').select('rcept_no,base_date,category,insider_summary', { count: 'exact' })
       .eq('corp_code', cc).in('category', typeof _RP_OWN_CATS !== 'undefined' ? _RP_OWN_CATS : []).gte('base_date', since90)
       .order('base_date', { ascending: false }).limit(1000)).then(r => ({ rows: r.data || [], count: r.count ?? (r.data || []).length })).catch(() => null),
   ]) : [[], [], null];
@@ -305,8 +305,8 @@ function _rpDartOverview(x) {
   }
 
   // 지분 — 최대주주측 지분(MD 요약) + 최근 90일 지분 공시 건수(종류별) + 임원·주요주주 취득/처분.
-  // insider_summary는 그날 그 회사 보고서 전체의 합계를 그날 행마다 똑같이 적어 둔 값 → 날짜마다 한 번만 더함
-  // (행마다 더하면 삼성전자 07-21 하루치가 761번 더해짐). 대량보유(5% 보유자)는 임원·주요주주 매매가 아니라 건수만
+  // insider_summary: scope:'report'면 그 보고서 한 건 → 행마다 더함. scope 없는 옛 요약은 '그 회사 그날 전체 합계'를
+  // 행마다 복사한 값이라 날짜마다 한 번만(삼성전자 07-21 761번 중복). 대량보유(5% 보유자)는 매매가 아니라 건수만
   {
     const parts = [];
     if (x.s.related_party_ratio != null) parts.push(`최대주주+특관 <b>${(+x.s.related_party_ratio).toFixed(1)}%</b>${none('(MD)')}`);
@@ -318,7 +318,7 @@ function _rpDartOverview(x) {
       for (const d of o.rows) {
         const si = d.insider_summary;
         if (!si || d.category === '대량보유' || !(si.buy || si.sell)) continue;
-        days.set(`${d.base_date}|${si.type || ''}`, si);
+        days.set(si.scope === 'report' ? `r|${d.rcept_no}` : `${d.base_date}|${si.type || ''}`, si);
       }
       let buy = 0, sell = 0;
       days.forEach(si => { buy += +si.buy || 0; sell += +si.sell || 0; });

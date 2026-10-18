@@ -35,16 +35,19 @@ async function _rpLoadAndRenderOwnership(body) {
   }
 }
 
-// insider_summary → 내역 텍스트
+// insider_summary → 내역 텍스트. scope:'report' = 그 보고서 한 건의 매매(10-18부터, 과거분도 다시 계산).
+// scope 없는 지분공시 요약 = 예전 방식(그 회사 그날 전체 합계를 행마다 복사) — 그렇다고 표시
 function _rpInsBadge(s) {
   if (!s) return '';
   const parts = [];
+  if (s.who) parts.push(`<span style="color:var(--text1)">${escapeHtml(s.who)}</span>`);
   if (s.buy)  parts.push(`<span style="color:var(--red);font-weight:700">▲취득 ${(+s.buy).toLocaleString()}주</span>`);
   if (s.sell) parts.push(`<span style="color:var(--blue);font-weight:700">▼처분 ${(+s.sell).toLocaleString()}주</span>`);
   if (s.ratio_before != null && s.ratio_after != null)
     parts.push(`<span style="color:var(--text2)">${s.ratio_before}% → <b style="color:var(--text1)">${s.ratio_after}%</b></span>`);
   if (s.type === 'major') parts.push(`<span style="color:#f59e0b;font-weight:700">⚠ 최대주주 변동</span>`);
-  if (s.type === 'plan') parts.push(`<span style="color:var(--text2)">예정${s.period ? ' (' + s.period + ')' : ''}</span>`);
+  if (s.type === 'plan') parts.push(`<span style="color:var(--text2)">예정${s.period ? ' (' + escapeHtml(s.period) + ')' : ''}</span>`);
+  if (s.type === 'insider' && s.scope !== 'report' && (s.buy || s.sell)) parts.push('<span style="color:var(--text3)">(그날 회사 합계)</span>');
   return parts.join(' ');
 }
 
