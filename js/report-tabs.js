@@ -87,7 +87,8 @@ function _rpOwnLine(r, major) {
   const reason = String(r.reason || '').trim().replace(/\s*\([+-]\)\s*$/, '');
   const shortReason = reason && reason !== '-' && reason.length <= 16 ? reason : '';
   const ratio = r.hold_ratio_after == null ? ''
-    : r.hold_ratio_before != null ? `지분 ${pc(r.hold_ratio_before)} → <b>${pc(r.hold_ratio_after)}</b>` : `신규 <b>${pc(r.hold_ratio_after)}</b>`;
+    : r.hold_ratio_before != null && +r.hold_ratio_before > 0 ? `지분 ${pc(r.hold_ratio_before)} → <b>${pc(r.hold_ratio_after)}</b>`
+    : `신규 <b>${pc(r.hold_ratio_after)}</b>`;   // 전 지분 없음·0%(목록 API의 첫 5% 보고) = 신규
   const held = r.shares_after != null ? `${r.shares_before != null ? n(r.shares_before) : '0'} → ${n(r.shares_after)}주` : '';
   const tail = [held, r.price ? `@${n(r.price)}원` : ''].filter(Boolean).join(' · ');
   return _rpTagChip(_rpHolderTag(r, major)) + [
