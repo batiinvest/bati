@@ -208,7 +208,7 @@ const RPPEER_COLS = [
   { k: 'op4',  g: '최근 4분기',  label: '영업이익',  f: s => _rpPeerEok(s.op4) },
   { k: 'opm4', g: '최근 4분기',  label: '이익률',    f: s => _rpPeerNum(s.opm4, 1, '%') },
   { k: 'bl',   g: '수주잔고',    label: '잔고',      f: s => s.blNone
-      ? `<span title="정기보고서에서 원화 수주잔고를 읽을 수 없음 — 싣지 않음(영업 기밀·고객 NDA 등) 또는 달러로만·그림으로만 적음" style="color:var(--text3)">미공시</span>` : _rpPeerEok(s.bl) },
+      ? `<span title="정기보고서에 수주잔고를 싣지 않음(영업 기밀·고객 NDA 등으로 생략) 또는 그림으로만 적음" style="color:var(--text3)">미공시</span>` : _rpPeerEok(s.bl) },
   { k: 'blY',  g: '수주잔고',    label: 'YoY',       f: s => _rpPeerPct(s.blY) },
   { k: 'blr',  g: '수주잔고',    label: '÷연매출',   f: s => s.blr == null ? '—' : `${s.blr.toFixed(2)}배` },
 ];
@@ -298,7 +298,7 @@ function _rpPeerView() {
       <div style="${note};margin-top:8px">
         * 기준 분기 = 비교 대상 절반 이상이 실적을 낸 가장 최근 분기 · 이익률·YoY는 금액으로 계산(연결 우선) · 열 이름을 누르면 정렬
         · 수주잔고 = DART 정기보고서 '매출 및 수주상황'의 기말 잔고 합계(회사·부문별로 나눠 적은 표는 합산), ${blN}개 종목 —
-        '미공시' = 보고서에 원화 잔고가 없는 회사(영업 기밀·고객 NDA 등으로 생략, 달러·그림으로만 적은 곳 포함),
+        달러로 적은 회사는 분기 말 환율로 원화 환산 · '미공시' = 보고서에 잔고를 싣지 않는 회사(영업 기밀·고객 NDA 등),
         '—' = 그 분기 값 없음 또는 수집 대상(반도체 장비) 밖
         · ÷연매출 = 잔고 ÷ 최근 4분기 매출</div>
     </div>
