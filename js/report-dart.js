@@ -103,7 +103,9 @@ async function _rpLoadAndRenderDart(body) {
   ${typeof _rpQuoteCard === 'function' ? _rpQuoteCard(latest, _rpData?.price || []) : ''}
 
   ${_rpDartSecHead('기업 정보', '', ['기업개요'], 'info')}
-  ${_rpDartInfoRow(_rpProfileInfoCard({ comp, dart: data, dp, latest }, 'dart'), _rpDartDilution(L) + _rpDartLockup(L))}
+  ${_rpProfileInfoCard({ comp, dart: data, dp, latest }, 'dart')}
+  ${_rpDartDilution(L)}
+  ${_rpDartLockup(L)}
   ${dp.subsidiaries?.length ? _rpProfileSubsCard(dp) : ''}
 
   ${_rpDartSecHead('주주 · 지분', '', ['지분현황'], 'own')}
@@ -144,14 +146,6 @@ async function _rpLoadAndRenderDart(body) {
 
   _rpDartLazy(body);
 }
-
-// 기업 정보 첫 줄 — 기본정보 카드 옆(오른쪽)에 주가 희석·보호예수를 쌓음. 기본정보 표는 값이 짧아 화면 전체 폭이면 오른쪽이
-// 텅 비었음. 좁은 화면은 위아래로, MD가 없어 오른쪽 카드가 없으면 기본정보만 넓게
-const _rpDartInfoRow = (left, right) => right ? `
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:14px;align-items:start">
-    ${left}
-    <div style="display:flex;flex-direction:column;gap:14px;min-width:0">${right}</div>
-  </div>` : left;
 
 // 화면에 다가오면 그 탭의 로더를 부름 — 탭 9개 데이터를 한꺼번에 받지 않게
 const RPD_LAZY = {
