@@ -24,11 +24,13 @@ async function _rpLoadAndRenderOwnership(body) {
         .order('base_date', { ascending: false }).limit(40);
       discs = data || [];
     }
-    const trades = await _rpFetchInsiderTrades(discs.map(d => d.rcept_no)).catch(() => ({}));   // 누가·어떻게
+    const H = await _rpOwnHistory(compRes.data?.corp_code, discs).catch(() => ({ discs, trades: {} }));   // 누가·어떻게 + 5월 이전 이력
+    discs = H.discs;
+    const trades = H.trades, majors = H.majors;
     const dart = dartRes.data || null;
     const dp = dart?.raw_md && typeof _mdDeepParse === 'function' ? _mdDeepParse(dart.raw_md, dart.summary) : {};   // 사용자 수정 기본정보 반영
     body.innerHTML = _rpOwnershipTab({
-      discs, dp, s: dart?.summary || {}, dart, trades,
+      discs, dp, s: dart?.summary || {}, dart, trades, majors,
       prices: _rpData.price || [], latest: _rpData.price?.[0] || {},
     });
   } catch (e) {
@@ -38,7 +40,7 @@ async function _rpLoadAndRenderOwnership(body) {
 
 // ── 지분 공시 → 누가·어떻게 — insider_trades(공시 한 건의 보고자·관계·사유·변동 주식 수·전후 지분·단가) ─────────
 // 지분현황 '지분 변동내역'·금감원공시 목록·DART 분석 공용. insider_trades에 그 보고서가 없으면 insider_summary 배지로 대신
-const _RP_IT_COLS = 'rcept_no,reporter,relation,trade_date,reason,reason_code,shares_before,shares_change,shares_after,price,hold_ratio_before,hold_ratio_after,report_type';
+const _RP_IT_COLS = 'rcept_no,base_date,reporter,relation,trade_date,reason,reason_code,shares_before,shares_change,shares_after,price,hold_ratio_before,hold_ratio_after,report_type';
 async function _rpFetchInsiderTrades(rnos) {
   const ids = [...new Set((rnos || []).filter(Boolean))];
   if (!ids.length) return {};
@@ -51,13 +53,35 @@ async function _rpFetchInsiderTrades(rnos) {
 // '이 근 식'처럼 한 글자씩 띄운 이름은 붙임(영문·법인명은 그대로)
 const _rpWho = s => { const t = String(s || '').trim(); return /^([가-힣]\s+)+[가-힣]$/.test(t) ? t.replace(/\s+/g, '') : t; };
 
-// 한 줄: 보고자(관계) · 사유 · ▲/▼주식 수 · 지분 전→후(대량보유) · (보유 주식 전→후 · 단가)
-function _rpOwnLine(r) {
+// 보유자 종류 — 보고서 종류(대량보유·임원 소유보고·최대주주 변동)·관계·이름으로.
+// major = 최대주주 이름(정규화) 문자열 또는 Set — MD의 최대주주 + DART 임원·주요주주 보고에서 '최대주주'로 적힌 보고자(_rpOwnHistory)
+// 대량보유(5% 이상)는 자산운용·증권·보험·연금 등 이름이면 기관/연금, 최대주주 이름과 같으면 최대주주, 그 밖은 '5% 보유'
+const _RP_INST = /자산운용|투자신탁|운용|증권|은행|보험|캐피탈|인베스트|파트너스|투자조합|사모|펀드|PEF|신탁|Capital|Asset|Management|Fund|Investment|Partners|BlackRock|Vanguard|Morgan|Goldman|Fidelity|Norges|Templeton|Wellington|Schroder/i;
+const _RP_PENSION = /연금|공제회|공단/;
+const _rpNormName = s => String(s || '').replace(/\(주\)|㈜|주식회사|\(유\)|\s/g, '');
+function _rpHolderTag(r, major) {
+  const who = _rpNormName(r.reporter), rel = (r.relation || '').trim(), name = r.reporter || '';
+  if (r.report_type === 'major') return ['최대주주', '#f59e0b'];
+  const majors = major instanceof Set ? [...major] : major ? [major] : [];
+  if (who && majors.some(m => m.length >= 2 && (who === m || who.includes(m) || m.includes(who)))) return ['최대주주', '#f59e0b'];
+  if (r.report_type === 'insider') {
+    if (/최대주주/.test(rel)) return ['최대주주', '#f59e0b'];
+    if (/임원|이사|대표|사장|회장|전무|상무|감사|본부장|CEO|CFO|CTO/i.test(rel)) return ['임원', '#a78bfa'];
+  }
+  if (_RP_PENSION.test(name)) return ['연금·공제', '#22d3ee'];
+  if (_RP_INST.test(name)) return ['기관', '#2AABEE'];
+  return r.report_type === 'insider' ? ['주요주주', '#c084fc'] : ['5% 보유', '#8b90a7'];   // 임원 소유보고인데 임원이 아니면 10% 이상 주주
+}
+const _rpTagChip = ([t, c]) => `<span style="display:inline-block;font-size:calc(10.5px*var(--m-label));font-weight:700;padding:0 6px;border-radius:4px;margin-right:4px;background:${c}22;color:${c}">${t}</span>`;
+
+// 한 줄: [보유자 종류] 보고자(관계) · 사유 · ▲/▼주식 수 · 지분 전→후(대량보유) · (보유 주식 전→후 · 단가)
+function _rpOwnLine(r, major) {
   const e = escapeHtml, n = v => Math.round(v).toLocaleString(), pc = v => `${(+v).toFixed(2)}%`;
   const who = _rpWho(r.reporter);
-  const rel = r.relation && r.relation.trim() !== '-' ? r.relation.trim() : '';
+  let rel = r.relation && r.relation.trim() !== '-' ? r.relation.trim() : '';
+  if (r.report_type === 'bulk' && /^(약식|일반)$/.test(rel)) rel = `${rel} 보고`;   // 목록 API의 보고구분
   if (r.report_type === 'major' || (r.shares_change == null && r.hold_ratio_after == null))
-    return `<b style="color:#f59e0b">${e(rel || '최대주주')}</b> 소유주식 변동 신고 <span style="color:var(--text3)">(수량은 원문)</span>`;
+    return `${_rpTagChip(['최대주주', '#f59e0b'])}소유주식 변동 신고 <span style="color:var(--text3)">(수량은 원문)</span>`;
   const c = r.shares_change;
   const chg = c == null ? '' : c > 0 ? `<b style="color:var(--red)">▲${n(c)}주</b>` : c < 0 ? `<b style="color:var(--blue)">▼${n(-c)}주</b>` : '변동 없음';
   const reason = String(r.reason || '').trim().replace(/\s*\([+-]\)\s*$/, '');
@@ -66,18 +90,50 @@ function _rpOwnLine(r) {
     : r.hold_ratio_before != null ? `지분 ${pc(r.hold_ratio_before)} → <b>${pc(r.hold_ratio_after)}</b>` : `신규 <b>${pc(r.hold_ratio_after)}</b>`;
   const held = r.shares_after != null ? `${r.shares_before != null ? n(r.shares_before) : '0'} → ${n(r.shares_after)}주` : '';
   const tail = [held, r.price ? `@${n(r.price)}원` : ''].filter(Boolean).join(' · ');
-  return [
+  return _rpTagChip(_rpHolderTag(r, major)) + [
     `<b>${e(who || rel || '보고자 미상')}</b>${rel && who ? ` <span style="color:var(--text2)">${e(rel)}</span>` : ''}`,
     shortReason ? e(shortReason) : '', chg, ratio,
     tail ? `<span style="color:var(--text3)">(${tail})</span>` : '',
     reason && reason !== '-' && !shortReason ? `<span title="${escAttr(reason)}" style="color:var(--text3);cursor:help">사유ⓘ</span>` : '',
   ].filter(Boolean).join(' ');
 }
-function _rpOwnDetail(d, trades) {
+function _rpOwnDetail(d, trades, major) {
   const rows = trades?.[d.rcept_no];
   if (!rows?.length) return _rpInsBadge(d.insider_summary) || '<span style="color:var(--text3)">세부 내역 없음 — 공시명을 누르면 원문</span>';
-  return rows.slice(0, 3).map(_rpOwnLine).join('<br>')
+  return rows.slice(0, 3).map(r => _rpOwnLine(r, major)).join('<br>')
     + (rows.length > 3 ? `<br><span style="color:var(--text3)">외 ${rows.length - 3}건</span>` : '');
+}
+
+// 지분 변동 목록 = 공시 수집분(daily_disclosures, 2026-05-12~) + insider_trades에만 있는 보고서(그 이전 약 2년·본문 미해석분을
+// DART 목록 API로 채움 — scripts/backfill_ownership_history.py). 같은 보고서는 공시 행 하나로. 최신순 limit개
+async function _rpOwnHistory(corpCode, discs, limit = 40) {
+  const trades = await _rpFetchInsiderTrades((discs || []).map(d => d.rcept_no)).catch(() => ({}));
+  if (!corpCode) return { discs: discs || [], trades };
+  const { data } = await sb.from('insider_trades').select(_RP_IT_COLS).eq('corp_code', corpCode)
+    .order('base_date', { ascending: false }).limit(400);
+  const have = new Set((discs || []).map(d => d.rcept_no));
+  const extra = {};
+  for (const r of data || []) {
+    (trades[r.rcept_no] ||= []);
+    if (!trades[r.rcept_no].some(x => x.reporter === r.reporter && x.trade_date === r.trade_date && x.shares_change === r.shares_change)) trades[r.rcept_no].push(r);
+    if (!have.has(r.rcept_no)) (extra[r.rcept_no] ||= []).push(r);
+  }
+  const NM = { bulk: '주식등의대량보유상황보고서', insider: '임원ㆍ주요주주특정증권등소유상황보고서', major: '최대주주등소유주식변동신고서' };
+  const CAT = { bulk: '대량보유', insider: '지분공시', major: '최대주주변동' };
+  const hist = Object.entries(extra).map(([rno, rows]) => {
+    const r = rows[0], t = r.report_type;
+    const buy = rows.reduce((a, x) => a + Math.max(0, x.shares_change || 0), 0), sell = rows.reduce((a, x) => a + Math.max(0, -(x.shares_change || 0)), 0);
+    return {
+      base_date: r.base_date, rcept_no: rno, category: CAT[t] || '지분공시', _hist: true,
+      report_nm: (NM[t] || '지분 보고') + (t === 'bulk' && r.relation ? `(${r.relation})` : ''),
+      insider_summary: t === 'bulk' ? { type: 'bulk', change: r.shares_change, ratio_before: r.hold_ratio_before, ratio_after: r.hold_ratio_after, who: r.reporter }
+        : t === 'major' ? { type: 'major' } : { type: 'insider', scope: 'report', buy, sell, who: r.reporter },
+    };
+  });
+  const all = [...(discs || []), ...hist].sort((x, y) => String(y.base_date).localeCompare(String(x.base_date)) || String(y.rcept_no).localeCompare(String(x.rcept_no)));
+  // DART가 '최대주주'로 적은 보고자(임원·주요주주 소유보고의 관계) — 대량보유 행의 같은 이름도 최대주주로 표시
+  const majors = new Set((data || []).filter(r => r.report_type === 'insider' && /최대주주/.test(r.relation || '')).map(r => _rpNormName(r.reporter)).filter(Boolean));
+  return { discs: all.slice(0, limit), trades, majors };
 }
 
 // insider_summary → 내역 텍스트. scope:'report' = 그 보고서 한 건의 매매(10-18부터, 과거분도 다시 계산).
@@ -135,7 +191,7 @@ function _rpOwnSummaryCard({ dp = {}, s = {}, dart, latest = {} }) {
     : empty('DART 리포트(.md)를 업로드하면 주주 구성이 표시됩니다')}`);
 }
 
-function _rpOwnershipTab({ discs, dp, s, dart, prices, latest, trades }) {
+function _rpOwnershipTab({ discs, dp, s, dart, prices, latest, trades, majors }) {
   const esc = typeof escapeHtml === 'function' ? escapeHtml : (v => v ?? '');
   const secT = _rpTabSecT, box = _rpTabBox, empty = _rpTabEmpty;
 
@@ -246,7 +302,8 @@ function _rpOwnershipTab({ discs, dp, s, dart, prices, latest, trades }) {
       </div>`);
   }
 
-  // ── ④ 지분 변동내역 (최근 공시) ────────────────────────────────────────
+  // ── ④ 지분 변동내역 (최근 공시 + 5월 이전 이력) ─────────────────────────
+  const major = new Set([...(majors || []), _rpNormName(dp?.majorShareholder)].filter(Boolean));
   const catCol = { '지분공시': '#c084fc', '대량보유': '#e879f9', '최대주주변동': '#f59e0b', '임원/주식': '#a78bfa', '거래계획(예고)': '#22d3ee' };
   const listHTML = box(`
     ${secT('지분 변동내역 (최근 ' + (discs?.length || 0) + '건)')}
@@ -270,12 +327,14 @@ function _rpOwnershipTab({ discs, dp, s, dart, prices, latest, trades }) {
               overflow:hidden;text-overflow:ellipsis">
               <a href="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${encodeURIComponent(d.rcept_no || '')}"
                 target="_blank" rel="noopener" style="color:var(--text1);text-decoration:none">${esc(d.report_nm || '')}</a></td>
-            <td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:calc(11.5px*var(--m-sub));white-space:normal;min-width:300px;line-height:1.6">${_rpOwnDetail(d, trades)}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:calc(11.5px*var(--m-sub));white-space:normal;min-width:300px;line-height:1.6">${_rpOwnDetail(d, trades, major)}</td>
           </tr>`;
         }).join('')}
       </tbody>
     </table>
-    </div>`
+    </div>
+    <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">* 종류: 기관·연금·최대주주·임원·주요주주(10% 이상)·5% 보유 — 보고서 종류·관계·이름으로 구분 ·
+      2026-05 이전이거나 본문을 못 읽은 보고서는 DART 목록 기준(사유·단가 없음, 날짜는 접수일)</div>`
     : empty('지분 관련 공시 데이터 없음 (지분공시·대량보유·최대주주변동·임원/주식)')}`);
 
   return `<div style="display:flex;flex-direction:column;gap:12px">
