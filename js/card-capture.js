@@ -190,6 +190,9 @@ function _capUnclip(node) {
   }
 }
 
+// 블로그 본문 이미지 최대 표시 폭(네이버 블로그 bati_invest 실측) — 이보다 넓게 그리면 붙일 때 줄어 글자가 작아짐
+const CAP_BLOG_W = 886;
+
 async function _capRun(mode) {
   const el = CAP.target;
   if (!el || CAP.busy) return;
@@ -197,8 +200,10 @@ async function _capRun(mode) {
   let tmp = null;
   try {
     const lib = await _capLoadLib();
-    // 배치 폭 = 화면 폭 ÷ 크기(최소 360px). 이미지 가로 픽셀은 화면 폭의 3배 안팎으로 유지(배치 폭 × 3×크기)
-    let width = Math.max(360, Math.round(el.getBoundingClientRect().width / CAP.zoom));
+    // 배치 폭 = min(화면 카드 폭, 블로그 본문 폭) ÷ 크기(최소 360px). 이미지 가로 픽셀은 배치 폭 × 3×크기(해상도 그대로).
+    // 예전엔 화면 카드 폭만 썼더니 넓은 모니터에서 전체 폭 카드(1,260px)는 160%여도 788px로 그려져, 886px 블로그에 붙이면
+    // 글자가 거의 안 커지고 흐려 보였음(10-18). 좁은 카드는 예전과 같음
+    let width = Math.max(360, Math.round(Math.min(el.getBoundingClientRect().width, CAP_BLOG_W) / CAP.zoom));
     let chartRatio = Math.max(1, Math.min(3 * CAP.zoom, 12000 / width));
     tmp = _capClone(el, CAP.light, chartRatio, width);
     // 넓은 표가 가로 스크롤로 넘치면 넘친 만큼 배치 폭을 넓혀 다시 복제 — 화면 밖 열이 이미지에서 빠졌음

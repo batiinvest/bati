@@ -489,24 +489,25 @@ function _rpProfileInfoCard({ comp = {}, dart, dp = {}, latest = {} }, site = 'p
   const editBtn = dart && typeof _rpProfileEditBtn === 'function' ? _rpProfileEditBtn(site) : '';
   const code = _rpStock?.code || '', logo = _rpLogoUrl(code);
   const sub = [comp.industry, comp.sub_industry].filter(Boolean).join(' · ');
-  const aside = `<div style="flex:1 0 220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  const aside = `<div style="flex:1 0 170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
       padding:16px 12px;background:var(--bg3);border-radius:var(--radius-sm);text-align:center">
-      ${logo ? `<img src="${escAttr(logo)}" alt="" width="96" height="96" style="width:96px;height:96px;border-radius:50%;margin-bottom:4px" onerror="this.remove()">` : ''}
+      ${logo ? `<img src="${escAttr(logo)}" alt="" width="88" height="88" style="width:88px;height:88px;border-radius:50%;margin-bottom:4px" onerror="this.remove()">` : ''}
       <div style="font-size:calc(16px*var(--m-title));font-weight:800;color:var(--text1)">${esc(_rpStock?.name || dp.legalName || '')}</div>
       <div style="font-size:calc(12px*var(--m-sub));color:var(--text2)">${esc([code, comp.market].filter(Boolean).join(' · '))}</div>
       ${sub ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3)">${esc(sub)}</div>` : ''}
     </div>`;
-  // wrap-reverse: 넓으면 [표 | 패널], 좁아서 줄이 바뀌면 패널이 위(회사 이름표처럼). 늘어날 몫은 표가 거의 다 가져감(100:1)
+  // wrap-reverse: 넓으면 [표 | 패널], 좁아서 줄이 바뀌면 패널이 위(회사 이름표처럼). 늘어날 몫은 표가 거의 다 가져감(100:1).
+  // 최소 폭(표 300 + 패널 170)은 블로그용 이미지 배치 폭(886 ÷ 160% ≈ 554px)에서도 옆에 놓이게 정함
   return box(`
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">${secT('기업 기본정보')}${editBtn}</div>
     <div style="display:flex;flex-wrap:wrap-reverse;gap:14px;align-items:stretch">
-    <div style="flex:100 1 420px;min-width:0">
+    <div style="flex:100 1 300px;min-width:0">
     ${infoRows.length ? `
     <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub))">
       ${infoRows.map(([k, v]) => `<tr>
         <td style="padding:7px 10px;background:var(--bg3);color:var(--text2);white-space:nowrap;
           border-bottom:1px solid var(--border);width:130px">${k}</td>
-        <td style="padding:7px 10px;color:var(--text1);border-bottom:1px solid var(--border);line-height:1.5">${v}</td>
+        <td style="padding:7px 10px;color:var(--text1);border-bottom:1px solid var(--border);line-height:1.5;white-space:normal;overflow-wrap:anywhere">${v}</td>
       </tr>`).join('')}
     </table>
     ${dart?.receive_date ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">
