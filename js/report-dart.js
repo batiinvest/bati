@@ -67,6 +67,9 @@ async function _rpLoadAndRenderDart(body) {
   const box = (inner, title) => `<div data-capture style="${_RPD_CARD}">${title ? _rpdT(title) : ''}${inner}</div>`;
   const lazy = (key, title) => box(`<div data-rpd-lazy="${key}"><div style="text-align:center;color:var(--text2);padding:20px"><span class="loading"></span> 불러오는 중...</div></div>`, title);
   const pts = s.investment_points?.length || s.risk_points?.length;
+  // 주주·지분 = 지분현황 탭 카드 그대로, 순서만 '지금 구조 → 사람 → 변화'(구성·외국인 → 주주 명세 → 대표이사 → 차트 → 변동내역)
+  const OP = typeof _rpOwnershipParts === 'function'
+    ? _rpOwnershipParts({ discs: ownList, dp, s, dart: data, trades, majors: H?.majors, prices: _rpData?.price || [], latest }) : null;
 
   body.innerHTML = `
   <div style="display:flex;flex-direction:column;gap:14px">
@@ -109,9 +112,10 @@ async function _rpLoadAndRenderDart(body) {
   ${dp.subsidiaries?.length ? _rpProfileSubsCard(dp) : ''}
 
   ${_rpDartSecHead('주주 · 지분', '', ['지분현황'], 'own')}
-  ${typeof _rpOwnershipTab === 'function' ? _rpOwnershipTab({ discs: ownList, dp, s, dart: data, trades, majors: H?.majors, prices: _rpData?.price || [], latest }) : ''}
+  ${OP ? _rpOwnPair(OP) : ''}
   ${_rpDartHolders(L)}
   ${_rpDartCeo(L)}
+  ${OP ? OP.chart + OP.list : ''}
 
   ${_rpDartSecHead('사업', '산업·제품 설명은 블로그에서 직접 작성', ['사업분석'], 'biz')}
   ${bizHtml || box(`<div style="font-size:calc(12px*var(--m-sub));color:var(--text3);padding:10px 0;text-align:center">DART 업로드 시 사업 데이터가 표시됩니다</div>`)}

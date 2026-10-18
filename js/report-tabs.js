@@ -192,7 +192,9 @@ function _rpOwnSummaryCard({ dp = {}, s = {}, dart, latest = {} }) {
     : empty('DART 리포트(.md)를 업로드하면 주주 구성이 표시됩니다')}`);
 }
 
-function _rpOwnershipTab({ discs, dp, s, dart, prices, latest, trades, majors }) {
+// 지분현황 카드 4장을 따로 — { chart: 내부자거래·주가, own: 주주 구성, fr: 외국인 지분율 추이, list: 지분 변동내역 }.
+// 지분현황 탭(_rpOwnershipTab)과 DART 분석 탭이 같은 카드를 각자 순서로 놓음
+function _rpOwnershipParts({ discs, dp, s, dart, prices, latest, trades, majors }) {
   const esc = typeof escapeHtml === 'function' ? escapeHtml : (v => v ?? '');
   const secT = _rpTabSecT, box = _rpTabBox, empty = _rpTabEmpty;
 
@@ -338,14 +340,16 @@ function _rpOwnershipTab({ discs, dp, s, dart, prices, latest, trades, majors })
       2026-05 이전이거나 본문을 못 읽은 보고서는 DART 목록 기준(사유·단가 없음, 날짜는 접수일)</div>`
     : empty('지분 관련 공시 데이터 없음 (지분공시·대량보유·최대주주변동·임원/주식)')}`);
 
-  return `<div style="display:flex;flex-direction:column;gap:12px">
-    ${box(secT('내부자거래 · 주가') + chartHTML)}
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px">
-      ${ownHTML}
-      ${frHTML}
-    </div>
-    ${listHTML}
-  </div>`;
+  return { chart: box(secT('내부자거래 · 주가') + chartHTML), own: ownHTML, fr: frHTML, list: listHTML };
+}
+
+// [주주 구성 | 외국인 지분율 추이] 나란히(좁으면 위아래)
+const _rpOwnPair = P => `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:12px">${P.own}${P.fr}</div>`;
+
+// 지분현황 탭 — 내부자거래·주가 → [주주 구성 | 외국인 지분율] → 지분 변동내역
+function _rpOwnershipTab(opts) {
+  const P = _rpOwnershipParts(opts);
+  return `<div style="display:flex;flex-direction:column;gap:12px">${P.chart}${_rpOwnPair(P)}${P.list}</div>`;
 }
 
 // ═══ 최근리포트 탭 (FnGuide c1080001 스타일) ═════════════════════════════════
