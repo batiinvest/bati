@@ -462,7 +462,13 @@ const _rpTabBox = inner => `<div data-capture style="background:var(--bg2);borde
     border-radius:var(--radius-sm);padding:14px">${inner}</div>`;
 const _rpTabEmpty = msg => `<div style="font-size:calc(12px*var(--m-sub));color:var(--text3);padding:10px 0;text-align:center">${msg}</div>`;
 
+// 종목 로고 — 네이버 증권 이미지 서버(m.stock.naver.com 종목 API의 itemLogoUrl과 같은 주소, 원형 SVG).
+// 공식 API가 아니라 주소가 바뀌거나 막힐 수 있음 → 못 불러오면 로고 자리만 뺌(onerror). 다른 사이트 사용이 열려 있어
+// (access-control-allow-origin: *) 카드 이미지 저장에도 같이 찍힘. 10-18 표본 120종목 중 119종목 보유
+const _rpLogoUrl = code => /^[0-9A-Z]{6}$/.test(String(code || '')) ? `https://ssl.pstatic.net/imgstock/fn/real/logo/stock/Stock${code}.svg` : '';
+
 // 기업 기본정보 카드 — 기업개요·DART 분석 탭 공용. site = [수정] 창이 저장 후 다시 그릴 탭(RPP.sites 키)
+// 오른쪽 패널 = 로고·종목명·코드·시장·업종(값이 짧은 표만 있으면 오른쪽이 텅 비었음 — 사용자 요청 10-18)
 function _rpProfileInfoCard({ comp = {}, dart, dp = {}, latest = {} }, site = 'profile') {
   const esc = escapeHtml, secT = _rpTabSecT, box = _rpTabBox, empty = _rpTabEmpty;
   const shares = _rpShares(latest);
@@ -481,8 +487,20 @@ function _rpProfileInfoCard({ comp = {}, dart, dp = {}, latest = {} }, site = 'p
 
   // 제목 오른쪽 [수정](관리자·에디터, MD 업로드된 종목만) — report-dart.js의 기본정보 수정 창
   const editBtn = dart && typeof _rpProfileEditBtn === 'function' ? _rpProfileEditBtn(site) : '';
+  const code = _rpStock?.code || '', logo = _rpLogoUrl(code);
+  const sub = [comp.industry, comp.sub_industry].filter(Boolean).join(' · ');
+  const aside = `<div style="flex:1 0 220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+      padding:16px 12px;background:var(--bg3);border-radius:var(--radius-sm);text-align:center">
+      ${logo ? `<img src="${escAttr(logo)}" alt="" width="96" height="96" style="width:96px;height:96px;border-radius:50%;margin-bottom:4px" onerror="this.remove()">` : ''}
+      <div style="font-size:calc(16px*var(--m-title));font-weight:800;color:var(--text1)">${esc(_rpStock?.name || dp.legalName || '')}</div>
+      <div style="font-size:calc(12px*var(--m-sub));color:var(--text2)">${esc([code, comp.market].filter(Boolean).join(' · '))}</div>
+      ${sub ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3)">${esc(sub)}</div>` : ''}
+    </div>`;
+  // wrap-reverse: 넓으면 [표 | 패널], 좁아서 줄이 바뀌면 패널이 위(회사 이름표처럼). 늘어날 몫은 표가 거의 다 가져감(100:1)
   return box(`
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">${secT('기업 기본정보')}${editBtn}</div>
+    <div style="display:flex;flex-wrap:wrap-reverse;gap:14px;align-items:stretch">
+    <div style="flex:100 1 420px;min-width:0">
     ${infoRows.length ? `
     <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub))">
       ${infoRows.map(([k, v]) => `<tr>
@@ -493,7 +511,10 @@ function _rpProfileInfoCard({ comp = {}, dart, dp = {}, latest = {} }, site = 'p
     </table>
     ${dart?.receive_date ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">
       * DART ${esc(dart.report_type || '')} 기준 [접수: ${esc(dart.receive_date)}]${dp.edited?.length ? ' · 일부 항목은 MD 내용을 고친 값' : ''}</div>` : ''}`
-    : empty('DART 리포트(.md)를 업로드하면 기본정보가 표시됩니다')}`);
+    : empty('DART 리포트(.md)를 업로드하면 기본정보가 표시됩니다')}
+    </div>
+    ${aside}
+    </div>`);
 }
 
 // 계열사 현황 카드 — 기업개요·DART 분석 탭 공용 (내용은 report-dart.js _rpSubsContent)
