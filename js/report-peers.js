@@ -437,6 +437,7 @@ function rpPeerOpenCompare() {
   if (A.page !== 'comparison') return;   // 권한 등으로 이동이 막힘(go가 안내)
   CMP.selectedCodes = sel;
   CMP.metric = 'backlog';
+  CMP.metrics = ['backlog', 'backlog_ratio', 'revenue'];   // 수주잔고·잔고÷연매출·매출액 함께
   renderCmpSelected();
   const m = document.getElementById('cmp-metric');
   if (m) m.value = 'backlog';

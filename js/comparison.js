@@ -100,7 +100,7 @@ function pComparison() {
         <div style="padding:.75rem;display:flex;flex-direction:column;gap:8px">
           <div>
             <div style="font-size:calc(11px*var(--m-label));color:var(--text1);margin-bottom:4px">재무 지표</div>
-            <select class="form-select" id="cmp-metric" onchange="CMP.metric=this.value" style="width:100%">
+            <select class="form-select" id="cmp-metric" onchange="CMP.metric=this.value;CMP.metrics=[this.value]" style="width:100%">
               ${CMP_METRICS.map(m=>`<option value="${m.key}" ${CMP.metric===m.key?'selected':''}>${m.label}</option>`).join('')}
             </select>
           </div>
@@ -309,12 +309,13 @@ function initCmpPage() {
   CMP.industry      = '';
   CMP.subcat        = '';
   CMP.metric        = 'revenue';
+  CMP.metrics       = ['revenue'];   // 함께 보는 지표들(칩 여러 개 선택) — 지표마다 차트·표 카드
   CMP.period        = '8';
   CMP.normalize     = false;
   CMP.showMedian    = false;
 
   // 차트 인스턴스 제거
-  if (_cmpChartInstance) { _cmpChartInstance.destroy(); _cmpChartInstance = null; }
+  _cmpDestroyCharts();
   if (_cmpRadarInstance) { _cmpRadarInstance.destroy(); _cmpRadarInstance = null; }
 
   // 캐시 전체 초기화 — 이전 실행 데이터 제거
@@ -365,6 +366,8 @@ async function runComparison() {
   try {
     const codes = CMP.selectedCodes.map(s => s.code);
     const period = parseInt(CMP.period);
+    if (!CMP.metrics?.length) CMP.metrics = [CMP.metric];
+    else if (!CMP.metrics.includes(CMP.metric)) CMP.metrics.unshift(CMP.metric);   // 왼쪽 '재무 지표'로 고른 것은 늘 포함
     const metric = CMP.metric;
     const metaDef = CMP_METRICS.find(m => m.key === metric);
 
@@ -603,41 +606,36 @@ async function runComparison() {
           * 1개월 = 21거래일 · 3개월 = 63거래일(1달·3달 수익률과 같은 기준) · 일별 시세는 약 120일만 보관해 '전체'는 약 3개월 반 · 52주는 KIS 기준</div>
       </div>
 
-      <!-- 지표 선택 탭 + 정규화 토글 -->
+      <!-- 지표 선택(여러 개) + 정규화 토글 — 고른 지표마다 아래에 차트·분기별 표 카드 -->
       <div class="card" style="margin-bottom:1rem">
         <div class="card-header" style="flex-wrap:wrap;gap:8px">
           <span class="card-title">분기별 재무 비교</span>
+          <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">여러 개 고르면 함께 표시</span>
           <div style="display:flex;gap:6px;flex-wrap:wrap;flex:1">
             ${CMP_METRICS.map(m => `
-              <button class="chip chip-sm ${CMP.metric===m.key?'active':''}"
+              <button class="chip chip-sm ${CMP.metrics.includes(m.key)?'active':''}"
                 data-metric="${m.key}"
-                onclick="CMP.metric='${m.key}';document.getElementById('cmp-metric').value='${m.key}';renderCmpChart('${m.key}')"
+                onclick="cmpToggleMetric('${m.key}')"
                >${m.label}</button>
             `).join('')}
           </div>
           <div style="display:flex;gap:6px;align-items:center;margin-left:auto">
             <button id="cmp-normalize-btn"
-              onclick="CMP.normalize=!CMP.normalize;this.classList.toggle('active');renderCmpChart(CMP.metric)"
+              onclick="CMP.normalize=!CMP.normalize;this.classList.toggle('active');renderCmpMetricBlocks()"
               class="chip chip-sm ${CMP.normalize?'active':''}"
               title="100 기준 정규화 — 성장률 비교">
               📐 정규화
             </button>
             <button id="cmp-median-btn"
-              onclick="CMP.showMedian=!CMP.showMedian;this.classList.toggle('active');renderCmpChart(CMP.metric)"
+              onclick="CMP.showMedian=!CMP.showMedian;this.classList.toggle('active');renderCmpMetricBlocks()"
               class="chip chip-sm ${CMP.showMedian?'active':''}"
               title="산업 중위값 기준선 표시">
               ⊘ 중위값
             </button>
           </div>
         </div>
-
-        <!-- 지표별 순위 뱃지 -->
-        <div id="cmp-rank-badges" style="padding:.5rem 1rem;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap"></div>
-
-        <div style="padding:1rem">
-          <canvas id="cmp-chart" style="max-height:400px;min-height:280px"></canvas>
-        </div>
       </div>
+      <div id="cmp-metric-blocks"></div>
 
 
       <!-- 레이더 차트 (6개 지표 종합) -->
@@ -652,27 +650,16 @@ async function runComparison() {
           </div>
           <div id="cmp-radar-btns" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center"></div>
         </div>
-      </div>
-
-      <!-- 지표별 분기별 상세 테이블 -->
-      <div class="card" id="cmp-detail-card">
-        <div class="card-header">
-          <span class="card-title" id="cmp-detail-title">분기별 상세</span>
-          <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">위 지표 탭 클릭 시 전환</span>
-        </div>
-        <div id="cmp-detail-body" class="table-wrap"></div>
       </div>`;
 
     // stockDataMap 전역 저장
     CMP.stockDataMap = stockDataMap;
     CMP.sortedLabels = sortedLabels;
 
-    // 차트 + 상세 테이블 렌더링
+    // 고른 지표마다 차트 + 분기별 표
     CMP.chartDatasets = datasets;
     CMP.chartLabels   = sortedLabels;
-    renderCmpChart(metric);
-    renderCmpDetailTable(metric);
-    _drawSparklines(metric);
+    renderCmpMetricBlocks();
     drawCmpRadar(stockDataMap);
     renderCmpPriceCompare();
 
@@ -773,8 +760,8 @@ function renderCmpPriceCompare() {
 
 // ── 지표별 분기별 상세 테이블 ──
 function renderCmpDetailTable(metricKey) {
-  const body  = document.getElementById('cmp-detail-body');
-  const title = document.getElementById('cmp-detail-title');
+  const body  = document.getElementById(`cmp-detail-body-${metricKey}`);
+  const title = document.getElementById(`cmp-detail-title-${metricKey}`);
   if (!body || !CMP.stockDataMap || !CMP.sortedLabels) return;
 
   const metaDef = CMP_METRICS.find(m => m.key === metricKey) || CMP_METRICS[0];
@@ -929,22 +916,62 @@ function _drawSparklines(metricKey) {
   });
 }
 
-function _cmpSetActiveMetric(metricKey) {
+function _cmpSetActiveMetric() {
   document.querySelectorAll('#cmp-result .chip[data-metric]').forEach(el => {
-    el.classList.toggle('active', el.dataset.metric === metricKey);
+    el.classList.toggle('active', CMP.metrics.includes(el.dataset.metric));
   });
 }
 
+// ── 지표 여러 개 — 칩을 누르면 넣고 빼기(마지막 하나는 남김), 지표마다 차트·분기별 표 카드 ──
+// 10-18 사용자: 한 번에 한 지표만 보여 매출액을 고르면 수주잔고가 사라졌다 → 여러 개를 함께
+const CMP_MAX_METRICS = 6;
+function cmpToggleMetric(key) {
+  const i = CMP.metrics.indexOf(key);
+  if (i >= 0) {
+    if (CMP.metrics.length === 1) return;
+    CMP.metrics.splice(i, 1);
+  } else {
+    if (CMP.metrics.length >= CMP_MAX_METRICS) { toast(`지표는 ${CMP_MAX_METRICS}개까지 함께 볼 수 있습니다.`, 'warn'); return; }
+    CMP.metrics.push(key);
+  }
+  CMP.metric = CMP.metrics[0];
+  const sel = document.getElementById('cmp-metric');
+  if (sel) sel.value = CMP.metric;
+  renderCmpMetricBlocks();
+}
+
+const _cmpCharts = {};   // 지표 키 → Chart
+function _cmpDestroyCharts() {
+  for (const k of Object.keys(_cmpCharts)) { _cmpCharts[k].destroy(); delete _cmpCharts[k]; }
+}
+
+function renderCmpMetricBlocks() {
+  const el = document.getElementById('cmp-metric-blocks');
+  if (!el || !CMP.sortedLabels) return;
+  _cmpSetActiveMetric();
+  _cmpDestroyCharts();
+  el.innerHTML = CMP.metrics.map(k => {
+    const m = CMP_METRICS.find(x => x.key === k);
+    if (!m) return '';
+    return `<div class="card" style="margin-bottom:1rem" data-capture>
+      <div class="card-header" style="gap:8px">
+        <span class="card-title" id="cmp-detail-title-${k}">${m.label}</span>
+        <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">단위 ${m.unit} · 최근 ${CMP.sortedLabels.length}분기</span>
+        ${CMP.metrics.length > 1 ? `<button data-no-capture onclick="cmpToggleMetric('${k}')" title="이 지표 닫기"
+          style="margin-left:auto;background:none;border:none;color:var(--text2);cursor:pointer;font-size:calc(14px*var(--m-body))">✕</button>` : ''}
+      </div>
+      <div id="cmp-rank-badges-${k}" style="padding:.5rem 1rem;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap"></div>
+      <div style="padding:1rem"><canvas id="cmp-chart-${k}" style="max-height:360px;min-height:260px"></canvas></div>
+      <div id="cmp-detail-body-${k}" class="table-wrap" style="border-top:1px solid var(--border)"></div>
+    </div>`;
+  }).join('');
+  CMP.metrics.forEach(k => renderCmpChart(k));
+}
+
 // ── Chart.js 차트 렌더링 ──
-let _cmpChartInstance = null;
 function renderCmpChart(metricKey) {
-  const canvas = document.getElementById('cmp-chart');
+  const canvas = document.getElementById(`cmp-chart-${metricKey}`);
   if (!canvas || !CMP.sortedLabels) return;
-
-  // CMP.metric 업데이트
-  CMP.metric = metricKey;
-
-  _cmpSetActiveMetric(metricKey);
 
   const metaDef = CMP_METRICS.find(m => m.key === metricKey) || CMP_METRICS[0];
   const labels  = CMP.sortedLabels;
@@ -1017,15 +1044,13 @@ async function fetchCmpMetricAndRender(metricKey, canvas, labels, metaDef) {
 
   CMP.metricCache[metricKey] = datasets;
 
-  _cmpSetActiveMetric(metricKey);
-
   drawCmpChart(canvas, datasets, labels, metaDef);
   renderCmpDetailTable(metricKey);
   _drawSparklines(metricKey);
 }
 
 function drawCmpChart(canvas, datasets, labels, metaDef) {
-  if (_cmpChartInstance) { _cmpChartInstance.destroy(); _cmpChartInstance = null; }
+  if (_cmpCharts[metaDef.key]) { _cmpCharts[metaDef.key].destroy(); delete _cmpCharts[metaDef.key]; }
 
   const isBar = metaDef.chartType === 'bar';
 
@@ -1064,7 +1089,7 @@ function drawCmpChart(canvas, datasets, labels, metaDef) {
   }
 
   // ── 순위 뱃지 렌더링 (최신 분기 기준) ──
-  const rankBadges = document.getElementById('cmp-rank-badges');
+  const rankBadges = document.getElementById(`cmp-rank-badges-${metaDef.key}`);
   if (rankBadges) {
     const lastIdx = labels.length - 1;
     const vals = datasets.map((ds, i) => ({
@@ -1120,7 +1145,7 @@ function drawCmpChart(canvas, datasets, labels, metaDef) {
     };
   });
 
-  _cmpChartInstance = new Chart(canvas, {
+  _cmpCharts[metaDef.key] = new Chart(canvas, {
     type: isBar ? 'bar' : 'line',
     data: { labels, datasets: styledDatasets },
     options: {
