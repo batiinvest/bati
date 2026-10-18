@@ -173,6 +173,23 @@ function _capDownload(blob, name) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
+// 가로 스크롤 상자(넓은 표)가 복제본 폭을 넘는 만큼(px). overflow-x auto·scroll만 — hidden은 일부러 자른 것(말줄임 등)
+function _capOverflow(node) {
+  let extra = 0;
+  for (const e of [node, ...node.querySelectorAll('*')]) {
+    const ox = getComputedStyle(e).overflowX;
+    if ((ox === 'auto' || ox === 'scroll') && e.scrollWidth > e.clientWidth + 1) extra = Math.max(extra, e.scrollWidth - e.clientWidth);
+  }
+  return extra;
+}
+// 스크롤 상자를 펼침 — 넓힌 폭 안에서 스크롤바·잘림 없이 끝 열까지 그려지게
+function _capUnclip(node) {
+  for (const e of [node, ...node.querySelectorAll('*')]) {
+    const ox = getComputedStyle(e).overflowX;
+    if (ox === 'auto' || ox === 'scroll') e.style.overflowX = 'visible';
+  }
+}
+
 async function _capRun(mode) {
   const el = CAP.target;
   if (!el || CAP.busy) return;
@@ -181,9 +198,19 @@ async function _capRun(mode) {
   try {
     const lib = await _capLoadLib();
     // 배치 폭 = 화면 폭 ÷ 크기(최소 360px). 이미지 가로 픽셀은 화면 폭의 3배 안팎으로 유지(배치 폭 × 3×크기)
-    const width = Math.max(360, Math.round(el.getBoundingClientRect().width / CAP.zoom));
-    const chartRatio = Math.max(1, Math.min(3 * CAP.zoom, 12000 / width));
+    let width = Math.max(360, Math.round(el.getBoundingClientRect().width / CAP.zoom));
+    let chartRatio = Math.max(1, Math.min(3 * CAP.zoom, 12000 / width));
     tmp = _capClone(el, CAP.light, chartRatio, width);
+    // 넓은 표가 가로 스크롤로 넘치면 넘친 만큼 배치 폭을 넓혀 다시 복제 — 화면 밖 열이 이미지에서 빠졌음
+    // (분기 실적 트렌드 표의 2026 Q2 열). 크기 옵션으로 좁힌 폭에서 더 많이 넘치므로 복제본에서 잰다
+    const extra = _capOverflow(tmp.node);
+    if (extra > 0) {
+      tmp.done();
+      width += Math.ceil(extra) + 2;
+      chartRatio = Math.max(1, Math.min(3 * CAP.zoom, 12000 / width));
+      tmp = _capClone(el, CAP.light, chartRatio, width);
+    }
+    _capUnclip(tmp.node);
     const node = tmp.node;
     const nr = node.getBoundingClientRect();
     // 아주 큰 상자는 긴 변 12,000px 안으로(브라우저 캔버스 한도·메모리)

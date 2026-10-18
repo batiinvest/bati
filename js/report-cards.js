@@ -93,10 +93,19 @@ function _rpEarningsCard(fin) {
   const maxOp  = Math.max(...items.map(f => Math.abs(f.operating_profit || 0)));
   const CHART_H = 100; // 차트 높이(px)
 
-  const yoy    = fin.length >= 2 && fin[0].revenue && fin[1].revenue
-    ? (fin[0].revenue - fin[1].revenue) / fin[1].revenue * 100 : null;
-  const opYoy  = fin.length >= 2 && fin[1].operating_profit
-    ? (fin[0].operating_profit - fin[1].operating_profit) / Math.abs(fin[1].operating_profit) * 100 : null;
+  // 증감 — 둘 다 플러스면 증감률, 부호가 바뀌면 흑자/적자전환(한국식 빨강=증가·파랑=감소)
+  const gr = (cur, prev) => {
+    if (cur == null || prev == null) return null;
+    if (prev > 0 && cur > 0) { const p = (cur - prev) / prev * 100; return { txt: (p >= 0 ? '+' : '') + p.toFixed(1) + '%', up: p >= 0 }; }
+    if (prev <= 0 && cur > 0) return { txt: '흑자전환', up: true };
+    if (prev > 0 && cur <= 0) return { txt: '적자전환', up: false };
+    return { txt: cur > prev ? '적자축소' : cur < prev ? '적자확대' : '적자지속', up: cur > prev };
+  };
+  // YoY = 전년 같은 분기 대비, QoQ = 직전 분기 대비. 예전엔 직전 분기와 비교한 값을 'YoY'로 적었음(원익IPS 26Q2 +31.3%는 QoQ, YoY는 −10.6%)
+  const f0 = fin[0];
+  const fy = fin.find(f => String(f.bsns_year) === String(Number(f0.bsns_year) - 1) && f.quarter === f0.quarter);
+  const yoy = gr(f0.revenue, fy?.revenue), opYoy = gr(f0.operating_profit, fy?.operating_profit);
+  const qoq = gr(f0.revenue, fin[1]?.revenue), opQoq = gr(f0.operating_profit, fin[1]?.operating_profit);
   const opMargin = fin[0]?.revenue > 0
     ? (fin[0].operating_profit || 0) / fin[0].revenue * 100 : null;
 
@@ -113,8 +122,10 @@ function _rpEarningsCard(fin) {
     <!-- ① 타이틀 + KPI chips -->
     ${_rpSecT('분기 실적 트렌드', '* 단위: 억원, %')}
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:14px">
-      ${chip('매출 YoY', yoy != null ? (yoy>=0?'+':'')+yoy.toFixed(1)+'%' : null, yoy>=0?'var(--red)':'var(--blue)')}
-      ${chip('영업이익 YoY', opYoy != null ? (opYoy>=0?'+':'')+opYoy.toFixed(1)+'%' : null, opYoy>=0?'var(--red)':'var(--blue)')}
+      ${chip('매출 YoY', yoy?.txt ?? null, yoy?.up ? 'var(--red)' : 'var(--blue)')}
+      ${chip('영업이익 YoY', opYoy?.txt ?? null, opYoy?.up ? 'var(--red)' : 'var(--blue)')}
+      ${chip('매출 QoQ', qoq?.txt ?? null, qoq?.up ? 'var(--red)' : 'var(--blue)')}
+      ${chip('영업이익 QoQ', opQoq?.txt ?? null, opQoq?.up ? 'var(--red)' : 'var(--blue)')}
       ${chip('영업이익률', opMargin != null ? opMargin.toFixed(1)+'%' : null, opMargin >= 15 ? '#4ade80' : opMargin >= 5 ? 'var(--text2)' : 'var(--red)')}
       ${chip('최근 매출', fmtCap(fin[0].revenue||0), 'var(--text2)')}
     </div>
