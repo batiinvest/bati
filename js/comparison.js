@@ -25,8 +25,11 @@ const CMP_METRICS = [
   { key: 'operating_cashflow', label: '영업현금흐름', unit: '억', scale: 1e8, chartType: 'bar'  },
   { key: 'fcf',                label: 'FCF',          unit: '억', scale: 1e8, chartType: 'bar'  },
   { key: 'gross_profit',       label: '매출총이익',   unit: '억', scale: 1e8, chartType: 'bar'  },
-  // financials 밖 — DART 정기보고서 수주잔고 합계(dart_segment_revenue 'backlog_total', 반도체 장비만). 재무 행에 붙여 씀
-  { key: 'backlog',            label: '수주잔고',     unit: '억', scale: 1e8, chartType: 'bar', src: 'backlog' },
+  // financials 밖 — DART 정기보고서 수주잔고 합계(dart_segment_revenue 'backlog_total', 반도체 장비만). 재무 행에 붙여 씀.
+  // 선 차트 — 막대(10종목 × 8분기)는 큰 회사 하나에 눈금이 맞춰져 나머지가 안 보였다(10-18 사용자). 정규화(100 기준)도 선에서만 된다.
+  // bars: 상세 표 칸 아래 분기별 최대 대비 막대. 잔고÷연매출 = 잔고 ÷ 최근 4분기 매출 — 회사 크기와 상관없이 비교
+  { key: 'backlog',            label: '수주잔고',     unit: '억', scale: 1e8, chartType: 'line', src: 'backlog', bars: true },
+  { key: 'backlog_ratio',      label: '잔고÷연매출',  unit: '배', scale: 1,   chartType: 'line', src: 'backlog', bars: true, dec: 2 },
 ];
 
 // Chart.js 색상 팔레트 — config.js 공용 계열 색(예전 팔레트는 #2AABEE↔#4a9eff, #2dce89↔#00d4aa가 거의 같은 색)
@@ -404,7 +407,20 @@ async function runComparison() {
       .order('stock_code').order('bsns_year').order('quarter').range(s, e));
     const blMap = {};
     blRows.forEach(r => { blMap[`${r.stock_code} ${r.bsns_year} ${r.quarter}`] = r.revenue * 1e6; });
-    codes.forEach(code => stockDataMap[code].forEach(r => { r.backlog = blMap[`${code} ${r.bsns_year} ${r.quarter}`] ?? null; }));
+    const qBack = (y, q, n) => { const i = (+y) * 4 + (+String(q).slice(1) - 1) - n; return `${Math.floor(i / 4)} Q${i % 4 + 1}`; };
+    codes.forEach(code => {
+      const rev = {};
+      stockDataMap[code].forEach(r => { rev[`${r.bsns_year} ${r.quarter}`] = r.revenue; });
+      stockDataMap[code].forEach(r => {
+        r.backlog = blMap[`${code} ${r.bsns_year} ${r.quarter}`] ?? null;
+        let ttm = 0;                                  // 최근 4분기 매출 — 한 분기라도 없으면 계산 안 함
+        for (let n = 0; n < 4 && ttm != null; n++) {
+          const v = rev[qBack(r.bsns_year, r.quarter, n)];
+          ttm = v == null ? null : ttm + v;
+        }
+        r.backlog_ratio = r.backlog != null && ttm > 0 ? Math.round(r.backlog / ttm * 100) / 100 : null;
+      });
+    });
 
     // 공통 기간 라벨 (최신 N분기)
     const allLabels = new Set();
@@ -768,6 +784,7 @@ function renderCmpDetailTable(metricKey) {
   const fmtVal = (v) => {
     if (v == null) return `<span style="color:var(--text2)">—</span>`;
     if (metaDef.scale === 1) {
+      if (metaDef.src) return `<span style="color:var(--text1);font-weight:500">${v.toFixed(metaDef.dec ?? 1)}${metaDef.unit}</span>`;
       const color = metaDef.key === 'debt_ratio'
         ? (v > 200 ? 'var(--red)' : v > 100 ? 'var(--yellow)' : 'var(--green)')
         : (v > 0 ? 'var(--green)' : v < 0 ? 'var(--red)' : 'var(--text2)');
@@ -800,6 +817,10 @@ function renderCmpDetailTable(metricKey) {
       stockRowMap[s.code][`${r.bsns_year} ${r.quarter}`] = r[metricKey];
     });
   });
+  const colMax = {};   // 분기별 최대값 — metaDef.bars 지표의 칸 막대 기준
+  if (metaDef.bars) labels.forEach(lbl => {
+    colMax[lbl] = Math.max(0, ...CMP.selectedCodes.map(s => stockRowMap[s.code]?.[lbl]).filter(v => v != null));
+  });
 
   body.innerHTML = `
     <table style="width:100%;border-collapse:collapse;font-size:calc(13px*var(--m-body));min-width:500px">
@@ -818,11 +839,14 @@ function renderCmpDetailTable(metricKey) {
         ${CMP.selectedCodes.map((s, i) => {
           const color  = CMP_COLORS[i % CMP_COLORS.length];
           const rowMap = stockRowMap[s.code] || {};
+          const noData = metaDef.src && labels.every(l => rowMap[l] == null);
           return `<tr style="border-bottom:1px solid var(--border)">
             <td style="padding:8px 12px;position:sticky;left:0;background:var(--bg2);min-width:120px">
               <div style="display:flex;align-items:center;gap:6px;white-space:nowrap">
                 <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></span>
                 <span style="font-weight:500;font-size:calc(12px*var(--m-sub))">${s.name}</span>
+                ${noData ? `<span title="보고서에 수주잔고를 싣지 않음(영업 기밀·NDA 등) 또는 수집 대상(반도체 장비) 밖"
+                  style="font-size:calc(11px*var(--m-label));color:var(--text3)">잔고 없음</span>` : ''}
               </div>
             </td>
             ${labels.map((lbl, li) => {
@@ -839,8 +863,12 @@ function renderCmpDetailTable(metricKey) {
               const qoqStr = qoq != null && li > 0
                 ? `<div style="font-size:calc(11px*var(--m-label));color:${qoqColor};margin-top:1px">QoQ ${parseFloat(qoq) > 0 ? '▲' : '▼'}${Math.abs(qoq)}%</div>`
                 : '';
+              // 그 분기 최대값 대비 막대 — 숫자만으로는 회사끼리 크기 비교가 어려웠다(수주잔고)
+              const bar = metaDef.bars && cur != null && cur > 0 && colMax[lbl] > 0
+                ? `<div style="height:5px;margin:3px 0 1px auto;width:100%;max-width:110px;background:var(--bg3);border-radius:3px;overflow:hidden">
+                    <div style="height:100%;width:${Math.max(2, cur / colMax[lbl] * 100).toFixed(1)}%;background:${color};border-radius:3px;margin-left:auto"></div></div>` : '';
               return `<td style="padding:6px 12px;text-align:right;vertical-align:top">
-                <div>${fmtVal(cur)}</div>${yoyStr}${qoqStr}
+                <div>${fmtVal(cur)}</div>${bar}${yoyStr}${qoqStr}
               </td>`;
             }).join('')}
           <td style="padding:8px 12px;text-align:center;vertical-align:middle">
@@ -1132,7 +1160,9 @@ function drawCmpChart(canvas, datasets, labels, metaDef) {
             color: '#8b90a7', font: { size: 11 },
             callback: v => {
               if (CMP.normalize && !isBar) return v.toFixed(0) + '%';
-              if (Math.abs(v) >= 10000) return (v/10000).toFixed(0) + '만' + metaDef.unit;
+              if (Math.abs(v) >= 10000) return metaDef.unit === '억'   // 1만억 → 1조
+                ? (v/10000).toLocaleString('ko-KR', { maximumFractionDigits: 1 }) + '조'
+                : (v/10000).toFixed(0) + '만' + metaDef.unit;
               return v.toLocaleString() + metaDef.unit;
             },
           },
