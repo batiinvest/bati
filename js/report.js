@@ -224,37 +224,46 @@ async function rpLoadReport() {
 // ── 동종업체 밸류에이션 비교 (비동기) ────────────────────────────────────────
 async function _rpLoadPeerStats() {
   if (!_rpStock) return;
+  const code = _rpStock.code;
 
-  // 1. 현재 종목 industry 조회
+  // 1. 비교 집단 — 같은 소분류(예: 전공정장비) 전체, 5곳 미만이면 같은 업종 전체.
+  //    예전엔 업종에서 조회 순서상 앞 50곳(반도체 228곳 중 사실상 무작위 — 장비·소재·팹리스가 섞임)
   const { data: comp } = await sb.from('companies')
-    .select('industry').eq('code', _rpStock.code).maybeSingle();
+    .select('industry,sub_industry').eq('code', code).maybeSingle();
   if (!comp?.industry) return;
+  const members = col => fetchAllPages((s, e) => sb.from('companies').select('code')
+    .eq(col, comp[col]).eq('active', true).neq('code', code).order('code').range(s, e)).then(d => d.map(r => r.code));
+  let codes = comp.sub_industry ? await members('sub_industry') : [];
+  let label = `${comp.sub_industry} 동종`;
+  if (codes.length < 5) { codes = await members('industry'); label = `${comp.industry} 업종`; }
+  if (!codes.length) return;
 
-  // 2. 같은 industry 종목 코드 조회 (본인 제외, 최대 50개)
-  const { data: peerList } = await sb.from('companies')
-    .select('code').eq('industry', comp.industry).neq('code', _rpStock.code).limit(50);
-  if (!peerList?.length) return;
-
-  const codes = peerList.map(p => p.code);
-
-  // 3. 최신 PER/PBR (market_data) + ROE/ROA/영업이익률 (financials) 병렬 조회
-  const [mktRes, finRes] = await Promise.all([
-    sb.from('market_data').select('stock_code,per,pbr')
-      .in('stock_code', codes).order('base_date', { ascending: false }),
-    sb.from('financials').select('stock_code,fs_div,is_cumulative,bsns_year,quarter,net_income,total_equity,total_assets,operating_margin')
-      .in('stock_code', codes)
-      .order('bsns_year', { ascending: false }).order('quarter', { ascending: false }),
+  // 2·3. 최신 거래일 PER·PBR·시총 (market_data) + 최근 2년 재무(최근 4분기 ROE·ROA·순이익용, 페이지로 다 받음)
+  const baseDate = _rpData.price?.[0]?.base_date;
+  const yFrom = Number(String(baseDate || new Date().getFullYear()).slice(0, 4)) - 2;
+  const [mktRes, finRows] = await Promise.all([
+    baseDate
+      ? sb.from('market_data').select('stock_code,per,pbr,market_cap').in('stock_code', codes).eq('base_date', baseDate)
+      : sb.from('market_data').select('stock_code,per,pbr,market_cap').in('stock_code', codes).order('base_date', { ascending: false }),
+    fetchAllPages((s, e) => sb.from('financials')
+      .select('stock_code,fs_div,is_cumulative,bsns_year,quarter,net_income,total_equity,total_assets,operating_margin')
+      .in('stock_code', codes).gte('bsns_year', yFrom)
+      .order('stock_code').order('bsns_year', { ascending: false }).order('quarter', { ascending: false })
+      .order('fs_div').range(s, e)),
   ]);
 
-  // 4. 종목별 최신 1건만 추출
+  // 4. 종목별 최신 1건
   const latestMkt = {}, latestFin = {};
   for (const r of (mktRes.data || [])) {
     if (!latestMkt[r.stock_code]) latestMkt[r.stock_code] = r;
   }
-  // 종목별 CFS 우선·OFS 폴백 + 4분기 연간값 행 정리 → 최신 행(영업이익률)·최근 4분기 ROE·ROA(이 종목과 같은 기준)
+  // 종목별 CFS 우선·OFS 폴백 + 4분기 연간값 행 정리 → 최신 행(영업이익률)·최근 4분기 ROE·ROA·순이익(이 종목과 같은 기준)
   const finBy = {};
-  for (const r of finNormalizeQuarters(finPreferFs(finRes.data))) (finBy[r.stock_code] ||= []).push(r);
-  for (const [c, rows] of Object.entries(finBy)) latestFin[c] = { ...rows[0], ..._rpTtmRatios(rows) };
+  for (const r of finNormalizeQuarters(finPreferFs(finRows))) (finBy[r.stock_code] ||= []).push(r);
+  for (const [c, rows] of Object.entries(finBy)) {
+    rows.sort((x, y) => String(y.bsns_year).localeCompare(String(x.bsns_year)) || String(y.quarter).localeCompare(String(x.quarter)));
+    latestFin[c] = { ...rows[0], ..._rpTtmRatios(rows), niTtm: _rpTtmSum(rows, 'net_income') };
+  }
 
   // 5. 중앙값 계산
   const median = arr => {
@@ -265,9 +274,11 @@ async function _rpLoadPeerStats() {
   };
 
   _rpData.peerStats = {
-    industry: comp.industry,
-    count: peerList.length,
+    industry: comp.industry, label,
+    count: codes.length,
     per: median(Object.values(latestMkt).map(r => r.per)),
+    // 최근 4분기 이익 기준 PER(이 종목 카드의 두 번째 PER과 같은 기준) — 시총 ÷ 최근 4분기 순이익, 적자는 빼고
+    perTtm: median(Object.entries(latestMkt).map(([c, m]) => m.market_cap > 0 && latestFin[c]?.niTtm > 0 ? m.market_cap / latestFin[c].niTtm : null)),
     pbr: median(Object.values(latestMkt).map(r => r.pbr)),
     roe: median(Object.values(latestFin).map(r => r.roe)),
     roa: median(Object.values(latestFin).map(r => r.roa)),

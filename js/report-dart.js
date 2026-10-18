@@ -257,7 +257,7 @@ function _rpDartOverview(x) {
       if (f0.debt_ratio != null) parts.push(`부채비율 <b>${f0.debt_ratio.toFixed(0)}%</b>`);
       parts.push(none('금융업 — 이익률·부채비율 판정 안 함'));
     } else {
-      if (opm != null) parts.push(light('영업이익률', `${opm.toFixed(1)}%`, sigOf('opm', opm)));
+      if (opm != null) parts.push(light('영업이익률(이번 분기)', `${opm.toFixed(1)}%`, sigOf('opm', opm)));
       if (f0.debt_ratio != null) parts.push(light('부채비율', `${f0.debt_ratio.toFixed(0)}%`, sigOf('debt', f0.debt_ratio)));
     }
     add('val', '수익성 · 건전성', parts.join(' · '), fPer);
@@ -267,8 +267,12 @@ function _rpDartOverview(x) {
   {
     const L = x.latest, ps = _rpData?.peerStats, parts = [];
     const peer = (v, d) => v ? ` <span style="color:var(--text2)">업종 ${v.toFixed(d)}x</span>` : '';
-    if (L.per != null) parts.push((L.per > 0 ? light('PER', `${L.per.toFixed(1)}x`, sigOf('per', L.per)) : `PER <b>적자</b>${none(`(${L.per.toFixed(1)}x)`)}`) + peer(ps?.per, 1));
-    if (L.pbr != null) parts.push((L.pbr > 0 ? light('PBR', `${L.pbr.toFixed(2)}x`, sigOf('pbr', L.pbr)) : `PBR <b>${L.pbr.toFixed(2)}x</b>`) + peer(ps?.pbr, 2));
+    // PER·PBR(시세)은 직전 결산 기준 — 최근 4분기 이익 기준 PER·현재 자본 PBR을 옆에(기업현황 밸류에이션 카드와 같은 값)
+    const vb = typeof _rpValBasis === 'function' ? _rpValBasis(L, fin) : {};
+    if (L.per != null) parts.push((L.per > 0 ? light('PER(직전 결산)', `${L.per.toFixed(1)}x`, sigOf('per', L.per)) : `PER(직전 결산) <b>적자</b>${none(`(${L.per.toFixed(1)}x)`)}`) + peer(ps?.per, 1)
+      + (vb.perTtm != null ? ` <span style="color:var(--text2)">· 최근 4분기 ${vb.perTtm > 0 ? `<b style="color:var(--text1)">${vb.perTtm.toFixed(1)}x</b>${ps?.perTtm ? ` (업종 ${ps.perTtm.toFixed(1)}x)` : ''}` : '적자'}</span>` : ''));
+    if (L.pbr != null) parts.push((L.pbr > 0 ? light('PBR(직전 결산)', `${L.pbr.toFixed(2)}x`, sigOf('pbr', L.pbr)) : `PBR <b>${L.pbr.toFixed(2)}x</b>`) + peer(ps?.pbr, 2)
+      + (vb.pbrNow ? ` <span style="color:var(--text2)">· 현재 자본 <b style="color:var(--text1)">${vb.pbrNow.toFixed(2)}x</b></span>` : ''));
     const syn = typeof _rpSynthesis === 'function' && f0 ? _rpSynthesis(x.latestF, L, fin).filter(g => g.type !== 'neutral') : [];
     syn.forEach(g => (g.type === 'good' ? pos : neg).push(g.tag || g.msg));
     const synHtml = syn.length ? `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px 10px;font-size:calc(11.5px*var(--m-sub))">

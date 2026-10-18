@@ -251,15 +251,45 @@ function _rpEarningsCard(fin) {
 // 연간 기준(ROE 20%·15% 등)과 바로 비교할 수 없다(원익IPS 26Q2 저장 ROE 8.4% = 한 분기치).
 // 최근 4개 분기 순이익 합 ÷ 마지막 분기 기말 자본·자산. fin = 최신 분기 먼저(_rpData.fin),
 // from = 몇 분기 앞에서 시작할지(1 = 직전 분기까지의 4개 분기 — 추세 비교용). 연속 4개 분기가 없으면 null
+// 최근 4개 분기 합 — FCF·EBITDA·순이익 같은 흐름 항목을 연간 크기로(연속 4개 분기·값이 다 있을 때만, 아니면 null)
+function _rpTtmSum(fin, key, from = 0) {
+  const q = (fin || []).filter(r => /^Q[1-4]$/.test(r.quarter)).slice(from, from + 4);
+  if (q.length < 4 || q.some(r => r[key] == null)) return null;
+  const idx = r => Number(r.bsns_year) * 4 + Number(String(r.quarter).slice(1));
+  if (q.some((r, i) => i > 0 && idx(q[i - 1]) - idx(r) !== 1)) return null;
+  return q.reduce((s, r) => s + r[key], 0);
+}
+
 function _rpTtmRatios(fin, from = 0) {
   const none = { roe: null, roa: null, period: null };
-  const q = (fin || []).filter(r => /^Q[1-4]$/.test(r.quarter)).slice(from, from + 4);
-  if (q.length < 4 || q.some(r => r.net_income == null)) return none;
-  const idx = r => Number(r.bsns_year) * 4 + Number(String(r.quarter).slice(1));
-  if (q.some((r, i) => i > 0 && idx(q[i - 1]) - idx(r) !== 1)) return none;
-  const ni = q.reduce((s, r) => s + r.net_income, 0);
-  const te = q[0].total_equity, ta = q[0].total_assets;
-  return { roe: te > 0 ? ni / te * 100 : null, roa: ta > 0 ? ni / ta * 100 : null, period: `${q[0].bsns_year} ${q[0].quarter}` };
+  const q0 = (fin || []).filter(r => /^Q[1-4]$/.test(r.quarter))[from];
+  const ni = _rpTtmSum(fin, 'net_income', from);
+  if (ni == null || !q0) return none;
+  const te = q0.total_equity, ta = q0.total_assets;
+  return { roe: te > 0 ? ni / te * 100 : null, roa: ta > 0 ? ni / ta * 100 : null, period: `${q0.bsns_year} ${q0.quarter}` };
+}
+
+// PER·PBR 기준 — 시세(KIS)의 PER·PBR은 직전 결산(연간) 이익·자본 기준이라 최근 실적과 크게 다를 수 있음
+// (원익IPS: 직전 결산 PER 63.7x, 최근 4분기 이익 기준 30.9x). 최근 4분기 PER(적자면 -1)·현재 자본 PBR을 같이 보여 줌
+function _rpValBasis(latest, fin) {
+  const mc = latest?.market_cap, q0 = (fin || []).find(r => /^Q[1-4]$/.test(r.quarter));
+  const ni = _rpTtmSum(fin, 'net_income');
+  return {
+    perTtm: mc > 0 && ni != null ? (ni > 0 ? mc / ni : -1) : null,
+    pbrNow: mc > 0 && q0?.total_equity > 0 ? mc / q0.total_equity : null,
+    period: q0 ? `${q0.bsns_year} ${q0.quarter}` : '',
+  };
+}
+
+// 변화 화살표 — ▲▼는 방향, 색은 좋아짐(초록)·나빠짐(주황). 지표마다 좋은 방향이 다름(부채비율은 내려가야 좋음),
+// PER·PBR처럼 좋고 나쁨을 정할 수 없으면 upIsGood=null(회색). basis = 무엇과 비교했는지(전일·직전 분기)
+function _rpTrendArrow(cur, old, upIsGood, basis) {
+  if (cur == null || old == null) return '';
+  const d = cur - old;
+  if (Math.abs(d) < 0.05) return '';
+  const c = upIsGood == null ? 'var(--text2)' : (d > 0) === upIsGood ? RP_JUDGE_COLOR.good : RP_JUDGE_COLOR.caution;
+  return ` <span style="font-size:calc(11px*var(--m-label));color:${c};white-space:nowrap" title="${escAttr((basis || '') + ' 대비')}">${d > 0 ? '▲' : '▼'}${Math.abs(d).toFixed(1)}`
+    + `${basis ? `<span style="color:var(--text3);margin-left:2px">${basis}</span>` : ''}</span>`;
 }
 
 // 금융업(은행·증권·보험·카드·다각화금융) — 부채비율·영업이익률·순이익률 기준(제조업용)을 적용하지 않음
@@ -347,17 +377,24 @@ function _rpSignal(type, val) {
     roa:      val > 10  ? 'strong' : val > 5   ? 'mid' : 'weak',
     opm:      val > 15  ? 'strong' : val > 5   ? 'mid' : 'weak',
     npm:      val > 10  ? 'strong' : val > 3   ? 'mid' : 'weak',
-    equity:   'mid',  // 절대값은 신호등 없음
-    assets:   'mid',
+    fcf:      val > 5   ? 'strong' : val > 2   ? 'mid' : 'weak',   // FCF 수익률(최근 4분기 FCF ÷ 시가총액)
   };
-  const grade = rules[type] || 'mid';
+  // 기준이 없는 항목(EBITDA·자기자본 등 금액)은 칩을 붙이지 않음 — 예전엔 기본값 '보통'이 붙었음
+  const grade = rules[type];
+  if (!grade) return null;
   const map = {
     strong: { color: RP_JUDGE_COLOR.good,    bg: RP_JUDGE_COLOR.good + '18',    icon:'●', label:'양호' },
     mid:    { color: RP_JUDGE_COLOR.mid,     bg: RP_JUDGE_COLOR.mid + '18',     icon:'●', label:'보통' },
     weak:   { color: RP_JUDGE_COLOR.caution, bg: RP_JUDGE_COLOR.caution + '18', icon:'●', label:'주의' },
   };
-  return { ...map[grade], grade };
+  return { ...map[grade], grade, hint: RP_SIGNAL_HINT[type]?.[grade] || null };
 }
+// 칩과 같은 기준의 짧은 설명 — 예전엔 설명이 다른 기준선을 써서 '영업이익률 8.5%: 마진 압박 · 보통'처럼 엇갈렸음
+const RP_SIGNAL_HINT = {
+  debt: { strong: '안정적', mid: '보통 수준', weak: '레버리지 큼' },
+  opm:  { strong: '고마진', mid: '보통 마진', weak: '마진 압박' },
+  fcf:  { strong: '현금창출 우수', mid: '현금창출 보통', weak: '현금창출 부족' },
+};
 
 // ── 세그먼트 라벨: 품목(subcategory) 우선, 없으면 사업부문(category) ──────────
 // 4-1 표는 "사업부문 | 품목" 2단 구조 → 품목이 더 구체적인 대표 라벨
@@ -837,24 +874,23 @@ function _rpValuationCard(latestF, latest) {
   const prev   = fin[1] || {};
   const prices = _rpData.price || [];
 
-  // QoQ 추세 화살표
-  const trend = (cur, old) => {
-    if (cur == null || old == null) return '';
-    const d = cur - old;
-    if (Math.abs(d) < 0.1) return `<span style="font-size:calc(11px*var(--m-label));color:var(--text1)"> →</span>`;
-    return d > 0
-      ? `<span style="font-size:calc(11px*var(--m-label));color:#f87171"> ▲${d.toFixed(1)}</span>`
-      : `<span style="font-size:calc(11px*var(--m-label));color:#60a5fa"> ▼${Math.abs(d).toFixed(1)}</span>`;
-  };
-
-  // PER/PBR 역사적 추세 (시장 데이터 기준) · ROE·ROA는 최근 4분기 순이익 기준(_rpTtmRatios — 신호등이 연간 기준)
+  // 지표마다 기준 기간을 적음 — PER·PBR(시세)은 직전 결산 기준, ROE·ROA는 최근 4분기 순이익 기준(_rpTtmRatios).
+  // 화살표: PER·PBR은 전일 대비(좋고 나쁨 없음), ROE·ROA는 한 분기 앞의 최근 4분기 대비
   const prevMkt = prices[1] || {};
   const t0 = _rpTtmRatios(fin), t1 = _rpTtmRatios(fin, 1);
+  const vb = _rpValBasis(latest, fin);
   const metrics = [
-    { key:'per', label:'PER', desc:'주가수익비율',   val: latest?.per,   peer: ps?.per, unit:'x', fmt: v=>v.toFixed(1), lowerBetter:true,  prevVal: prevMkt?.per },
-    { key:'pbr', label:'PBR', desc:'주가순자산비율', val: latest?.pbr,   peer: ps?.pbr, unit:'x', fmt: v=>v.toFixed(2), lowerBetter:true,  prevVal: prevMkt?.pbr },
-    { key:'roe', label:'ROE', desc:'자기자본이익률 · 최근 4분기', val: t0.roe, peer: ps?.roe, unit:'%', fmt: v=>v.toFixed(1), lowerBetter:false, prevVal: t1.roe },
-    { key:'roa', label:'ROA', desc:'총자산이익률 · 최근 4분기',  val: t0.roa, peer: ps?.roa, unit:'%', fmt: v=>v.toFixed(1), lowerBetter:false, prevVal: t1.roa },
+    { key:'per', label:'PER', basis:'직전 결산 이익 기준', val: latest?.per, peer: ps?.per, unit:'x', fmt: v=>v.toFixed(1), lowerBetter:true,
+      prevVal: prevMkt?.per, prevBasis:'전일', upIsGood:null,
+      alt: vb.perTtm == null ? '' : vb.perTtm < 0 ? '최근 4분기 이익 기준 적자'
+        : `최근 4분기 이익 기준 <b>${vb.perTtm.toFixed(1)}x</b>${ps?.perTtm ? ` (업종 중앙 ${ps.perTtm.toFixed(1)}x)` : ''}` },
+    { key:'pbr', label:'PBR', basis:'직전 결산 자본 기준', val: latest?.pbr, peer: ps?.pbr, unit:'x', fmt: v=>v.toFixed(2), lowerBetter:true,
+      prevVal: prevMkt?.pbr, prevBasis:'전일', upIsGood:null,
+      alt: vb.pbrNow ? `현재 자본(${vb.period}) 기준 <b>${vb.pbrNow.toFixed(2)}x</b>` : '' },
+    { key:'roe', label:'ROE', basis:'최근 4분기 순이익 기준', val: t0.roe, peer: ps?.roe, unit:'%', fmt: v=>v.toFixed(1), lowerBetter:false,
+      prevVal: t1.roe, prevBasis:'직전 분기', upIsGood:true },
+    { key:'roa', label:'ROA', basis:'최근 4분기 순이익 기준', val: t0.roa, peer: ps?.roa, unit:'%', fmt: v=>v.toFixed(1), lowerBetter:false,
+      prevVal: t1.roa, prevBasis:'직전 분기', upIsGood:true },
   ];
 
   // ── PER·PBR 12분기 밸류에이션 밴드 차트 ──
@@ -882,24 +918,24 @@ function _rpValuationCard(latestF, latest) {
       const avgY=(H-((avg-mn)/range)*H).toFixed(1);
       const curY=(H-((curPer-mn)/range)*H).toFixed(1);
       const pctPos=((curPer-mn)/range*100).toFixed(0);
-      const bandColor=curPer>avg*1.3?'#f87171':curPer<avg*0.8?'#4ade80':'#f59e0b';
+      const bandColor=curPer>avg*1.3?RP_JUDGE_COLOR.caution:curPer<avg*0.8?RP_JUDGE_COLOR.good:RP_JUDGE_COLOR.mid;
       return `<div style="margin-bottom:10px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <span style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text1)">PER 히스토리 (최근 ${pts.length}거래일)</span>
+          <span style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text1)">최근 PER 범위 (${pts.length}거래일 · 약 ${Math.max(1, Math.round(pts.length / 21))}개월)</span>
           <div style="display:flex;gap:10px;font-size:calc(11px*var(--m-label));color:var(--text1)">
-            <span>최저 <b style="color:#4ade80">${mn.toFixed(1)}x</b></span>
-            <span>평균 <b style="color:#f59e0b">${avg.toFixed(1)}x</b></span>
-            <span>최고 <b style="color:#f87171">${mx.toFixed(1)}x</b></span>
+            <span>최저 <b style="color:${RP_JUDGE_COLOR.good}">${mn.toFixed(1)}x</b></span>
+            <span>평균 <b>${avg.toFixed(1)}x</b></span>
+            <span>최고 <b style="color:${RP_JUDGE_COLOR.caution}">${mx.toFixed(1)}x</b></span>
           </div>
         </div>
         <svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="display:block;height:32px">
           <line x1="0" y1="${avgY}" x2="${W}" y2="${avgY}" stroke="#f59e0b" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
-          <path d="${path}" fill="none" stroke="var(--border)" stroke-width="1.2" opacity="0.7"/>
+          <path d="${path}" fill="none" stroke="var(--text2)" stroke-width="1.2" opacity="0.8"/>
           <circle cx="${xs[xs.length-1].toFixed(1)}" cy="${curY}" r="3" fill="${bandColor}" stroke="var(--bg3)" stroke-width="1.5"/>
         </svg>
         <div style="display:flex;justify-content:space-between;font-size:calc(11px*var(--m-label));color:var(--text1);margin-top:3px">
           <span>← ${pts.length}거래일 전</span>
-          <span style="color:${bandColor};font-weight:700">현재 ${curPer.toFixed(1)}x (하위 ${pctPos}%)</span>
+          <span style="color:${bandColor};font-weight:700">현재 ${curPer.toFixed(1)}x · 최저~최고 사이 ${pctPos}% 지점</span>
           <span>현재 →</span>
         </div>
       </div>`;
@@ -981,7 +1017,7 @@ function _rpValuationCard(latestF, latest) {
           <span>← ${n}분기 이전</span>
           <span style="color:${curColor};font-weight:700">
             현재 ${curVal.toFixed(unit==='x'?1:2)}${unit}
-            ${pct != null ? `(역사적 하위 ${pct}%)` : ''}
+            ${pct != null ? `· 최저~최고 사이 ${pct}% 지점` : ''}
           </span>
           <span>최근 →</span>
         </div>` : ''}
@@ -998,23 +1034,24 @@ function _rpValuationCard(latestF, latest) {
   const synthesis = _rpSynthesis(latestF, latest, fin);
 
   // peer 대비 평가: lowerBetter → 낮을수록 저평가 / 높을수록 고평가
-  const peerJudge = (val, peer, lowerBetter) => {
+  const peerJudge = (val, peer, lowerBetter, unit) => {
     if (val == null || peer == null) return null;
     if (lowerBetter && (val <= 0 || peer <= 0)) return null;   // 적자 PER — 낮다고 유리하지 않음
     const diff = (val - peer) / peer * 100;
+    const pp = val - peer;   // %p — ROE 16.1% vs 12.1%는 '+32.7%'보다 '+4.0%p'가 바로 읽힘
     const isGood = lowerBetter ? diff < -15 : diff > 15;
     const isBad  = lowerBetter ? diff > 15  : diff < -15;
     return {
       diff,
       color: isGood ? RP_JUDGE_COLOR.good : isBad ? RP_JUDGE_COLOR.caution : RP_JUDGE_COLOR.mid,
       label: isGood ? '업종 대비 유리' : isBad ? '업종 대비 불리' : '업종 수준',
-      diffStr: (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%',
+      diffStr: unit === '%' ? (pp >= 0 ? '+' : '') + pp.toFixed(1) + '%p' : (diff >= 0 ? '+' : '') + diff.toFixed(0) + '%',
     };
   };
 
   const peerHeader = ps
     ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3)">
-        ${ps.industry} 동종 ${ps.count}개사 중앙값 비교
+        ${escapeHtml(ps.label || ps.industry || '')} ${ps.count}개사 중앙값 비교
         <span style="margin-left:4px">|</span>
         <span style="margin-left:4px"><span style="color:${RP_JUDGE_COLOR.good}">●</span> 유리
         <span style="color:${RP_JUDGE_COLOR.mid}">●</span> 중립
@@ -1036,7 +1073,7 @@ function _rpValuationCard(latestF, latest) {
       padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);
       border-left:3px solid var(--tg)">
       <div style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--tg);letter-spacing:.6px;margin-bottom:2px">
-        펀드매니저 종합 판단
+        종합 판단 신호 <span style="font-weight:400;color:var(--text3);letter-spacing:0">· 앱 기준 자동 판정</span>
       </div>
       ${synthesis.map(s => {
         const col = s.type==='good' ? RP_JUDGE_COLOR.good : (s.type==='bad' || s.type==='warn') ? RP_JUDGE_COLOR.caution : 'var(--text2)';
@@ -1051,12 +1088,11 @@ function _rpValuationCard(latestF, latest) {
     <div style="display:flex;flex-direction:column;gap:8px">
       ${metrics.map(m => {
         const sig   = _rpSignal(m.key, m.val);
-        const judge = peerJudge(m.val, m.peer, m.lowerBetter);
-        // 포지션 바: 업종 내 상대 위치 (0~100%)
+        const judge = peerJudge(m.val, m.peer, m.lowerBetter, m.unit);
+        // 포지션 바: 값이 작을수록 왼쪽(저평가·저수익), 업종 중앙 = 가운데, 업종의 2배 = 오른쪽 끝.
+        // 예전엔 PER·PBR만 거꾸로 계산해 업종보다 비싼데 점이 '저평가' 쪽에 찍혔음
         const barPct = m.val != null && m.peer != null && (!m.lowerBetter || (m.val > 0 && m.peer > 0))
-          ? Math.min(100, Math.max(0, m.lowerBetter
-              ? (1 - m.val / (m.peer * 2)) * 100        // 낮을수록 왼쪽 = 좋음
-              : (m.val / (m.peer * 2)) * 100))           // 높을수록 오른쪽 = 좋음
+          ? Math.min(100, Math.max(0, m.val / (m.peer * 2) * 100))
           : null;
         const jColor = judge?.color || sig?.color || 'var(--border)';
         return `<div style="padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);
@@ -1065,7 +1101,7 @@ function _rpValuationCard(latestF, latest) {
           <!-- 1줄: 지표 + 현재값 + 화살표 + 중앙값 + 판단 배지 -->
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
             <span style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--text1);min-width:28px">${m.label}</span>
-            <span style="font-size:calc(20px*var(--m-title));font-weight:800;color:var(--text1)">${m.val != null ? m.fmt(m.val)+m.unit : '—'}</span>${trend(m.val, m.prevVal)}
+            <span style="font-size:calc(20px*var(--m-title));font-weight:800;color:var(--text1)">${m.val != null ? m.fmt(m.val)+m.unit : '—'}</span>${_rpTrendArrow(m.val, m.prevVal, m.upIsGood, m.prevBasis)}
             ${m.peer != null ? `
               <span style="font-size:calc(12px*var(--m-sub));color:var(--text1)">vs</span>
               <div>
@@ -1079,9 +1115,11 @@ function _rpValuationCard(latestF, latest) {
                 border:1px solid ${judge.color}40;white-space:nowrap">
                 ${judge.diffStr}&nbsp;${judge.label.replace('업종 대비 ','')}
               </span>` : ''}` : `
-              <span style="flex:1;font-size:calc(11px*var(--m-label));color:var(--text1)">${m.desc}</span>
+              <span style="flex:1"></span>
               ${sig ? `<span style="font-size:calc(11px*var(--m-label));font-weight:700;color:${sig.color}">${sig.label}</span>` : ''}`}
           </div>
+          <!-- 기준 기간(+ 다른 기준 값) -->
+          <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin:-2px 0 6px">${m.basis}${m.alt ? ` · ${m.alt}` : ''}</div>
 
           <!-- 2줄: 포지션 바 -->
           ${barPct != null ? `
@@ -1118,36 +1156,27 @@ function _rpFinHealthCard(f) {
   const prev = fin[1] || {};
   const ps   = _rpData.peerStats || null;
 
-  const trend = (cur, old) => {
-    if (cur == null || old == null) return '';
-    const d = cur - old;
-    if (Math.abs(d) < 0.1) return '';
-    return d > 0
-      ? `<span style="font-size:calc(11px*var(--m-label));color:#f87171">▲${d.toFixed(1)}</span>`
-      : `<span style="font-size:calc(11px*var(--m-label));color:#60a5fa">▼${Math.abs(d).toFixed(1)}</span>`;
-  };
 
   // 이자보상배율 근사 (영업이익 / 금융비용 — 금융비용 없으면 skip)
   const icr = null; // 별도 데이터 필요
 
-  // EBITDA/FCF (financials에서)
-  const ebitda = f.ebitda;
-  const fcf    = f.fcf;
+  // 기간: 부채비율·자기자본 = 분기말, 이익률 = 이번 분기, FCF·EBITDA = 최근 4분기(연간 크기). 예전엔 한 분기 FCF를
+  // 연간 기준(5%·2%)으로 판정하고 EBITDA도 한 분기 값이었음. 화살표는 직전 분기 대비, 색은 좋아짐·나빠짐
   const mktCap = _rpData.price?.[0]?.market_cap;
-  const fcfYield = fcf != null && mktCap > 0 ? (fcf / mktCap * 100) : null;
+  const fcfT = _rpTtmSum(fin, 'fcf'), fcfT1 = _rpTtmSum(fin, 'fcf', 1);
+  const fcfYield = fcfT != null && mktCap > 0 ? fcfT / mktCap * 100 : null;
+  const fcfYieldPrev = fcfT1 != null && mktCap > 0 ? fcfT1 / mktCap * 100 : null;
+  const ebT = _rpTtmSum(fin, 'ebitda');
+  const per = f?.bsns_year ? `${f.bsns_year} ${f.quarter}` : '';
 
   const rows = [
-    { key:'debt', label:'부채비율',   val: f.debt_ratio,       prev: prev?.debt_ratio,       unit:'%',  fmt: v=>v.toFixed(0),
-      hint: f.debt_ratio > 200 ? '레버리지 과다' : f.debt_ratio > 100 ? '보통 수준' : '안정적' },
-    { key:'opm',  label:'영업이익률', val: f.operating_margin, prev: prev?.operating_margin,  unit:'%',  fmt: v=>v.toFixed(1),
-      hint: f.operating_margin > 20 ? '고마진 사업' : f.operating_margin > 10 ? '양호' : '마진 압박' },
-    { key:'npm',  label:'순이익률',   val: f.net_margin,       prev: prev?.net_margin,        unit:'%',  fmt: v=>v.toFixed(1),
-      hint: null },
-    ...(fcfYield != null ? [{ key:'fcf', label:'FCF 수익률', val: fcfYield, prev: null, unit:'%', fmt: v=>v.toFixed(1),
-      hint: fcfYield > 5 ? '현금창출 우수' : fcfYield > 2 ? '양호' : '현금창출 부족' }] : []),
-    ...(ebitda != null ? [{ key:'ebitda', label:'EBITDA', val: ebitda, prev: null, unit:'', fmt: v=>fmtCap(v),
-      hint: null }] : []),
-    { key:'equity', label:'자기자본', val: f.total_equity, prev: null, unit:'', fmt: v=>fmtCap(v), hint:null },
+    { key:'debt', label:'부채비율',   period:'분기말',     val: f.debt_ratio,       prev: prev?.debt_ratio,       upIsGood:false, unit:'%',  fmt: v=>v.toFixed(0) },
+    { key:'opm',  label:'영업이익률', period:'이번 분기',  val: f.operating_margin, prev: prev?.operating_margin, upIsGood:true,  unit:'%',  fmt: v=>v.toFixed(1) },
+    { key:'npm',  label:'순이익률',   period:'이번 분기',  val: f.net_margin,       prev: prev?.net_margin,       upIsGood:true,  unit:'%',  fmt: v=>v.toFixed(1) },
+    ...(fcfYield != null ? [{ key:'fcf', label:'FCF 수익률', period:'최근 4분기 FCF ÷ 시총', val: fcfYield, prev: fcfYieldPrev, upIsGood:true, unit:'%', fmt: v=>v.toFixed(1) }] : []),
+    ...(ebT != null ? [{ key:'ebitda', label:'EBITDA', period:'최근 4분기', val: ebT, prev: null, unit:'', fmt: v=>fmtCap(v) }]
+      : f.ebitda != null ? [{ key:'ebitda', label:'EBITDA', period:'이번 분기', val: f.ebitda, prev: null, unit:'', fmt: v=>fmtCap(v) }] : []),
+    { key:'equity', label:'자기자본', period:'분기말', val: f.total_equity, prev: null, unit:'', fmt: v=>fmtCap(v) },
   ].filter(k => k.val != null);
 
   if (!rows.length) return `<div class="card" style="padding:16px">
@@ -1157,7 +1186,7 @@ function _rpFinHealthCard(f) {
 
   // 재무 → 투자 연결 스토리
   const _finStory = () => {
-    if (finCo) return `<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:8px">* 금융업은 부채비율·이익률 기준(제조업용)을 적용하지 않음</div>`;
+    if (finCo) return `<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:8px">* 금융업은 부채비율·이익률·FCF 기준(제조업용)을 적용하지 않음</div>`;
     const debt = f.debt_ratio, opm = f.operating_margin, npm = f.net_margin;
     const stories = [];
     if (debt != null && opm != null && debt < 60 && opm > 15)
@@ -1180,24 +1209,26 @@ function _rpFinHealthCard(f) {
   };
 
   return `<div class="card" style="padding:16px">
-    ${_rpSecT('재무 건전성', '* 단위: %, 원')}
+    ${_rpSecT('재무 건전성', `* 단위: %, 원${per ? ` · 기준 ${per}` : ''}`)}
     <div style="display:flex;flex-direction:column;gap:6px">
       ${rows.map(k => {
-        const noJudge = finCo && ['debt', 'opm', 'npm'].includes(k.key);
+        // 금융업은 부채비율·이익률·FCF(영업현금흐름에 대출·예금이 섞임)를 판정하지 않음 — 칩·설명 없고 화살표도 중립색
+        const noJudge = finCo && ['debt', 'opm', 'npm', 'fcf'].includes(k.key);
         const sig  = noJudge ? null : _rpSignal(k.key, k.val);
-        if (noJudge) k = { ...k, hint: null };
+        k = { ...k, hint: sig?.hint || null, upIsGood: noJudge ? null : k.upIsGood };   // 설명은 칩과 같은 기준(RP_SIGNAL_HINT)
         const disp = k.fmt(k.val) + k.unit;
         return `<div style="display:flex;align-items:center;gap:10px;padding:7px 12px;
           border-radius:var(--radius-sm);border-left:3px solid ${sig?.color||'var(--border)'};
           background:var(--bg3)">
           <div style="min-width:64px">
             <div style="font-size:calc(12px*var(--m-sub));color:var(--text1)">${k.label}</div>
+            <div style="font-size:calc(10.5px*var(--m-label));color:var(--text3)">${k.period}</div>
           </div>
           <div style="flex:1;min-width:0">
             ${k.hint ? `<div style="font-size:calc(11px*var(--m-label));color:${sig?.color||'var(--text2)'}">${k.hint}</div>` : ''}
           </div>
           <div style="display:flex;align-items:center;gap:6px;white-space:nowrap">
-            ${trend(k.val, k.prev)}
+            ${_rpTrendArrow(k.val, k.prev, k.upIsGood, '직전 분기')}
             ${sig ? `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:100px;
               background:${sig.color}20;color:${sig.color};font-weight:700">${sig.label}</span>` : ''}
             <span style="font-size:calc(15px*var(--m-title));font-weight:800;color:var(--text1)">${disp}</span>
