@@ -58,7 +58,9 @@ async function _rpLoadAndRenderDart(body) {
   const bizList = biz && typeof _rpBizSections === 'function' ? _rpBizSections(biz).list.filter(x => x.has) : [];
   const cust = _rpDartCustomers(L);
   const at = Math.max(bizList.findIndex(x => x.key === 'region'), bizList.findIndex(x => x.key === 'product'));
-  const bizHtml = [...bizList.slice(0, at + 1).map(x => x.html), cust, ...bizList.slice(at + 1).map(x => x.html)].join('');
+  // 차트(사업분석 탭) 바로 아래에 그 소절의 MD 해석(_rpDartBizNote)
+  const withNote = x => x.html + _rpDartBizNote(L, x.key);
+  const bizHtml = [...bizList.slice(0, at + 1).map(withNote), cust, ...bizList.slice(at + 1).map(withNote)].join('');
 
   const major = typeof _rpNormName === 'function' ? new Set([...(H?.majors || []), _rpNormName(dp.majorShareholder)].filter(Boolean)) : null;
   const ctx = { data, s, M, comp, stage, flowV, flow20, ana, discAll, discOwn: ownList, trades, major, own90, latest, latestF };
@@ -514,6 +516,29 @@ function _rpDartCeo(L) {
 }
 
 // 고객 집중도(4-2 '#### 고객사 및 매출 집중도')
+// 사업 차트 아래 해석 — MD 4장 소절의 사실·해석 줄(근거 → 검토의견 → 판단 전환 조건 → 해석 한계·범위 유의·원문 차이).
+// 차트는 사업분석 탭 것 그대로, 해석만 MD(보고서 시점). '#### 소제목' 아래(고객 집중도·증권사 추정·수주 스냅샷)와
+// '기준'(계산 방법 메모) 줄은 뺀다. 차트의 이미지 저장 상자 밖에 두어 차트는 이미지로, 글은 복사로 따로 쓸 수 있게 함
+const _RPD_BIZ_SEC = { product: '4-1', region: '4-2', raw: '4-3', price: '4-4', prod: '4-5', backlog: '4-6' };
+const _RPD_NOTE_LABELS = ['근거', '검토의견', '판단 전환 조건', '해석 한계', '범위 유의', '원문 차이'];
+function _rpDartBizNote(L, key) {
+  const no = _RPD_BIZ_SEC[key];
+  const sec = no && _rpMdSec(L, new RegExp('^### ' + no.replace('-', '\\-') + '\\.'));
+  if (!sec) return '';
+  const out = [];
+  for (const l of sec) {
+    if (/^#{4,6}\s/.test(l)) break;   // 소제목부터는 표·부속 내용
+    const m = l.match(/^[-*]\s*([^:：]{1,12}?)\s*[:：]\s*(.+)$/);
+    if (m && _RPD_NOTE_LABELS.includes(m[1].trim())) out.push(l.replace(/^[-*]\s*/, '').trim());
+  }
+  // 해석(근거·검토의견·판단 전환 조건)이 하나는 있어야 — 한계·원문 차이 메모만 있는 소절(4-2 등)은 띄우지 않음
+  if (!out.some(t => /^(근거|검토의견|판단 전환 조건)\s*[:：]/.test(t))) return '';
+  return `<div style="margin-top:-8px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--tg);border-radius:var(--radius-sm)">
+    <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-bottom:6px">해석 · MD ${no} (보고서 시점)</div>
+    <div style="display:flex;flex-direction:column;gap:5px">${out.map(t => `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.65;overflow-wrap:anywhere">${_rpMdLabeled(t)}</div>`).join('')}</div>
+  </div>`;
+}
+
 function _rpDartCustomers(L) {
   const sec = _rpMdSec(L, /^#### 고객사 및 매출 집중도/);
   const f = _rpMdFacts(sec).filter(l => l.trim());
