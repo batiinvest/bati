@@ -93,6 +93,9 @@ async function _rpLoadAndRenderDart(body) {
   ${M.verdict ? _rpDartVerdict(M, data) : ''}
   ${pts && typeof _rpBullBearCard === 'function' ? `<div id="rpd-sec-risk" style="scroll-margin-top:70px">${_rpBullBearCard(s.investment_points, s.risk_points)}</div>` : ''}
 
+  ${_rpDartSecHead('시세 · 주주현황', '', ['기업현황'], 'quote')}
+  ${typeof _rpQuoteCard === 'function' ? _rpQuoteCard(latest, _rpData?.price || []) : ''}
+
   ${_rpDartSecHead('기업 정보', '', ['기업개요'], 'info')}
   ${_rpProfileInfoCard({ comp, dart: data, dp, latest }, 'dart')}
   ${_rpDartDilution(L)}
@@ -198,6 +201,19 @@ function _rpDartOverview(x) {
   const f0 = fin.find(r => /^Q[1-4]$/.test(r.quarter));
   const fPer = f0 ? `${f0.bsns_year} ${f0.quarter}` : '';
   const finCo = typeof _rpIsFinancial === 'function' && _rpIsFinancial(x.comp);
+
+  // 시세 — 현재가·시총·52주 위치·기간 수익률(기업현황 시세 및 주주현황 카드와 같은 값). 사실만, 판정 없음
+  {
+    const L = x.latest, parts = [];
+    const pct = v => v == null ? '' : `<span style="color:${v > 0 ? 'var(--red)' : v < 0 ? 'var(--blue)' : 'var(--text3)'};font-weight:600">${v >= 0 ? '+' : ''}${v.toFixed(2)}%</span>`;
+    if (L.price) parts.push(`현재가 <b>${num(L.price)}원</b> ${pct(L.price_change_rate)}`);
+    if (L.market_cap) parts.push(`시총 <b>${fmtCap(L.market_cap)}</b>`);
+    const p52 = typeof _rp52Pos === 'function' ? _rp52Pos(L) : null;
+    if (p52 != null) parts.push(`52주 위치 <b>${p52}%</b>${none(`(저 ${num(L.w52_low)} · 고 ${num(L.w52_high)})`)}`);
+    const rets = [['1M', L.month_return], ['3M', L.quarter_return], ['1Y', L.year_return]].filter(([, v]) => v != null);
+    if (rets.length) parts.push('수익률 ' + rets.map(([k, v]) => `${k} ${pct(v)}`).join(' '));
+    add('quote', '시세', parts.join(' · '), L.base_date || '');
+  }
 
   // 사업 — 최근 분기 제품별 매출 구성(사업분석)
   const seg = (_rpData?.segment || []).filter(r => (r.category || '').trim() !== '합계' && (r.subcategory || '').trim() !== '합계');

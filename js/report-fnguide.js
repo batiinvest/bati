@@ -97,6 +97,10 @@ function _rpSnapshotBand(latest, annual, company) {
 }
 
 // ② 시세 및 주주현황 (좌: 시세 표 · 우: 주가/거래량 차트)
+// 52주 가격 위치(0~100%) — 시세 카드·DART 분석 종합분석 공용
+const _rp52Pos = l => l?.w52_high > l?.w52_low && l?.price ? Math.round((l.price - l.w52_low) / (l.w52_high - l.w52_low) * 100) : null;
+
+// 시세 및 주주현황 — 기업현황·DART 분석 탭 공용
 function _rpQuoteCard(latest, prices) {
   const price = latest?.price || 0;
   const chg   = latest?.price_change_rate ?? 0;
@@ -105,7 +109,7 @@ function _rpQuoteCard(latest, prices) {
   const shares = _rpShares(latest);
   const high52 = latest?.w52_high || 0;
   const low52  = latest?.w52_low  || 0;
-  const pos52  = high52 > low52 ? Math.round((price - low52) / (high52 - low52) * 100) : null;
+  const pos52  = _rp52Pos(latest);
 
   const retCell = v => {
     if (v == null) return '<span style="color:var(--text3)">—</span>';
@@ -131,8 +135,9 @@ function _rpQuoteCard(latest, prices) {
 
   return `<div class="card" style="padding:16px">
     ${_rpSecT('시세 및 주주현황', latest?.base_date ? `[기준: ${latest.base_date}]` : '')}
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;align-items:start">
-      <!-- 380px: 시세 표(값 칸 줄바꿈 없음)가 들어가는 폭 — 320px이면 카드 폭 700px대에서 표가 차트 칸을 덮었음 -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:16px;align-items:start">
+      <!-- 380px: 시세 표(값 칸 줄바꿈 없음)가 들어가는 폭 — 320px이면 카드 폭 700px대에서 표가 차트 칸을 덮었음.
+           min(100%,…): 휴대폰(카드 폭 300px대)에선 한 열로 — 380px 고정이면 카드 밖으로 잘렸음. 좁을 때만 칸 안 줄바꿈 -->
 
       <!-- 좌: 시세 표 -->
       <div>
@@ -140,9 +145,9 @@ function _rpQuoteCard(latest, prices) {
           ${rows.map(([k, v]) => `
           <tr>
             <td style="padding:7px 10px;background:var(--bg3);color:var(--text2);
-              border-bottom:1px solid var(--border);white-space:nowrap;width:44%">${k}</td>
+              border-bottom:1px solid var(--border);white-space:normal;width:44%">${k}</td>
             <td style="padding:7px 10px;text-align:right;color:var(--text1);font-weight:600;
-              font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border)">${v}</td>
+              font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border);white-space:normal">${v}</td>
           </tr>`).join('')}
         </table>
         ${pos52 != null ? `
