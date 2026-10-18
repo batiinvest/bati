@@ -12,6 +12,9 @@ const RPPEER = {
   data: null, L: null, stats: {}, sort: 'mcap', dir: -1, metric: 'backlog', inChart: null, chart: null,
 };
 const RPPEER_COLORS = SERIES_PAL;   // config.js 공용 계열 색 — 첫 색(파랑)이 이 종목
+// 수주잔고 수집 대상(서버 collect_backlog.SUBS와 같게) — 이 섹터인데 잔고가 한 건도 없으면 '미공시'
+// (정기보고서에 잔고를 싣지 않음: HPSP '영업 기밀', 피에스케이 NDA 등). 대상 밖은 '—'.
+const RPPEER_BL_SECTOR = { industry: '반도체', subs: ['전공정장비', '후공정장비'] };
 const RPPEER_METRICS = [
   { k: 'backlog',  label: '수주잔고',    unit: '억' },
   { k: 'revenue',  label: '매출',        unit: '억' },
@@ -91,9 +94,15 @@ async function _rpPeerFetch(codes) {
       .order('stock_code').order('bsns_year').order('quarter').range(s, e)),
     getLatestMarketDate(),
   ]);
-  const mkt = mdate ? await fetchAllPages((s, e) => sb.from('market_data').select('stock_code,market_cap,per,pbr')
-    .in('stock_code', codes).eq('base_date', mdate).order('stock_code').range(s, e)) : [];
-  const D = { fin: {}, bl: {}, mkt: {}, mdate };
+  const [mkt, comp] = await Promise.all([
+    mdate ? fetchAllPages((s, e) => sb.from('market_data').select('stock_code,market_cap,per,pbr')
+      .in('stock_code', codes).eq('base_date', mdate).order('stock_code').range(s, e)) : [],
+    fetchAllPages((s, e) => sb.from('companies').select('code,industry,sub_industry').in('code', codes).order('code').range(s, e)),
+  ]);
+  const D = { fin: {}, bl: {}, mkt: {}, mdate, blCovered: new Set() };
+  for (const c of comp) {
+    if (c.industry === RPPEER_BL_SECTOR.industry && RPPEER_BL_SECTOR.subs.includes(c.sub_industry)) D.blCovered.add(c.code);
+  }
   for (const r of finNormalizeQuarters(finPreferFs(fin))) {           // 종목별 CFS 우선 + 4분기 연간값 행 정리
     (D.fin[r.stock_code] = D.fin[r.stock_code] || {})[`${r.bsns_year} ${r.quarter}`] = r;
   }
@@ -158,6 +167,7 @@ function _rpPeerCompute() {
       op, opY: _rpPeerGop(op, _rpPeerVal(c, Ly, 'op')), opm: _rpPeerVal(c, L, 'opm'),
       rev4, op4, opm4: rev4 > 0 && op4 != null ? op4 / rev4 * 100 : null,
       bl, blY: _rpPeerG(bl, _rpPeerVal(c, Ly, 'backlog')), blr: _rpPeerVal(c, L, 'blr'),
+      blNone: RPPEER.data.blCovered.has(c) && !Object.keys(RPPEER.data.bl[c] || {}).length,
     };
   }
   if (!RPPEER.inChart) {   // 기본 차트 = 이 종목 + 시총 상위 5
@@ -197,7 +207,8 @@ const RPPEER_COLS = [
   { k: 'rev4', g: '최근 4분기',  label: '매출',      f: s => _rpPeerEok(s.rev4) },
   { k: 'op4',  g: '최근 4분기',  label: '영업이익',  f: s => _rpPeerEok(s.op4) },
   { k: 'opm4', g: '최근 4분기',  label: '이익률',    f: s => _rpPeerNum(s.opm4, 1, '%') },
-  { k: 'bl',   g: '수주잔고',    label: '잔고',      f: s => _rpPeerEok(s.bl) },
+  { k: 'bl',   g: '수주잔고',    label: '잔고',      f: s => s.blNone
+      ? `<span title="정기보고서에서 원화 수주잔고를 읽을 수 없음 — 싣지 않음(영업 기밀·고객 NDA 등) 또는 달러로만·그림으로만 적음" style="color:var(--text3)">미공시</span>` : _rpPeerEok(s.bl) },
   { k: 'blY',  g: '수주잔고',    label: 'YoY',       f: s => _rpPeerPct(s.blY) },
   { k: 'blr',  g: '수주잔고',    label: '÷연매출',   f: s => s.blr == null ? '—' : `${s.blr.toFixed(2)}배` },
 ];
@@ -287,7 +298,9 @@ function _rpPeerView() {
       <div style="${note};margin-top:8px">
         * 기준 분기 = 비교 대상 절반 이상이 실적을 낸 가장 최근 분기 · 이익률·YoY는 금액으로 계산(연결 우선) · 열 이름을 누르면 정렬
         · 수주잔고 = DART 정기보고서 '매출 및 수주상황'의 기말 잔고 합계(회사·부문별로 나눠 적은 표는 합산), ${blN}개 종목 —
-        표를 싣지 않는 회사(영업 비밀 등)는 '—' · ÷연매출 = 잔고 ÷ 최근 4분기 매출</div>
+        '미공시' = 보고서에 원화 잔고가 없는 회사(영업 기밀·고객 NDA 등으로 생략, 달러·그림으로만 적은 곳 포함),
+        '—' = 그 분기 값 없음 또는 수집 대상(반도체 장비) 밖
+        · ÷연매출 = 잔고 ÷ 최근 4분기 매출</div>
     </div>
     <div data-capture style="${box}">
       ${_rpSecT('추이 비교', `최근 12분기 · ${RPPEER_METRICS.find(m => m.k === RPPEER.metric)?.label} (${RPPEER_METRICS.find(m => m.k === RPPEER.metric)?.unit})`)}
@@ -327,7 +340,8 @@ function _rpPeerDrawChart() {
     const p = RPPEER.list.find(x => x.code === c);
     const isMe = c === RPPEER.me.code, color = RPPEER_COLORS[i % RPPEER_COLORS.length];
     return {
-      label: p?.name || c, data: keys.map(k => conv(_rpPeerVal(c, k, RPPEER.metric))),
+      label: (p?.name || c) + (['backlog', 'blr'].includes(RPPEER.metric) && RPPEER.stats[c]?.blNone ? ' (미공시)' : ''),
+      data: keys.map(k => conv(_rpPeerVal(c, k, RPPEER.metric))),
       borderColor: color, backgroundColor: color + '22', borderWidth: isMe ? 3.5 : 1.8,
       pointRadius: isMe ? 3.5 : 2.5, tension: 0.25, spanGaps: true, fill: false, order: isMe ? 0 : 1,
     };
