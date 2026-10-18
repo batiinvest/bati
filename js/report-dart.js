@@ -423,6 +423,7 @@ function _rpMdFacts(sec) {
       continue;
     }
     if (/^[-*]\s*(기준|검토 근거|원문 확인|판단 기준)[:：]/.test(l)) continue;
+    if (/^\s*-{3,}\s*$/.test(l) || _RPD_DROP_LINE.test(l.trim())) continue;   // 가로줄·앵커
     out.push(l);
   }
   return out;
@@ -458,8 +459,10 @@ function _rpDartLockup(L) {
   if (!sec) return '';
   const f = _rpMdFacts(sec).filter(l => l.trim());
   if (!f.some(l => /^\|/.test(l))) {
-    const t = f.join(' ').trim();
-    const msg = !t || /없습니다|없음/.test(t) ? '보고서 기준 보호예수·매각제한 물량 없음' : t;
+    const t = f.map(l => l.trim().replace(/^[-*]\s*/, '').replace(/^상태[:：]\s*/, '')).join(' ').trim();
+    const msg = !t ? '보고서 기준 보호예수·매각제한 물량 없음'
+      : /미확인|미공시/.test(t) ? t                                   // '미확인 — 표가 추출되지 않음(물량이 없다는 뜻은 아님)'
+      : /없습니다|없음/.test(t) ? '보고서 기준 보호예수·매각제한 물량 없음' : t;
     return _rpDartCard('보호예수 및 매각제한', `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.6">${_rpMdInline(msg)}</div>`);
   }
   return _rpDartCard('보호예수 및 매각제한', `<div style="display:flex;flex-direction:column;gap:4px">${_rpMdBlocks(f)}</div>`);
@@ -542,6 +545,57 @@ function _rpMdFirstTable(sec) {
     if (!/^\|[-:\s|]+$/.test(sec[j])) rows.push(_rpMdCells(sec[j]));
   return rows.length > 1 ? { hdr: rows[0], rows: rows.slice(1) } : null;
 }
+// 연도별로 나뉜 기간 표(MD reader-layout annual-tables-v1, 10-18~: '**2023년**' 표 · '**2024년**' 표 …)를 한 표로.
+// sec[i] = 표 첫 줄. 표 사이에 빈 줄과 '**2024년**' 같은 연도 줄만 있고(연도 줄이 하나는 있어야), 첫 기간 열 앞의 열(항목·품목·
+// 사업부문)이 같으면 같은 표의 다음 해로 보고 기간 열을 이어 붙인다. 예전 양식(한 표에 14개 분기)은 그대로.
+// isPeriod(머리 칸) → 기간 열인지. 반환 { hdr, rows, end } (구분선 제외, rows = 처음 나온 행 순서)
+const _RPD_YEAR_LINE = /^\*\*\s*\d{4}\s*년?\s*\*\*$/;
+const _rpIsQ = h => /^\d{2}\.\dQ$/.test(String(h || '').trim());
+function _rpMdPeriodTable(sec, i, isPeriod = _rpIsQ) {
+  const read = k => {
+    const t = [];
+    for (; k < sec.length && /^\s*\|/.test(sec[k]); k++) if (!/^\s*\|[-:\s|]+$/.test(sec[k])) t.push(_rpMdCells(sec[k].trim()));
+    return { t, k };
+  };
+  let { t, k } = read(i);
+  if (!t.length) return null;
+  const hdr = t[0], d = hdr.findIndex(isPeriod);
+  if (d < 1) return { hdr, rows: t.slice(1), end: k };
+  const dims = hdr.slice(0, d).join('|'), periods = [], order = [], map = new Map();
+  const add = (P, rows) => {
+    P.forEach(p => { if (!periods.includes(p)) periods.push(p); });
+    for (const r of rows) {
+      const key = r.slice(0, d).join('|');
+      if (!map.has(key)) { map.set(key, { dims: r.slice(0, d), v: {} }); order.push(key); }
+      P.forEach((p, j) => { map.get(key).v[p] = r[d + j] ?? ''; });
+    }
+  };
+  add(hdr.slice(d), t.slice(1));
+  for (;;) {
+    let j = k, years = 0;
+    for (; j < sec.length; j++) {
+      const x = sec[j].trim();
+      if (_RPD_YEAR_LINE.test(x)) years++;
+      else if (x) break;
+    }
+    if (!years || j >= sec.length || !/^\s*\|/.test(sec[j])) break;
+    const nx = read(j), h2 = nx.t[0] || [];
+    if (h2.findIndex(isPeriod) !== d || h2.slice(0, d).join('|') !== dims) break;
+    add(h2.slice(d), nx.t.slice(1));
+    k = nx.k;
+  }
+  return { hdr: [...hdr.slice(0, d), ...periods], rows: order.map(key => [...map.get(key).dims, ...periods.map(p => map.get(key).v[p] ?? '')]), end: k };
+}
+// 줄 묶음에서 기간 열이 있는 첫 표(연도별로 나뉘었으면 합친 것) → { hdr, rows }
+function _rpMdFirstPeriodTable(sec, isPeriod = _rpIsQ) {
+  for (let i = 0; sec && i < sec.length; i++) {
+    if (!/^\|/.test(sec[i]) || (i > 0 && /^\|/.test(sec[i - 1]))) continue;
+    if (!_rpMdCells(sec[i]).some(isPeriod)) continue;
+    const T = _rpMdPeriodTable(sec, i, isPeriod);
+    return T && T.rows.length ? T : null;
+  }
+  return null;
+}
 // '1,234.5' '-12.3%' '268.9' → 수 / '산출 불가'·'-'·'' → null
 const _rpNum = s => {
   const m = String(s ?? '').replace(/,/g, '').match(/^\s*(-?\d+(?:\.\d+)?)/);
@@ -567,7 +621,7 @@ function _rpDartModel(md) {
   out.scope = lab(s13, '판단 범위');
 
   // 분기 추이(2-7) 매출·영업이익 — 증권사 전망 카드의 '참고(공시 분기 합)' 줄에만 씀(개별 분기, 억원)
-  const tr = _rpMdFirstTable(_rpMdSec(L, /^#### 분기별 추이\s*$/));
+  const tr = _rpMdFirstPeriodTable(_rpMdSec(L, /^####\s*(?:2-7\.\d+\s+)?분기별 추이\s*$/));
   if (tr) {
     const row = re => { const r = tr.rows.find(r => re.test(r[0])); return r ? r.slice(1).map(_rpNum) : null; };
     const revenue = row(/^매출액/);
@@ -1111,6 +1165,13 @@ function _rpParseBusinessSections(md, stockCode) {
   // 단위 표기가 없는 표는 예전처럼 백만원으로 봄(f=1)
   const TO_MIL = { '원': 1e-6, '천원': 1e-3, '백만원': 1, '억원': 100, '십억원': 1e3, '조원': 1e6 };
   const unitFactor = ls => {   // 표 위쪽 줄(가까운 것부터)의 '단위: …'
+    // 표 값의 단위는 '**표 기준: 별도 | … | 금액 억원; …; 원문 금액 백만원**'의 '금액 ○○'(표시 단위)가 먼저.
+    // 같은 소절의 '원문 단위: 백만원'은 DART 원문 단위라 표와 다르다 — 이것만 읽어 원익IPS 4-1·4-2·4-3·4-6이 100배 작게
+    // 저장됐음(10-17 업로드, 23.1Q 매출 1,503.68억 → 1,504백만원)
+    for (let i = ls.length - 1; i >= 0; i--) {
+      const m = /표 기준/.test(ls[i]) && ls[i].match(/(?<!원문\s?)금액\s*(조원|십억원|억원|백만원|천원|원)/);
+      if (m) return { unit: m[1], f: TO_MIL[m[1]] };
+    }
     for (let i = ls.length - 1; i >= 0; i--) {
       const m = ls[i].match(/단위[:：]\s*([^)|]+)/);
       if (!m) continue;
@@ -1123,14 +1184,20 @@ function _rpParseBusinessSections(md, stockCode) {
 
   // 특정 h3 섹션에서 '기간 열(25.1Q)이 있는 첫 표'의 행만 추출(+ 그 표의 단위 uf).
   // 같은 섹션의 '증권사 매출 추정'(26.3QE·연간E) 표가 섞이면 추정치가 과거 분기 매출로 저장됐음
+  // 연도별로 나뉜 표(새 양식)는 _rpMdPeriodTable로 합쳐 예전처럼 '한 표' 줄 목록으로. 맨 위 '최근 비교'(최근·전년 동기) 표는
+  // 기간 열이 없어 건너뜀
+  const isP = h => !!parsePeriod(h);
+  const mergedAt = (ls, i) => {
+    const T = _rpMdPeriodTable(ls, i, isP);
+    return T ? [T.hdr, ...T.rows].map(c => '| ' + c.join(' | ') + ' |') : [];
+  };
   const getSectionTable = h3 => {
     const sec = sectionLines(h3);
     for (let i = 1; i < sec.length; i++) {
       if (!/^\|/.test(sec[i]) || /^\|/.test(sec[i - 1])) continue;   // 표의 첫 줄에서만 시작
-      const tbl = [];
-      for (let j = i; j < sec.length && /^\|/.test(sec[j]); j++)
-        if (!/^\|[-:\s|]+$/.test(sec[j])) tbl.push(sec[j]);
-      if (tbl.length && parseRow(tbl[0]).some(h => parsePeriod(h))) { tbl.uf = unitFactor(sec.slice(0, i)); return tbl; }
+      if (!parseRow(sec[i]).some(isP)) continue;
+      const tbl = mergedAt(sec, i);
+      if (tbl.length) { tbl.uf = unitFactor(sec.slice(0, i)); return tbl; }
     }
     return [];
   };
@@ -1141,17 +1208,16 @@ function _rpParseBusinessSections(md, stockCode) {
   const firstTableAfter = kw => {
     const h = lines.findIndex((l, j) => j >= sec4 && /^#{2,6}\s/.test(l) && l.includes(kw));
     if (h < 0) return [];
-    let i = h + 1;
-    for (; i < lines.length && !/^\s*\|/.test(lines[i]); i++)
+    // 기간 열이 있는 첫 표(새 양식의 '최근 비교' 표는 건너뜀) — 다음 제목이 먼저 나오면 빈 값
+    for (let i = h + 1; i < lines.length; i++) {
       if (/^#{2,6}\s/.test(lines[i])) return [];
-    const tbl = [];
-    tbl.uf = unitFactor(lines.slice(h, i));   // 제목 '(단위: 백만원)' 또는 제목~표 사이 줄
-    while (i < lines.length && /^\s*\|/.test(lines[i])) {
-      const t = lines[i].trim();
-      if (!/^\|[-:\s|]+$/.test(t)) tbl.push(t);
-      i++;
+      if (!/^\s*\|/.test(lines[i]) || /^\s*\|/.test(lines[i - 1])) continue;
+      if (!parseRow(lines[i].trim()).some(isP)) continue;
+      const tbl = mergedAt(lines, i);
+      tbl.uf = unitFactor(lines.slice(h, i));   // 제목 '(단위: 백만원)'·'표 기준 … 금액 억원' 등 제목~표 사이 줄
+      return tbl;
     }
-    return tbl;
+    return [];
   };
 
   // skipped: 단위를 백만원으로 바꿀 수 없어 저장하지 않은 표(업로드 알림용)
@@ -1398,6 +1464,9 @@ const RPD = { secs: [] };
 // 옛 양식(06월 생성분)은 5장 안에 '## 원문 XML: 접수번호.xml'이 따로 ## 제목으로 있음
 const _RPD_RAW_SEC = /^##\s+(?:\d+\.\s*(?:보고서 원문 전체 변환|재무정보 전체|정기보고서 주요정보 전체)|원문 XML:.*)\s*$/;
 const _rpFenceClose = open => new RegExp(`^${open[0] === '`' ? '`' : '~'}{${open.length},}\\s*$`);
+// 새 양식(10-18~)의 편집용 줄 — 목차 앵커 '<a id="section-2-3"></a>', '<!-- reader-layout … -->' 주석, 로컬 파일로 가는
+// '[상세 검토·계산 근거](../../data/…review_details….md#…)'(사이트엔 없는 파일). 카드에 '<a id=…>' 글자가 그대로 보였음
+const _RPD_DROP_LINE = /^(<a id="[^"]*">\s*<\/a>|<!--.*-->|[-*]\s*\[상세 검토[^\]]*\]\((?!https?:)[^)]*\))$/;
 function _rpStripRawSections(md) {
   const out = [];
   let skip = false, close = null;
@@ -1406,6 +1475,7 @@ function _rpStripRawSections(md) {
     if (close) { if (close.test(t)) close = null; }
     else if (/^(`{3,}|~{3,})/.test(t)) close = _rpFenceClose(t.match(/^(`{3,}|~{3,})/)[1]);
     else if (/^## /.test(line)) skip = _RPD_RAW_SEC.test(t);
+    else if (_RPD_DROP_LINE.test(t)) continue;
     if (!skip) out.push(line);
   }
   return out.join('\n');
