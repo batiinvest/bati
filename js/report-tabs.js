@@ -24,15 +24,60 @@ async function _rpLoadAndRenderOwnership(body) {
         .order('base_date', { ascending: false }).limit(40);
       discs = data || [];
     }
+    const trades = await _rpFetchInsiderTrades(discs.map(d => d.rcept_no)).catch(() => ({}));   // 누가·어떻게
     const dart = dartRes.data || null;
     const dp = dart?.raw_md && typeof _mdDeepParse === 'function' ? _mdDeepParse(dart.raw_md, dart.summary) : {};   // 사용자 수정 기본정보 반영
     body.innerHTML = _rpOwnershipTab({
-      discs, dp, s: dart?.summary || {}, dart,
+      discs, dp, s: dart?.summary || {}, dart, trades,
       prices: _rpData.price || [], latest: _rpData.price?.[0] || {},
     });
   } catch (e) {
     body.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:calc(12px*var(--m-sub))">지분현황 로드 실패: ${e.message}</div>`;
   }
+}
+
+// ── 지분 공시 → 누가·어떻게 — insider_trades(공시 한 건의 보고자·관계·사유·변동 주식 수·전후 지분·단가) ─────────
+// 지분현황 '지분 변동내역'·금감원공시 목록·DART 분석 공용. insider_trades에 그 보고서가 없으면 insider_summary 배지로 대신
+const _RP_IT_COLS = 'rcept_no,reporter,relation,trade_date,reason,reason_code,shares_before,shares_change,shares_after,price,hold_ratio_before,hold_ratio_after,report_type';
+async function _rpFetchInsiderTrades(rnos) {
+  const ids = [...new Set((rnos || []).filter(Boolean))];
+  if (!ids.length) return {};
+  const { data } = await sb.from('insider_trades').select(_RP_IT_COLS)
+    .in('rcept_no', ids).order('trade_date', { ascending: true }).limit(2000);
+  const by = {};
+  for (const r of data || []) (by[r.rcept_no] ||= []).push(r);
+  return by;
+}
+// '이 근 식'처럼 한 글자씩 띄운 이름은 붙임(영문·법인명은 그대로)
+const _rpWho = s => { const t = String(s || '').trim(); return /^([가-힣]\s+)+[가-힣]$/.test(t) ? t.replace(/\s+/g, '') : t; };
+
+// 한 줄: 보고자(관계) · 사유 · ▲/▼주식 수 · 지분 전→후(대량보유) · (보유 주식 전→후 · 단가)
+function _rpOwnLine(r) {
+  const e = escapeHtml, n = v => Math.round(v).toLocaleString(), pc = v => `${(+v).toFixed(2)}%`;
+  const who = _rpWho(r.reporter);
+  const rel = r.relation && r.relation.trim() !== '-' ? r.relation.trim() : '';
+  if (r.report_type === 'major' || (r.shares_change == null && r.hold_ratio_after == null))
+    return `<b style="color:#f59e0b">${e(rel || '최대주주')}</b> 소유주식 변동 신고 <span style="color:var(--text3)">(수량은 원문)</span>`;
+  const c = r.shares_change;
+  const chg = c == null ? '' : c > 0 ? `<b style="color:var(--red)">▲${n(c)}주</b>` : c < 0 ? `<b style="color:var(--blue)">▼${n(-c)}주</b>` : '변동 없음';
+  const reason = String(r.reason || '').trim().replace(/\s*\([+-]\)\s*$/, '');
+  const shortReason = reason && reason !== '-' && reason.length <= 16 ? reason : '';
+  const ratio = r.hold_ratio_after == null ? ''
+    : r.hold_ratio_before != null ? `지분 ${pc(r.hold_ratio_before)} → <b>${pc(r.hold_ratio_after)}</b>` : `신규 <b>${pc(r.hold_ratio_after)}</b>`;
+  const held = r.shares_after != null ? `${r.shares_before != null ? n(r.shares_before) : '0'} → ${n(r.shares_after)}주` : '';
+  const tail = [held, r.price ? `@${n(r.price)}원` : ''].filter(Boolean).join(' · ');
+  return [
+    `<b>${e(who || rel || '보고자 미상')}</b>${rel && who ? ` <span style="color:var(--text2)">${e(rel)}</span>` : ''}`,
+    shortReason ? e(shortReason) : '', chg, ratio,
+    tail ? `<span style="color:var(--text3)">(${tail})</span>` : '',
+    reason && reason !== '-' && !shortReason ? `<span title="${escAttr(reason)}" style="color:var(--text3);cursor:help">사유ⓘ</span>` : '',
+  ].filter(Boolean).join(' ');
+}
+function _rpOwnDetail(d, trades) {
+  const rows = trades?.[d.rcept_no];
+  if (!rows?.length) return _rpInsBadge(d.insider_summary) || '<span style="color:var(--text3)">세부 내역 없음 — 공시명을 누르면 원문</span>';
+  return rows.slice(0, 3).map(_rpOwnLine).join('<br>')
+    + (rows.length > 3 ? `<br><span style="color:var(--text3)">외 ${rows.length - 3}건</span>` : '');
 }
 
 // insider_summary → 내역 텍스트. scope:'report' = 그 보고서 한 건의 매매(10-18부터, 과거분도 다시 계산).
@@ -45,6 +90,7 @@ function _rpInsBadge(s) {
   if (s.sell) parts.push(`<span style="color:var(--blue);font-weight:700">▼처분 ${(+s.sell).toLocaleString()}주</span>`);
   if (s.ratio_before != null && s.ratio_after != null)
     parts.push(`<span style="color:var(--text2)">${s.ratio_before}% → <b style="color:var(--text1)">${s.ratio_after}%</b></span>`);
+  else if (s.ratio_after != null) parts.push(`<span style="color:var(--text2)">신규 <b style="color:var(--text1)">${s.ratio_after}%</b></span>`);
   if (s.type === 'major') parts.push(`<span style="color:#f59e0b;font-weight:700">⚠ 최대주주 변동</span>`);
   if (s.type === 'plan') parts.push(`<span style="color:var(--text2)">예정${s.period ? ' (' + escapeHtml(s.period) + ')' : ''}</span>`);
   if (s.type === 'insider' && s.scope !== 'report' && (s.buy || s.sell)) parts.push('<span style="color:var(--text3)">(그날 회사 합계)</span>');
@@ -89,7 +135,7 @@ function _rpOwnSummaryCard({ dp = {}, s = {}, dart, latest = {} }) {
     : empty('DART 리포트(.md)를 업로드하면 주주 구성이 표시됩니다')}`);
 }
 
-function _rpOwnershipTab({ discs, dp, s, dart, prices, latest }) {
+function _rpOwnershipTab({ discs, dp, s, dart, prices, latest, trades }) {
   const esc = typeof escapeHtml === 'function' ? escapeHtml : (v => v ?? '');
   const secT = _rpTabSecT, box = _rpTabBox, empty = _rpTabEmpty;
 
@@ -208,7 +254,7 @@ function _rpOwnershipTab({ discs, dp, s, dart, prices, latest }) {
     <div style="overflow-x:auto">
     <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub));white-space:nowrap">
       <thead><tr style="background:var(--bg3)">
-        ${['공시일', '구분', '공시명', '내역'].map((h, i) => `<th style="padding:6px 10px;text-align:left;
+        ${['공시일', '구분', '공시명', '누가 · 어떻게'].map((h, i) => `<th style="padding:6px 10px;text-align:left;
           color:var(--text2);font-weight:600;border-bottom:1px solid var(--border)">${h}</th>`).join('')}
       </tr></thead>
       <tbody>
@@ -224,7 +270,7 @@ function _rpOwnershipTab({ discs, dp, s, dart, prices, latest }) {
               overflow:hidden;text-overflow:ellipsis">
               <a href="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${encodeURIComponent(d.rcept_no || '')}"
                 target="_blank" rel="noopener" style="color:var(--text1);text-decoration:none">${esc(d.report_nm || '')}</a></td>
-            <td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:calc(11px*var(--m-label))">${_rpInsBadge(d.insider_summary)}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:calc(11.5px*var(--m-sub));white-space:normal;min-width:300px;line-height:1.6">${_rpOwnDetail(d, trades)}</td>
           </tr>`;
         }).join('')}
       </tbody>
@@ -342,7 +388,7 @@ async function _rpLoadAndRenderReports(body) {
 // ═══ 금감원공시 탭 (FnGuide 금감원공시 스타일) ═══════════════════════════════
 // daily_disclosures 전체 목록 + 카테고리 필터 칩
 
-const RFD = { rows: [], cat: 'all' };
+const RFD = { rows: [], cat: 'all', trades: {} };   // trades = 지분 공시의 insider_trades(누가·어떻게)
 
 async function _rpLoadAndRenderFss(body) {
   if (!_rpStock || !body) return;
@@ -359,6 +405,7 @@ async function _rpLoadAndRenderFss(body) {
       .order('base_date', { ascending: false }).limit(150);
     RFD.rows = data || [];
     RFD.cat = 'all';
+    RFD.trades = await _rpFetchInsiderTrades(RFD.rows.filter(r => _RP_OWN_CATS.includes(r.category)).map(r => r.rcept_no)).catch(() => ({}));
     if (!RFD.rows.length) {
       body.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center;font-size:calc(12px*var(--m-sub))">수집된 공시 없음 (매일 18:30 업데이트)</div>';
       return;
@@ -415,7 +462,7 @@ function _rpFssRenderList() {
             overflow:hidden;text-overflow:ellipsis">
             <a href="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${encodeURIComponent(d.rcept_no || '')}"
               target="_blank" rel="noopener" style="color:var(--text1);text-decoration:none">${esc(d.report_nm || '')}</a></td>
-          <td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:calc(11px*var(--m-label))">${_rpInsBadge(d.insider_summary)}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:calc(11.5px*var(--m-sub));white-space:normal;line-height:1.6">${_RP_OWN_CATS.includes(d.category) ? _rpOwnDetail(d, RFD.trades) : ''}</td>
         </tr>`).join('')}
       </tbody>
     </table>

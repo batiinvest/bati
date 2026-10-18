@@ -39,6 +39,7 @@ async function _rpLoadAndRenderDart(body) {
       .eq('corp_code', cc).in('category', typeof _RP_OWN_CATS !== 'undefined' ? _RP_OWN_CATS : []).gte('base_date', since90)
       .order('base_date', { ascending: false }).limit(1000)).then(r => ({ rows: r.data || [], count: r.count ?? (r.data || []).length })).catch(() => null),
   ]) : [[], [], null];
+  const trades = typeof _rpFetchInsiderTrades === 'function' ? await _rpFetchInsiderTrades(discOwn.map(d => d.rcept_no)).catch(() => ({})) : {};
   if (_rpStock?.code !== code) return;   // 그 사이 다른 종목으로 바뀜
 
   const s   = data?.summary || {};
@@ -57,7 +58,7 @@ async function _rpLoadAndRenderDart(body) {
   const at = Math.max(bizList.findIndex(x => x.key === 'region'), bizList.findIndex(x => x.key === 'product'));
   const bizHtml = [...bizList.slice(0, at + 1).map(x => x.html), cust, ...bizList.slice(at + 1).map(x => x.html)].join('');
 
-  const ctx = { data, s, M, comp, stage, flowV, flow20, ana, discAll, own90, latest, latestF };
+  const ctx = { data, s, M, comp, stage, flowV, flow20, ana, discAll, discOwn, trades, own90, latest, latestF };
   const box = (inner, title) => `<div data-capture style="${_RPD_CARD}">${title ? _rpdT(title) : ''}${inner}</div>`;
   const lazy = (key, title) => box(`<div data-rpd-lazy="${key}"><div style="text-align:center;color:var(--text2);padding:20px"><span class="loading"></span> 불러오는 중...</div></div>`, title);
   const pts = s.investment_points?.length || s.risk_points?.length;
@@ -103,7 +104,7 @@ async function _rpLoadAndRenderDart(body) {
   ${dp.subsidiaries?.length ? _rpProfileSubsCard(dp) : ''}
 
   ${_rpDartSecHead('주주 · 지분', '', ['지분현황'], 'own')}
-  ${typeof _rpOwnershipTab === 'function' ? _rpOwnershipTab({ discs: discOwn, dp, s, dart: data, prices: _rpData?.price || [], latest }) : ''}
+  ${typeof _rpOwnershipTab === 'function' ? _rpOwnershipTab({ discs: discOwn, dp, s, dart: data, trades, prices: _rpData?.price || [], latest }) : ''}
   ${_rpDartHolders(L)}
   ${_rpDartCeo(L)}
 
@@ -325,6 +326,11 @@ function _rpDartOverview(x) {
       parts.push(`최근 90일 지분 공시 <b>${o.count.toLocaleString()}건</b>${none(`(${Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c, n]) => `${e(c)} ${n}`).join(' · ')}${o.count > o.rows.length ? ` · 최근 ${o.rows.length}건 기준` : ''})`)}`
         + (buy || sell ? ` · 임원·주요주주 취득 <span style="color:var(--red)">${num(buy)}주</span> / 처분 <span style="color:var(--blue)">${num(sell)}주</span>` : ''));
     } else if (o) parts.push('최근 90일 지분 공시 없음');
+    const lastOwn = (x.discOwn || []).find(d => x.trades?.[d.rcept_no]?.some(r => r.shares_change != null || r.hold_ratio_after != null));
+    if (lastOwn && typeof _rpOwnLine === 'function') {
+      const r = x.trades[lastOwn.rcept_no].find(t => t.shares_change != null || t.hold_ratio_after != null);
+      parts.push(`최근 변동 <span style="color:var(--text2)">${e((lastOwn.base_date || '').slice(5))}</span> ${_rpOwnLine(r)}`);
+    }
     add('own', '지분', parts.join(' · '), o?.rows?.[0]?.base_date || '');
   }
 
