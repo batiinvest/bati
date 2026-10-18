@@ -549,7 +549,7 @@ function _rpProfileTab({ comp, dart, dp, discs, region, prod, latest, segment, b
       byLabel[name] = (byLabel[name] || 0) + (+r.revenue || 0);
     }
     const total = Object.values(byLabel).reduce((s, v) => s + v, 0);
-    const COLORS = ['#2AABEE','#4ade80','#fb923c','#a78bfa','#f59e0b','#34d399','#f87171','#60a5fa','#22d3ee','#e879f9'];
+    const COLORS = SERIES_PAL;
     const items = Object.entries(byLabel).map(([name, rev]) => ({
       name, pct: total > 0 ? rev / total * 100 : 0,
     })).sort((a, b) => b.pct - a.pct);
@@ -907,15 +907,6 @@ function rpfRender() {
     ? String(r.bsns_year) : `${String(r.bsns_year).slice(2)} ${r.quarter}`);
   const eokV = v => v != null ? v / 1e8 : null;
 
-  // ── 차트 (Chart.js — 표 항목 선택형: 항목 클릭 시 그래프에 추가/제거) ──
-  const chartCtl = `
-    <div data-no-capture style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-      <span style="font-size:calc(11px*var(--m-label));color:var(--text3)">표의 <b style="color:var(--text2)">항목을 클릭</b>하면 그래프에 추가/제거됩니다 · 선택 <b id="rpf-sel-count" style="color:var(--tg)">${(RPF.sel || []).length}</b>개</span>
-      <button onclick="rpfClearSeries()" class="chip chip-sm" style="padding:2px 10px;font-size:calc(11px*var(--m-label))">전체 해제</button>
-    </div>`;
-  // data-capture: 이미지 저장 버튼 대상(조작 줄은 data-no-capture로 이미지에서 뺌)
-  const charts = `<div data-capture="재무 추이 차트">${chartCtl}<div style="position:relative;height:340px;margin-bottom:12px"><canvas id="rpf-chart-canvas"></canvas></div></div>`;
-
   // ── 상세 표 ──
   const eok = v => v == null ? '—'
     : (v / 1e8).toLocaleString('ko-KR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -973,14 +964,13 @@ function rpfRender() {
   }
   const allDefs = defs.concat(segDefs);
 
-  // 선택형 차트: 선택 가능한 항목(구분선 제외) + 키/색상 맵 + 현재 stmt 유효 선택 유지
+  // 선택형 차트: 선택 가능한 항목(구분선 제외) + 현재 stmt 유효 선택 유지 + 선택 항목 색
   const keyOf = d => d.k || ('s:' + d.label);
   RPF._defs = allDefs.filter(d => !d.divider);
-  RPF._colorMap = {};
-  RPF._defs.forEach((d, i) => { RPF._colorMap[keyOf(d)] = RPF_PAL[i % RPF_PAL.length]; });
   const validKeys = new Set(RPF._defs.map(keyOf));
   RPF.sel = (RPF.sel || []).filter(k => validKeys.has(k));
   if (!RPF.sel.length) RPF.sel = _rpfDefaultSel(RPF.stmt).filter(k => validKeys.has(k));
+  _rpfAssignColors();
 
   const table = `
   <div data-capture="재무제표 표" style="overflow-x:auto;margin-top:12px">
@@ -999,7 +989,7 @@ function rpfRender() {
             style="padding:9px 10px 4px;font-weight:700;color:var(--tg);font-size:calc(12px*var(--m-sub));
               border-top:2px solid var(--border);border-bottom:1px solid var(--border);background:var(--bg3)">${d.divider}</td></tr>`;
           const val = r => d.calc ? d.calc(r) : r[d.k];
-          const key = keyOf(d), color = RPF._colorMap[key], on = RPF.sel.includes(key);
+          const key = keyOf(d), color = RPF._colorMap[key] || RPF_MARK_OFF, on = RPF.sel.includes(key);
           const selBg = 'color-mix(in srgb, var(--tg) 8%, transparent)';
           const cells = periods.map((r, i) => {
             const v = val(r);
@@ -1040,6 +1030,16 @@ function rpfRender() {
       <div style="width:210px;height:190px"><canvas id="rpf-donut-a"></canvas></div>
       <div style="width:210px;height:190px"><canvas id="rpf-donut-b"></canvas></div>
     </div>` : '';
+
+  // ── 차트 (Chart.js — 표 항목 선택형: 항목 클릭 시 그래프에 추가/제거) ──
+  // 선택 수는 이번 표에 맞춰 거른 뒤의 RPF.sel로 씀(위에서 만들면 직전 표 — 재무상태표 3개 — 가 남아 보였음)
+  const chartCtl = `
+    <div data-no-capture style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+      <span style="font-size:calc(11px*var(--m-label));color:var(--text3)">표의 <b style="color:var(--text2)">항목을 클릭</b>하면 그래프에 추가/제거됩니다 · 선택 <b id="rpf-sel-count" style="color:var(--tg)">${RPF.sel.length}</b>개</span>
+      <button onclick="rpfClearSeries()" class="chip chip-sm" style="padding:2px 10px;font-size:calc(11px*var(--m-label))">전체 해제</button>
+    </div>`;
+  // data-capture: 이미지 저장 버튼 대상(조작 줄은 data-no-capture로 이미지에서 뺌)
+  const charts = `<div data-capture="재무 추이 차트">${chartCtl}<div style="position:relative;height:340px;margin-bottom:12px"><canvas id="rpf-chart-canvas"></canvas></div></div>`;
 
   el.innerHTML = bsTop + cfTop + isTop + charts + bsDonuts + table;
   _rpfDrawChart();
@@ -1198,27 +1198,40 @@ function _rpfDrawDonuts() {
 }
 
 // 재무분석 차트 — 표 항목 선택형 상태·헬퍼
-const RPF_PAL = ['#2AABEE','#f5365c','#2dce89','#fba323','#a78bfa','#4a9eff','#f87171','#22d3ee','#e879f9','#facc15','#fb923c','#34d399','#c084fc','#f472b6'];
+const RPF_MARK_OFF = 'var(--text3)';   // 선택 안 된 행 표시 상자 테두리
 function _rpfDefaultSel(stmt) {
   return stmt === 'bs' ? ['total_assets', '_liab', 'total_equity']
        : stmt === 'cf' ? ['operating_cashflow', 'investing_cashflow', 'financing_cashflow']
        : ['revenue', 'operating_profit'];
 }
+// 색은 선택된 항목에만, 지금 선택된 항목끼리 안 쓰는 앞쪽 색부터 줌(이미 고른 항목 색은 그대로).
+// 예전엔 표 행 순번으로 색을 정해 매출액(0번)·영업이익(5번), 자산총계·자본총계가 둘 다 파랑이었음.
+function _rpfAssignColors() {
+  const cm = RPF._colorMap = RPF._colorMap || {}, sel = RPF.sel || [];
+  Object.keys(cm).forEach(k => { if (!sel.includes(k)) delete cm[k]; });
+  const used = new Set(sel.map(k => cm[k]).filter(Boolean));
+  sel.forEach((k, i) => {
+    if (cm[k]) return;
+    cm[k] = SERIES_PAL.find(c => !used.has(c)) || SERIES_PAL[i % SERIES_PAL.length];
+    used.add(cm[k]);
+  });
+}
 function rpfToggleSeries(key) {
   RPF.sel = RPF.sel || [];
   const i = RPF.sel.indexOf(key);
   if (i >= 0) RPF.sel.splice(i, 1); else RPF.sel.push(key);
-  _rpfDrawChart(); _rpfSyncRowMarks();
+  _rpfAssignColors(); _rpfDrawChart(); _rpfSyncRowMarks();
 }
-function rpfClearSeries() { RPF.sel = []; _rpfDrawChart(); _rpfSyncRowMarks(); }
+function rpfClearSeries() { RPF.sel = []; _rpfAssignColors(); _rpfDrawChart(); _rpfSyncRowMarks(); }
 function _rpfSyncRowMarks() {
   const sel = new Set(RPF.sel || []), cm = RPF._colorMap || {};
   const selBg = 'color-mix(in srgb, var(--tg) 8%, transparent)';
   document.querySelectorAll('#rpf-body tr[data-rpf-key]').forEach(tr => {
-    const k = tr.getAttribute('data-rpf-key'), on = sel.has(k), color = cm[k] || 'var(--tg)';
+    const k = tr.getAttribute('data-rpf-key'), on = sel.has(k), color = cm[k] || RPF_MARK_OFF;
     tr.style.background = on ? selBg : '';
     const nameCell = tr.querySelector('td'); if (nameCell) nameCell.style.background = on ? selBg : 'var(--bg2)';
-    const mark = tr.querySelector('.rpf-mark'); if (mark) mark.style.background = on ? color : 'transparent';
+    const mark = tr.querySelector('.rpf-mark');
+    if (mark) { mark.style.borderColor = color; mark.style.background = on ? color : 'transparent'; }
   });
   const cnt = document.getElementById('rpf-sel-count'); if (cnt) cnt.textContent = (RPF.sel || []).length;
 }

@@ -2,7 +2,7 @@
 // 매출(제품)·매출(국내/해외)·원재료·원재료 가격추이·생산력·수주현황
 // 의존: config.js(sb·fmtCap·escapeHtml), report-fnguide.js(_rpSecT), report-cards.js(_rpSegLabel), report.js(_rpStock)
 
-const BIZ_COLORS = ['#2AABEE','#4ade80','#fb923c','#a78bfa','#f59e0b','#34d399','#f87171','#60a5fa','#22d3ee','#e879f9'];
+const BIZ_COLORS = SERIES_PAL;   // config.js 공용 계열 색 (예전 팔레트는 주황↔호박·초록↔민트·하늘↔파랑이 거의 같은 색)
 
 // 매출(국내/해외) 품목 필터 상태
 let _rpBizRegion = null;      // { mR, rColor, prods }

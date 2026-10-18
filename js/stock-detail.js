@@ -845,7 +845,6 @@ async function _renderFinancialTab(body, code, name) {
         if (!wrap) return;
         const allRows = FIN.getRows();
         const QUARTERS = ['Q1','Q2','Q3','Q4'];
-        const COLORS   = ['rgba(42,171,238,0.7)','rgba(45,206,137,0.7)','rgba(251,163,35,0.7)','rgba(245,54,92,0.7)'];
 
         wrap.style.height = 'auto';
         wrap.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -856,7 +855,7 @@ async function _renderFinancialTab(body, code, name) {
             </div>`).join('')}
         </div>`;
 
-        QUARTERS.forEach((q, qi) => {
+        QUARTERS.forEach(q => {
           const qRows  = allRows.filter(r => r.quarter === q);
           const canvas = document.getElementById(`fin-qc-${q}`);
           if (!canvas || !qRows.length) return;
@@ -875,7 +874,8 @@ async function _renderFinancialTab(body, code, name) {
                 {
                   label: '영업이익',
                   data: qRows.map(r => fmtB(r.operating_profit)),
-                  backgroundColor: COLORS[qi],
+                  // 분기마다 다른 색이던 것을 위 손익 차트와 같은 빨강으로 고정 — 1분기는 매출액과 같은 파랑, 3분기는 이익률 선(노랑)과 비슷했음
+                  backgroundColor: 'rgba(245,54,92,0.65)',
                   borderRadius: 3, yAxisID: 'y',
                 },
                 {

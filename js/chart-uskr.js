@@ -115,9 +115,8 @@ async function loadUskrChart() {
     });
   };
 
-  // ── ETF 색상 팔레트 ──
-  const ETF_COLORS = ['#2AABEE','#f97316','#e879f9','#fbbf24','#f87171',
-                      '#818cf8','#34d399','#fb7185','#38bdf8','#a3e635','#c084fc','#fdba74'];
+  // ── ETF 색상 팔레트 — 공용 계열 색에서 KR 선 색만 뺌(반도체 KR 선과 US 선이 둘 다 #2AABEE이던 문제) ──
+  const ETF_COLORS = SERIES_PAL.filter(c => c.toLowerCase() !== krColor.toLowerCase());
 
   const datasets = [];
 
@@ -145,7 +144,7 @@ async function loadUskrChart() {
     datasets.push({
       label: `🇺🇸 ${ind} 평균(${tickers.length}개)`,
       data: normAvg,
-      borderColor: '#2AABEE', backgroundColor: '#2AABEE22',
+      borderColor: ETF_COLORS[0], backgroundColor: ETF_COLORS[0] + '22',
       borderWidth: 2, pointRadius: 3, tension: 0.3,
       borderDash: [8, 4], fill: false, spanGaps: true,
     });

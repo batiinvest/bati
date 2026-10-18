@@ -9,10 +9,7 @@ const IND = {};
 // ══════════════════════════════════════════
 
 // IND_COLORS — config.js에서 전역 정의
-const IND_DEFAULT_COLORS = [
-  '#2AABEE','#2dce89','#ffd600','#ff6b35','#f5365c',
-  '#a259ff','#00d4aa','#fb6340','#4fc3f7','#aed581','#e040fb','#80cbc4',
-];
+const IND_DEFAULT_COLORS = SERIES_PAL;   // IND_COLORS에 없는 업종용 (config.js 공용 계열 색)
 
 let _indTrendPeriod = 7;
 let _indTrendChart2 = null;

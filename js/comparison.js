@@ -25,11 +25,8 @@ const CMP_METRICS = [
   { key: 'gross_profit',       label: '매출총이익',   unit: '억', scale: 1e8, chartType: 'bar'  },
 ];
 
-// Chart.js 색상 팔레트
-const CMP_COLORS = [
-  '#2AABEE','#2dce89','#f5365c','#fb6340','#ffd600',
-  '#a259ff','#11cdef','#4a9eff','#ff6b9d','#00d4aa',
-];
+// Chart.js 색상 팔레트 — config.js 공용 계열 색(예전 팔레트는 #2AABEE↔#4a9eff, #2dce89↔#00d4aa가 거의 같은 색)
+const CMP_COLORS = SERIES_PAL;
 
 function pComparison() {
   return `

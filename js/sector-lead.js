@@ -358,7 +358,8 @@ async function _slRenderOscChart() {
     const lv = last.gauge?.lv || [];
     const t = chartTheme(), css = getComputedStyle(document.documentElement);
     const upC = css.getPropertyValue('--up').trim() || '#f5365c', dnC = css.getPropertyValue('--down').trim() || '#4a9eff';
-    const lvColor = ['#f5365c', '#fb6340', '#8898aa', '#4a9eff', '#2AABEE'];
+    // 상위·하위는 같은 색 계열에서 진하기로 구분(10%=진함, 25%=연함) — 예전 하위 25·10%가 #4a9eff·#2AABEE로 거의 같았음
+    const lvColor = ['#f5365c', '#fda4af', '#8898aa', '#93c5fd', '#3b82f6'];
     const lvSets = lv.map((v, i) => ({
       type: 'line', label: `_${FLOW_LEVEL_NAMES[i]}`, data: labels.map(() => v), yAxisID: 'y1',
       borderColor: lvColor[i] + '99', borderDash: [4, 4], borderWidth: 1, pointRadius: 0, pointHoverRadius: 0,

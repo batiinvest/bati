@@ -396,7 +396,7 @@ function _rpSegmentCard(rows) {
 
 // ── 세그먼트 캐시: 분기/연간 두 축 동시 구성 ──────────────────────────────────
 function _rpBuildSegCache(rows) {
-  const COLORS = ['#2AABEE','#4ade80','#fb923c','#a78bfa','#f59e0b','#34d399','#f87171','#60a5fa','#22d3ee','#e879f9'];
+  const COLORS = SERIES_PAL;
 
   const norm = rows.map(r => ({
     seg: _rpSegLabel(r), bsns_year: +r.bsns_year, quarter: r.quarter, revenue: +r.revenue || 0,
@@ -640,7 +640,7 @@ function _rpBacklogCard(rows) {
 }
 
 function _rpBuildBacklogCache(rows) {
-  const COLORS = ['#2AABEE','#4ade80','#fb923c','#a78bfa','#f59e0b','#34d399','#f87171','#60a5fa','#22d3ee','#e879f9'];
+  const COLORS = SERIES_PAL;
   const norm = rows.map(r => ({
     seg: (r.category || '').trim(), bsns_year: +r.bsns_year, quarter: r.quarter, val: +r.revenue || 0,
   })).filter(r => r.seg && r.bsns_year);
