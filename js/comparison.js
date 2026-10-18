@@ -8,6 +8,8 @@ const CMP = {
   metric: 'revenue',  // 선택된 지표
   period: '8',         // 표시 분기 수
   normalize: false,    // 정규화 차트 (100 기준)
+  pricePeriod: '3M',   // 주가 흐름 비교 기간 — '1M' · '3M' · 'ALL'(보관된 일별 시세 전체, 약 120일)
+  priceRows: {},       // 종목코드 → market_data 일별 행(최신순) — 주가 동향 표·주가 흐름 비교 공용
   // 구 window._cmp* 수렴 (런타임 대입): metricCache·sortedLabels·stockDataMap·chartLabels·chartDatasets
 };
 
@@ -443,12 +445,17 @@ async function runComparison() {
     // 주가 동향 (이동평균 + 52주 고/저) 계산
     const maData = {};
     const weekData = {};   // 52주 고/저
-    for (const s of CMP.selectedCodes) {
-      const { data: priceRows } = await sb.from('market_data')
-        .select('base_date,price,price_change_rate,hgpr_cls,hgpr_cls_code')
-        .eq('stock_code', s.code)
-        .order('base_date', { ascending: false })
-        .limit(252);   // 52주(약 252 거래일)
+    // market_data는 약 120일(70~80거래일)만 보관 — 52주 고저는 KIS가 주는 w52_high/w52_low(진짜 52주)를 쓴다.
+    // 예전엔 보관된 행의 최고·최저를 '52주'라 적었음(원익IPS 52주 최고 187,800원 대신 3개월 최고)
+    const priceList = await Promise.all(CMP.selectedCodes.map(s => sb.from('market_data')
+      .select('base_date,price,price_change_rate,hgpr_cls,hgpr_cls_code,w52_high,w52_low,week_return,month_return,quarter_return')
+      .eq('stock_code', s.code)
+      .order('base_date', { ascending: false })
+      .limit(252).then(r => r.data || []).catch(() => [])));
+    CMP.priceRows = {};
+    for (const [si, s] of CMP.selectedCodes.entries()) {
+      const priceRows = priceList[si];
+      CMP.priceRows[s.code] = priceRows;
       if (priceRows?.length) {
         const prices = priceRows.map(r => r.price).filter(Boolean);
         const latest = priceRows[0];
@@ -465,10 +472,10 @@ async function runComparison() {
           newHigh:     latest.hgpr_cls      || null,
           newHighCode: latest.hgpr_cls_code || null,
         };
-        // 52주 고/저
-        const high52 = Math.max(...prices);
-        const low52  = Math.min(...prices);
-        weekData[s.code] = { high: high52, low: low52 };
+        // 52주 고/저 — KIS 값, 없으면 보관된 기간의 최고·최저(표에 그렇게 표시)
+        weekData[s.code] = latest.w52_high && latest.w52_low
+          ? { high: latest.w52_high, low: latest.w52_low, real: true }
+          : { high: Math.max(...prices), low: Math.min(...prices), real: false };
       }
     }
     // 모니터링 set 준비
@@ -520,8 +527,8 @@ async function runComparison() {
                 if (w52 && price) {
                   const pct = Math.round((price - w52.low) / (w52.high - w52.low) * 100);
                   const barColor = pct >= 80 ? 'var(--red)' : pct <= 20 ? 'var(--blue)' : 'var(--tg)';
-                  w52bar = `<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:3px;display:flex;justify-content:space-between">
-                    <span>${w52.low.toLocaleString()}</span><span>${pct}%</span><span>${w52.high.toLocaleString()}</span>
+                  w52bar = `<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:3px;display:flex;justify-content:space-between"${w52.real ? '' : ' title="52주 값이 없어 보관된 시세(약 120일)의 최고·최저"'}>
+                    <span>${w52.low.toLocaleString()}</span><span>${pct}%${w52.real ? '' : '*'}</span><span>${w52.high.toLocaleString()}</span>
                   </div>
                   <div style="background:var(--bg3);border-radius:3px;height:6px;position:relative;width:120px">
                     <div style="position:absolute;left:0;top:0;height:100%;width:${Math.max(4,Math.min(100,pct))}%;background:${barColor};border-radius:3px"></div>
@@ -561,6 +568,23 @@ async function runComparison() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <!-- 주가 흐름 비교 — 시작일 = 100 -->
+      <div class="card" style="margin-bottom:1rem" id="cmp-price-card">
+        <div class="card-header" style="flex-wrap:wrap;gap:8px">
+          <span class="card-title">주가 흐름 비교</span>
+          <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">시작일 주가 = 100</span>
+          <div style="margin-left:auto;display:flex;gap:4px" data-no-capture>
+            ${[['1M', '1개월'], ['3M', '3개월'], ['ALL', '전체']].map(([k, t]) => `<button class="chip chip-sm${CMP.pricePeriod === k ? ' active' : ''}"
+              data-cmp-pp="${k}" onclick="setCmpPricePeriod('${k}')">${t}</button>`).join('')}
+          </div>
+        </div>
+        <div id="cmp-price-rank" style="padding:.5rem 1rem;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap"></div>
+        <div style="padding:1rem"><canvas id="cmp-price-chart" style="max-height:340px;min-height:240px"></canvas></div>
+        <div id="cmp-price-table" class="table-wrap"></div>
+        <div style="padding:.4rem 1rem .8rem;font-size:calc(11px*var(--m-label));color:var(--text3)">
+          * 1개월 = 21거래일 · 3개월 = 63거래일(1달·3달 수익률과 같은 기준) · 일별 시세는 약 120일만 보관해 '전체'는 약 3개월 반 · 52주는 KIS 기준</div>
       </div>
 
       <!-- 지표 선택 탭 + 정규화 토글 -->
@@ -634,11 +658,101 @@ async function runComparison() {
     renderCmpDetailTable(metric);
     _drawSparklines(metric);
     drawCmpRadar(stockDataMap);
+    renderCmpPriceCompare();
 
   } catch(e) {
     el.innerHTML = errorHTML(e.message);
     console.error('[비교분석]', e);
   }
+}
+
+// ── 주가 흐름 비교 ─────────────────────────────────────────────────────────────
+// 종목마다 기간 첫 거래일 종가를 100으로 맞춘 선. 시세는 주가 동향 표와 같은 CMP.priceRows(market_data, 약 120일 보관)
+let _cmpPriceChart = null;
+function setCmpPricePeriod(k) {
+  CMP.pricePeriod = k;
+  document.querySelectorAll('[data-cmp-pp]').forEach(b => b.classList.toggle('active', b.dataset.cmpPp === k));
+  renderCmpPriceCompare();
+}
+function renderCmpPriceCompare() {
+  const canvas = document.getElementById('cmp-price-chart');
+  if (!canvas || !window.Chart) return;
+  if (_cmpPriceChart) { _cmpPriceChart.destroy(); _cmpPriceChart = null; }
+  const rowsOf = code => [...(CMP.priceRows[code] || [])].filter(r => r.price > 0).reverse();   // 오래된 날부터
+  const allDates = [...new Set(CMP.selectedCodes.flatMap(s => rowsOf(s.code).map(r => r.base_date)))].sort();
+  if (!allDates.length) { canvas.parentElement.innerHTML = emptyHTML('시세 데이터 없음'); return; }
+  const last = allDates[allDates.length - 1];
+  // 기간 = 거래일 수 — 시세 수집 때 계산하는 1달·3달 수익률(market_data month/quarter_return)과 같은 기준
+  // (21·63거래일 전 종가가 시작점). 달력으로 3개월을 세면 시작일이 며칠 달라 같은 '3개월'인데 숫자가 달랐음
+  const back = { '1M': 21, '3M': 63 }[CMP.pricePeriod];
+  const dates = back ? allDates.slice(-(back + 1)) : allDates;
+  const from = dates[0];
+  const series = CMP.selectedCodes.map((s, i) => {
+    const m = new Map(rowsOf(s.code).filter(r => r.base_date >= from).map(r => [r.base_date, r.price]));
+    const base = dates.map(d => m.get(d)).find(v => v != null);
+    const data = dates.map(d => m.has(d) && base ? Math.round(m.get(d) / base * 10000) / 100 : null);
+    let lastV = null; for (let j = data.length - 1; j >= 0; j--) if (data[j] != null) { lastV = data[j]; break; }
+    return { s, color: CMP_COLORS[i % CMP_COLORS.length], data, ret: lastV != null ? lastV - 100 : null };
+  });
+
+  // 기간 수익률 순위
+  const rank = series.filter(x => x.ret != null).sort((a, b) => b.ret - a.ret);
+  const rankEl = document.getElementById('cmp-price-rank');
+  if (rankEl) rankEl.innerHTML = `<span style="font-size:calc(11px*var(--m-label));color:var(--text2);align-self:center">${escapeHtml(dates[0] || '')} ~ ${escapeHtml(last)} 수익률</span>`
+    + rank.map((x, i) => `<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:100px;background:rgba(255,255,255,.06);font-size:calc(12px*var(--m-sub))">
+        <span style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text2);min-width:22px;text-align:center">${i + 1}위</span>
+        <span style="width:6px;height:6px;border-radius:50%;background:${x.color}"></span>
+        <strong>${escapeHtml(x.s.name)}</strong>
+        <span style="color:${chgColor(x.ret)};font-weight:600">${chgStr(x.ret)}</span></span>`).join('');
+
+  // 기간 수익률 표 — 1주·1달·3달(수집 때 계산한 값)·이 차트 기간·52주 고점/저점 대비
+  const tblEl = document.getElementById('cmp-price-table');
+  if (tblEl) {
+    const pct = v => v == null || !isFinite(v) ? '<span style="color:var(--text3)">—</span>' : `<span style="color:${chgColor(v)};font-weight:600">${chgStr(v)}</span>`;
+    tblEl.innerHTML = `<table><thead><tr><th>종목</th><th class="num">1주</th><th class="num">1달</th><th class="num">3달</th>
+      <th class="num">차트 기간</th><th class="num">52주 고점 대비</th><th class="num">52주 저점 대비</th></tr></thead><tbody>
+      ${series.map(x => {
+        const L = (CMP.priceRows[x.s.code] || [])[0] || {};
+        return `<tr><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${x.color};margin-right:6px"></span>${escapeHtml(x.s.name)}</td>
+          <td class="num">${pct(L.week_return)}</td><td class="num">${pct(L.month_return)}</td><td class="num">${pct(L.quarter_return)}</td>
+          <td class="num">${pct(x.ret)}</td>
+          <td class="num">${pct(L.price && L.w52_high ? (L.price / L.w52_high - 1) * 100 : null)}</td>
+          <td class="num">${pct(L.price && L.w52_low ? (L.price / L.w52_low - 1) * 100 : null)}</td></tr>`;
+      }).join('')}</tbody></table>`;
+  }
+
+  _cmpPriceChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: dates.map(d => d.slice(5)),
+      datasets: [
+        ...series.map(x => ({ label: x.s.name, data: x.data, borderColor: x.color, backgroundColor: x.color + '22',
+          borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.15, spanGaps: true, fill: false })),
+        { label: '기준 100', data: dates.map(() => 100), borderColor: 'rgba(139,144,167,.45)', borderWidth: 1, borderDash: [4, 4],
+          pointRadius: 0, fill: false, order: 99 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { color: '#8b90a7', font: { size: 12 }, padding: 14, usePointStyle: true,
+          filter: it => it.text !== '기준 100' } },
+        tooltip: {
+          backgroundColor: '#1a1d27', borderColor: 'rgba(255,255,255,.1)', borderWidth: 1, titleColor: '#e8eaf0', bodyColor: '#c9cdd9',
+          filter: it => it.dataset.label !== '기준 100',
+          callbacks: {
+            title: items => dates[items[0]?.dataIndex] || '',
+            label: ctx => ctx.raw == null ? null : ` ${ctx.dataset.label}  ${ctx.raw.toFixed(1)} (${ctx.raw >= 100 ? '+' : ''}${(ctx.raw - 100).toFixed(1)}%)`,
+          },
+        },
+      },
+      scales: {
+        x: { ticks: { color: '#8b90a7', maxTicksLimit: 8, font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.04)' } },
+        y: { ticks: { color: '#8b90a7', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.05)' } },
+      },
+    },
+  });
 }
 
 // ── 지표별 분기별 상세 테이블 ──
