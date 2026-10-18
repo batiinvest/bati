@@ -23,6 +23,8 @@ const CMP_METRICS = [
   { key: 'operating_cashflow', label: '영업현금흐름', unit: '억', scale: 1e8, chartType: 'bar'  },
   { key: 'fcf',                label: 'FCF',          unit: '억', scale: 1e8, chartType: 'bar'  },
   { key: 'gross_profit',       label: '매출총이익',   unit: '억', scale: 1e8, chartType: 'bar'  },
+  // financials 밖 — DART 정기보고서 수주잔고 합계(dart_segment_revenue 'backlog_total', 반도체 장비만). 재무 행에 붙여 씀
+  { key: 'backlog',            label: '수주잔고',     unit: '억', scale: 1e8, chartType: 'bar', src: 'backlog' },
 ];
 
 // Chart.js 색상 팔레트 — config.js 공용 계열 색(예전 팔레트는 #2AABEE↔#4a9eff, #2dce89↔#00d4aa가 거의 같은 색)
@@ -364,7 +366,7 @@ async function runComparison() {
     // 재무 데이터 조회
     const finRows = await fetchAllPages(
       sb.from('financials')
-        .select('stock_code,corp_name,bsns_year,quarter,fs_div,is_cumulative,' + CMP_METRICS.map(m=>m.key).filter((k,i,a)=>a.indexOf(k)===i).join(','))
+        .select('stock_code,corp_name,bsns_year,quarter,fs_div,is_cumulative,' + CMP_METRICS.filter(m => !m.src).map(m=>m.key).filter((k,i,a)=>a.indexOf(k)===i).join(','))
         .in('stock_code', codes)
         .order('bsns_year', { ascending: false })
         .order('quarter', { ascending: false })
@@ -393,6 +395,14 @@ async function runComparison() {
         stockDataMap[r.stock_code].push(r);
       }
     });
+
+    // 수주잔고(백만원 → 원) — 재무 행에 붙여 같은 분기 축으로. 수집 대상 밖 종목은 null
+    const blRows = await fetchAllPages((s, e) => sb.from('dart_segment_revenue')
+      .select('stock_code,bsns_year,quarter,revenue').eq('segment_type', 'backlog_total').in('stock_code', codes)
+      .order('stock_code').order('bsns_year').order('quarter').range(s, e));
+    const blMap = {};
+    blRows.forEach(r => { blMap[`${r.stock_code} ${r.bsns_year} ${r.quarter}`] = r.revenue * 1e6; });
+    codes.forEach(code => stockDataMap[code].forEach(r => { r.backlog = blMap[`${code} ${r.bsns_year} ${r.quarter}`] ?? null; }));
 
     // 공통 기간 라벨 (최신 N분기)
     const allLabels = new Set();
@@ -817,17 +827,18 @@ async function fetchCmpMetricAndRender(metricKey, canvas, labels, metaDef) {
 
   const codes = CMP.selectedCodes.map(s => s.code);
 
-  // fetchAllPages 대신 직접 쿼리 (정렬+range 충돌 방지)
-  const { data: rows } = await sb.from('financials')
-    .select(`stock_code,fs_div,is_cumulative,bsns_year,quarter,${metricKey}`)
-    .in('stock_code', codes)
-    .order('bsns_year', { ascending: true })
-    .order('quarter', { ascending: true })
-    .limit(500);
+  // 페이지로 받는다 — 예전엔 한 번에 limit(500)이라 종목 10개 × 연결·별도 × 20여 분기(~1,000행)에서 잘렸다.
+  // 수주잔고는 runComparison이 재무 행에 붙여 둔 값을 그대로 쓴다(financials 칸이 아님).
+  const rows = metaDef.src ? Object.values(CMP.stockDataMap || {}).flat()
+    : await fetchAllPages((s, e) => sb.from('financials')
+      .select(`stock_code,fs_div,is_cumulative,bsns_year,quarter,${metricKey}`)
+      .in('stock_code', codes)
+      .order('stock_code').order('bsns_year').order('quarter').order('fs_div')
+      .range(s, e));
 
   const stockMap = {};
   codes.forEach(c => { stockMap[c] = {}; });
-  finNormalizeQuarters(finPreferFs(rows)).forEach(r => {   // 종목별 CFS 우선·OFS 폴백 + 4분기 연간값 행 정리
+  (metaDef.src ? rows : finNormalizeQuarters(finPreferFs(rows))).forEach(r => {   // 종목별 CFS 우선·OFS 폴백 + 4분기 연간값 행 정리
     if (stockMap[r.stock_code]) {
       stockMap[r.stock_code][`${r.bsns_year} ${r.quarter}`] = r[metricKey];
     }

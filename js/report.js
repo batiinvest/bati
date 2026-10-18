@@ -5,7 +5,7 @@
 
 // ── 상태 ──────────────────────────────────────────────────────────────────────
 // FnGuide식 메인 탭 (인덱스 하드코딩 금지 — RP_TABS.indexOf('...')로 참조)
-const RP_TABS = ['기업현황','기업개요','사업분석','재무분석','투자지표','지분현황','최근리포트','금감원공시','수급흐름','DART 분석'];
+const RP_TABS = ['기업현황','기업개요','사업분석','재무분석','동종비교','투자지표','지분현황','최근리포트','금감원공시','수급흐름','DART 분석'];
 let _rpStock     = null;   // 선택된 종목 { code, name }
 let _rpData      = {};     // 로드된 데이터 캐시
 let _rpSegCache  = null;   // 제품별 차트 캐시
@@ -455,6 +455,7 @@ async function rpSetTab(idx) {
     case '기업개요':   await _rpLoadAndRenderProfile(card); return;      // FnGuide c1020001
     case '사업분석':   await _rpLoadAndRenderBiz(card); return;          // DART 4-1~4-6 그래프+표
     case '재무분석':   await _rpLoadAndRenderFinAnalysis(card); return;  // 차트(Chart.js·GPM/판관비 필터) + 상세표 통합
+    case '동종비교':   await _rpLoadAndRenderPeers(card); return;        // 같은 세부 섹터 실적·수주잔고 (report-peers.js)
     case '투자지표':   await _rpLoadAndRenderInvMetrics(card); return;   // FnGuide c1040001
     case '지분현황':   await _rpLoadAndRenderOwnership(card); return;    // FnGuide c1070001
     case '최근리포트': await _rpLoadAndRenderReports(card); return;      // FnGuide c1080001
