@@ -1189,7 +1189,7 @@ function _rpfDrawDonuts() {
   };
   mk('rpf-donut-a', '자산 구성', [
     { l: '유동자산', v: eb(r.current_assets), c: '#2AABEE' },
-    { l: '비유동자산', v: eb(r.non_current_assets), c: '#4a9eff' },
+    { l: '비유동자산', v: eb(r.non_current_assets), c: '#fba323' },
   ]);
   mk('rpf-donut-b', '자본 구조', [
     { l: '부채', v: eb(_rpfLiab(r)), c: '#f5365c' },
