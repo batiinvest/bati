@@ -887,12 +887,17 @@ function _mdDeepParse(md, summary) {
     ? mainBusinessRaw.slice(0, 120) + (mainBusinessRaw.length > 120 ? '...' : '')
     : null;   // 없으면 null — 'undefined' 문자열이 카드에 찍히던 문제
 
-  // 2-4 계열회사 (단위: 천원) — 관계·지분율·역할·국가·매출·순손익·자본·자산·부채·검토의견
+  // 2-4 계열회사 — 관계·지분율·역할·국가·매출·순손익·자본·자산·부채·검토의견. 금액은 천원으로 맞춰 둠(_rpSubsContent가 천원 기준)
+  // 생성기 양식마다 단위가 다름: '매출 1,462천원'(옛 양식) · '매출 4.97억원'(새 양식, 원익IPS) · '매출 4,506,790,604원'(파두)
+  // — 예전엔 천원만 읽어 새 양식은 표 숫자가 전부 '—'였음(10-18)
   const subSec = subLines('2-4', sec2);
   const subsidiaries = [];
-  const num천 = (s, kw) => {  // "kw 1,462천원" / "kw -143,014천원" → 정수(천원 그대로), 없으면 null
-    const m = (s || '').match(new RegExp(kw + '\\s*(-?[\\d,]+)\\s*천원'));
-    return m ? parseInt(m[1].replace(/,/g, ''), 10) : null;
+  const UNIT_K = { '원': 1e-3, '천원': 1, '만원': 10, '백만원': 1e3, '억원': 1e5, '조원': 1e8 };
+  const AMT = '(-?[\\d,]+(?:\\.\\d+)?)\\s*(조원|억원|백만원|만원|천원|원)';
+  const toK = (n, u) => Math.round(parseFloat(n.replace(/,/g, '')) * UNIT_K[u]);
+  const num천 = (s, kw) => {  // "kw 1,462천원" / "kw 4.97억원" / "kw -143,014원" → 천원 정수, 없으면 null("매출 -" 등)
+    const m = (s || '').match(new RegExp(kw + '\\s*' + AMT));
+    return m ? toK(m[1], m[2]) : null;
   };
   let cur = null;
   for (const l of subSec) {
@@ -917,8 +922,8 @@ function _mdDeepParse(md, summary) {
     const eq  = num천(l, '자본'); if (eq  != null) cur.equity = eq;
     const as  = num천(l, '자산'); if (as  != null) cur.assets = as;
     const li  = num천(l, '부채'); if (li  != null) cur.liabilities = li;
-    const netM = l.match(/순(이익|손실)\s*(-?[\d,]+)\s*천원/);
-    if (netM) cur.netIncome = parseInt(netM[2].replace(/,/g, ''), 10) * (netM[1] === '손실' ? -1 : 1);
+    const netM = l.match(new RegExp('순(이익|손실)\\s*' + AMT));
+    if (netM) cur.netIncome = toK(netM[2], netM[3]) * (netM[1] === '손실' ? -1 : 1);
     const opM = l.match(/검토의견[:：]\s*(.+)/); if (opM) cur.opinion = opM[1].trim();
     if (l.includes('자본잠식')) cur.note = '자본잠식';
   }
@@ -971,7 +976,7 @@ function _rpSubsContent(subs, summary) {
     if (v == null) return '—';
     const won = v * 1000, abs = Math.abs(won), sg = won < 0 ? '-' : '';
     if (abs >= 1e12) return sg + (abs / 1e12).toFixed(1) + '조';
-    if (abs >= 1e8)  return sg + (abs / 1e8).toFixed(1) + '억';
+    if (abs >= 1e8)  return sg + (abs / 1e8).toFixed(abs < 1e10 ? 2 : 1) + '억';   // 100억 미만은 MD처럼 소수 둘째 자리(4.97억)
     if (abs >= 1e4)  return sg + Math.round(abs / 1e4).toLocaleString() + '만';
     if (abs === 0)   return '0';
     return sg + Math.round(abs).toLocaleString() + '원';
