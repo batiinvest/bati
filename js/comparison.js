@@ -953,7 +953,7 @@ function renderCmpMetricBlocks() {
   el.innerHTML = CMP.metrics.map(k => {
     const m = CMP_METRICS.find(x => x.key === k);
     if (!m) return '';
-    return `<div class="card" style="margin-bottom:1rem" data-capture>
+    return `<div class="card" style="margin-bottom:1rem" data-capture="${escAttr(m.label)}">
       <div class="card-header" style="gap:8px">
         <span class="card-title" id="cmp-detail-title-${k}">${m.label}</span>
         <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">단위 ${m.unit} · 최근 ${CMP.sortedLabels.length}분기</span>

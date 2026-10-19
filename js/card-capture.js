@@ -182,6 +182,63 @@ function _capOverflow(node) {
   }
   return extra;
 }
+// 넓은 표 나눠 쌓기 — 가로 스크롤로 넘치는 표를 열 묶음으로 나눠 위아래로 쌓음(왼쪽 고정 열 = 종목·항목 이름은 묶음마다
+// 되풀이). 예전엔 넘친 만큼 이미지를 넓혀(10-18) 블로그 본문 폭에 붙이면 그만큼 줄어 표 숫자가 작아 안 보였음
+// (기업 비교 매출액·수주잔고 8분기 표, 10-19). 칸 합치기(colspan·rowspan)·colgroup이 있는 표는 그대로 → 아래 넓히기로
+function _capSplitTables(node) {
+  const copy = el => {   // 그려 둔 캔버스(스파크라인)까지 복사
+    const c = el.cloneNode(true), d = c.querySelectorAll('canvas');
+    el.querySelectorAll('canvas').forEach((s, i) => { try { d[i].getContext('2d').drawImage(s, 0, 0); } catch (e) {} });
+    return c;
+  };
+  for (const box of [node, ...node.querySelectorAll('*')]) {
+    const bs = getComputedStyle(box);
+    if (!(bs.overflowX === 'auto' || bs.overflowX === 'scroll') || box.scrollWidth <= box.clientWidth + 1) continue;
+    const ts = box.querySelectorAll('table');
+    if (ts.length !== 1) continue;
+    const t = ts[0], rows = [...t.rows], n = rows[0]?.cells.length || 0;
+    if (rows.length < 2 || n < 3 || t.querySelector('colgroup,col')
+      || rows.some(r => r.cells.length !== n || [...r.cells].some(c => c.colSpan > 1 || c.rowSpan > 1))) continue;
+    const room0 = box.clientWidth - parseFloat(bs.paddingLeft) - parseFloat(bs.paddingRight);
+    const w = [...rows[0].cells].map(c => c.getBoundingClientRect().width);
+    let k = 0;   // 고정 열 = 왼쪽부터 sticky인 열(없으면 첫 열)
+    while (k < n - 1 && getComputedStyle(rows[0].cells[k]).position === 'sticky') k++;
+    k = Math.max(1, k);
+    const rest = w.slice(k), room = room0 - w.slice(0, k).reduce((a, b) => a + b, 0);
+    if (room <= 0 || Math.max(...rest) > room) continue;
+    // 묶음 수를 늘려 가며 모든 묶음이 들어가는 첫 경우 — 열 수를 고르게(6·6·1 대신 5·4·4)
+    let groups = null;
+    for (let g = 2; g <= rest.length && !groups; g++) {
+      const size = Math.ceil(rest.length / g), gs = [];
+      for (let i = 0; i < rest.length; i += size) gs.push([k + i, k + Math.min(rest.length, i + size)]);
+      if (gs.every(([a, b]) => w.slice(a, b).reduce((x, y) => x + y, 0) <= room)) groups = gs;
+    }
+    if (!groups) continue;
+    const cells = new Map(rows.map(r => [r, [...r.cells]]));   // 옮기면 r.cells 번호가 당겨지므로 미리
+    const frag = document.createDocumentFragment();
+    groups.forEach(([a, b], gi) => {
+      const nt = t.cloneNode(false);
+      nt.style.minWidth = '0';
+      if (gi) nt.style.marginTop = '14px';
+      for (const sec of [...t.children]) {
+        if (!sec.rows) { if (!gi) frag.appendChild(copy(sec)); continue; }   // caption 등은 첫 묶음 위에 한 번
+        const ns = sec.cloneNode(false);
+        for (const r of [...sec.rows]) {
+          const nr = r.cloneNode(false);
+          cells.get(r).forEach((c, j) => {
+            if (j < k) nr.appendChild(copy(c));
+            else if (j >= a && j < b) nr.appendChild(c);   // 옮김 — 복제하면 캔버스가 비므로
+          });
+          ns.appendChild(nr);
+        }
+        nt.appendChild(ns);
+      }
+      frag.appendChild(nt);
+    });
+    t.replaceWith(frag);
+  }
+}
+
 // 스크롤 상자를 펼침 — 넓힌 폭 안에서 스크롤바·잘림 없이 끝 열까지 그려지게
 function _capUnclip(node) {
   for (const e of [node, ...node.querySelectorAll('*')]) {
@@ -206,14 +263,17 @@ async function _capRun(mode) {
     let width = Math.max(360, Math.round(Math.min(el.getBoundingClientRect().width, CAP_BLOG_W) / CAP.zoom));
     let chartRatio = Math.max(1, Math.min(3 * CAP.zoom, 12000 / width));
     tmp = _capClone(el, CAP.light, chartRatio, width);
-    // 넓은 표가 가로 스크롤로 넘치면 넘친 만큼 배치 폭을 넓혀 다시 복제 — 화면 밖 열이 이미지에서 빠졌음
-    // (분기 실적 트렌드 표의 2026 Q2 열). 크기 옵션으로 좁힌 폭에서 더 많이 넘치므로 복제본에서 잰다
+    // 넓은 표는 먼저 열 묶음으로 나눠 쌓고(_capSplitTables), 그래도 넘치면(칸 합친 표 등) 넘친 만큼 배치 폭을 넓혀
+    // 다시 복제 — 화면 밖 열이 이미지에서 빠졌음(분기 실적 트렌드 표의 2026 Q2 열). 크기 옵션으로 좁힌 폭에서 더 많이
+    // 넘치므로 복제본에서 잰다
+    _capSplitTables(tmp.node);
     const extra = _capOverflow(tmp.node);
     if (extra > 0) {
       tmp.done();
       width += Math.ceil(extra) + 2;
       chartRatio = Math.max(1, Math.min(3 * CAP.zoom, 12000 / width));
       tmp = _capClone(el, CAP.light, chartRatio, width);
+      _capSplitTables(tmp.node);
     }
     _capUnclip(tmp.node);
     const node = tmp.node;
