@@ -868,6 +868,23 @@ function rpBlMode(m) {
   });
 }
 
+// 업종(동종) 중앙값 대비 판정 — 중앙값과 15% 넘게 좋은 쪽이면 유리, 나쁜 쪽이면 불리. lowerBetter → 낮을수록 유리(PER·PBR).
+// 밸류에이션 카드·동종비교 탭 '동종 대비 위치' 공용
+function _rpPeerJudge(val, peer, lowerBetter, unit) {
+  if (val == null || peer == null) return null;
+  if (lowerBetter && (val <= 0 || peer <= 0)) return null;   // 적자 PER — 낮다고 유리하지 않음
+  const diff = (val - peer) / Math.abs(peer) * 100;
+  const pp = val - peer;   // %p — ROE 16.1% vs 12.1%는 '+32.7%'보다 '+4.0%p'가 바로 읽힘
+  const isGood = lowerBetter ? diff < -15 : diff > 15;
+  const isBad  = lowerBetter ? diff > 15  : diff < -15;
+  return {
+    diff,
+    color: isGood ? RP_JUDGE_COLOR.good : isBad ? RP_JUDGE_COLOR.caution : RP_JUDGE_COLOR.mid,
+    label: isGood ? '업종 대비 유리' : isBad ? '업종 대비 불리' : '업종 수준',
+    diffStr: unit === '%' ? (pp >= 0 ? '+' : '') + pp.toFixed(1) + '%p' : (diff >= 0 ? '+' : '') + diff.toFixed(0) + '%',
+  };
+}
+
 function _rpValuationCard(latestF, latest) {
   const ps     = _rpData.peerStats || null;
   const fin    = _rpData.fin || [];
@@ -1033,21 +1050,7 @@ function _rpValuationCard(latestF, latest) {
   // 종합 판단
   const synthesis = _rpSynthesis(latestF, latest, fin);
 
-  // peer 대비 평가: lowerBetter → 낮을수록 저평가 / 높을수록 고평가
-  const peerJudge = (val, peer, lowerBetter, unit) => {
-    if (val == null || peer == null) return null;
-    if (lowerBetter && (val <= 0 || peer <= 0)) return null;   // 적자 PER — 낮다고 유리하지 않음
-    const diff = (val - peer) / peer * 100;
-    const pp = val - peer;   // %p — ROE 16.1% vs 12.1%는 '+32.7%'보다 '+4.0%p'가 바로 읽힘
-    const isGood = lowerBetter ? diff < -15 : diff > 15;
-    const isBad  = lowerBetter ? diff > 15  : diff < -15;
-    return {
-      diff,
-      color: isGood ? RP_JUDGE_COLOR.good : isBad ? RP_JUDGE_COLOR.caution : RP_JUDGE_COLOR.mid,
-      label: isGood ? '업종 대비 유리' : isBad ? '업종 대비 불리' : '업종 수준',
-      diffStr: unit === '%' ? (pp >= 0 ? '+' : '') + pp.toFixed(1) + '%p' : (diff >= 0 ? '+' : '') + diff.toFixed(0) + '%',
-    };
-  };
+  const peerJudge = _rpPeerJudge;
 
   const peerHeader = ps
     ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3)">
