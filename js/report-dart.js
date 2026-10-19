@@ -301,6 +301,7 @@ function _rpDartOverview(x) {
     if (cs?.op) {
       const sg = v => `<span style="color:${/^[-−]/.test(v) ? 'var(--blue)' : 'var(--red)'}">${e(v)}</span>`;
       const line = `실적 컨센서스 ${e(cs.op.col)} 영업이익 <b>${_rpEok(cs.op.val)}</b>${cs.op.yoy ? ` (전년 대비 ${sg(cs.op.yoy)})` : ''}`
+        + (cs.prog ? ` · ${e(cs.prog.label)} 진척 ${cs.prog.pct.toFixed(1)}%` : '')
         + (cs.rev.length ? ` · 추정 변화 ${cs.rev.map(r => `${e(r.k)} ${sg(r.v)}`).join(', ')}` : '')
         + (cs.date ? ` <span style="color:var(--text3)">· FnGuide ${e(cs.date)} 집계</span>` : '');
       fact = fact ? `${fact}<div style="margin-top:4px">${line}</div>` : line;
@@ -678,8 +679,12 @@ function _rpDartModel(md) {
   // 향후 컨센서스(2-10): 연간 전망 첫 E 열의 영업이익·전년 대비 + 최근 추정치 변경(영업이익 행) — 종합분석 시장 평가 줄
   const s210 = _rpMdSec(L, /^### 2-10\./);
   if (s210) {
-    const ann = _rpMdFirstTable(_rpMdSec(s210, /^#### 연간 전망/));
+    const ann = _rpMdFirstTable(_rpMdSec(s210, /^#### 연간 전망\s*$/));
     const chg = _rpMdFirstTable(_rpMdSec(s210, /^#### 최근 추정치 변경/));
+    // 연간 전망 달성 조건(10-19 추가): [항목 | 연간E | 올해 누적A | 남은 기간 필요(조건부) | 전년 같은 기간A] — 영업이익 진척률만
+    const ach = _rpMdFirstTable(_rpMdSec(s210, /^#### 연간 전망 달성 조건/));
+    const ar = ach && /E$/.test(ach.hdr[1]?.trim() || '') && /A$/.test(ach.hdr[2]?.trim() || '') ? ach.rows.find(r => /^영업이익/.test(r[0].trim())) : null;
+    const aE = ar && _rpNum(ar[1]), aA = ar && _rpNum(ar[2]);
     const ei = ann ? ann.hdr.findIndex((h, i) => i > 0 && /E$/.test(h.trim())) : -1;
     const row = re => ann?.rows.find(r => re.test(r[0].trim()));
     const op = row(/^영업이익$/), opy = row(/^영업이익 YoY/);
@@ -689,6 +694,7 @@ function _rpDartModel(md) {
       op: ei > 0 && op && _rpNum(op[ei]) != null ? { col: ann.hdr[ei].trim().replace('년', ''), val: _rpNum(op[ei]), yoy: pct(opy?.[ei]) } : null,
       rev: (chg?.rows || []).filter(r => /영업이익/.test(r[0])).slice(0, 1)
         .flatMap(r => chg.hdr.map((h, i) => /변화$/.test(h.trim()) && pct(r[i]) ? { k: h.trim().replace(/\s*변화$/, ''), v: pct(r[i]) } : null).filter(Boolean)),
+      prog: aE > 0 && aA != null ? { label: ach.hdr[2].trim().replace(/^\d{4}\s*/, '').replace(/A$/, ''), pct: aA / aE * 100 } : null,
     };
   }
 
@@ -795,27 +801,38 @@ function _rpDartConsensus(L) {
   const link = safeUrl(src.match(/\]\((https?:[^)\s]+)\)/)?.[1] || '');
   const scope = sec.map(l => l.match(/^[-*]\s*범위[:：]\s*(.+)$/)?.[1]).find(Boolean);
   const note = t => `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:4px;line-height:1.5">* ${_rpMdInline(t)}</div>`;
+  // 표 아래 줄: 이름표 없는 줄·기준·근거·구분 = 표 각주(저장 상자 안), 그 밖의 이름표 줄(실적 진척·전년 비교·투자 해석) = 해석(카드 밖)
+  const FOOT = /^(기준|근거|구분|범위)\s*[:：]/;
+  const isInterp = l => /^[^:：\[\]()*`|]{1,16}?\s*[:：]/.test(l) && !FOOT.test(l);
+  const interp = [];
   const part = (re, title, sub) => {
     const s = _rpMdSec(sec, re), t = _rpMdTableRaw(s);
     if (!t.lines.length) return '';
+    const bl = bullets(s);
+    if (bl.some(isInterp)) interp.push({ title, lines: bl.filter(isInterp) });
     return `<div data-capture="${escAttr('향후 컨센서스 · ' + title)}" style="margin-top:10px">
       <div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--text1);margin-bottom:2px">${title}${sub ? ` <span style="font-weight:400;color:var(--text3);font-size:calc(11px*var(--m-label))">${sub}</span>` : ''}</div>
-      ${_rpMdTable(t.lines, { sign: true })}${bullets(s).map(note).join('')}
+      ${_rpMdTable(t.lines, { sign: true })}${bl.filter(l => !isInterp(l)).map(note).join('')}
     </div>`;
   };
-  const body = part(/^#### 연간 전망/, '연간 전망', 'A 실적 · E 추정 평균')
+  const body = part(/^#### 연간 전망\s*$/, '연간 전망', 'A 실적 · E 추정 평균')
     + part(/^#### 분기 전망/, '분기 전망', '단분기 · E')
-    + part(/^#### 최근 추정치 변경/, '최근 추정치 변경');
+    + part(/^#### 최근 추정치 변경/, '최근 추정치 변경')
+    + part(/^#### 연간 전망 달성 조건/, '연간 전망 달성 조건', '연간E − 올해 누적A · 조건부 계산, 새 전망 아님');
   const rv = bullets(_rpMdSec(sec, /^#### 검토의견/));
-  if (!body && !rv.length) return '';
+  if (rv.length) interp.push({ title: '검토의견', lines: rv });
+  if (!body && !interp.length) return '';
   const right = `${date ? `FnGuide ${esc(date)} 집계` : 'FnGuide'} · 억원(EPS 원)`
     + (link ? ` <a href="${escAttr(link)}" target="_blank" rel="noopener" style="color:var(--tg);text-decoration:none">↗</a>` : '');
-  const card = body ? _rpDartCard('향후 컨센서스', `<div style="margin-top:-10px">${body}</div>${scope ? note(scope) : ''}`, right) : '';
-  // 한계·계산 줄은 흐리게(사실·해석 → 한계 순)
+  const card = body ? _rpDartCard('향후 컨센서스', `<div style="margin-top:-10px">${body}</div>${scope ? note(`범위: ${scope}`) : ''}`, right) : '';
+  // 해석 상자 — 표별 해석(달성 조건) → 검토의견. 한계·계산 줄은 흐리게(사실·해석 → 한계 순)
   const dim = t => /^(한계|계산)\s*[:：]/.test(t);
-  const review = rv.length ? `<div style="${card ? 'margin-top:-8px;' : ''}padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--tg);border-radius:var(--radius-sm)">
-    <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-bottom:6px">검토의견 · MD 2-10 (보고서 시점)</div>
-    <div style="display:flex;flex-direction:column;gap:5px">${rv.map(t => `<div style="font-size:calc(${dim(t) ? '11px*var(--m-label)' : '12px*var(--m-sub)'});color:${dim(t) ? 'var(--text3)' : 'var(--text1)'};line-height:1.65;overflow-wrap:anywhere">${_rpMdLabeled(t)}</div>`).join('')}</div>
+  const ln = t => `<div style="font-size:calc(${dim(t) ? '11px*var(--m-label)' : '12px*var(--m-sub)'});color:${dim(t) ? 'var(--text3)' : 'var(--text1)'};line-height:1.65;overflow-wrap:anywhere">${_rpMdLabeled(t)}</div>`;
+  const review = interp.length ? `<div style="${card ? 'margin-top:-8px;' : ''}padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--tg);border-radius:var(--radius-sm)">
+    <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-bottom:6px">해석 · MD 2-10 (보고서 시점)</div>
+    <div style="display:flex;flex-direction:column;gap:5px">${interp.map((g, gi) => (interp.length > 1
+      ? `<div style="font-size:calc(11.5px*var(--m-sub));font-weight:700;color:var(--text2);${gi ? 'margin-top:6px' : ''}">${esc(g.title)}</div>` : '')
+      + g.lines.map(ln).join('')).join('')}</div>
   </div>` : '';
   return card + review;
 }
@@ -1597,6 +1614,8 @@ const _rpMdText = s => escapeHtml(s.replace(_RPD_ESC, (m, c) => `\u0002${c.charC
   })
   .replace(/\u0002(\d+)\u0003/g, (m, c) => escapeHtml(String.fromCharCode(+c)));
 function _rpMdInline(s) {
+  // 문서 안 링크 '[2-10. 향후 컨센서스](#section-2-10)'는 글자만(사이트엔 그 앵커가 없음) — 10-19 MD부터 본문에 생김
+  s = String(s ?? '').replace(/\[((?:\\.|[^\]\\\n])+)\]\(#[^)\s]*\)/g, '$1');
   const re = /\[((?:\\.|[^\]\\\n])+)\]\((https?:\/\/[^)\s]+)\)/g;   // 링크 글자 안의 \] 허용
   let html = '', last = 0, m;
   while ((m = re.exec(s))) {
