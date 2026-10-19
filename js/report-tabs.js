@@ -355,13 +355,24 @@ function _rpOwnershipTab(opts) {
 // ═══ 최근리포트 탭 (FnGuide c1080001 스타일) ═════════════════════════════════
 // 증권사 투자의견 이력 — 일자/제공처/의견(직전 대비)/목표가(직전 대비 ▲▼N=)/괴리율
 
-// 3개월 컨센서스 요약 — 최근리포트 탭·DART 분석 종합분석 공용. rows = analyst_opinions 최신순
+// 투자의견 컨센서스 계산 — 기업현황 '투자의견 컨센서스'·최근리포트 탭·DART 분석 종합분석 공용(한 군데에서 계산).
+// 기준 = 최근 3개월(90일) 안 증권사별 마지막 의견. 10-19 전에는 기업현황이 기간 제한 없이 증권사별 최신(그것도 매수
+// 의견만 6건 조회), 최근리포트는 3개월 안 모든 의견 평균이라 같은 '평균 목표주가'가 164,200원·158,800원으로 달랐다
+// (같은 증권사가 두 번 들어가거나 기간 밖 의견이 섞임). rows = analyst_opinions 최신순(opinion_code 포함).
+//   recent = 3개월 안 모든 의견 · items = 그중 증권사별 마지막 의견 · tps·avgTp·buy·hold·sell = items 기준
+const RP_CONS_DAYS = 90;
+const _rpOpIsBuy  = o => ['1', '2'].includes(String(o.opinion_code ?? '')) || /매수|buy/i.test(o.opinion || '');
+const _rpOpIsSell = o => !_rpOpIsBuy(o) && /매도|sell/i.test(o.opinion || '');
 function _rpConsensusSummary(rows, price) {
-  const recent = (rows || []).filter(o => (Date.now() - new Date(o.opinion_date).getTime()) < 90 * 86400e3);
-  const tps = recent.map(o => o.target_price).filter(v => v > 0);
+  const cut = Date.now() - RP_CONS_DAYS * 86400e3;
+  const recent = (rows || []).filter(o => new Date(o.opinion_date).getTime() >= cut);
+  const seen = new Set();
+  const items = recent.filter(o => { const f = o.firm_name || ''; if (seen.has(f)) return false; seen.add(f); return true; });
+  const tps = items.map(o => o.target_price).filter(v => v > 0);
   const avgTp = tps.length ? Math.round(tps.reduce((s, v) => s + v, 0) / tps.length) : null;
   const upside = avgTp && price ? (avgTp - price) / price * 100 : null;
-  return { recent, tps, avgTp, upside, buy: recent.filter(o => ['1', '2'].includes(o.opinion_code)).length };
+  const buy = items.filter(_rpOpIsBuy).length, sell = items.filter(_rpOpIsSell).length;
+  return { recent, items, tps, avgTp, upside, buy, sell, hold: items.length - buy - sell };
 }
 
 async function _rpLoadAndRenderReports(body) {
@@ -379,8 +390,8 @@ async function _rpLoadAndRenderReports(body) {
     const esc = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
     const price = _rpData.price?.[0]?.price || 0;
 
-    // 3개월 컨센서스 요약
-    const { recent, tps, avgTp, upside } = _rpConsensusSummary(rows, price);
+    // 3개월 컨센서스 요약 — 기업현황 '투자의견 컨센서스'와 같은 계산(증권사별 마지막 의견)
+    const { recent, items, tps, avgTp, upside, buy } = _rpConsensusSummary(rows, price);
     const kv = (label, val, sub, subCol) => `
       <div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);text-align:center">
         <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:3px">${label}</div>
@@ -404,12 +415,12 @@ async function _rpLoadAndRenderReports(body) {
 
     body.innerHTML = `
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:14px">
-        ${kv('평균 목표주가 <span style="opacity:.65">(3개월)</span>', avgTp ? fmtNum(avgTp) + '원' : '—',
+        ${kv(`평균 목표주가 <span style="opacity:.65">(3개월 · ${items.length}개사)</span>`, avgTp ? fmtNum(avgTp) + '원' : '—',
           upside != null ? `현재가 대비 ${upside >= 0 ? '+' : ''}${upside.toFixed(1)}%` : '',
           upside >= 0 ? 'var(--red)' : 'var(--blue)')}
         ${kv('목표가 범위', tps.length ? `${fmtNum(Math.min(...tps))}~${fmtNum(Math.max(...tps))}` : '—', tps.length ? '원' : '')}
         ${kv('의견 수 <span style="opacity:.65">(3개월)</span>', recent.length + '건',
-          `매수 ${recent.filter(o => ['1','2'].includes(o.opinion_code)).length} · 기타 ${recent.filter(o => !['1','2'].includes(o.opinion_code)).length}`)}
+          `증권사 ${items.length}곳 · 매수 ${buy} · 기타 ${items.length - buy}`)}
         ${kv('전체 이력', rows.length + '건', `${(rows[rows.length-1]?.opinion_date || '').slice(0,7)} ~`)}
       </div>
       <div style="overflow-x:auto">
@@ -443,7 +454,7 @@ async function _rpLoadAndRenderReports(body) {
       </table>
       </div>
       <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">
-        * 변동: N=신규 · ▲=직전 대비 상향 · ▼=하향 · ==변동없음 (같은 증권사 직전 목표가 기준) · 리포트 원문/제목은 데이터 미수집</div>`;
+        * 평균 목표주가·범위·매수 수 = 최근 3개월 안 증권사별 마지막 의견(기업현황과 같은 계산) · 변동: N=신규 · ▲=직전 대비 상향 · ▼=하향 · ==변동없음 (같은 증권사 직전 목표가 기준) · 리포트 원문/제목은 데이터 미수집</div>`;
   } catch (e) {
     body.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:calc(12px*var(--m-sub))">리포트 이력 로드 실패: ${e.message}</div>`;
   }

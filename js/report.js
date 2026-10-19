@@ -10,10 +10,7 @@ let _rpStock     = null;   // 선택된 종목 { code, name }
 let _rpData      = {};     // 로드된 데이터 캐시
 let _rpSegCache  = null;   // 제품별 차트 캐시
 let _rpSegSel    = null;   // 선택된 세그먼트명 (null = 전체)
-let _rpSegMode   = 'year'; // 매출 트렌드 축: 'year'(연간·기본) | 'quarter'(분기)
-let _rpBlCache   = null;   // 수주잔고 차트 캐시
-let _rpBlSel     = null;   // 선택된 수주 품목 (null = 전체)
-let _rpBlMode    = 'year'; // 수주잔고 축: 'year' | 'quarter'
+let _rpSegMode   = 'quarter'; // 매출 트렌드 축: 'quarter'(분기·기본) | 'year'(연간)
 
 // ── 페이지 진입점 ─────────────────────────────────────────────────────────────
 function pReport() {
@@ -185,12 +182,13 @@ async function rpLoadReport() {
       loadFinPreferred(_rpStock.code, 'bsns_year,quarter,revenue,operating_profit,net_income,total_assets,total_equity,debt_ratio,roe,roa,operating_margin,net_margin,ebitda,fcf,da', { limit: 24 }),
       sb.from('dart_reports').select('report_type,receive_date,summary')
         .eq('stock_code', _rpStock.code).order('receive_date', { ascending: false }).limit(1).maybeSingle(),
-      sb.from('analyst_opinions').select('firm_name,opinion,target_price,gap_rate,opinion_date')
-        .eq('stock_code', _rpStock.code).in('opinion_code',['1','2'])
-        .order('opinion_date', { ascending: false }).limit(6),
+      // 모든 의견(매수만 6건 받던 것 → 의견 분포가 늘 매수뿐이었다) — 계산은 _rpConsensusSummary(3개월·증권사별 마지막)
+      sb.from('analyst_opinions').select('firm_name,opinion,target_price,gap_rate,opinion_date,opinion_code')
+        .eq('stock_code', _rpStock.code)
+        .order('opinion_date', { ascending: false }).limit(100),
       sb.from('dart_segment_revenue')
         .select('bsns_year,quarter,segment_type,category,subcategory,revenue,revenue_ratio')
-        .eq('stock_code', _rpStock.code).in('segment_type',['product','region','backlog'])
+        .eq('stock_code', _rpStock.code).eq('segment_type','product')
         .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
       sb.from('companies').select('market,sector,product,industry,sub_industry,wics_sector')
         .eq('code', _rpStock.code).maybeSingle(),
@@ -207,8 +205,6 @@ async function rpLoadReport() {
       dart:     dartRes.data    || null,
       analyst:  analystRes.data || [],
       segment:  (segRes.data || []).filter(r => r.segment_type === 'product'),
-      region:   (segRes.data || []).filter(r => r.segment_type === 'region'),
-      backlog:  (segRes.data || []).filter(r => r.segment_type === 'backlog'),
       annual:   _rpAggAnnual(finRows).reverse(), // 최신 연도 먼저
       company:  compRes.data    || null,
       summary:  summaryRes.data || null,

@@ -271,30 +271,23 @@ function _rpPriceVolChart(prices) {
 }
 
 // ③ 투자의견 컨센서스 — 평균 목표주가·의견 분포·증권사 테이블
+// 계산은 report-tabs.js _rpConsensusSummary(최근 3개월 안 증권사별 마지막 의견) — 최근리포트 탭·DART 분석과 같은 숫자
 function _rpConsensusCard(analysts, currentPrice) {
   const esc   = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
-  const opMap = { '매수': 'BUY', '적극매수': 'BUY', 'buy': 'BUY', '중립': 'HOLD', '보유': 'HOLD', 'hold': 'HOLD', '매도': 'SELL', 'sell': 'SELL' };
   const colMap = { BUY: '#22c55e', HOLD: '#f59e0b', SELL: '#ef4444' };
+  const opOf = a => _rpOpIsBuy(a) ? 'BUY' : _rpOpIsSell(a) ? 'SELL' : 'HOLD';
 
-  // 증권사별 최신 1건
-  const seen = new Set();
-  const items = (analysts || []).filter(a => {
-    if (seen.has(a.firm_name)) return false; seen.add(a.firm_name); return true;
-  });
-  const tps    = items.filter(a => a.target_price > 0).map(a => a.target_price);
-  const avgTp  = tps.length ? Math.round(tps.reduce((s, v) => s + v, 0) / tps.length) : null;
-  const avgGap = avgTp && currentPrice ? (avgTp - currentPrice) / currentPrice * 100 : null;
-
-  // 의견 분포
-  const dist = { BUY: 0, HOLD: 0, SELL: 0 };
-  items.forEach(a => { const k = opMap[a.opinion?.toLowerCase?.() ? a.opinion.toLowerCase() : a.opinion] || opMap[a.opinion]; if (dist[k] != null) dist[k]++; });
-  const distTotal = dist.BUY + dist.HOLD + dist.SELL;
+  const c = _rpConsensusSummary(analysts, currentPrice);
+  const items = c.items, avgTp = c.avgTp, avgGap = c.upside;
+  const dist = { BUY: c.buy, HOLD: c.hold, SELL: c.sell };
+  const distTotal = items.length;
+  const last = (analysts || [])[0];
 
 
   const summaryCol = `
     <div style="display:flex;flex-direction:column;gap:10px;padding-right:14px;border-right:1px solid var(--border)">
       <div>
-        <div style="font-size:calc(11px*var(--m-label));color:var(--text2)">평균 목표주가 <span style="opacity:.65">(${items.length}개사)</span></div>
+        <div style="font-size:calc(11px*var(--m-label));color:var(--text2)">평균 목표주가 <span style="opacity:.65">(3개월 · ${items.length}개사)</span></div>
         <div style="font-size:calc(24px*var(--m-title));font-weight:800;font-variant-numeric:tabular-nums">
           ${avgTp ? fmtNum(avgTp) + '<span style="font-size:calc(13px*var(--m-body));font-weight:600">원</span>' : '—'}</div>
         ${avgGap != null ? `<div style="font-size:calc(13px*var(--m-body));font-weight:700;
@@ -325,7 +318,7 @@ function _rpConsensusCard(analysts, currentPrice) {
         </tr></thead>
         <tbody>
           ${items.map(a => {
-            const op  = opMap[a.opinion] || a.opinion || '—';
+            const op  = opOf(a);
             const col = colMap[op] || 'var(--text2)';
             const gap = a.gap_rate;
             const gCol = gap > 0 ? 'var(--red)' : gap < 0 ? 'var(--blue)' : 'var(--text3)';
@@ -341,10 +334,11 @@ function _rpConsensusCard(analysts, currentPrice) {
           }).join('')}
         </tbody>
       </table>
-      <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">* 증권사별 최근 발표 기준</div>
+      <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">* 최근 3개월 안 증권사별 마지막 의견 기준 — 최근리포트 탭과 같은 계산</div>
     </div>`
     : `<div style="display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:calc(12px*var(--m-sub))">
-        등록된 증권사 의견이 없습니다</div>`;
+        ${last ? `최근 3개월 의견 없음 · 마지막 ${esc(last.firm_name || '')} ${esc(last.opinion || '')} (${esc((last.opinion_date || '').slice(0, 10))})`
+          : '등록된 증권사 의견이 없습니다'}</div>`;
 
   return `<div class="card" style="padding:16px">
     ${_rpSecT('투자의견 컨센서스')}
@@ -425,17 +419,12 @@ function _rpAnnualTable(annual, latest, cons) {
 async function _rpLoadAndRenderProfile(body) {
   if (!_rpStock || !body) return;
   try {
-    const [compRes, dartRes, regionRes, prodRes] = await Promise.all([
+    // 제품·내수수출·수주잔고·생산능력은 사업분석 탭에만(10-19 탭 중복 정리) — 여기선 기본정보·공시·계열사만
+    const [compRes, dartRes] = await Promise.all([
       sb.from('companies').select('corp_code,market,sector,product,industry,sub_industry')
         .eq('code', _rpStock.code).maybeSingle(),
       sb.from('dart_reports').select('report_type,receive_date,raw_md,summary')
         .eq('stock_code', _rpStock.code).order('receive_date', { ascending: false }).limit(1).maybeSingle(),
-      sb.from('dart_segment_revenue').select('bsns_year,quarter,category,subcategory,revenue')
-        .eq('stock_code', _rpStock.code).eq('segment_type','region')
-        .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
-      sb.from('dart_production').select('bsns_year,quarter,factory_name,capacity,actual,utilization_rate')
-        .eq('stock_code', _rpStock.code)
-        .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
     ]);
 
     // 최근 공시 (corp_code 기준)
@@ -455,10 +444,7 @@ async function _rpLoadAndRenderProfile(body) {
       RPP.sites.profile = { code: _rpStock.code, reportType: dart.report_type, summary: dart.summary || {}, dp, rerender: () => _rpLoadAndRenderProfile(body) };
 
     body.innerHTML = _rpProfileTab({
-      comp: compRes.data || {}, dart, dp, discs,
-      region: regionRes.data || [], prod: prodRes.data || [],
-      latest: _rpData.price?.[0] || {}, segment: _rpData.segment || [],
-      backlog: _rpData.backlog || [],
+      comp: compRes.data || {}, dart, dp, discs, latest: _rpData.price?.[0] || {},
     });
   } catch (e) {
     body.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);font-size:calc(12px*var(--m-sub))">기업개요 로드 실패: ${e.message}</div>`;
@@ -539,8 +525,9 @@ function _rpProfileSubsCard(dp = {}) {
       : _rpTabEmpty('DART 업로드 시 계열사 현황이 표시됩니다')}`);
 }
 
-// 기업개요 탭 렌더 — 기본정보·최근공시(연혁)·매출구성·내수/수출·생산·계열사
-function _rpProfileTab({ comp, dart, dp, discs, region, prod, latest, segment, backlog }) {
+// 기업개요 탭 렌더 — 기본정보·최근공시(연혁)·계열사. 제품별 매출·내수/수출·수주잔고·생산능력은 사업분석 탭에만
+// (10-19 탭 중복 정리 — 같은 데이터를 두 탭에서 따로 그려 기간 기준이 달라 보였다: 제품 비중 2분기만 vs 상반기 누적)
+function _rpProfileTab({ comp, dart, dp, discs, latest }) {
   const esc = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
   const secT = _rpTabSecT, box = _rpTabBox, empty = _rpTabEmpty;
 
@@ -566,162 +553,22 @@ function _rpProfileTab({ comp, dart, dp, discs, region, prod, latest, segment, b
     </div>`
     : empty('최근 공시 데이터 없음')}`);
 
-  // ── ③ 주요제품 매출구성 (최신 기간, %) ─────────────────────────────────
-  let segHTML = '';
-  {
-    const rows = (segment || []).filter(r =>
-      (r.category || '').trim() !== '합계' && (r.subcategory || '').trim() !== '합계');
-    const periods = [...new Set(rows.map(r => `${r.bsns_year}.${r.quarter}`))];
-    const lastKey = periods[periods.length - 1];
-    const lastRows = rows.filter(r => `${r.bsns_year}.${r.quarter}` === lastKey);
-    // 라벨(품목 우선)별 매출 합산 — 4-1 표는 "사업부문 | 품목" 2단 구조
-    const byLabel = {};
-    for (const r of lastRows) {
-      const name = typeof _rpSegLabel === 'function' ? _rpSegLabel(r) : (r.category || '').trim();
-      if (!name) continue;
-      byLabel[name] = (byLabel[name] || 0) + (+r.revenue || 0);
-    }
-    const total = Object.values(byLabel).reduce((s, v) => s + v, 0);
-    const COLORS = SERIES_PAL;
-    const items = Object.entries(byLabel).map(([name, rev]) => ({
-      name, pct: total > 0 ? rev / total * 100 : 0,
-    })).sort((a, b) => b.pct - a.pct);
-
-    segHTML = box(`
-      <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px">
-        ${secT('주요제품 매출구성')}
-        ${lastKey ? `<span style="font-size:calc(11px*var(--m-label));color:var(--text3)">* 단위: % [기준: ${lastKey.replace('.', ' ')}]</span>` : ''}
-      </div>
-      ${items.length ? `
-      <!-- 100% 스택 바 -->
-      <div style="display:flex;height:14px;border-radius:4px;overflow:hidden;margin-bottom:12px;background:var(--border)">
-        ${items.map((it, i) => `<div style="flex:${Math.max(it.pct, 0.5)};background:${COLORS[i % COLORS.length]}"
-          title="${esc(it.name)} ${it.pct.toFixed(2)}%"></div>`).join('')}
-      </div>
-      <div style="display:flex;flex-direction:column;gap:7px">
-        ${items.map((it, i) => `
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="width:9px;height:9px;border-radius:2px;background:${COLORS[i % COLORS.length]};flex-shrink:0"></span>
-          <span style="font-size:calc(12px*var(--m-sub));color:var(--text1);flex:1;min-width:0;overflow:hidden;
-            text-overflow:ellipsis;white-space:nowrap">${esc(it.name)}</span>
-          <div style="flex:2;height:5px;border-radius:3px;background:var(--border);overflow:hidden">
-            <div style="height:100%;width:${Math.min(it.pct, 100)}%;background:${COLORS[i % COLORS.length]};border-radius:3px"></div>
-          </div>
-          <span style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--text1);width:52px;text-align:right;
-            font-variant-numeric:tabular-nums">${it.pct.toFixed(2)}</span>
-        </div>`).join('')}
-      </div>`
-      : empty('DART 업로드 시 제품별 매출구성이 표시됩니다')}`);
-  }
-
-  // ── ④ 내수 및 수출구성 ─────────────────────────────────────────────────
-  let regionHTML = '';
-  {
-    const isDom = s => /내수|국내/.test(s || '');
-    const isExp = s => /수출|해외/.test(s || '');
-    // category/subcategory 중 내수·수출 축 자동 감지
-    const axisInSub = (region || []).some(r => isDom(r.subcategory) || isExp(r.subcategory));
-    const rows = (region || []).map(r => axisInSub
-      ? { prod: r.category, axis: r.subcategory, ...r }
-      : { prod: r.subcategory || r.category, axis: r.category, ...r })
-      .filter(r => (isDom(r.axis) || isExp(r.axis)) && r.prod && r.prod !== '합계');
-
-    const periods = [...new Set(rows.map(r => `${r.bsns_year}.${r.quarter}`))].slice(-3);
-    const prods = [...new Set(rows.filter(r => periods.includes(`${r.bsns_year}.${r.quarter}`)).map(r => r.prod))];
-
-    regionHTML = box(`
-      <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px">
-        ${secT('내수 및 수출구성')}
-        <span style="font-size:calc(11px*var(--m-label));color:var(--text3)">* 단위: %</span>
-      </div>
-      ${prods.length ? `
-      <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub));white-space:nowrap">
-        <thead>
-          <tr style="background:var(--bg3)">
-            <th style="padding:6px 10px;text-align:left;color:var(--text2);font-weight:600;border-bottom:1px solid var(--border)">제품명</th>
-            ${periods.map(p => `<th colspan="2" style="padding:6px 10px;text-align:center;color:var(--text2);
-              font-weight:600;border-bottom:1px solid var(--border)">${p.replace('.', ' ')}</th>`).join('')}
-          </tr>
-          <tr style="background:var(--bg3)">
-            <th style="border-bottom:1px solid var(--border)"></th>
-            ${periods.map(() => `
-              <th style="padding:4px 10px;text-align:right;color:var(--text3);font-weight:500;border-bottom:1px solid var(--border)">내수</th>
-              <th style="padding:4px 10px;text-align:right;color:var(--text3);font-weight:500;border-bottom:1px solid var(--border)">수출</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${prods.map(pn => `<tr>
-            <td style="padding:7px 10px;color:var(--text1);font-weight:600;border-bottom:1px solid var(--border)">${esc(pn)}</td>
-            ${periods.map(p => {
-              const pr = rows.filter(r => `${r.bsns_year}.${r.quarter}` === p && r.prod === pn);
-              const dom = pr.filter(r => isDom(r.axis)).reduce((s, r) => s + (r.revenue || 0), 0);
-              const exp = pr.filter(r => isExp(r.axis)).reduce((s, r) => s + (r.revenue || 0), 0);
-              const tot = dom + exp;
-              const cell = v => tot > 0 ? (v / tot * 100).toFixed(2) : '—';
-              return `
-                <td style="padding:7px 10px;text-align:right;color:var(--text1);
-                  font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border)">${cell(dom)}</td>
-                <td style="padding:7px 10px;text-align:right;color:var(--tg);font-weight:600;
-                  font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border)">${cell(exp)}</td>`;
-            }).join('')}
-          </tr>`).join('')}
-        </tbody>
-      </table>
-      </div>`
-      : empty('DART 업로드 시 내수/수출 구성이 표시됩니다')}`);
-  }
-
-  // ── ⑤ 생산실적 및 가동률 ───────────────────────────────────────────────
-  let prodHTML = '';
-  {
-    const periods = [...new Set((prod || []).map(r => `${r.bsns_year}.${r.quarter}`))];
-    const lastKey = periods[periods.length - 1];
-    const lastRows = (prod || []).filter(r => `${r.bsns_year}.${r.quarter}` === lastKey);
-
-    prodHTML = box(`
-      <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px">
-        ${secT('생산능력 및 가동률')}
-        ${lastKey ? `<span style="font-size:calc(11px*var(--m-label));color:var(--text3)">[기준: ${lastKey.replace('.', ' ')}]</span>` : ''}
-      </div>
-      ${lastRows.length ? `
-      <div style="display:flex;flex-direction:column;gap:7px">
-        ${lastRows.map(r => {
-          const u = r.utilization_rate;
-          const uCol = u == null ? 'var(--text3)' : u >= 90 ? '#f87171' : u >= 70 ? '#4ade80' : '#f59e0b';
-          return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;
-            background:var(--bg3);border-radius:var(--radius-sm);flex-wrap:wrap">
-            <span style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--text1);min-width:90px">${esc(r.factory_name)}</span>
-            <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">생산능력 <b style="color:var(--text1)">${r.capacity != null ? fmtNum(r.capacity) : '—'}</b></span>
-            <span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">생산실적 <b style="color:var(--text1)">${r.actual != null ? fmtNum(r.actual) : '—'}</b></span>
-            <div style="margin-left:auto;display:flex;align-items:center;gap:8px;min-width:150px">
-              <div style="flex:1;height:5px;border-radius:3px;background:var(--border);overflow:hidden">
-                <div style="height:100%;width:${Math.min(u || 0, 100)}%;background:${uCol};border-radius:3px"></div>
-              </div>
-              <span style="font-size:calc(12px*var(--m-sub));font-weight:700;color:${uCol};width:50px;text-align:right">
-                ${u != null ? u.toFixed(1) + '%' : '—'}</span>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>`
-      : empty('DART 업로드 시 생산실적·가동률이 표시됩니다')}`);
-  }
-
-  // ── ⑥ 계열사 현황 (상세 — 공용 _rpSubsContent) ────────────────────────
+  // ── ③ 계열사 현황 (상세 — 공용 _rpSubsContent) ────────────────────────
   const subsHTML = _rpProfileSubsCard(dp);
+
+  // 사업 데이터는 사업분석 탭으로 안내
+  const bizLink = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:var(--bg2);
+      border:1px solid var(--border);border-radius:var(--radius-sm);font-size:calc(12px*var(--m-sub));color:var(--text2)">
+      제품별 매출 · 내수/수출 · 원재료 · 생산능력 · 수주잔고는 사업분석 탭에 모았습니다
+      <button class="chip chip-sm" onclick="rpSetTab(RP_TABS.indexOf('사업분석'))">사업분석 탭 열기 ↗</button></div>`;
 
   return `<div style="display:flex;flex-direction:column;gap:12px">
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px">
       ${infoHTML}
       ${discHTML}
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px">
-      ${segHTML}
-      ${regionHTML}
-    </div>
-    ${typeof _rpBacklogCard === 'function' ? _rpBacklogCard(backlog || []) : ''}
-    ${prodHTML}
     ${subsHTML}
+    ${bizLink}
   </div>`;
 }
 
@@ -965,37 +812,8 @@ function rpfRender() {
 
   const defs = _rpfRowDefs();
 
-  // 손익(매출) 뷰: 매출 국내/해외 품목별 구성을 같은 표에 병합 (같은 기간·억 단위·YoY/QoQ)
-  let segDefs = [];
-  if (RPF.stmt === 'is') {
-    const isDom = s => /내수|국내/.test(s || ''), isExp = s => /수출|해외/.test(s || '');
-    const reg = (_rpData.region || []).filter(r => (r.category || '').trim() !== '합계' && (r.subcategory || '').trim() !== '합계');
-    const rlabel = r => {
-      const subAxis = isDom(r.subcategory) || isExp(r.subcategory);
-      const axis = subAxis ? r.subcategory : r.category;
-      const prod = ((subAxis ? r.category : r.subcategory) || '').trim();
-      const ax = isDom(axis) ? '내수' : isExp(axis) ? '수출' : null;
-      return ax ? (prod ? `${prod} · ${ax}` : ax) : null;
-    };
-    const rmap = {}, rnames = [];
-    for (const r of reg) {
-      const lb = rlabel(r); if (!lb) continue;
-      const key = RPF.view === 'annual' ? String(r.bsns_year) : `${r.bsns_year}.${r.quarter}`;
-      (rmap[key] ||= {}); rmap[key][lb] = (rmap[key][lb] || 0) + (+r.revenue || 0) * 1e6;  // 백만원→원(표 eok와 정합)
-      if (!rnames.includes(lb)) rnames.push(lb);
-    }
-    if (rnames.length) {
-      const pk = p => RPF.view === 'annual' ? String(p.bsns_year) : `${p.bsns_year}.${p.quarter}`;
-      const lastPk = pk(periods[periods.length - 1]);
-      rnames.sort((a, b) => ((rmap[lastPk] || {})[b] || 0) - ((rmap[lastPk] || {})[a] || 0));
-      segDefs = [
-        { divider: '매출 구성 · 국내/해외 (품목별)' },
-        ...rnames.map(n => ({ label: n, ind: 1, calc: r => (rmap[pk(r)] || {})[n] ?? null })),
-        { label: '합계', bold: 1, calc: r => rnames.reduce((s, n) => s + ((rmap[pk(r)] || {})[n] || 0), 0) },
-      ];
-    }
-  }
-  const allDefs = defs.concat(segDefs);
+  // 매출 국내/해외 품목별 구성은 사업분석 탭 '매출 (국내/해외)'에만(10-19 탭 중복 정리 — 예전엔 이 표 아래에도 병합)
+  const allDefs = defs;
 
   // 선택형 차트: 선택 가능한 항목(구분선 제외) + 현재 stmt 유효 선택 유지 + 선택 항목 색
   const keyOf = d => d.k || ('s:' + d.label);
@@ -1052,8 +870,8 @@ function rpfRender() {
   <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">
     * 연간=분기 순액 4개 합산(완결 연도만, 재무상태표는 Q4 시점) · 이익률은 금액 기준 재계산 · 법인세비용은 세전이익-순이익 계산치 · 강조열은 최근 기간</div>`;
 
-  // 재무상태 뷰: 재무 건전성 요약 스트립(위) + 자산구성/자본구조 도넛(차트 아래)
-  const bsTop = RPF.stmt === 'bs' ? _rpfBsSummary(periods) : '';
+  // 재무상태 뷰: 자산구성/자본구조 도넛(차트 아래). 건전성 비율(자기자본비율·부채비율·유동비율)·자본잠식은
+  // 투자지표 탭 '안정성'에만(10-19 탭 중복 정리 — 예전엔 이 뷰 위에 같은 비율 스트립)
   // 현금흐름 뷰: 현금흐름 요약(영업/투자/재무 구조 + 패턴·현금창출 질 배지)
   const cfTop = RPF.stmt === 'cf' ? _rpfCfSummary(periods) : '';
   // 손익 뷰: 손익 요약(성장·수익성 + 흑자적자·마진추세·판관비 경고 배지)
@@ -1074,7 +892,7 @@ function rpfRender() {
   // data-capture: 이미지 저장 버튼 대상(조작 줄은 data-no-capture로 이미지에서 뺌)
   const charts = `<div data-capture="재무 추이 차트">${chartCtl}<div style="position:relative;height:340px;margin-bottom:12px"><canvas id="rpf-chart-canvas"></canvas></div></div>`;
 
-  el.innerHTML = bsTop + cfTop + isTop + charts + bsDonuts + table;
+  el.innerHTML = cfTop + isTop + charts + bsDonuts + table;
   _rpfDrawChart();
   if (RPF.stmt === 'bs') _rpfDrawDonuts();
 }
@@ -1167,33 +985,6 @@ function _rpfCfSummary(periods) {
       ${qual ? `<span style="font-size:calc(10px*var(--m-label));padding:2px 9px;border-radius:100px;background:${qual.c}20;color:${qual.c};font-weight:700">${qual.t}</span>` : ''}
     </div>
     <div style="display:flex;flex-direction:column;gap:5px;max-width:440px">${bars}</div>
-  </div>`;
-}
-
-// 재무 건전성 요약 스트립 (재무상태 최신 기간)
-function _rpfBsSummary(periods) {
-  const r = periods[periods.length - 1]; if (!r) return '';
-  const fmtE = v => v == null ? '—' : Math.round(v / 1e8).toLocaleString() + '억';
-  const assets = r.total_assets, equity = r.total_equity, cap = r.capital_stock, re = r.retained_earnings;
-  const liab = _rpfLiab(r);
-  const eqRatio = equity != null && assets ? equity / assets * 100 : null;
-  const debtRatio = liab != null && equity > 0 ? liab / equity * 100 : null;
-  const curRatio = r.current_assets != null && r.current_liabilities ? r.current_assets / r.current_liabilities * 100 : r.current_ratio;
-  let imp;
-  if (equity != null && equity < 0) imp = { t: '완전자본잠식', c: '#ef4444' };
-  else if (equity != null && cap != null && equity < cap) imp = { t: '부분자본잠식', c: '#f5a623' };
-  else imp = { t: '자본잠식 없음', c: '#4ade80' };
-  const label = String(r.bsns_year) + (RPF.view === 'annual' ? '년' : ' ' + r.quarter);
-  const chip = (k, v, col) => `<span style="display:inline-flex;align-items:baseline;gap:4px">
-    <span style="color:var(--text3);font-size:calc(11px*var(--m-label))">${k}</span><b style="color:${col || 'var(--text1)'};font-size:calc(12px*var(--m-sub))">${v}</b></span>`;
-  return `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:9px 12px;margin-bottom:10px;
-    background:var(--bg3);border-radius:var(--radius-sm)">
-    <span style="font-size:calc(11px*var(--m-label));font-weight:700;color:var(--text2)">재무 건전성 <span style="color:var(--text3);font-weight:400">(${label})</span></span>
-    ${chip('자기자본비율', eqRatio != null ? eqRatio.toFixed(1) + '%' : '—', eqRatio >= 50 ? '#4ade80' : eqRatio >= 30 ? 'var(--text1)' : '#f5a623')}
-    ${chip('부채비율', debtRatio != null ? debtRatio.toFixed(1) + '%' : '—', debtRatio != null && debtRatio <= 100 ? '#4ade80' : debtRatio <= 200 ? 'var(--text1)' : '#f5a623')}
-    ${chip('유동비율', curRatio != null ? Math.round(curRatio) + '%' : '—', curRatio >= 150 ? '#4ade80' : curRatio >= 100 ? 'var(--text1)' : '#f5a623')}
-    ${chip('이익잉여금', fmtE(re), re > 0 ? '#4ade80' : '#f5a623')}
-    <span style="font-size:calc(10px*var(--m-label));padding:2px 9px;border-radius:100px;background:${imp.c}20;color:${imp.c};font-weight:700">${imp.t}</span>
   </div>`;
 }
 
@@ -1396,10 +1187,6 @@ function _rpiPrev(r, mode) {
 // fmt: pct(%·소수2) | won(원) | x(배) — grow: pp(%p차) | pct(증감률%)
 function _rpiDefs() {
   const S = RPI.shares;
-  const gm  = r => {
-    const gp = r.gross_profit ?? (r.revenue != null && r.cogs != null ? r.revenue - r.cogs : null);
-    return r.revenue > 0 && gp != null ? gp / r.revenue * 100 : r.gross_margin;
-  };
   const em  = r => r.revenue > 0 && r.ebitda != null ? r.ebitda / r.revenue * 100 : null;
   const eqR = r => r.total_assets > 0 && r.total_equity != null ? r.total_equity / r.total_assets * 100 : null;
   const rsv = r => r.capital_stock > 0 && r.retained_earnings != null ? r.retained_earnings / r.capital_stock * 100 : null;
@@ -1414,10 +1201,8 @@ function _rpiDefs() {
     return avg > 0 && r.revenue != null ? r.revenue / avg : null;
   };
   const defs = {
+    // 매출총이익률·영업이익률·순이익률은 재무분석 탭 포괄손익계산서 표에만(금액과 함께, 그래프 선택) — 10-19 탭 중복 정리
     profit: [
-      { label: '매출총이익률',  v: gm,       fmt: 'pct', grow: 'pp' },
-      { label: '영업이익률',    v: _rpfOpm,  fmt: 'pct', grow: 'pp', bold: 1 },
-      { label: '순이익률',      v: _rpfNpm,  fmt: 'pct', grow: 'pp' },
       { label: 'EBITDA마진율',  v: em,       fmt: 'pct', grow: 'pp' },
       { label: 'ROE',           v: r => r.roe, fmt: 'pct', grow: 'pp', bold: 1 },
       { label: 'ROA',           v: r => r.roa, fmt: 'pct', grow: 'pp' },
@@ -1525,12 +1310,12 @@ function rpiRender() {
   // ── 재무비율 차트 ──
   let charts = '';
   if (RPI.cat === 'profit') {
-    charts = _rpfChart('수익성지표', labels,
-      [{ name: '매출액', color: '#4a9eff', vals: periods.map(r => eokV(r.revenue)) }],
-      [
-        { name: '영업이익률', color: '#f59e0b', vals: seriesOf(byLabel('profit','영업이익률')) },
-        { name: '순이익률',   color: '#4ade80', vals: seriesOf(byLabel('profit','순이익률')) },
-      ]);
+    charts = `<div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:8px">
+        매출총이익률 · 영업이익률 · 순이익률은 <button class="chip chip-sm" onclick="rpSetTab(RP_TABS.indexOf('재무분석'))">재무분석 탭 ↗</button>
+        포괄손익계산서 표에서 금액과 함께 봅니다</div>`
+      + _rpfChart('EBITDA · EBITDA마진율', labels,
+      [{ name: 'EBITDA', color: '#4a9eff', vals: periods.map(r => eokV(r.ebitda)) }],
+      [{ name: 'EBITDA마진율', color: '#f59e0b', vals: seriesOf(byLabel('profit','EBITDA마진율')) }]);
     charts += '<div style="height:10px"></div>' + _rpfChart('투자수익률', labels,
       [{ name: '당기순이익', color: '#a78bfa', vals: periods.map(r => eokV(r.net_income)) }],
       [
@@ -1542,7 +1327,16 @@ function rpiRender() {
       ['매출액증가율','영업이익증가율','순이익증가율'].map((lb, i) => ({
         name: lb, color: ['#4a9eff','#f59e0b','#a78bfa'][i], vals: seriesOf(byLabel('growth', lb)) })));
   } else if (RPI.cat === 'stability') {
-    charts = _rpfChart('안정성지표', labels, [],
+    // 자본잠식 상태 — 예전 재무분석 재무상태 뷰 스트립에 있던 것(최신 기간 기말)
+    const L = periods[periods.length - 1], eq = L.total_equity, cap = L.capital_stock, re = L.retained_earnings;
+    const imp = eq == null ? null : eq < 0 ? { t: '완전자본잠식', c: '#ef4444' }
+      : cap != null && eq < cap ? { t: '부분자본잠식', c: '#f5a623' } : { t: '자본잠식 없음', c: '#4ade80' };
+    charts = `<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:8px;font-size:calc(12px*var(--m-sub))">
+        <span style="color:var(--text2)">${labels[labels.length - 1]} 기말</span>
+        ${imp ? `<span style="padding:2px 9px;border-radius:100px;background:${imp.c}20;color:${imp.c};font-weight:700">${imp.t}</span>` : ''}
+        ${re != null ? `<span style="color:var(--text2)">이익잉여금 <b style="color:${re > 0 ? 'var(--text1)' : '#f5a623'}">${Math.round(re / 1e8).toLocaleString('ko-KR')}억</b></span>` : ''}
+      </div>`
+      + _rpfChart('안정성지표', labels, [],
       ['부채비율','유동비율','자기자본비율'].map((lb, i) => ({
         name: lb, color: ['#f87171','#4ade80','#2AABEE'][i], vals: seriesOf(byLabel('stability', lb)) })));
   } else {

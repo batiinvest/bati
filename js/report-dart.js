@@ -306,7 +306,7 @@ function _rpDartOverview(x) {
   if (x.ana?.length && typeof _rpConsensusSummary === 'function') {
     const c = _rpConsensusSummary(x.ana, x.latest.price);
     add('mkt', '시장 평가', c.recent.length
-      ? `3개월 평균 목표가 <b>${num(c.avgTp)}원</b>${c.upside != null ? ` <span style="color:${c.upside >= 0 ? 'var(--red)' : 'var(--blue)'}">현재가 대비 ${c.upside >= 0 ? '+' : ''}${c.upside.toFixed(1)}%</span>` : ''} · 의견 ${c.recent.length}건(매수 ${c.buy})`
+      ? `3개월 평균 목표가 <b>${num(c.avgTp)}원</b>${c.upside != null ? ` <span style="color:${c.upside >= 0 ? 'var(--red)' : 'var(--blue)'}">현재가 대비 ${c.upside >= 0 ? '+' : ''}${c.upside.toFixed(1)}%</span>` : ''} · 증권사 ${c.items.length}곳(매수 ${c.buy})`
       : `최근 3개월 의견 없음${none(`· 마지막 ${e(x.ana[0].firm_name || '')} ${e(x.ana[0].opinion || '')}`)}`,
       x.ana[0]?.opinion_date || '');
   }
