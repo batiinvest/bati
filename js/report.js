@@ -424,7 +424,7 @@ function _rpTabOverview() {
   ${_rpConsensusCard(_rpData.analyst || [], price)}
 
   <!-- 연간 실적 요약 -->
-  ${_rpAnnualTable(_rpData.annual, latest)}
+  ${_rpAnnualTable(_rpData.annual, latest, _rpData.dart?.summary?.consensus)}
 
   <!-- 밸류에이션(밴드차트 포함) + 재무 건전성 -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">

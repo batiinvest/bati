@@ -355,10 +355,17 @@ function _rpConsensusCard(analysts, currentPrice) {
   </div>`;
 }
 
-// ④ 연간 실적 요약 표 (FnGuide 추정실적 컨센서스 자리 — 실적(A) 기준)
-function _rpAnnualTable(annual, latest) {
+// ④ 연간 실적 요약 표 (FnGuide 추정실적 컨센서스 자리) — 실적(A) + 컨센서스(E).
+// cons = dart_reports.summary.consensus(DART 분석 MD 2-10, FnGuide 증권사 추정 평균, 업로드 때 저장). 실적이 있는 해의 E는 뺌
+function _rpAnnualTable(annual, latest, cons) {
   if (!annual?.length) return '';
-  const rows = [...annual].sort((a, b) => String(a.bsns_year).localeCompare(String(b.bsns_year)));
+  const act = [...annual].sort((a, b) => String(a.bsns_year).localeCompare(String(b.bsns_year)));
+  const lastA = Number(act[act.length - 1].bsns_year) || 0;
+  const est = (cons?.annual || []).filter(c => c.est && Number(c.year) > lastA)
+    .sort((a, b) => a.year.localeCompare(b.year))
+    .map(c => ({ bsns_year: c.year, est: true, eps: c.eps, operating_margin: c.opm,   // 억원 → 원(실적 행과 같은 단위)
+      revenue: c.revenue != null ? c.revenue * 1e8 : null, operating_profit: c.op != null ? c.op * 1e8 : null, net_income: c.ni != null ? c.ni * 1e8 : null }));
+  const rows = [...act, ...est];
   const shares = _rpShares(latest);
   const eok = v => v == null ? '—' : fmtNum(v / 1e8);
   const yoy = (cur, prev) => {
@@ -381,14 +388,16 @@ function _rpAnnualTable(annual, latest) {
         <tbody>
           ${rows.map((r, i) => {
             const prev = rows[i - 1];
-            const eps  = shares && r.net_income != null ? Math.round(r.net_income / shares) : null;
-            const isLast = i === rows.length - 1;
+            // EPS: 실적은 현재 발행주식수로 추정, 컨센서스는 추정치 그대로
+            const eps  = r.est ? (r.eps != null ? Math.round(r.eps) : null) : shares && r.net_income != null ? Math.round(r.net_income / shares) : null;
+            const isLast = i === act.length - 1;   // 최근 실적 연도 강조(E 행은 흐린 글자)
+            const sep = r.est && i === act.length ? 'border-top:1px dashed var(--border2, var(--border));' : '';
             const td = (v, extra = '') => `<td style="padding:7px 10px;text-align:right;
-              font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border);
-              ${isLast ? 'font-weight:700;color:var(--text1);background:color-mix(in srgb, var(--tg) 5%, transparent)' : 'color:var(--text1)'};${extra}">${v}</td>`;
+              font-variant-numeric:tabular-nums;border-bottom:1px solid var(--border);${sep}
+              ${isLast ? 'font-weight:700;color:var(--text1);background:color-mix(in srgb, var(--tg) 5%, transparent)' : r.est ? 'color:var(--text2)' : 'color:var(--text1)'};${extra}">${v}</td>`;
             return `<tr>
-              <td style="padding:7px 10px;font-weight:${isLast ? 700 : 600};color:var(--text1);
-                border-bottom:1px solid var(--border);${isLast ? 'background:color-mix(in srgb, var(--tg) 5%, transparent)' : ''}">${r.bsns_year}(A)</td>
+              <td style="padding:7px 10px;font-weight:${isLast ? 700 : 600};color:${r.est ? 'var(--text2)' : 'var(--text1)'};${sep}
+                border-bottom:1px solid var(--border);${isLast ? 'background:color-mix(in srgb, var(--tg) 5%, transparent)' : ''}">${r.bsns_year}(${r.est ? 'E' : 'A'})</td>
               ${td(eok(r.revenue))}
               ${td(yoy(r.revenue, prev?.revenue))}
               ${td(eok(r.operating_profit))}
@@ -396,15 +405,17 @@ function _rpAnnualTable(annual, latest) {
               ${td(eok(r.net_income))}
               ${td(num(r.operating_margin, 1))}
               ${td(eps != null ? fmtNum(eps) : '—')}
-              ${td(num(r.roe, 1))}
-              ${td(num(r.debt_ratio, 1))}
+              ${td(r.est ? '—' : num(r.roe, 1))}
+              ${td(r.est ? '—' : num(r.debt_ratio, 1))}
             </tr>`;
           }).join('')}
         </tbody>
       </table>
     </div>
     <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">
-      * (A)=실적, 연간=분기 순액 4개 합산(완결 연도만) · ROE=연간순이익÷기말자본 · EPS는 현재 발행주식수 기준 추정 · PER/PBR 연간 히스토리·컨센서스(E)는 데이터 수집 예정</div>
+      * (A)=실적, 연간=분기 순액 4개 합산(완결 연도만) · ROE=연간순이익÷기말자본 · EPS는 현재 발행주식수 기준 추정 ·
+      ${est.length ? `(E)=컨센서스(증권사 추정 평균, FnGuide${cons.date ? ` ${escapeHtml(cons.date)}` : ''} 집계 · DART 분석 MD 기준) — 순이익은 지배주주, EPS는 추정치 그대로, 전년대비는 바로 위 행과 비교`
+        : '컨센서스(E)는 DART 분석 MD(2-10 향후 컨센서스)를 올린 종목만'} · PER/PBR 연간 히스토리는 데이터 수집 예정</div>
   </div>`;
 }
 

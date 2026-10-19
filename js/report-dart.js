@@ -657,6 +657,39 @@ const _rpMdLinkCell = c => {
 };
 // 억원 → '2,165억' / '1.49조'
 const _rpEok = v => v == null ? '—' : Math.abs(v) >= 10000 ? `${(v / 10000).toFixed(2)}조` : `${Math.round(v).toLocaleString()}억`;
+// 향후 컨센서스(MD 2-10, FnGuide 증권사 추정 평균) 읽기 — DART 분석 모델과 업로드(summary.consensus) 공용.
+// annual = 연간 전망 표 열별 값(억원·EPS 원): 기업현황 탭 '연간 실적 요약'의 (E) 행. op·rev·prog = DART 분석 종합분석 줄
+function _rpMdConsensus(lines) {
+  const L = (lines || []).map(l => String(l).replace(/\r$/, ''));
+  const s210 = _rpMdSec(L, /^### 2-10\./);
+  if (!s210) return null;
+  const ann = _rpMdFirstTable(_rpMdSec(s210, /^#### 연간 전망\s*$/));
+  const chg = _rpMdFirstTable(_rpMdSec(s210, /^#### 최근 추정치 변경/));
+  // 연간 전망 달성 조건(10-19 추가): [항목 | 연간E | 올해 누적A | 남은 기간 필요(조건부) | 전년 같은 기간A] — 영업이익 진척률만
+  const ach = _rpMdFirstTable(_rpMdSec(s210, /^#### 연간 전망 달성 조건/));
+  const ar = ach && /E$/.test(ach.hdr[1]?.trim() || '') && /A$/.test(ach.hdr[2]?.trim() || '') ? ach.rows.find(r => /^영업이익/.test(r[0].trim())) : null;
+  const aE = ar && _rpNum(ar[1]), aA = ar && _rpNum(ar[2]);
+  const ei = ann ? ann.hdr.findIndex((h, i) => i > 0 && /E$/.test(h.trim())) : -1;
+  const row = re => ann?.rows.find(r => re.test(r[0].trim()));
+  const op = row(/^영업이익$/), opy = row(/^영업이익 YoY/);
+  const pct = v => /^[+\-−]?\d[\d,.]*%$/.test((v || '').trim()) ? v.trim() : null;
+  const val = (r, i) => r ? _rpNum(r[i]) : null;
+  const rv = row(/^매출액?$/), ni = row(/순이익$/), eps = row(/^EPS/), opm = row(/^영업이익률/);
+  const annual = (ann?.hdr || []).map((h, i) => {
+    const y = h.match(/(\d{4})/)?.[1];
+    return i > 0 && y && /[AE]$/.test(h.trim())
+      ? { year: y, est: /E$/.test(h.trim()), revenue: val(rv, i), op: val(op, i), ni: val(ni, i), eps: val(eps, i), opm: val(opm, i) } : null;
+  }).filter(Boolean);
+  return {
+    date: s210.map(l => l.match(/집계 기준\s*(\d{4}-\d{2}-\d{2})/)?.[1]).find(Boolean) || null,
+    annual,
+    op: ei > 0 && op && _rpNum(op[ei]) != null ? { col: ann.hdr[ei].trim().replace('년', ''), val: _rpNum(op[ei]), yoy: pct(opy?.[ei]) } : null,
+    rev: (chg?.rows || []).filter(r => /영업이익/.test(r[0])).slice(0, 1)
+      .flatMap(r => chg.hdr.map((h, i) => /변화$/.test(h.trim()) && pct(r[i]) ? { k: h.trim().replace(/\s*변화$/, ''), v: pct(r[i]) } : null).filter(Boolean)),
+    prog: aE > 0 && aA != null ? { label: ach.hdr[2].trim().replace(/^\d{4}\s*/, '').replace(/A$/, ''), pct: aA / aE * 100 } : null,
+  };
+}
+
 function _rpDartModel(md) {
   const L = (md || '').split('\n').map(l => l.replace(/\r$/, ''));
   const lab = (sec, key) => (sec || []).map(l => l.match(new RegExp(`^[-*]\\s*${key}[:：]\\s*(.+)$`))?.[1]?.trim()).find(Boolean) || null;
@@ -676,27 +709,9 @@ function _rpDartModel(md) {
     out.trend = revenue && { periods: tr.hdr.slice(1), revenue, op: row(/^영업이익\(/) };
   }
 
-  // 향후 컨센서스(2-10): 연간 전망 첫 E 열의 영업이익·전년 대비 + 최근 추정치 변경(영업이익 행) — 종합분석 시장 평가 줄
-  const s210 = _rpMdSec(L, /^### 2-10\./);
-  if (s210) {
-    const ann = _rpMdFirstTable(_rpMdSec(s210, /^#### 연간 전망\s*$/));
-    const chg = _rpMdFirstTable(_rpMdSec(s210, /^#### 최근 추정치 변경/));
-    // 연간 전망 달성 조건(10-19 추가): [항목 | 연간E | 올해 누적A | 남은 기간 필요(조건부) | 전년 같은 기간A] — 영업이익 진척률만
-    const ach = _rpMdFirstTable(_rpMdSec(s210, /^#### 연간 전망 달성 조건/));
-    const ar = ach && /E$/.test(ach.hdr[1]?.trim() || '') && /A$/.test(ach.hdr[2]?.trim() || '') ? ach.rows.find(r => /^영업이익/.test(r[0].trim())) : null;
-    const aE = ar && _rpNum(ar[1]), aA = ar && _rpNum(ar[2]);
-    const ei = ann ? ann.hdr.findIndex((h, i) => i > 0 && /E$/.test(h.trim())) : -1;
-    const row = re => ann?.rows.find(r => re.test(r[0].trim()));
-    const op = row(/^영업이익$/), opy = row(/^영업이익 YoY/);
-    const pct = v => /^[+\-−]?\d[\d,.]*%$/.test((v || '').trim()) ? v.trim() : null;
-    out.consensus = {
-      date: s210.map(l => l.match(/집계 기준\s*(\d{4}-\d{2}-\d{2})/)?.[1]).find(Boolean) || null,
-      op: ei > 0 && op && _rpNum(op[ei]) != null ? { col: ann.hdr[ei].trim().replace('년', ''), val: _rpNum(op[ei]), yoy: pct(opy?.[ei]) } : null,
-      rev: (chg?.rows || []).filter(r => /영업이익/.test(r[0])).slice(0, 1)
-        .flatMap(r => chg.hdr.map((h, i) => /변화$/.test(h.trim()) && pct(r[i]) ? { k: h.trim().replace(/\s*변화$/, ''), v: pct(r[i]) } : null).filter(Boolean)),
-      prog: aE > 0 && aA != null ? { label: ach.hdr[2].trim().replace(/^\d{4}\s*/, '').replace(/A$/, ''), pct: aA / aE * 100 } : null,
-    };
-  }
+  // 향후 컨센서스(2-10) — 종합분석 시장 평가 줄(op·rev·prog)
+  const cons = _rpMdConsensus(L);
+  if (cons) out.consensus = cons;
 
   // 증권사 전망: 영업이익(2-7)·매출(4-1) 추정 표 + 리포트 표(2-9)를 증권사·발행일로 합침
   const est = re => {
@@ -1846,6 +1861,8 @@ function _rpParseMd(text) {
       investment_points:  boldTitles(/^### 1-1\./) ?? allTagged('투자판단'),
       risk_points:        boldTitles(/^### 1-2\./) ?? allTagged('리스크'),
       review_points:      allTagged('검토의견'),
+      // 향후 컨센서스(2-10) — 기업현황 탭은 raw_md를 안 불러오므로 업로드 때 읽어 둠(없으면 키 없음)
+      consensus:          _rpMdConsensus(lines) || undefined,
     },
   };
 }
