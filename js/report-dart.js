@@ -132,6 +132,7 @@ async function _rpLoadAndRenderDart(body) {
   ${lazy('inv', '투자지표')}
 
   ${consHtml ? `${_rpDartSecHead('컨센서스', '시장 평균(FnGuide)과 증권사별 추정 · MD', ['기업현황'], 'cons')}
+  ${_rpDartConsSummary(M.consensus)}
   ${_rpDartEstimates(M)}
   ${consHtml}` : ''}
 
@@ -688,8 +689,15 @@ function _rpMdConsensus(lines) {
   const annual = (ann?.hdr || []).map((h, i) => {
     const y = h.match(/(\d{4})/)?.[1];
     return i > 0 && y && /[AE]$/.test(h.trim())
-      ? { year: y, est: /E$/.test(h.trim()), revenue: val(rv, i), op: val(op, i), ni: val(ni, i), eps: val(eps, i), opm: val(opm, i) } : null;
+      ? { year: y, est: /E$/.test(h.trim()), revenue: val(rv, i), op: val(op, i), ni: val(ni, i), eps: val(eps, i), opm: val(opm, i), opYoy: pct(opy?.[i]) } : null;
   }).filter(Boolean);
+  // 달성 조건 영업이익률 줄 — 남은 기간 필요 영업이익률 vs 올해 누적·전년 같은 기간(요약 칩)
+  const am = ar ? ach.rows.find(r => /^영업이익률/.test(r[0].trim())) : null;
+  const need = am && am[3] ? {
+    period: ach.hdr[3].trim().replace(/\s*필요.*$/, ''), opm: am[3].trim(), op: _rpNum(ar[3]),
+    ytd: ach.hdr[2].trim().replace(/^\d{4}\s*/, '').replace(/A$/, ''), ytdOpm: (am[2] || '').trim(),
+    prev: (ach.hdr[4] || '').trim().replace(/A$/, ''), prevOpm: (am[4] || '').trim(),
+  } : null;
   // 분기 전망(단분기) 매출·영업이익 — 증권사별 통합표의 컨센서스 줄
   const qt = _rpMdFirstTable(_rpMdSec(s210, /^#### 분기 전망/));
   const qrow = re => qt?.rows.find(r => re.test(r[0].trim()));
@@ -698,7 +706,7 @@ function _rpMdConsensus(lines) {
     ? { key: _rpPeriodKey(h), label: h.trim(), revenue: val(qrv, i), op: val(qop, i) } : null).filter(Boolean);
   return {
     date: s210.map(l => l.match(/집계 기준\s*(\d{4}-\d{2}-\d{2})/)?.[1]).find(Boolean) || null,
-    annual, quarters,
+    annual, quarters, need,
     op: ei > 0 && op && _rpNum(op[ei]) != null ? { col: ann.hdr[ei].trim().replace('년', ''), val: _rpNum(op[ei]), yoy: pct(opy?.[ei]) } : null,
     rev: (chg?.rows || []).filter(r => /영업이익/.test(r[0])).slice(0, 1)
       .flatMap(r => chg.hdr.map((h, i) => /변화$/.test(h.trim()) && pct(r[i]) ? { k: h.trim().replace(/\s*변화$/, ''), v: pct(r[i]) } : null).filter(Boolean)),
@@ -820,9 +828,10 @@ function _rpDartVerdict(m, data) {
   </div>`;
 }
 
-// ⑥-0 향후 컨센서스(2-10, 10-19 MD에 추가) — FnGuide 증권사 추정 평균: 연간·단분기 전망, 최근 추정치 변경.
-// MD에만 있는 내용이라 MD 표 그대로(증감 %는 한국식 빨강/파랑). 표마다 안쪽 저장 상자라 하나씩 이미지 저장·표 복사.
-// 검토의견은 사업 차트 해석처럼 카드 밖(글은 복사로). 공시 실적 표·차트에는 섞지 않음(MD 원칙)
+// ⑥-0 향후 컨센서스(2-10, 10-19 MD에 추가) — FnGuide 증권사 추정 평균. MD에만 있는 내용이라 MD 표 그대로
+// (증감 %는 한국식 빨강/파랑, 금액은 억원 정수). 순서: 연간 전망 → 최근 추정치 변경 → 연간 전망 달성 조건(바로 아래 해석)
+// → 분기 전망, 검토의견은 카드 밖. 표마다 안쪽 저장 상자라 하나씩 이미지 저장·표 복사. 공시 실적 표·차트에는 섞지 않음(MD 원칙)
+// 10-19 가독성 검토: 해석은 핵심 줄(투자 판단·투자 해석)만 펼치고 나머지·각주(기준·근거·구분·범위)는 접음
 function _rpDartConsensus(L) {
   const sec = _rpMdSec(L, /^### 2-10\./);
   if (!sec) return '';
@@ -833,86 +842,126 @@ function _rpDartConsensus(L) {
   const link = safeUrl(src.match(/\]\((https?:[^)\s]+)\)/)?.[1] || '');
   const scope = sec.map(l => l.match(/^[-*]\s*범위[:：]\s*(.+)$/)?.[1]).find(Boolean);
   const note = t => `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:4px;line-height:1.5">* ${_rpMdInline(t)}</div>`;
-  // 표 아래 줄: 이름표 없는 줄·기준·근거·구분 = 표 각주(저장 상자 안), 그 밖의 이름표 줄(실적 진척·전년 비교·투자 해석) = 해석(카드 밖)
+  const fold = (label, inner) => `<details style="margin-top:4px"><summary style="cursor:pointer;font-size:calc(11px*var(--m-label));color:var(--text3)">${label}</summary>${inner}</details>`;
+  // 표 아래 줄: 이름표 없는 줄·기준·근거·구분 = 각주(접음), 그 밖의 이름표 줄(실적 진척·전년 비교·투자 해석) = 해석
   const FOOT = /^(기준|근거|구분|범위)\s*[:：]/;
   const isInterp = l => /^[^:：\[\]()*`|]{1,16}?\s*[:：]/.test(l) && !FOOT.test(l);
-  const interp = [];
+  const KEY = /^(투자 판단|투자 해석|검토의견)\s*[:：]/;
+  const dim = t => /^(한계|계산)\s*[:：]/.test(t);
+  const ln = t => `<div style="font-size:calc(${dim(t) ? '11px*var(--m-label)' : '12px*var(--m-sub)'});color:${dim(t) ? 'var(--text3)' : 'var(--text1)'};line-height:1.65;overflow-wrap:anywhere">${_rpMdLabeled(t)}</div>`;
+  // 해석 묶음 — 핵심 줄만 펼침(없으면 첫 줄), 나머지는 '더 보기'
+  const interpBlock = (lines, title, style) => {
+    if (!lines.length) return '';
+    let shown = lines.filter(l => KEY.test(l));
+    if (!shown.length) shown = lines.slice(0, 1);
+    const rest = lines.filter(l => !shown.includes(l));
+    return `<div style="${style}">
+      <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-bottom:6px">${title}</div>
+      <div style="display:flex;flex-direction:column;gap:5px">${shown.map(ln).join('')}</div>
+      ${rest.length ? fold(`해석 더 보기 (${rest.length})`, `<div style="display:flex;flex-direction:column;gap:5px;margin-top:5px">${rest.map(ln).join('')}</div>`) : ''}
+    </div>`;
+  };
   const part = (re, title, sub) => {
     const s = _rpMdSec(sec, re), t = _rpMdTableRaw(s);
     if (!t.lines.length) return '';
-    const bl = bullets(s);
-    if (bl.some(isInterp)) interp.push({ title, lines: bl.filter(isInterp) });
-    return `<div data-capture="${escAttr('향후 컨센서스 · ' + title)}" style="margin-top:10px">
+    const bl = bullets(s), it = bl.filter(isInterp), ft = bl.filter(l => !isInterp(l));
+    return `<div data-capture="${escAttr('향후 컨센서스 · ' + title)}" style="margin-top:12px">
       <div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--text1);margin-bottom:2px">${title}${sub ? ` <span style="font-weight:400;color:var(--text3);font-size:calc(11px*var(--m-label))">${sub}</span>` : ''}</div>
-      ${_rpMdTable(t.lines, { sign: true })}${bl.filter(l => !isInterp(l)).map(note).join('')}
-    </div>`;
+      ${_rpMdTable(t.lines, { sign: true, compact: true })}
+      ${ft.length ? fold('기준·근거 보기', ft.map(note).join('')) : ''}
+    </div>${interpBlock(it, '해석 · ' + title + ' (MD 보고서 시점)',
+      'margin-top:8px;padding:8px 12px;background:var(--bg3);border-left:3px solid var(--tg);border-radius:var(--radius-sm)')}`;
   };
   const body = part(/^#### 연간 전망\s*$/, '연간 전망', 'A 실적 · E 추정 평균')
-    + part(/^#### 분기 전망/, '분기 전망', '단분기 · E')
     + part(/^#### 최근 추정치 변경/, '최근 추정치 변경')
-    + part(/^#### 연간 전망 달성 조건/, '연간 전망 달성 조건', '연간E − 올해 누적A · 조건부 계산, 새 전망 아님');
+    + part(/^#### 연간 전망 달성 조건/, '연간 전망 달성 조건', '연간E − 올해 누적A · 조건부 계산, 새 전망 아님')
+    + part(/^#### 분기 전망/, '분기 전망', '단분기 · E');
   const rv = bullets(_rpMdSec(sec, /^#### 검토의견/));
-  if (rv.length) interp.push({ title: '검토의견', lines: rv });
-  if (!body && !interp.length) return '';
+  if (!body && !rv.length) return '';
   const right = `${date ? `FnGuide ${esc(date)} 집계` : 'FnGuide'} · 억원(EPS 원)`
     + (link ? ` <a href="${escAttr(link)}" target="_blank" rel="noopener" style="color:var(--tg);text-decoration:none">↗</a>` : '');
-  const card = body ? _rpDartCard('향후 컨센서스', `<div style="margin-top:-10px">${body}</div>${scope ? note(`범위: ${scope}`) : ''}`, right) : '';
-  // 해석 상자 — 표별 해석(달성 조건) → 검토의견. 한계·계산 줄은 흐리게(사실·해석 → 한계 순)
-  const dim = t => /^(한계|계산)\s*[:：]/.test(t);
-  const ln = t => `<div style="font-size:calc(${dim(t) ? '11px*var(--m-label)' : '12px*var(--m-sub)'});color:${dim(t) ? 'var(--text3)' : 'var(--text1)'};line-height:1.65;overflow-wrap:anywhere">${_rpMdLabeled(t)}</div>`;
-  const review = interp.length ? `<div style="${card ? 'margin-top:-8px;' : ''}padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--tg);border-radius:var(--radius-sm)">
-    <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-bottom:6px">해석 · MD 2-10 (보고서 시점)</div>
-    <div style="display:flex;flex-direction:column;gap:5px">${interp.map((g, gi) => (interp.length > 1
-      ? `<div style="font-size:calc(11.5px*var(--m-sub));font-weight:700;color:var(--text2);${gi ? 'margin-top:6px' : ''}">${esc(g.title)}</div>` : '')
-      + g.lines.map(ln).join('')).join('')}</div>
-  </div>` : '';
+  const card = body ? _rpDartCard('향후 컨센서스', `<div style="margin-top:-12px">${body}</div>${scope ? fold('범위 보기', note(scope)) : ''}`, right) : '';
+  const review = interpBlock(rv, '검토의견 · MD 2-10 (보고서 시점)',
+    `${card ? 'margin-top:-8px;' : ''}padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--tg);border-radius:var(--radius-sm)`);
   return card + review;
 }
 
-// ⑥ 증권사 전망 — 증권사별 발행 당시 의견·목표주가·매출/영업이익 추정(억원).
-// MD 2-10이 있으면 '증권사별 전망 · 컨센서스 비교' 통합표: 맨 위 컨센서스 평균 줄(같은 기간 열만) + 증권사 값 옆 컨센서스 대비 %.
-// 증권사 전망끼리 합산·평균하지 않음(MD 원칙) — 같은 기간·같은 항목을 컨센서스 한 줄과만 비교
+// 컨센서스 요약 칩 — 구역 맨 위에서 결론부터: 첫 두 E 연도 영업이익(전년 대비)·추정 변화·남은 기간 필요 영업이익률.
+// 값은 MD 2-10 그대로(새 계산·판정 없음). c = _rpMdConsensus 결과
+function _rpDartConsSummary(c) {
+  if (!c?.op) return '';
+  const e = escapeHtml;
+  const sg = v => v ? `<span style="color:${/^[-−]/.test(v) ? 'var(--blue)' : 'var(--red)'}">${e(v)}</span>` : '';
+  const tile = (k, v, sub) => `<div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);min-width:0">
+      <div style="font-size:calc(11px*var(--m-label));color:var(--text2)">${k}</div>
+      <div style="font-size:calc(18px*var(--m-title));font-weight:800;color:var(--text1);margin-top:2px;font-variant-numeric:tabular-nums">${v}</div>
+      ${sub ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:2px;overflow-wrap:anywhere">${sub}</div>` : ''}
+    </div>`;
+  const tiles = (c.annual || []).filter(a => a.est && a.op != null).slice(0, 2)
+    .map(a => tile(`${e(a.year)}E 영업이익`, _rpEok(a.op), a.opYoy ? `전년 대비 ${sg(a.opYoy)}` : ''));
+  if (c.rev?.length) {
+    const [r0, ...rs] = c.rev;
+    tiles.push(tile(`추정 변화 · ${e(c.op.col)} 영업이익`,
+      `${sg(r0.v)} <span style="font-size:calc(12px*var(--m-sub));font-weight:600;color:var(--text3)">${e(r0.k)}</span>`,
+      rs.map(r => `${e(r.k)} ${sg(r.v)}`).join(' · ')));
+  }
+  const n = c.need;
+  if (n?.opm) tiles.push(tile(`${e(n.period)} 필요 영업이익률`, e(n.opm),
+    ['조건부 계산', n.ytdOpm && `${e(n.ytd)} ${e(n.ytdOpm)}`, n.prevOpm && `${e(n.prev)} ${e(n.prevOpm)}`].filter(Boolean).join(' · ')));
+  if (!tiles.length) return '';
+  return _rpDartCard('컨센서스 요약', `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:8px">${tiles.join('')}</div>`,
+    `FnGuide${c.date ? ` ${e(c.date)}` : ''} 집계 · MD 2-10`);
+}
+
+// ⑥ 증권사 전망 — 증권사별 발행 당시 의견·목표주가·추정(억원). MD 2-10이 있으면 '증권사별 전망 · 컨센서스 비교' 통합표:
+// 맨 위 컨센서스 평균 줄(같은 기간 열만) + 증권사 값 옆 컨센서스 대비 %. 증권사 전망끼리 합산·평균하지 않음(MD 원칙).
+// 10-19 가독성 검토: [영업이익 | 매출] 칩으로 한 지표씩(칸당 숫자 1개), 열은 연간 → 분기, 숫자 없는 증권사는 표 아래 한 줄
 function _rpDartEstimates(m) {
-  const B = m.brokers;
-  if (!B || !B.length) return '';
-  const esc = escapeHtml, cols = m.estCols;
-  const hasRev = B.some(b => Object.values(b.rev).some(v => v != null));
+  const B0 = m.brokers;
+  if (!B0 || !B0.length) return '';
+  RPD.estM = m;   // 지표 전환 때 다시 그림
+  const esc = escapeHtml;
+  const has = (b, k) => Object.values(b[k] || {}).some(v => v != null);
+  const hasRev = B0.some(b => has(b, 'rev')), hasOp = B0.some(b => has(b, 'op'));
+  const metric = hasRev && hasOp ? (RPD.estMetric === 'rev' ? 'rev' : 'op') : hasOp ? 'op' : 'rev';
+  const key = metric, ckey = metric === 'op' ? 'op' : 'revenue', mName = metric === 'op' ? '영업이익' : '매출';
   const num = v => v == null ? '—' : Math.round(v).toLocaleString();
   const cs = m.consensus, cmap = {};
   for (const q of cs?.quarters || []) cmap[q.key] = q;
   for (const a of cs?.annual || []) if (a.est) cmap[a.year] = { revenue: a.revenue, op: a.op };
   const cAt = c => cmap[_rpPeriodKey(c)] || null;
-  const hasCons = cols.some(c => cAt(c) && (cAt(c).op != null || cAt(c).revenue != null));
+  // 열: 연간(2026E·2027E) 먼저 → 분기
+  const isQ = c => /Q/.test(_rpPeriodKey(c) || c);
+  const cols = [...m.estCols].sort((a, b) => isQ(a) - isQ(b) || String(_rpPeriodKey(a) || a).localeCompare(String(_rpPeriodKey(b) || b)));
+  const colLabel = c => { const k = _rpPeriodKey(c); return k && !/Q/.test(k) ? `${k}E` : c; };
+  const hasCons = cols.some(c => cAt(c)?.[ckey] != null);
+  const B = B0.filter(b => has(b, 'rev') || has(b, 'op')), empty = B0.filter(b => !has(b, 'rev') && !has(b, 'op'));
   const dev = (v, base) => {
     if (!hasCons || v == null || !base) return '';
     const d = (v - base) / Math.abs(base) * 100;
-    return ` <span style="font-size:calc(10.5px*var(--m-label));font-weight:400;color:${d >= 0 ? 'var(--red)' : 'var(--blue)'}">${d >= 0 ? '+' : ''}${d.toFixed(1)}%</span>`;
+    return `<div style="font-size:calc(10.5px*var(--m-label));color:${d >= 0 ? 'var(--red)' : 'var(--blue)'}">${d >= 0 ? '+' : ''}${d.toFixed(1)}%</div>`;
   };
   // 첫 열(증권사) 고정 — 좁은 화면에서 추정 열을 가로로 넘겨도 어느 증권사인지 보이게
   const stick = 'position:sticky;left:0;z-index:1;background:inherit;';
   const th = (t, al, st) => `<th style="${st || ''}padding:6px 8px;text-align:${al || 'left'};color:var(--text2);font-weight:600;border-bottom:1px solid var(--border);white-space:nowrap;vertical-align:bottom">${t}</th>`;
-  const td = (v, al, st) => `<td style="${st || ''}padding:6px 8px;text-align:${al || 'left'};border-bottom:1px solid var(--border);vertical-align:top;font-variant-numeric:tabular-nums">${v}</td>`;
-  const head = `<tr style="background:var(--bg3)">${th('증권사 · 발행일', 'left', stick)}${th('의견')}${th('목표주가', 'right')}
-    ${cols.map(c => th(`${esc(c)}<div style="font-weight:400;color:var(--text3);font-size:calc(10px*var(--m-label))">${hasRev ? '매출 / 영업이익' : '영업이익'}</div>`, 'right')).join('')}</tr>`;
+  const td = (v, al, st) => `<td style="${st || ''}padding:6px 8px;text-align:${al || 'left'};border-bottom:1px solid var(--border);vertical-align:top;font-variant-numeric:tabular-nums;white-space:nowrap">${v}</td>`;
+  // 의견·목표주가는 한 칸에 위아래, 컨센서스 대비 %는 숫자 아래 줄 — 휴대폰에서 표 폭을 줄임
+  const head = `<tr style="background:var(--bg3)">${th('증권사 · 발행일', 'left', stick)}${th('의견 · 목표주가')}${cols.map(c => th(esc(colLabel(c)), 'right')).join('')}</tr>`;
+  const consRow = hasCons ? `<tr style="background:color-mix(in srgb, var(--tg) 9%, var(--bg2))">
+      ${td(`<span style="color:var(--tg);font-weight:700">컨센서스 평균</span><div style="font-size:calc(11px*var(--m-label));color:var(--text3)">FnGuide${cs.date ? ` ${esc(cs.date)}` : ''} 집계</div>`, 'left', stick)}
+      ${td('<span style="color:var(--text3)">—</span>')}
+      ${cols.map(c => td(`<span style="color:var(--text1);font-weight:700">${num(cAt(c)?.[ckey])}</span>`, 'right')).join('')}
+    </tr>` : '';
   const rows = B.map(b => {
     const url = safeUrl(b.url);
     const name = url ? `<a href="${escAttr(url)}" target="_blank" rel="noopener" style="color:var(--text1);font-weight:600;text-decoration:none">${esc(b.broker)} <span style="color:var(--tg)">↗</span></a>`
                      : `<span style="color:var(--text1);font-weight:600">${esc(b.broker)}</span>`;
     return `<tr style="background:var(--bg2)">
       ${td(`${name}<div style="font-size:calc(11px*var(--m-label));color:var(--text3)">${esc(b.date || '')}</div>`, 'left', stick)}
-      ${td(`<span style="color:var(--text1)">${esc(b.opinion || '—')}</span>`)}
-      ${td(`<span style="color:var(--text1);white-space:nowrap">${esc(b.tp || '—')}</span>${b.change ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);white-space:nowrap">${esc(b.change)}</div>` : ''}`, 'right')}
-      ${cols.map(c => td(`${hasRev ? `<div style="color:var(--text1)">${num(b.rev[c])}${dev(b.rev[c], cAt(c)?.revenue)}</div>` : ''}<div style="color:${hasRev ? 'var(--text2)' : 'var(--text1)'}">${num(b.op[c])}${dev(b.op[c], cAt(c)?.op)}</div>`, 'right')).join('')}
+      ${td(`<div style="color:var(--text1)">${esc(b.opinion || '—')}</div><div style="color:var(--text2)">${esc(b.tp || '—')}</div>${b.change ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3)">${esc(b.change)}</div>` : ''}`)}
+      ${cols.map(c => td(`<div style="color:var(--text1)">${num(b[key][c])}</div>${dev(b[key][c], cAt(c)?.[ckey])}`, 'right')).join('')}
     </tr>`;
   }).join('');
-  // 컨센서스 평균 줄 — 의견·목표주가는 MD 컨센서스에 없음
-  const consRow = hasCons ? `<tr style="background:color-mix(in srgb, var(--tg) 9%, var(--bg2))">
-      ${td(`<span style="color:var(--tg);font-weight:700">컨센서스 평균</span><div style="font-size:calc(11px*var(--m-label));color:var(--text3)">FnGuide${cs.date ? ` ${esc(cs.date)}` : ''} 집계</div>`, 'left', stick)}
-      ${td('<span style="color:var(--text3)">—</span>')}
-      ${td('<span style="color:var(--text3)">—</span>', 'right')}
-      ${cols.map(c => { const v = cAt(c);
-        return td(`${hasRev ? `<div style="color:var(--text1);font-weight:700">${num(v?.revenue)}</div>` : ''}<div style="color:${hasRev ? 'var(--text2)' : 'var(--text1)'};font-weight:700">${num(v?.op)}</div>`, 'right'); }).join('')}
-    </tr>` : '';
   // 참고: 공시 분기 합(전년 4개 분기 완비 시) · 올해 누적 — 연간 추정과 비교용
   let ref = '';
   const t = m.trend;
@@ -934,16 +983,29 @@ function _rpDartEstimates(m) {
     }
     if (parts.length) ref = `참고(공시 분기 합): ${parts.join(' / ')}`;
   }
-  const foot = hasCons ? '* 작은 % = 같은 기간·같은 항목의 컨센서스 평균 대비(빨강 높음·파랑 낮음) · 증권사는 발행일, 컨센서스는 집계일 기준이라 시점이 다름 · 증권사 전망끼리는 합산·평균하지 않음' : '';
-  return `<div data-capture style="${_RPD_CARD}">
-    ${hasCons ? _rpdT('증권사별 전망 · 컨센서스 비교', '컨센서스=FnGuide 평균 · 증권사=발행 당시 추정 · 단위 억원')
-              : _rpdT('증권사 전망', '발행 당시 추정 · 컨센서스 아님 · 단위 억원')}
+  const small = (txt, mt) => `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:${mt}px">${txt}</div>`;
+  const foot = [
+    hasCons && '* 작은 % = 같은 기간 컨센서스 평균 대비(빨강 높음·파랑 낮음) · 증권사는 발행일, 컨센서스는 집계일 기준 · 증권사 전망끼리는 합산·평균하지 않음',
+    empty.length && `* 추정치 없음: ${empty.map(b => `${esc(b.broker)} ${esc(b.date || '')}${b.opinion ? `(${esc(b.opinion)})` : ''}`).join(', ')}`,
+    ref,
+  ].filter(Boolean);
+  const toggle = hasRev && hasOp ? `<div data-no-capture style="display:flex;gap:4px;margin:-4px 0 8px">${[['op', '영업이익'], ['rev', '매출']]
+    .map(([k, l]) => `<button class="chip chip-sm${k === metric ? ' active' : ''}" onclick="rpDartEstMetric('${k}')">${l}</button>`).join('')}</div>` : '';
+  return `<div id="rpd-est" data-capture style="${_RPD_CARD}">
+    ${hasCons ? _rpdT(`증권사별 ${mName} 전망 · 컨센서스 비교`, '컨센서스=FnGuide 평균 · 증권사=발행 당시 추정 · 억원')
+              : _rpdT(`증권사 ${mName} 전망`, '발행 당시 추정 · 컨센서스 아님 · 억원')}
+    ${toggle}
     <div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-sm)">
       <table style="width:100%;border-collapse:collapse;font-size:calc(12px*var(--m-sub))"><thead>${head}</thead><tbody>${consRow}${rows}</tbody></table>
     </div>
-    ${foot ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:6px">${foot}</div>` : ''}
-    ${ref ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:${foot ? 2 : 6}px">${ref}</div>` : ''}
+    ${foot.map((f, i) => small(f, i ? 2 : 6)).join('')}
   </div>`;
+}
+// 통합표 지표 전환(영업이익 ↔ 매출) — 그 카드만 다시 그림
+function rpDartEstMetric(k) {
+  RPD.estMetric = k;
+  const el = document.getElementById('rpd-est');
+  if (el && RPD.estM) el.outerHTML = _rpDartEstimates(RPD.estM);
 }
 
 // ⑦ 보고기간 이후 이벤트 — 공시·리포트·뉴스 최근 순. 제목만 점검한 공시는 흐리게
@@ -1698,10 +1760,15 @@ function _rpMdLabeled(t) {
 // 숫자 칸(정렬 미지정 열의 자동 우측 정렬용): 1,234 / -12.5% / (3,000) / +1.3%p / 6,345.90억원 / 3,225,945주
 const _RPD_NUM = /^[-+]?\(?[\d,]*\.?\d+\)?\s*(%p?|원|억원|억|조원|조|백만원|천원|만원|주|대|회|일|배|개사|개|명)?$/;
 // opts.sign: 증감 칸(+35.3%·-1.1%)을 한국식 빨강(증가)/파랑(감소)으로 — 향후 컨센서스 표
+// opts.compact: 금액 칸 소수(9,098.0·1,757.90)는 정수로(비율 줄 '…률·율·%'은 그대로), '산출 불가'는 — — 표마다 자릿수가 달랐음
 function _rpMdTable(tableLines, opts = {}) {
   const cells = _rpMdCells;
-  const cell = c => {
-    const v = String(c ?? '').trim();
+  const cell = (c, r) => {
+    let v = String(c ?? '').trim();
+    if (opts.compact) {
+      if (v === '산출 불가') return '<span style="color:var(--text3)">—</span>';
+      if (/^-?[\d,]+\.\d+$/.test(v) && !/[%률율]/.test(r?.[0] || '')) return escapeHtml(Math.round(+v.replace(/,/g, '')).toLocaleString());
+    }
     return opts.sign && /^[+\-−]\d[\d,.]*%p?$/.test(v) ? `<span style="color:${/^[-−]/.test(v) ? 'var(--blue)' : 'var(--red)'}">${escapeHtml(v)}</span>` : _rpMdInline(c);
   };
   const isSep = l => /^\|[-:\s|]+$/.test(l);
@@ -1729,7 +1796,7 @@ function _rpMdTable(tableLines, opts = {}) {
       <tbody>
         ${body.map((r, ri) => `<tr style="background:${ri % 2 ? 'color-mix(in srgb, var(--bg3) 55%, var(--bg2))' : 'var(--bg2)'}">
           ${r.map((c, k) => { const a = al(k); return `<td style="${k === 0 ? stick : ''}background:inherit;padding:4px 8px;text-align:${a};color:var(--text1);
-            border-bottom:1px solid var(--border);line-height:1.5;${a === 'right' ? 'white-space:nowrap;' : wide && k ? 'max-width:320px;' : ''}">${cell(c)}</td>`; }).join('')}
+            border-bottom:1px solid var(--border);line-height:1.5;${a === 'right' ? 'white-space:nowrap;' : wide && k ? 'max-width:320px;' : ''}">${cell(c, r)}</td>`; }).join('')}
         </tr>`).join('')}
       </tbody>
     </table></div>`;
