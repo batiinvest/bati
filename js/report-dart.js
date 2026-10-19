@@ -67,6 +67,7 @@ async function _rpLoadAndRenderDart(body) {
   const box = (inner, title) => `<div data-capture style="${_RPD_CARD}">${title ? _rpdT(title) : ''}${inner}</div>`;
   const lazy = (key, title) => box(`<div data-rpd-lazy="${key}"><div style="text-align:center;color:var(--text2);padding:20px"><span class="loading"></span> 불러오는 중...</div></div>`, title);
   const pts = s.investment_points?.length || s.risk_points?.length;
+  const consHtml = _rpDartConsensus(L);   // MD 2-10이 있을 때만 '컨센서스' 구역
   // 주주·지분 = 지분현황 탭 카드 그대로, 순서만 '지금 구조 → 사람 → 변화'(구성·외국인 → 주주 명세 → 대표이사 → 차트 → 변동내역)
   const OP = typeof _rpOwnershipParts === 'function'
     ? _rpOwnershipParts({ discs: ownList, dp, s, dart: data, trades, majors: H?.majors, prices: _rpData?.price || [], latest }) : null;
@@ -130,9 +131,11 @@ async function _rpLoadAndRenderDart(body) {
   </div>
   ${lazy('inv', '투자지표')}
 
+  ${consHtml ? `${_rpDartSecHead('컨센서스', 'FnGuide 증권사 추정 평균 · MD 2-10', ['기업현황'], 'cons')}
+  ${consHtml}` : ''}
+
   ${_rpDartSecHead('시장 평가', '증권사 의견·목표가', ['최근리포트'], 'mkt')}
   ${lazy('rep', '증권사 투자의견 이력')}
-  ${_rpDartConsensus(L)}
   ${_rpDartEstimates(M)}
 
   ${_rpDartSecHead('수급', '', ['수급흐름'], 'flow')}
@@ -287,27 +290,23 @@ function _rpDartOverview(x) {
     if (parts.length || synHtml) add('val', '밸류에이션', parts.join(' · ') + synHtml, L.base_date || '');
   }
 
-  // 시장 평가 — 3개월 목표가 컨센서스(최근리포트 탭과 같은 계산) + 실적 컨센서스(MD 2-10, FnGuide 집계일 기준)
-  {
-    let fact = '', basis = '';
-    if (x.ana?.length && typeof _rpConsensusSummary === 'function') {
-      const c = _rpConsensusSummary(x.ana, x.latest.price);
-      fact = c.recent.length
-        ? `3개월 평균 목표가 <b>${num(c.avgTp)}원</b>${c.upside != null ? ` <span style="color:${c.upside >= 0 ? 'var(--red)' : 'var(--blue)'}">현재가 대비 ${c.upside >= 0 ? '+' : ''}${c.upside.toFixed(1)}%</span>` : ''} · 의견 ${c.recent.length}건(매수 ${c.buy})`
-        : `최근 3개월 의견 없음${none(`· 마지막 ${e(x.ana[0].firm_name || '')} ${e(x.ana[0].opinion || '')}`)}`;
-      basis = x.ana[0]?.opinion_date || '';
-    }
-    const cs = x.M?.consensus;
-    if (cs?.op) {
-      const sg = v => `<span style="color:${/^[-−]/.test(v) ? 'var(--blue)' : 'var(--red)'}">${e(v)}</span>`;
-      const line = `실적 컨센서스 ${e(cs.op.col)} 영업이익 <b>${_rpEok(cs.op.val)}</b>${cs.op.yoy ? ` (전년 대비 ${sg(cs.op.yoy)})` : ''}`
-        + (cs.prog ? ` · ${e(cs.prog.label)} 진척 ${cs.prog.pct.toFixed(1)}%` : '')
-        + (cs.rev.length ? ` · 추정 변화 ${cs.rev.map(r => `${e(r.k)} ${sg(r.v)}`).join(', ')}` : '')
-        + (cs.date ? ` <span style="color:var(--text3)">· FnGuide ${e(cs.date)} 집계</span>` : '');
-      fact = fact ? `${fact}<div style="margin-top:4px">${line}</div>` : line;
-      basis = basis || cs.date || '';
-    }
-    add('mkt', '시장 평가', fact, basis);
+  // 컨센서스 — 실적 컨센서스(MD 2-10, FnGuide 증권사 추정 평균): 첫 E 연도 영업이익·전년 대비·누적 진척·추정 변화
+  const cs = x.M?.consensus;
+  if (cs?.op) {
+    const sg = v => `<span style="color:${/^[-−]/.test(v) ? 'var(--blue)' : 'var(--red)'}">${e(v)}</span>`;
+    add('cons', '컨센서스', `${e(cs.op.col)} 영업이익 <b>${_rpEok(cs.op.val)}</b>${cs.op.yoy ? ` (전년 대비 ${sg(cs.op.yoy)})` : ''}`
+      + (cs.prog ? ` · ${e(cs.prog.label)} 진척 ${cs.prog.pct.toFixed(1)}%` : '')
+      + (cs.rev.length ? ` · 추정 변화 ${cs.rev.map(r => `${e(r.k)} ${sg(r.v)}`).join(', ')}` : ''),
+      cs.date ? `FnGuide ${cs.date}` : '');
+  }
+
+  // 시장 평가 — 3개월 목표가 컨센서스(최근리포트 탭과 같은 계산)
+  if (x.ana?.length && typeof _rpConsensusSummary === 'function') {
+    const c = _rpConsensusSummary(x.ana, x.latest.price);
+    add('mkt', '시장 평가', c.recent.length
+      ? `3개월 평균 목표가 <b>${num(c.avgTp)}원</b>${c.upside != null ? ` <span style="color:${c.upside >= 0 ? 'var(--red)' : 'var(--blue)'}">현재가 대비 ${c.upside >= 0 ? '+' : ''}${c.upside.toFixed(1)}%</span>` : ''} · 의견 ${c.recent.length}건(매수 ${c.buy})`
+      : `최근 3개월 의견 없음${none(`· 마지막 ${e(x.ana[0].firm_name || '')} ${e(x.ana[0].opinion || '')}`)}`,
+      x.ana[0]?.opinion_date || '');
   }
 
   // 수급 — 수급 칸·빈집·주도 업종·태린이아빠 후보(수급흐름 탭·기업분석 표와 같은 판정) + 20거래일 외국인·기관 누적
