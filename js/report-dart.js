@@ -67,7 +67,7 @@ async function _rpLoadAndRenderDart(body) {
   const box = (inner, title) => `<div data-capture style="${_RPD_CARD}">${title ? _rpdT(title) : ''}${inner}</div>`;
   const lazy = (key, title) => box(`<div data-rpd-lazy="${key}"><div style="text-align:center;color:var(--text2);padding:20px"><span class="loading"></span> 불러오는 중...</div></div>`, title);
   const pts = s.investment_points?.length || s.risk_points?.length;
-  const consHtml = _rpDartConsensus(L);   // MD 2-10이 있을 때만 '컨센서스' 구역
+  const consHtml = _rpDartConsensus(L, M.consensusState);
   // 주주·지분 = 지분현황 탭 카드 그대로, 순서만 '지금 구조 → 사람 → 변화'(구성·외국인 → 주주 명세 → 대표이사 → 차트 → 변동내역)
   const OP = typeof _rpOwnershipParts === 'function'
     ? _rpOwnershipParts({ discs: ownList, dp, s, dart: data, trades, majors: H?.majors, prices: _rpData?.price || [], latest }) : null;
@@ -540,7 +540,14 @@ function _rpDartCeo(L) {
 // 차트는 사업분석 탭 것 그대로, 해석만 MD(보고서 시점). '#### 소제목' 아래(고객 집중도·증권사 추정·수주 스냅샷)와
 // '기준'(계산 방법 메모) 줄은 뺀다. 차트의 이미지 저장 상자 밖에 두어 차트는 이미지로, 글은 복사로 따로 쓸 수 있게 함
 const _RPD_BIZ_SEC = { product: '4-1', region: '4-2', raw: '4-3', price: '4-4', prod: '4-5', backlog: '4-6' };
-const _RPD_NOTE_LABELS = ['근거', '검토의견', '판단 전환 조건', '해석 한계', '범위 유의', '원문 차이'];
+const _RPD_NOTE_LABELS = ['핵심', '근거', '검토의견', '판단 전환 조건', '해석 한계', '범위 유의', '원문 차이'];
+function _rpDartInterpretations(lines) {
+  const core = lines.filter(t => /^핵심\s*[:：]/.test(t));
+  const rest = lines.filter(t => !core.includes(t));
+  const render = values => values.map(t => `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.65;overflow-wrap:anywhere">${_rpMdLabeled(t)}</div>`).join('');
+  if (!core.length) return render(lines);
+  return render(core) + (rest.length ? `<details style="margin-top:4px"><summary style="cursor:pointer;font-size:calc(11px*var(--m-label));color:var(--text3)">해석 더 보기 (${rest.length})</summary>${render(rest)}</details>` : '');
+}
 function _rpDartBizNote(L, key) {
   const no = _RPD_BIZ_SEC[key];
   const sec = no && _rpMdSec(L, new RegExp('^### ' + no.replace('-', '\\-') + '\\.'));
@@ -555,7 +562,7 @@ function _rpDartBizNote(L, key) {
   if (!out.some(t => /^(근거|검토의견|판단 전환 조건)\s*[:：]/.test(t))) return '';
   return `<div style="margin-top:-8px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--tg);border-radius:var(--radius-sm)">
     <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-bottom:6px">해석 · MD ${no} (보고서 시점)</div>
-    <div style="display:flex;flex-direction:column;gap:5px">${out.map(t => `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.65;overflow-wrap:anywhere">${_rpMdLabeled(t)}</div>`).join('')}</div>
+    <div style="display:flex;flex-direction:column;gap:5px">${_rpDartInterpretations(out)}</div>
   </div>`;
 }
 
@@ -675,12 +682,10 @@ const _rpHalfLabel = (h, year) => {
   return `${year ? (m[1].length === 2 ? '20' + m[1] : m[1]) + ' ' : ''}${m[2] === '1' ? '상반기' : '하반기'}`;
 };
 
-// MD 끝 데이터 블록 '<!-- dart-report-consensus:v1 {JSON} -->'(10-20 양식, ChatGPT 생성) — 증권사별 의견·목표주가·추정·
-// 직전 추정·최고/최저 범위·목표주가 컨센서스. 없거나 깨졌으면 null(화면은 MD 표로 대신)
+// v1/v2 공통 파서. 블록이 없을 때만 2-10 표로 복원하며 오류·보류 상태는 이전 수치를 숨긴다.
 function _rpConsJson(md) {
-  const m = String(md || '').match(/<!--\s*dart-report-consensus:v1\s*([\s\S]*?)-->/);
-  if (!m) return null;
-  try { const d = JSON.parse(m[1].trim()); return d && Array.isArray(d.rows) ? d : null; } catch (e) { return null; }
+  try { return DartReport.parseDartReport(String(md || '')).consensus; }
+  catch (e) { return { status: 'held', rows: [], warnings: ['컨센서스 데이터 형식 오류로 표시 보류'] }; }
 }
 // 영어 의견(Buy·BUY)만 한글로 — 한글 의견은 원문 그대로(분류 'neutral'이어도 '보유'는 '보유')
 const _RP_RATING_KO = { strong_buy: '적극매수', buy: '매수', hold: '보유', neutral: '중립', sell: '매도', strong_sell: '적극매도' };
@@ -695,7 +700,7 @@ function _rpConsFromJson(d) {
     const id = r.broker_id || r.broker_name;
     if (!by.has(id)) {
       const tp = Number(r.target_price) || null, pt = Number(r.previous_target_price) || null;
-      by.set(id, { broker: r.broker_name, url: r.forecast_source_url || r.target_source?.url || null, date: r.published_on || '',
+      by.set(id, { broker: r.broker_name, url: DartReport.forecastSourceUrl(r), date: r.published_on || '',
         opinion: /[가-힣]/.test(r.rating || '') ? r.rating : _RP_RATING_KO[r.rating_category] || r.rating || '', tp: tp ? `${tp.toLocaleString()}원` : '',
         change: tp && pt ? (tp > pt ? `상향 · 직전 ${pt.toLocaleString()}원` : tp < pt ? `하향 · 직전 ${pt.toLocaleString()}원` : '유지') : '',
         rev: {}, op: {}, prev: { rev: {}, op: {} } });
@@ -727,10 +732,47 @@ function _rpConsFromJson(d) {
   };
 }
 
+// 신규 요약 칩·업로드 요약은 MD 표 모양이 아닌 동일 데이터 모델에서 읽는다.
+// 이름 주의: _rpConsensusSummary(rows, price)는 report-tabs.js의 목표주가 컨센서스(3개월·증권사별 마지막) —
+// 같은 이름이면 나중에 로드되는 이 파일이 덮어써 기업현황·최근리포트·종합분석 목표주가가 깨졌음(10-21)
+function _rpConsModelSummary(d) {
+  const pct = v => typeof v === 'number' && Number.isFinite(v) ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : null;
+  const margin = v => typeof v === 'number' && Number.isFinite(v) ? `${v.toFixed(1)}%` : null;
+  const annual = (d.outlook?.annual || []).map(a => ({
+    year: String(a.period).slice(0, 4), est: a.status === 'E', revenue: a.revenue ?? null,
+    op: a.operating_profit ?? null, ni: a.net_profit ?? null, eps: a.eps ?? null,
+    opm: a.operating_margin_pct ?? null, opYoy: pct(a.operating_profit_yoy_pct),
+  }));
+  const quarters = (d.outlook?.quarterly || []).map(a => ({
+    key: a.period, label: a.label, revenue: a.revenue ?? null, op: a.operating_profit ?? null,
+  }));
+  const first = annual.find(a => a.est), change = (d.estimate_changes || [])
+    .find(r => r.period === `${first?.year}FY` && r.metric === 'operating_profit');
+  const p = d.annual_progress, valid = ['verified', 'partial', 'markdown_fallback'].includes(p?.status);
+  const labels = p?.labels || {}, actual = p?.cumulative_actual, required = p?.remaining_required;
+  const annualOp = p?.annual_estimate?.operating_profit, actualOp = actual?.operating_profit;
+  const progress = p?.progress_pct?.operating_profit ?? (annualOp > 0 && actualOp != null ? actualOp / annualOp * 100 : null);
+  return {
+    date: d.source_as_of || null, annual, quarters,
+    op: first?.op != null ? { col: `${first.year}E`, val: first.op, yoy: first.opYoy } : null,
+    rev: change ? [['1개월', change.one_month_change_pct], ['3개월', change.three_month_change_pct]]
+      .filter(([, v]) => v != null).map(([k, v]) => ({ k, v: pct(v) })) : [],
+    prog: valid && progress != null ? { label: _rpHalfLabel(labels.cumulative_actual), pct: progress } : null,
+    need: valid && required?.operating_margin_pct != null ? {
+      period: _rpHalfLabel(labels.remaining_required), opm: margin(required.operating_margin_pct), op: required.operating_profit,
+      ytd: _rpHalfLabel(labels.cumulative_actual), ytdOpm: margin(actual?.operating_margin_pct),
+      prev: _rpHalfLabel(labels.prior_remaining, true), prevOpm: margin(p.prior_remaining?.operating_margin_pct),
+    } : null,
+  };
+}
+
 // 향후 컨센서스(MD 2-10, FnGuide 증권사 추정 평균) 읽기 — DART 분석 모델과 업로드(summary.consensus) 공용.
 // annual = 연간 전망 표 열별 값(억원·EPS 원): 기업현황 탭 '연간 실적 요약'의 (E) 행. op·rev·prog = DART 분석 종합분석 줄
 function _rpMdConsensus(lines) {
   const L = (lines || []).map(l => String(l).replace(/\r$/, ''));
+  const data = _rpConsJson(L.join('\n'));
+  if (data && !['verified_snapshot', 'markdown_fallback'].includes(data.status)) return null;
+  if (data?.outlook) return _rpConsModelSummary(data);
   const s210 = _rpMdSec(L, /^### 2-10\./);
   if (!s210) return null;
   const ann = _rpMdFirstTable(_rpMdSec(s210, /^#### 연간 전망\s*$/));
@@ -805,7 +847,7 @@ function _rpDartModel(md) {
   const estOp = est(/^####\s*(?:\d+-\d+\.\d+\s+)?증권사 영업이익 추정/), estRev = est(/^####\s*(?:\d+-\d+\.\d+\s+)?증권사 매출 추정/);
   const rsec = _rpMdSec(L, /^#### 증권사 리포트/) || [];
   const rt = _rpMdFirstTable(rsec);
-  const reports = (rt?.rows || []).map(r => ({ ..._rpMdLinkCell(r[1]), date: r[0], opinion: r[2] || '', tp: r[3] || '', change: r[4] || '' }));
+  const reports = (rt?.rows || []).map(r => ({ ..._rpMdLinkCell(r[1]), date: r[0], opinion: r[2] || '', tp: r[3] || '', change: r[4] || '', bodyStatus: r[5] || '' }));
   const rnote = {};   // '**신한투자증권 | 제목**' 아래 '- 자체 검토:'
   let cur = null;
   for (const l of rsec) {
@@ -826,15 +868,17 @@ function _rpDartModel(md) {
   out.brokers = [...bmap.values()].sort((a, b) => String(b.date).localeCompare(String(a.date)));
   out.estCols = [...new Set([...(estOp?.cols || []), ...(estRev?.cols || [])])];
 
-  // 10-20 양식: 끝 데이터 블록이 있으면 증권사 통합 정보(7곳 의견·목표주가·추정·직전 추정)·범위·목표주가 컨센서스를 거기서.
-  // 없거나 깨지면 위 표 합치기 + 2-10 '목표주가·투자의견 컨센서스' 줄·'최고·최저 추정 범위' 표
+  // 신규 모델 또는 2-10 통합표가 기존 분산 표보다 우선. 보류·오류 시 구형 표로 되돌리지 않는다.
   const cj = _rpConsJson(md);
+  out.consensusState = cj;
   if (cj) {
-    const j = _rpConsFromJson(cj);
-    if (j.brokers.length) { out.brokers = j.brokers; out.estCols = j.estCols; }
+    const valid = ['verified_snapshot', 'markdown_fallback'].includes(cj.status);
+    const j = _rpConsFromJson(valid ? cj : { rows: [], warnings: cj.warnings });
+    out.brokers = j.brokers; out.estCols = j.estCols;
     out.ranges = j.ranges; out.market = j.market; out.estNotes = j.estNotes;
+    if (!valid) out.consensus = null;
   }
-  if (!out.market) {
+  if (!cj && !out.market) {
     const tl = (_rpMdSec(L, /^#### 목표주가·투자의견 컨센서스/) || []).join(' ');
     const tp = _rpNum(tl.match(/평균 목표주가[:：]\s*\**([\d,]+)\s*원/)?.[1]);
     if (tp) {
@@ -845,7 +889,7 @@ function _rpDartModel(md) {
         upside: n(/상승여력[^:：]*[:：]\s*\**([+\-−]?[\d.]+)%/) };
     }
   }
-  if (!out.ranges) {
+  if (!cj && !out.ranges) {
     const rt = _rpMdFirstTable(_rpMdSec(L, /^#### 최고·최저 추정 범위/));
     if (rt) {
       out.ranges = {};
@@ -874,7 +918,12 @@ function _rpDartModel(md) {
   const imp = _rpMdSec(L, /^#### 확인된 투자 영향/) || [];
   imp.forEach((l, i) => {
     const m = l.match(/^[-*]\s*(\d{4}-\d{2}-\d{2})[:：]\s*(.+)$/);
-    if (m) attach(m[1], m[2], imp[i + 1]?.match(/^[-*]\s*검토의견[:：]\s*(.+)$/)?.[1] || null);
+    if (m) {
+      const next = imp.findIndex((row, j) => j > i && /^[-*]\s*\d{4}-\d{2}-\d{2}[:：]/.test(row));
+      const opinion = imp.slice(i + 1, next < 0 ? imp.length : next)
+        .map(row => row.match(/^[-*]\s*검토의견[:：]\s*(.+)$/)?.[1]).find(Boolean);
+      attach(m[1], m[2], opinion || null);
+    }
   });
   // 주요 뉴스(2-9): '**날짜 | 제목**' + 구분·확인 내용·자체 검토. '구분: 공시'는 같은 날 공시 항목에 합침(중복 표시 방지)
   let nv = null;
@@ -899,7 +948,7 @@ function _rpDartModel(md) {
   for (const r of reports) {
     const n = rnote[r.text];
     const tp = r.tp && !/미확인|미제시/.test(r.tp) ? ` · 목표주가 ${r.tp}` : '';
-    events.push({ date: r.date, kind: '리포트', title: `${r.text} ${r.opinion}${tp}`, url: r.url, tag: '', scope: r.change,
+    events.push({ date: r.date, kind: '리포트', title: `${r.text} ${r.opinion}${tp}`, url: r.bodyStatus === '원문 미확인' ? null : r.url, tag: '', scope: [r.change, r.bodyStatus].filter(Boolean).join(' · '),
       text: n?.headline ? `「${n.headline}」` : null, opinion: n?.review || null });
   }
   out.events = events.filter(e => /^\d{4}-\d{2}-\d{2}$/.test(e.date)).sort((a, b) => b.date.localeCompare(a.date));
@@ -922,7 +971,10 @@ function _rpDartVerdict(m, data) {
 // (증감 %는 한국식 빨강/파랑, 금액은 억원 정수). 순서: 연간 전망 → 최근 추정치 변경 → 연간 전망 달성 조건(바로 아래 해석)
 // → 분기 전망, 검토의견은 카드 밖. 표마다 안쪽 저장 상자라 하나씩 이미지 저장·표 복사. 공시 실적 표·차트에는 섞지 않음(MD 원칙)
 // 10-19 가독성 검토: 해석은 핵심 줄(투자 판단·투자 해석)만 펼치고 나머지·각주(기준·근거·구분·범위)는 접음
-function _rpDartConsensus(L) {
+function _rpDartConsensus(L, state) {
+  if (state && !['verified_snapshot', 'markdown_fallback'].includes(state.status)) {
+    return _rpDartCard('향후 컨센서스', '<div style="color:var(--text3)">컨센서스 데이터 확인 필요 · 추정치 표시 보류</div>');
+  }
   const sec = _rpMdSec(L, /^### 2-10\./);
   if (!sec) return '';
   const esc = escapeHtml;
@@ -942,7 +994,8 @@ function _rpDartConsensus(L) {
   // 해석 묶음 — 핵심 줄만 펼침(없으면 첫 줄), 나머지는 '더 보기'
   const interpBlock = (lines, title, style) => {
     if (!lines.length) return '';
-    let shown = lines.filter(l => KEY.test(l));
+    let shown = lines.filter(l => /^핵심\s*[:：]/.test(l));
+    if (!shown.length) shown = lines.filter(l => KEY.test(l));
     if (!shown.length) shown = lines.slice(0, 1);
     const rest = lines.filter(l => !shown.includes(l));
     return `<div style="${style}">
@@ -1814,7 +1867,7 @@ const _rpFenceClose = open => new RegExp(`^${open[0] === '`' ? '`' : '~'}{${open
 // 새 양식(10-18~)의 편집용 줄 — 목차 앵커 '<a id="section-2-3"></a>', '<!-- reader-layout … -->' 주석, 로컬 파일로 가는
 // '[상세 검토·계산 근거](../../data/…review_details….md#…)'(사이트엔 없는 파일). 카드에 '<a id=…>' 글자가 그대로 보였음
 const _RPD_DROP_LINE = /^(<a id="[^"]*">\s*<\/a>|<!--.*-->|[-*]\s*\[상세 검토[^\]]*\]\((?!https?:)[^)]*\))$/;
-// keepData: 여러 줄 주석('<!-- dart-report-consensus:v1 {JSON} -->' 데이터 블록)을 남김 — 업로드 저장본용.
+// keepData: 여러 줄 주석(버전별 consensus 데이터 블록)을 남김 — 업로드 저장본용.
 // 화면용(상세 분석·카드)은 빼야 JSON 글자가 '10. 제외 후보 메모'에 그대로 찍히지 않음
 function _rpStripRawSections(md, keepData = false) {
   const out = [];
@@ -1863,7 +1916,7 @@ function _rpMdInline(s) {
 
 // '라벨: 내용' 줄은 라벨만 굵게. 투자판단·리스크·검토의견·중요도는 라벨에 의미색(예전엔 줄 전체를 칠해 긴 문단이 읽기 힘들었음)
 // 상세 분석 줄 머리 이름표 색 — 10-18 MD에 근거·판단 전환 조건·해석 한계·범위 유의가 더해짐(사실 → 해석 → 바뀌는 조건 → 한계)
-const _RPD_KEY = { '투자판단': 'var(--green)', '리스크': 'var(--danger)', '검토의견': 'var(--tg)', '중요도': 'var(--warn)',
+const _RPD_KEY = { '핵심': 'var(--tg)', '투자판단': 'var(--green)', '리스크': 'var(--danger)', '검토의견': 'var(--tg)', '중요도': 'var(--warn)',
   '판단 전환 조건': 'var(--warn)', '근거': 'var(--text2)', '해석 한계': 'var(--text3)', '범위 유의': 'var(--text3)' };
 function _rpMdLabeled(t) {
   const m = t.match(/^([^:：\[\]()*`|]{1,16}?)\s*[:：](?:\s+(.*))?$/);
@@ -1957,6 +2010,17 @@ function _rpMdBlocks(lines) {
       const tbl = [];
       while (i < lines.length && /^\|/.test(lines[i].trimEnd())) { tbl.push(lines[i].trimEnd()); i++; }
       html += _rpMdTable(tbl);
+      continue;
+    }
+
+    if (/^[-*]\s*핵심\s*[:：]/.test(t)) {
+      const group = [t.replace(/^[-*]\s*/, '')];
+      i++;
+      while (i < lines.length && /^[-*]\s*[^:：\[\]()*`|]{1,16}[:：]/.test(lines[i]) && !/^[-*]\s*핵심[:：]/.test(lines[i])) {
+        group.push(lines[i].replace(/^[-*]\s*/, '').trim());
+        i++;
+      }
+      html += _rpDartInterpretations(group);
       continue;
     }
 
