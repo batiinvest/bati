@@ -701,8 +701,11 @@ function _rpConsFromJson(d) {
     if (!by.has(id)) {
       const tp = Number(r.target_price) || null, pt = Number(r.previous_target_price) || null;
       by.set(id, { broker: r.broker_name, url: DartReport.forecastSourceUrl(r), date: r.published_on || '',
-        opinion: /[가-힣]/.test(r.rating || '') ? r.rating : _RP_RATING_KO[r.rating_category] || r.rating || '', tp: tp ? `${tp.toLocaleString()}원` : '',
-        change: tp && pt ? (tp > pt ? `상향 · 직전 ${pt.toLocaleString()}원` : tp < pt ? `하향 · 직전 ${pt.toLocaleString()}원` : '유지') : '',
+        // 의견은 짧은 한글(rating_label '매수') — '매수 (Buy)'의 원문 괄호는 표에서 뺌. 없으면 한글 원문, 영어만 분류로 옮김
+        opinion: (r.rating_label || (/[가-힣]/.test(r.rating || '') ? r.rating : _RP_RATING_KO[r.rating_category] || r.rating || '')).replace(/([가-힣])\s*\([A-Za-z ]+\)$/, '$1'), tp: tp ? `${tp.toLocaleString()}원` : '',
+        // 직전 금액은 바뀐 때(상향·하향)만 — '유지 · 직전 165,000원'은 같은 숫자 반복
+        change: r.target_change_label ? r.target_change_label + (tp && pt && ['상향', '하향'].includes(r.target_change_label) ? ` · 직전 ${pt.toLocaleString()}원` : '')
+          : tp && pt ? (tp > pt ? `상향 · 직전 ${pt.toLocaleString()}원` : tp < pt ? `하향 · 직전 ${pt.toLocaleString()}원` : '유지') : '',
         rev: {}, op: {}, prev: { rev: {}, op: {} } });
     }
     const b = by.get(id), key = r.metric === 'revenue' ? 'rev' : r.metric === 'operating_profit' ? 'op' : null;

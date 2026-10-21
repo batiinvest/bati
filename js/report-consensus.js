@@ -123,7 +123,23 @@ function consensusFromMarkdown(markdown) {
     price: price ? { as_of: price[1], value: numeric(price[2]), unit: "원" } : null,
     distribution: distribution ? { buy: Number(distribution[1]), neutral: Number(distribution[2]), sell: Number(distribution[3]) } : null };
   for (const table of parsed) {
-    if (["연간 전망", "분기 전망"].includes(table.heading) && table.header[0] === "항목") {
+    if (table.heading === "증권사 추정 통합표" && table.header.join("|") === "증권사|발행일|직전 목표주가(원)|목표주가(원)|변경|대조 상태") {
+      for (const values of table.rows) {
+        const broker = brokers.get(values[0]) || "publisher:" + values[0].replaceAll(/\s/g, "").toLowerCase();
+        for (const metric of ["revenue", "operating_profit"]) {
+          const row = rows.get(`${broker}:${metric}`);
+          if (!row || row.published_on !== values[1] || row.target_price !== numeric(values[3]))
+            throw new Error("Conflicting target-price review metadata");
+          if (row.target_change_label !== undefined) throw new Error("Duplicate target-price review");
+          if (!["상향", "하향", "유지", "미확인", "상충·보류"].includes(values[4]))
+            throw new Error("Unknown target-price review status");
+          row.previous_target_price = numeric(values[2]);
+          row.target_change_label = values[4];
+          row.target_verification_status = values[5] === "대조 확인" ? "verified" : values[5] === "상충·보류" ? "conflict" : "unverified";
+          if (["미확인", "상충·보류"].includes(values[4])) row.previous_target_price = null;
+        }
+      }
+    } else if (["연간 전망", "분기 전망"].includes(table.heading) && table.header[0] === "항목") {
       const group = table.heading === "연간 전망" ? "annual" : "quarterly";
       table.header.slice(1).forEach((label, column) => {
         const p = period(label);
