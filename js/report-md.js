@@ -234,47 +234,9 @@ function _rpMdConsensus(lines) {
   const L = (lines || []).map(l => String(l).replace(/\r$/, ''));
   const data = _rpConsJson(L.join('\n'));
   if (data && !['verified_snapshot', 'markdown_fallback'].includes(data.status)) return null;
-  if (data?.outlook) return _rpConsModelSummary(data);
-  const s210 = _rpMdSec(L, /^### 2-10\./);
-  if (!s210) return null;
-  const ann = _rpMdFirstTable(_rpMdSec(s210, /^#### 연간 전망\s*$/));
-  const chg = _rpMdFirstTable(_rpMdSec(s210, /^#### 최근 추정치 변경/));
-  // 연간 전망 달성 조건(10-19 추가): [항목 | 연간E | 올해 누적A | 남은 기간 필요(조건부) | 전년 같은 기간A] — 영업이익 진척률만
-  const ach = _rpMdFirstTable(_rpMdSec(s210, /^#### 연간 전망 달성 조건/));
-  const ar = ach && /E$/.test(ach.hdr[1]?.trim() || '') && /A$/.test(ach.hdr[2]?.trim() || '') ? ach.rows.find(r => /^영업이익/.test(r[0].trim())) : null;
-  const aE = ar && _rpNum(ar[1]), aA = ar && _rpNum(ar[2]);
-  const ei = ann ? ann.hdr.findIndex((h, i) => i > 0 && /E$/.test(h.trim())) : -1;
-  const row = re => ann?.rows.find(r => re.test(r[0].trim()));
-  const op = row(/^영업이익$/), opy = row(/^영업이익 YoY/);
-  const pct = v => /^[+\-−]?\d[\d,.]*%$/.test((v || '').trim()) ? v.trim() : null;
-  const val = (r, i) => r ? _rpNum(r[i]) : null;
-  const rv = row(/^매출액?$/), ni = row(/순이익$/), eps = row(/^EPS/), opm = row(/^영업이익률/);
-  const annual = (ann?.hdr || []).map((h, i) => {
-    const y = h.match(/(\d{4})/)?.[1];
-    return i > 0 && y && /[AE]$/.test(h.trim())
-      ? { year: y, est: /E$/.test(h.trim()), revenue: val(rv, i), op: val(op, i), ni: val(ni, i), eps: val(eps, i), opm: val(opm, i), opYoy: pct(opy?.[i]) } : null;
-  }).filter(Boolean);
-  // 달성 조건 영업이익률 줄 — 남은 기간 필요 영업이익률 vs 올해 누적·전년 같은 기간(요약 칩)
-  const am = ar ? ach.rows.find(r => /^영업이익률/.test(r[0].trim())) : null;
-  const need = am && am[3] ? {
-    period: _rpHalfLabel(ach.hdr[3].trim().replace(/\s*필요.*$/, '')), opm: am[3].trim(), op: _rpNum(ar[3]),
-    ytd: _rpHalfLabel(ach.hdr[2].trim().replace(/^\d{4}\s*/, '').replace(/A$/, '')), ytdOpm: (am[2] || '').trim(),
-    prev: _rpHalfLabel((ach.hdr[4] || '').trim().replace(/A$/, ''), true), prevOpm: (am[4] || '').trim(),
-  } : null;
-  // 분기 전망(단분기) 매출·영업이익 — 증권사별 통합표의 컨센서스 줄
-  const qt = _rpMdFirstTable(_rpMdSec(s210, /^#### 분기 전망/));
-  const qrow = re => qt?.rows.find(r => re.test(r[0].trim()));
-  const qrv = qrow(/^매출액?$/), qop = qrow(/^영업이익$/);
-  const quarters = (qt?.hdr || []).map((h, i) => i > 0 && /Q/.test(_rpPeriodKey(h) || '')
-    ? { key: _rpPeriodKey(h), label: h.trim(), revenue: val(qrv, i), op: val(qop, i) } : null).filter(Boolean);
-  return {
-    date: s210.map(l => l.match(/집계 기준\s*(\d{4}-\d{2}-\d{2})/)?.[1]).find(Boolean) || null,
-    annual, quarters, need,
-    op: ei > 0 && op && _rpNum(op[ei]) != null ? { col: ann.hdr[ei].trim().replace('년', ''), val: _rpNum(op[ei]), yoy: pct(opy?.[ei]) } : null,
-    rev: (chg?.rows || []).filter(r => /영업이익/.test(r[0])).slice(0, 1)
-      .flatMap(r => chg.hdr.map((h, i) => /변화$/.test(h.trim()) && pct(r[i]) ? { k: h.trim().replace(/\s*변화$/, ''), v: pct(r[i]) } : null).filter(Boolean)),
-    prog: aE > 0 && aA != null ? { label: _rpHalfLabel(ach.hdr[2].trim().replace(/^\d{4}\s*/, '').replace(/A$/, '')), pct: aA / aE * 100 } : null,
-  };
+  // 2-10은 생성 묶음(report-consensus.js) 하나로 읽음 — 데이터 블록이 있으면 블록, 없으면 묶음이 고정 표에서 복원(markdown_fallback).
+  // 예전엔 여기서 표를 따로 다시 읽어 두 곳이 어긋날 수 있었음(10-23 정리). 블록 v1(outlook 없음)·10-19 이전 표 양식은 null
+  return data?.outlook ? _rpConsModelSummary(data) : null;
 }
 
 function _rpDartModel(md) {
@@ -300,7 +262,9 @@ function _rpDartModel(md) {
   const cons = _rpMdConsensus(L);
   if (cons) out.consensus = cons;
 
-  // 증권사 전망: 영업이익(2-7)·매출(4-1) 추정 표 + 리포트 표(2-9)를 증권사·발행일로 합침
+  // 증권사 전망(옛 양식): 영업이익(2-7)·매출(4-1) 추정 표 + 리포트 표(2-9)를 증권사·발행일로 합침.
+  // 10-20 양식부터는 아래 데이터 블록(2-10 통합표)이 덮어씀. 옛 양식 MD(주성엔지니어링·한국피아이엠·마키나락스)를
+  // 새 양식으로 다시 올리면 이 합치기는 지워도 됨 — tools/md-regress.js 표본에서도 빼고 확인
   const est = re => {
     const t = _rpMdFirstTable(_rpMdSec(L, re));
     return t ? { cols: t.hdr.slice(1), rows: t.rows.map(r => ({ ..._rpMdLinkCell(r[0]), vals: r.slice(1).map(_rpNum) })) } : null;
@@ -339,28 +303,6 @@ function _rpDartModel(md) {
     out.brokers = j.brokers; out.estCols = j.estCols;
     out.ranges = j.ranges; out.market = j.market; out.estNotes = j.estNotes;
     if (!valid) out.consensus = null;
-  }
-  if (!cj && !out.market) {
-    const tl = (_rpMdSec(L, /^#### 목표주가·투자의견 컨센서스/) || []).join(' ');
-    const tp = _rpNum(tl.match(/평균 목표주가[:：]\s*\**([\d,]+)\s*원/)?.[1]);
-    if (tp) {
-      const n = re => { const v = tl.match(re)?.[1]; return v != null ? Number(v) : null; };
-      out.market = { tp, count: n(/참여 기관\s*(\d+)\s*곳/), score: n(/평균 의견 점수\s*([\d.]+)/), rating: null,
-        dist: { buy: n(/매수\s*(\d+)\s*건/), neutral: n(/중립\s*(\d+)\s*건/), sell: n(/매도\s*(\d+)\s*건/) },
-        asOf: null, price: _rpNum(tl.match(/([\d,]+)\s*원\s*기준/)?.[1]), priceAsOf: tl.match(/(\d{4}-\d{2}-\d{2})\s*보통주/)?.[1] || null,
-        upside: n(/상승여력[^:：]*[:：]\s*\**([+\-−]?[\d.]+)%/) };
-    }
-  }
-  if (!cj && !out.ranges) {
-    const rt = _rpMdFirstTable(_rpMdSec(L, /^#### 최고·최저 추정 범위/));
-    if (rt) {
-      out.ranges = {};
-      for (const r of rt.rows) {
-        const k = _rpPeriodKey(r[0]), mk = /매출/.test(r[1]) ? 'rev' : /영업이익/.test(r[1]) ? 'op' : null;
-        const lo = _rpNum(r[2]), hi = _rpNum(r[4]);
-        if (k && mk && lo != null && hi != null) (out.ranges[k] = out.ranges[k] || {})[mk] = { low: lo, high: hi };
-      }
-    }
   }
 
   // 보고기간 이후 이벤트: 후속 공시(2-8) + 리포트·뉴스(2-9), 최근 순
