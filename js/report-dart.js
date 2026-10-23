@@ -117,6 +117,9 @@ async function _rpLoadAndRenderDart(body) {
         border-radius:var(--radius-sm);background:var(--bg3);color:var(--text2);cursor:pointer;white-space:nowrap">
       ${data ? '최신 업로드' : 'DART 업로드'}
     </button>
+    ${data && typeof isEditor === 'function' && isEditor() ? `<button onclick="rpDartReparse()" title="저장된 MD로 요약·컨센서스·사업 데이터를 다시 만듦(파서를 고친 뒤 다시 올리지 않아도 반영). 기본정보 수정값은 유지"
+      style="padding:5px 12px;font-size:calc(11px*var(--m-label));border:1px solid var(--border);
+        border-radius:var(--radius-sm);background:var(--bg3);color:var(--text2);cursor:pointer;white-space:nowrap">다시 분석</button>` : ''}
   </div>
 
   ${_rpDartSecHead('종합분석 결과')}
@@ -1234,12 +1237,23 @@ async function rpUploadDart(input) {
   let text;
   try { text = await file.text(); } catch(e) { toast('파일 읽기 실패', 'error'); return; }
 
+  input.value = '';   // 같은 파일을 고쳐 다시 골라도 onchange가 뜨게
   let parsed;
   try { parsed = _rpParseMd(text); } catch(e) { toast('MD 파싱 실패: ' + e.message, 'error'); return; }
 
   if (!parsed.stock_code) { toast('종목코드를 파싱할 수 없습니다 (문서 개요 섹션 확인)', 'warn'); return; }
 
-  toast('저장 중...', 'info');
+  // 양식 검사(계약: report-md.js RP_MD_CONTRACT) — 문제가 있으면 결과 창에서 저장 여부·ChatGPT 수정 요청 복사
+  let lint = null;
+  try { lint = _rpMdLint(text, typeof kstToday === 'function' ? kstToday() : new Date().toISOString().slice(0, 10)); } catch (e) {}
+  if (lint && (lint.errors.length || lint.warnings.length)) { _rpMdLintOpen(lint, parsed, text); return; }
+  await _rpSaveDartMd(text, parsed, { lintOk: !!lint });
+}
+
+// MD 저장(업로드·다시 분석 공용) — 요약·원문(원자료 장 뺀 본)·사업 데이터 저장 후 리포트 다시 그림.
+// opts.reparse: DB에 저장된 원문으로 다시 분석(파일 없음)
+async function _rpSaveDartMd(text, parsed, opts = {}) {
+  toast(opts.reparse ? '저장된 MD로 다시 분석 중...' : opts.lintOk ? '양식 검사 통과 · 저장 중...' : '저장 중...', 'info');
   // 사용자가 고친 기본정보(profile_edits)는 새 MD에도 이어받음 — 이 종목의 가장 최근 리포트 기준
   try {
     const { data: prev } = await sb.from('dart_reports').select('summary')
@@ -1291,7 +1305,6 @@ async function rpUploadDart(input) {
   } catch(e) {
     toast(`DART 기본 저장 완료, 사업 섹션 저장 실패: ${e.message}`, 'warn');
   }
-  input.value = '';
 
   // 저장 후 전체 리로드 — 방금 저장한 세그먼트(제품별 매출)까지 재조회해야
   // 기업현황 탭의 '제품·사업부별 매출' 그래프에 즉시 반영된다.
@@ -1303,4 +1316,64 @@ async function rpUploadDart(input) {
     // 데이터 로드 실패해도 DART 탭은 자체 조회로 표시 가능
   }
   setTimeout(() => rpSetTab(RP_TABS.indexOf('DART 분석')), 50);
+}
+
+// ── 업로드 검사 결과 창 ─────────────────────────────────────────────────────────────
+// 오류·확인 필요·참고 목록 + [ChatGPT 수정 요청 복사] [취소] [그래도 저장]
+function _rpMdLintOpen(lint, parsed, text) {
+  document.getElementById('m-rp-lint')?.remove();
+  RPD.lint = { lint, parsed, text };
+  const esc = escapeHtml;
+  const today = typeof kstToday === 'function' ? kstToday() : new Date().toISOString().slice(0, 10);
+  const prompt = _rpMdLintPrompt(lint, { name: parsed.stock_name, code: parsed.stock_code, today });
+  const group = (title, arr, col) => arr.length ? `<div style="margin-bottom:10px">
+      <div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:${col};margin-bottom:4px">${title} ${arr.length}</div>
+      ${arr.map(x => `<div style="font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.6;padding-left:10px;overflow-wrap:anywhere">· ${esc(x.msg)}</div>`).join('')}
+    </div>` : '';
+  const ov = document.createElement('div');
+  ov.id = 'm-rp-lint';
+  ov.className = 'modal-overlay open';
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  ov.innerHTML = `
+    <div class="modal" style="width:620px">
+      <div class="modal-header"><span class="modal-title">MD 양식 검사 · ${esc(parsed.stock_name || parsed.stock_code)} ${esc(parsed.report_type || '')}</span>
+        <button class="modal-close" onclick="document.getElementById('m-rp-lint').remove()" aria-label="닫기">×</button></div>
+      <div style="font-size:calc(12px*var(--m-sub));color:var(--text2);line-height:1.6;margin-bottom:12px">
+        ${lint.errors.length ? '저장하면 일부 화면이 비거나 틀릴 수 있습니다.' : '저장은 되지만 고치면 좋은 점이 있습니다.'}
+        [ChatGPT 수정 요청 복사]로 아래 내용을 붙여 넣으면 MD를 고쳐 받을 수 있습니다.</div>
+      <div style="max-height:52vh;overflow:auto">
+        ${group('오류', lint.errors, 'var(--danger)')}${group('확인 필요', lint.warnings, 'var(--warn)')}${group('참고', lint.info, 'var(--text3)')}
+      </div>
+      <div class="modal-footer">
+        ${prompt ? `<button class="btn" style="margin-right:auto" onclick="rpMdLintCopy()">ChatGPT 수정 요청 복사</button>` : ''}
+        <button class="btn" onclick="document.getElementById('m-rp-lint').remove()">취소</button>
+        <button class="btn btn-primary" onclick="rpMdLintSave()">${lint.errors.length ? '그래도 저장' : '저장'}</button>
+      </div>
+    </div>`;
+  RPD.lint.prompt = prompt;
+  document.body.appendChild(ov);
+}
+async function rpMdLintCopy() {
+  const p = RPD.lint?.prompt;
+  if (!p) return;
+  try { await navigator.clipboard.writeText(p); toast('수정 요청을 복사했습니다 — ChatGPT에 붙여 넣으세요', 'success'); }
+  catch (e) { toast('복사하지 못했습니다(브라우저 권한)', 'warn'); }
+}
+async function rpMdLintSave() {
+  const c = RPD.lint;
+  document.getElementById('m-rp-lint')?.remove();
+  if (c) await _rpSaveDartMd(c.text, c.parsed);
+}
+
+// 저장된 MD로 다시 분석(편집 권한) — 파서를 고친 뒤 MD를 다시 올리지 않아도 요약·컨센서스·사업 데이터가 새로 만들어짐.
+// 원문은 원자료 장을 뺀 본으로 다시 저장(옛 MD의 원자료 장도 이때 정리됨), 기본정보 수정값은 이어받음
+async function rpDartReparse() {
+  if (!_rpStock) return;
+  let row = null;
+  try { _rpDartRowReset(); row = (await _rpDartRow(_rpStock.code))?.data; } catch (e) {}
+  if (!row?.raw_md) { toast('저장된 MD가 없습니다', 'warn'); return; }
+  let parsed;
+  try { parsed = _rpParseMd(row.raw_md); } catch (e) { toast('다시 분석 실패: ' + e.message, 'error'); return; }
+  if (!parsed.stock_code) parsed.stock_code = _rpStock.code;
+  await _rpSaveDartMd(row.raw_md, parsed, { reparse: true });
 }

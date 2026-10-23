@@ -939,3 +939,112 @@ function _rpParseMd(text) {
     },
   };
 }
+
+// ── 양식 계약·업로드 검사 ──────────────────────────────────────────────────────────
+// 프론트가 이름으로 찾는 것(= ChatGPT 양식 지시문의 [유지할 것]). 업로드 때 _rpMdLint가 이 목록으로 검사
+const RP_MD_CONTRACT = {
+  overview: ['회사명', '종목코드', '원문 기준', '접수일'],                           // 문서 개요 표 — 없으면 저장이 꼬임(오류)
+  sections: ['1-1', '1-2', '1-3', '2-1', '2-2', '2-3', '3-1', '3-2', '4-1'],      // 없으면 그 카드가 빠짐
+  consensus: ['목표주가·투자의견 컨센서스', '증권사 추정 통합표', '연간 전망', '분기 전망', '최근 추정치 변경', '연간 전망 달성 조건', '검토의견'],
+};
+
+// 업로드 검사 — 생성기(ChatGPT) MD가 계약을 지키는지. errors(저장 전 확인)·warnings(고칠 것)·info(참고), 항목마다 fix = ChatGPT에 줄 문장.
+// today = 'YYYY-MM-DD'(날짜 지연 판정용). 데이터 블록이 있으면 본문 2-10 표와 숫자를 대조(블록 뺀 사본은 생성 묶음이 표에서 복원)
+function _rpMdLint(text, today) {
+  const t = String(text || '').replace(/\r/g, '');
+  const view = _rpStripRawSections(t);                       // 화면에 쓰는 본문(원자료 장·주석 뺌)
+  const V = view.split('\n');
+  const E = [], W = [], I = [];
+  const add = (arr, msg, fix) => arr.push({ msg, fix: fix || null });
+  const has = re => V.some(l => re.test(l));
+  const days = (a, b) => (Date.parse(b) - Date.parse(a)) / 864e5;
+
+  for (const k of RP_MD_CONTRACT.overview)
+    if (!has(new RegExp(`^\\|\\s*${k}\\s*\\|\\s*[^|\\s]`))) add(E, `문서 개요 표에 '${k}' 값 없음`, `문서 개요 표에 '| ${k} | 값 |' 줄을 넣어라.`);
+  const missing = RP_MD_CONTRACT.sections.filter(n => !has(new RegExp(`^### ${n.replace('-', '\\-')}\\.`)));
+  if (missing.length) add(W, `제목 없음: ${missing.map(n => '### ' + n).join(', ')} — 그 카드가 빠짐`, `제목 ${missing.map(n => '### ' + n + '.').join(', ')}을 번호·이름 그대로 넣어라.`);
+
+  const s210 = _rpMdSec(V, /^### 2-10\./);
+  const blockM = t.match(/<!--\s*dart-report-consensus:v(\d+)/);
+  if (!s210) add(I, '컨센서스(2-10) 없음 — 컨센서스 구역·연간 실적 (E) 행이 안 나옴');
+  else {
+    const lost = RP_MD_CONTRACT.consensus.filter(n => !s210.some(l => new RegExp(`^####\\s*${n}${n === '연간 전망' ? '\\s*$' : ''}`).test(l)));
+    if (lost.length) add(W, `2-10 소제목 없음: ${lost.join(', ')}`, `2-10에 소제목 ${lost.map(n => "'#### " + n + "'").join(', ')}을 이름 그대로 넣어라.`);
+  }
+  if (blockM) {
+    const d = _rpConsJson(t);
+    if (!d || !['verified_snapshot', 'markdown_fallback'].includes(d.status))
+      add(E, `데이터 블록(v${blockM[1]})을 읽지 못함${d?.warnings?.length ? ' — ' + d.warnings.join(' · ') : ''} — 컨센서스 수치가 보류됨`, '맨 끝 데이터 블록 JSON이 그대로 파싱되게 고쳐라(따옴표·쉼표·괄호), 기존 필드 이름은 바꾸지 마라.');
+    else {
+      add(I, `데이터 블록 v${blockM[1]} 읽음`);
+      // 본문 표 ↔ 블록 대조 — 블록을 뺀 사본은 생성 묶음이 2-10 표에서 복원
+      const noBlock = t.replace(/<!--\s*dart-report-consensus:v\d+[\s\S]*?-->/, '');
+      const a = _rpMdConsensus(t.split('\n')), b = _rpMdConsensus(noBlock.split('\n'));
+      const diffs = [];
+      const near = (x, y) => x == null || y == null ? x === y : Math.abs(x - y) < 0.06;
+      if (a && !b) diffs.push('2-10 표를 읽지 못함(블록만 읽힘)');
+      if (a && b) {
+        for (const ya of a.annual || []) {
+          const yb = (b.annual || []).find(x => x.year === ya.year);
+          for (const [k, nm] of [['revenue', '매출'], ['op', '영업이익'], ['ni', '순이익']])
+            if (!yb || !near(ya[k], yb[k])) diffs.push(`${ya.year}${ya.est ? 'E' : 'A'} ${nm} 블록 ${ya[k] ?? '—'} / 표 ${yb?.[k] ?? '—'}`);
+        }
+        if ((a.need?.opm || null) !== (b.need?.opm || null)) diffs.push(`필요 영업이익률 블록 ${a.need?.opm ?? '—'} / 표 ${b.need?.opm ?? '—'}`);
+        const rv = x => (x.rev || []).map(r => `${r.k} ${r.v}`).join(', ');
+        if (rv(a) !== rv(b)) diffs.push(`추정 변화 블록 ${rv(a) || '—'} / 표 ${rv(b) || '—'}`);
+      }
+      const ma = _rpDartModel(t), mb = _rpDartModel(noBlock);
+      for (const x of ma.brokers || []) {
+        const y = (mb.brokers || []).find(z => z.broker === x.broker);
+        if (!y) { diffs.push(`${x.broker}: 표에 없음`); continue; }
+        if ((x.tp || '') !== (y.tp || '')) diffs.push(`${x.broker} 목표주가 블록 ${x.tp || '—'} / 표 ${y.tp || '—'}`);
+        for (const k of ['rev', 'op']) for (const c of Object.keys(x[k] || {}))
+          if (!near(x[k][c], y[k]?.[c])) diffs.push(`${x.broker} ${c} ${k === 'op' ? '영업이익' : '매출'} 블록 ${x[k][c]} / 표 ${y[k]?.[c] ?? '—'}`);
+      }
+      if (diffs.length) add(W, `본문 2-10 표와 데이터 블록 숫자가 다름 ${diffs.length}곳 — 예) ${diffs.slice(0, 4).join(' · ')}`,
+        `본문 2-10 표와 데이터 블록의 숫자를 같게 맞춰라: ${diffs.slice(0, 8).join('; ')}.`);
+    }
+  } else if (s210) add(W, '데이터 블록 없음 — 2-10 표로 대신 읽음', "MD 맨 끝에 '<!-- dart-report-consensus:v2 … -->' 데이터 블록을 넣어라(본문 2-10 표와 같은 숫자).");
+
+  // 형식·가독성
+  const loc = V.filter(l => /\b[A-Za-z]:\\/.test(l)).length;
+  if (loc) add(W, `PC 경로 ${loc}줄 — 화면에선 가리지만 DB에 그대로 저장됨`, '본문에서 PC 경로(C:\\Users\\… 등)와 ../ 상대 링크를 모두 지우고, 보고서는 DART 접수번호 링크로 달아라.');
+  const prose = V.filter(l => l.trim() && !/^\s*(\||#)/.test(l));
+  const dec = prose.flatMap(l => l.match(/\d[\d,]*\.00억원/g) || []);
+  if (dec.length) add(W, `문장 속 '.00억원' ${dec.length}곳 — 예) ${dec.slice(0, 3).join(', ')}`, `문장(목록·해석 줄)의 금액은 소수점 아래가 .00이면 빼라(예: ${dec[0]} → ${dec[0].replace('.00억원', '억원')}). 표는 소수 둘째 자리 유지.`);
+  const longs = prose.filter(l => l.length > 300 && !/\]\(#/.test(l));
+  if (longs.length) add(W, `300자 넘는 줄 ${longs.length}곳 — 예) "${longs[0].slice(0, 30)}…"`, "한 줄이 300자를 넘지 않게 '근거:' 줄은 숫자·출처만, 설명은 다음 이름표 줄로 나눠라.");
+  const norm = s => s.replace(/[\s·,.()[\]%]+/g, '');
+  let rep = 0;
+  for (let i = 0; i < V.length; i++) {
+    const m = V[i].match(/^[-*]\s*핵심[:：]\s*(.+)$/);
+    if (!m) continue;
+    const core = norm(m[1]);
+    for (let j = i + 1; j < Math.min(i + 4, V.length); j++) {
+      const n = V[j].match(/^[-*]\s*([^:：]{1,16})[:：]\s*(.+)$/);
+      if (!n || n[1].trim() === '핵심') break;
+      if (core.length > 6 && norm(n[2]).includes(core)) { rep++; break; }
+    }
+  }
+  if (rep) add(W, `'핵심:' 문장을 다음 줄에서 반복 ${rep}곳`, "'핵심:' 다음 줄에서는 핵심 문장을 다시 쓰지 말고 근거·조건·한계만 써라.");
+  const s47 = _rpMdSec(V, /^### 4-7\./);
+  if (s47 && s47.some(l => /(^|[\s.])[가-하]\.\s+\S/.test(l))) add(W, '4-7 사업소개에 DART 원문 항목 조각(가. 나. 다. …)이 섞임', "4-7은 제품군 표와 다듬은 사업 개요 문장으로 쓰고, 다른 항목의 원문 조각('다. 주요 제품 등의…' 등)은 넣지 마라.");
+
+  // 날짜
+  const upd = V.map(l => l.match(/^\|\s*업데이트\s*\|\s*(\d{4}-\d{2}-\d{2})/)?.[1]).find(Boolean);
+  const rev = blockM ? (t.match(/"reviewed_on"\s*:\s*"(\d{4}-\d{2}-\d{2})"/) || [])[1] : null;
+  if (upd && rev && rev > upd) add(W, `문서 개요 업데이트(${upd})가 데이터 블록 확인일(${rev})보다 이름`, '문서 개요 표의 업데이트를 마지막으로 고친 날짜로 바꿔라.');
+  const range = view.match(/조회 범위[:：]\s*\d{4}-\d{2}-\d{2}\s*~\s*(\d{4}-\d{2}-\d{2})/);
+  if (range && today && days(range[1], today) > 7) add(W, `2-8 공시 조회가 ${range[1]}까지 — 그 뒤 공시가 빠졌을 수 있음`, `2-8 조회 범위 끝 날짜를 오늘(${today})로 늘려 그 뒤 공시·리포트를 다시 확인해 반영해라.`);
+  if (upd && today && days(upd, today) > 30) add(I, `문서 개요 업데이트 ${upd} — 한 달 넘음`);
+  return { version: blockM ? Number(blockM[1]) : null, errors: E, warnings: W, info: I };
+}
+
+// 검사 결과 → ChatGPT에 붙여 넣을 수정 요청 문장
+function _rpMdLintPrompt(lint, meta = {}) {
+  const items = [...lint.errors.map(x => ({ ...x, lv: '오류' })), ...lint.warnings.map(x => ({ ...x, lv: '' }))].filter(x => x.fix);
+  if (!items.length) return '';
+  return [`DART 분석 MD 업로드 검사 결과 — ${meta.name || ''}(${meta.code || ''}) · ${meta.today || ''}`,
+    '아래를 고쳐서 다시 만들어라. 이전 지시의 [유지할 것](제목·소제목·이름표·기간 표기·데이터 블록 구조)은 그대로 지켜라.',
+    ...items.map((x, i) => `${i + 1}. ${x.lv ? `(${x.lv}) ` : ''}${x.msg}\n   → ${x.fix}`)].join('\n');
+}
