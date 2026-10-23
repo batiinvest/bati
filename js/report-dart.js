@@ -98,14 +98,14 @@ async function _rpLoadAndRenderDart(body) {
         ${dp.updated ? `<span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">검토 ${esc(dp.updated)}</span>` : ''}
         ${dp.receiptNo ? `<a href="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${dp.receiptNo}" target="_blank" rel="noopener"
           style="font-size:calc(12px*var(--m-sub));color:var(--tg);text-decoration:none">DART 원문 ↗</a>` : ''}`
-        : `<span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">DART 분석 MD 없음 — 업로드하면 MD 항목(희석·대표이사·종합판단 등)이 더해집니다</span>`}
+        : `<span style="font-size:calc(12px*var(--m-sub));color:var(--text2)">DART 분석 MD 없음${typeof isEditor === 'function' && isEditor() ? ' — 올리면 MD 항목(희석·대표이사·종합판단 등)이 더해집니다' : ''}</span>`}
       </div>
     </div>
-    <button onclick="document.getElementById('rp-dart-file').click()"
+    ${typeof isEditor === 'function' && isEditor() ? `<button onclick="document.getElementById('rp-dart-file').click()" title="ChatGPT로 만든 DART 분석 MD 올리기 — 올리기 전에 양식 검사"
       style="padding:5px 12px;font-size:calc(11px*var(--m-label));border:1px solid var(--border);
         border-radius:var(--radius-sm);background:var(--bg3);color:var(--text2);cursor:pointer;white-space:nowrap">
-      ${data ? '최신 업로드' : 'DART 업로드'}
-    </button>
+      ${data ? 'MD 다시 올리기' : 'MD 올리기'}
+    </button>` : ''}
     ${data && typeof isEditor === 'function' && isEditor() ? `<button onclick="rpDartReparse()" title="저장된 MD로 요약·컨센서스·사업 데이터를 다시 만듦(파서를 고친 뒤 다시 올리지 않아도 반영). 기본정보 수정값은 유지"
       style="padding:5px 12px;font-size:calc(11px*var(--m-label));border:1px solid var(--border);
         border-radius:var(--radius-sm);background:var(--bg3);color:var(--text2);cursor:pointer;white-space:nowrap">다시 분석</button>` : ''}

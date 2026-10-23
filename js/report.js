@@ -35,7 +35,7 @@ function pReport() {
           z-index:100;max-height:240px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.3)"></div>
       </div>
       <button onclick="rpLoadReport()" class="btn btn-primary btn-sm">분석 리포트</button>
-      <button onclick="document.getElementById('rp-dart-file').click()" class="btn btn-sm">DART 업로드</button>
+      <!-- MD 업로드는 DART 분석 탭 머리의 버튼 하나로(편집 권한자만) — 같은 일을 하는 버튼이 검색 줄에도 있었음 -->
     </div>
 
     ${_rpStock ? `
