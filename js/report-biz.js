@@ -10,13 +10,14 @@ let _rpBizRegionSel = null;   // 선택 품목 (null = 전체)
 
 // ── 데이터: 6종 병렬 로드 (사업분석 탭·DART 분석 탭 '사업' 공용) ─────────────
 async function _rpBizFetch(code) {
+  // 사업분석 탭·DART 분석 '사업'이 같은 조회 — 같은 종목은 한 번만(_rpQ, 업로드 뒤엔 비워짐)
   const [segRes, rawRes, prodRes] = await Promise.all([
-    sb.from('dart_segment_revenue').select('bsns_year,quarter,segment_type,category,subcategory,revenue,revenue_ratio')
-      .eq('stock_code', code).order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
-    sb.from('dart_raw_material').select('bsns_year,quarter,data_type,product_name,material_name,origin,amount')
-      .eq('stock_code', code).order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
-    sb.from('dart_production').select('bsns_year,quarter,factory_name,capacity,actual,utilization_rate')
-      .eq('stock_code', code).order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
+    _rpQ('biz:seg:' + code, () => sb.from('dart_segment_revenue').select('bsns_year,quarter,segment_type,category,subcategory,revenue,revenue_ratio')
+      .eq('stock_code', code).order('bsns_year', { ascending: true }).order('quarter', { ascending: true })),
+    _rpQ('biz:raw:' + code, () => sb.from('dart_raw_material').select('bsns_year,quarter,data_type,product_name,material_name,origin,amount')
+      .eq('stock_code', code).order('bsns_year', { ascending: true }).order('quarter', { ascending: true })),
+    _rpQ('biz:prod:' + code, () => sb.from('dart_production').select('bsns_year,quarter,factory_name,capacity,actual,utilization_rate')
+      .eq('stock_code', code).order('bsns_year', { ascending: true }).order('quarter', { ascending: true })),
   ]);
   const seg = segRes.data || [], raw = rawRes.data || [], prod = prodRes.data || [];
   return {

@@ -12,18 +12,10 @@
 // '보고서 시점'으로 표기 — 같은 항목이 DB에도 있으면 DB(최신)를 앞에 둔다. MD가 없어도 DB 항목으로 종합은 나옴.
 // DART MD 행(raw_md 포함) — DART 분석·기업개요·지분현황이 같이 씀. 종목당 한 번만 받음
 // (예전엔 탭마다 다시 받았고 옛 양식 MD는 원자료 장까지 수 MB). 업로드·기본정보 수정 뒤 _rpDartRowReset()
-function _rpDartRow(code) {
-  const c = RPD.row;
-  if (c.code !== code || !c.p) {
-    c.code = code;
-    c.p = Promise.resolve(sb.from('dart_reports').select('report_type,receive_date,raw_md,summary')
-      .eq('stock_code', code).order('receive_date', { ascending: false }).limit(1).maybeSingle())
-      .then(r => { if (r?.error) throw r.error; return r; })
-      .catch(e => { if (c.code === code) c.p = null; throw e; });
-  }
-  return c.p;
-}
-const _rpDartRowReset = () => { RPD.row.code = null; RPD.row.p = null; };
+const _rpDartRow = code => _rpQ('dart_reports:' + code, () => sb.from('dart_reports').select('report_type,receive_date,raw_md,summary')
+  .eq('stock_code', code).order('receive_date', { ascending: false }).limit(1).maybeSingle());
+// 업로드·기본정보 저장 뒤 — 원문·요약·사업 데이터가 바뀌므로 기억한 요청을 모두 비움
+const _rpDartRowReset = () => _rpQReset();
 
 async function _rpLoadAndRenderDart(body) {
   if (!_rpStock) return;
@@ -32,22 +24,19 @@ async function _rpLoadAndRenderDart(body) {
   const [{ data }, biz, comp, stage, flowV, flow20, ana] = await Promise.all([
     _rpDartRow(code).catch(() => ({ data: null })),
     typeof _rpBizFetch === 'function' ? _rpBizFetch(code).catch(() => null) : Promise.resolve(null),
-    q(sb.from('companies').select('corp_code,market,sector,product,industry,sub_industry,wics_sector').eq('code', code).maybeSingle(), {}),
+    q(_rpCompany(code), {}),
     q(sb.from('earnings_stage').select('period,stage,fs_div').eq('stock_code', code).maybeSingle(), null),
     typeof _rpFlowVerdict === 'function' ? _rpFlowVerdict(code).catch(() => null) : Promise.resolve(null),
     q(sb.from('market_data').select('base_date,price,foreign_net_buy,institution_net_buy,market_warn_code')
       .eq('stock_code', code).order('base_date', { ascending: false }).limit(20), []),
-    q(sb.from('analyst_opinions').select('firm_name,opinion,target_price,opinion_date,opinion_code')
-      .eq('stock_code', code).order('opinion_date', { ascending: false }).limit(100), []),
+    q(_rpAnalyst(code), []),
   ]);
   // 공시 — 금감원공시 탭과 같은 목록(150건) · 지분현황 탭과 같은 지분 공시(40건)
   const cc = comp?.corp_code;
   const since90 = new Date(Date.now() - 90 * 86400e3).toISOString().slice(0, 10);
   const [discAll, discOwn, own90] = cc ? await Promise.all([
-    q(sb.from('daily_disclosures').select('base_date,report_nm,category,rcept_no,insider_summary')
-      .eq('corp_code', cc).order('base_date', { ascending: false }).limit(150), []),
-    q(sb.from('daily_disclosures').select('base_date,report_nm,category,rcept_no,insider_summary')
-      .eq('corp_code', cc).in('category', typeof _RP_OWN_CATS !== 'undefined' ? _RP_OWN_CATS : []).order('base_date', { ascending: false }).limit(40), []),
+    q(_rpDiscAll(cc), []),
+    q(_rpDiscOwn(cc), []),
     // 종합분석 '지분' 줄 — 최근 90일 건수는 count로 정확히(지분현황 목록 40건에서 세면 삼성전자 824건이 40건으로 잘림)
     Promise.resolve(sb.from('daily_disclosures').select('rcept_no,base_date,category,insider_summary', { count: 'exact' })
       .eq('corp_code', cc).in('category', typeof _RP_OWN_CATS !== 'undefined' ? _RP_OWN_CATS : []).gte('base_date', since90)
@@ -1019,7 +1008,7 @@ function _rpSubsContent(subs, summary) {
 // 섹션(## )마다 헤더만 먼저 그리고 본문은 처음 펼칠 때 렌더(RPD.secs) — 원익IPS MD를 한 번에 그리면 DOM 13.8만 노드였음
 
 // DART 탭 상태 — 상세 분석 섹션 원문 줄
-const RPD = { secs: [], row: { code: null, p: null } };
+const RPD = { secs: [] };
 
 
 // 인라인: [글](url) → 원문 칩(safeUrl 통과분만), **굵게**, `코드`, <br>, [공시 확인]·[증권사 전망] 태그.

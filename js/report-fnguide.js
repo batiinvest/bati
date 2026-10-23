@@ -421,19 +421,15 @@ async function _rpLoadAndRenderProfile(body) {
   try {
     // 제품·내수수출·수주잔고·생산능력은 사업분석 탭에만(10-19 탭 중복 정리) — 여기선 기본정보·공시·계열사만
     const [compRes, dartRes] = await Promise.all([
-      sb.from('companies').select('corp_code,market,sector,product,industry,sub_industry')
-        .eq('code', _rpStock.code).maybeSingle(),
+      _rpCompany(_rpStock.code),
       _rpDartRow(_rpStock.code),   // DART 분석·지분현황과 같은 원문(종목당 한 번만 받음)
     ]);
 
     // 최근 공시 (corp_code 기준)
     let discs = [];
     if (compRes.data?.corp_code) {
-      const { data } = await sb.from('daily_disclosures')
-        .select('base_date,report_nm,category,rcept_no')
-        .eq('corp_code', compRes.data.corp_code)
-        .order('base_date', { ascending: false }).limit(8);
-      discs = data || [];
+      const { data } = await _rpDiscAll(compRes.data.corp_code);   // 금감원공시·DART 분석과 같은 150건에서 최근 8건
+      discs = (data || []).slice(0, 8);
     }
 
     const dart = dartRes.data || null;
@@ -580,10 +576,11 @@ const RPF = { stmt: 'is', view: 'annual', rows: [] };
 async function _rpLoadAndRenderFinAnalysis(body, opts = {}) {
   if (!_rpStock || !body) return;
   try {
-    const { data } = await sb.from('financials')
+    // 재무분석 탭·DART 분석 '실적'이 같은 조회 — 같은 종목은 한 번만(_rpQ)
+    const { data } = await _rpQ('fin:analysis', () => sb.from('financials')
       .select('fs_div,is_cumulative,bsns_year,quarter,revenue,cogs,gross_profit,sga,rd_expense,operating_profit,other_operating_income,other_operating_expense,pretax_income,net_income,total_assets,current_assets,non_current_assets,total_liabilities,current_liabilities,total_equity,capital_stock,retained_earnings,operating_cashflow,investing_cashflow,financing_cashflow,capex,capex_intangible,capex_total,da,ebitda,fcf,operating_margin,net_margin,debt_ratio,current_ratio')
       .eq('stock_code', _rpStock.code)
-      .order('bsns_year', { ascending: true }).order('quarter', { ascending: true });
+      .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }));
     RPF.rows = finNormalizeQuarters(finPreferFs(data));   // 연결 우선 + 4분기 연간값 행 정리
     RPF._annual = null; // 연간 합산 캐시 무효화
     RPF.stmt = 'is'; RPF.view = opts.view === 'quarter' ? 'quarter' : 'annual'; RPF.sel = _rpfDefaultSel('is');
@@ -1113,10 +1110,10 @@ const RPI = { cat: 'profit', view: 'annual', rows: [], shares: null };
 async function _rpLoadAndRenderInvMetrics(body) {
   if (!_rpStock || !body) return;
   try {
-    const { data } = await sb.from('financials')
+    const { data } = await _rpQ('fin:inv', () => sb.from('financials')
       .select('fs_div,is_cumulative,bsns_year,quarter,revenue,cogs,gross_profit,operating_profit,net_income,total_assets,total_equity,capital_stock,retained_earnings,operating_cashflow,ebitda,operating_margin,net_margin,gross_margin,roe,roa,debt_ratio,current_ratio')
       .eq('stock_code', _rpStock.code)
-      .order('bsns_year', { ascending: true }).order('quarter', { ascending: true });
+      .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }));
     RPI.rows = finNormalizeQuarters(finPreferFs(data));   // 연결 우선 + 4분기 연간값 행 정리
     RPI._annual = null; // 연간 합산 캐시 무효화
     RPI.shares = _rpShares(_rpData.price?.[0]);

@@ -11,16 +11,12 @@ async function _rpLoadAndRenderOwnership(body) {
   if (!_rpStock || !body) return;
   try {
     const [compRes, dartRes] = await Promise.all([
-      sb.from('companies').select('corp_code').eq('code', _rpStock.code).maybeSingle(),
+      _rpCompany(_rpStock.code),
       _rpDartRow(_rpStock.code),   // DART 분석·기업개요와 같은 원문(종목당 한 번만 받음)
     ]);
     let discs = [];
     if (compRes.data?.corp_code) {
-      const { data } = await sb.from('daily_disclosures')
-        .select('base_date,report_nm,category,rcept_no,insider_summary')
-        .eq('corp_code', compRes.data.corp_code)
-        .in('category', _RP_OWN_CATS)
-        .order('base_date', { ascending: false }).limit(40);
+      const { data } = await _rpDiscOwn(compRes.data.corp_code);   // DART 분석과 같은 지분 공시 40건
       discs = data || [];
     }
     const H = await _rpOwnHistory(compRes.data?.corp_code, discs).catch(() => ({ discs, trades: {} }));   // 누가·어떻게 + 5월 이전 이력
@@ -43,8 +39,9 @@ const _RP_IT_COLS = 'rcept_no,base_date,reporter,relation,trade_date,reason,reas
 async function _rpFetchInsiderTrades(rnos) {
   const ids = [...new Set((rnos || []).filter(Boolean))];
   if (!ids.length) return {};
-  const { data } = await sb.from('insider_trades').select(_RP_IT_COLS)
-    .in('rcept_no', ids).order('trade_date', { ascending: true }).limit(2000);
+  // 같은 공시 목록이면 한 번만(지분현황·금감원공시·DART 분석) — 기억하는 건 원본 행, 묶음(by)은 매번 새로
+  const { data } = await _rpQ('it:' + [...ids].sort().join(','), () => sb.from('insider_trades').select(_RP_IT_COLS)
+    .in('rcept_no', ids).order('trade_date', { ascending: true }).limit(2000));
   const by = {};
   for (const r of data || []) (by[r.rcept_no] ||= []).push(r);
   return by;
@@ -109,8 +106,8 @@ function _rpOwnDetail(d, trades, major) {
 async function _rpOwnHistory(corpCode, discs, limit = 40) {
   const trades = await _rpFetchInsiderTrades((discs || []).map(d => d.rcept_no)).catch(() => ({}));
   if (!corpCode) return { discs: discs || [], trades };
-  const { data } = await sb.from('insider_trades').select(_RP_IT_COLS).eq('corp_code', corpCode)
-    .order('base_date', { ascending: false }).limit(400);
+  const { data } = await _rpQ('itCorp:' + corpCode, () => sb.from('insider_trades').select(_RP_IT_COLS).eq('corp_code', corpCode)
+    .order('base_date', { ascending: false }).limit(400));
   const have = new Set((discs || []).map(d => d.rcept_no));
   const extra = {};
   for (const r of data || []) {
@@ -377,10 +374,7 @@ function _rpConsensusSummary(rows, price) {
 async function _rpLoadAndRenderReports(body) {
   if (!_rpStock || !body) return;
   try {
-    const { data } = await sb.from('analyst_opinions')
-      .select('firm_name,opinion,prev_opinion,target_price,gap_rate,opinion_date,opinion_code')
-      .eq('stock_code', _rpStock.code)
-      .order('opinion_date', { ascending: false }).limit(100);
+    const { data } = await _rpAnalyst(_rpStock.code);   // 기업현황·DART 분석과 같은 의견 100건
     const rows = data || [];
     if (!rows.length) {
       body.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center;font-size:calc(12px*var(--m-sub))">수집된 증권사 리포트/투자의견 없음</div>';
@@ -467,16 +461,12 @@ const RFD = { rows: [], cat: 'all', trades: {} };   // trades = 지분 공시의
 async function _rpLoadAndRenderFss(body) {
   if (!_rpStock || !body) return;
   try {
-    const { data: comp } = await sb.from('companies')
-      .select('corp_code').eq('code', _rpStock.code).maybeSingle();
+    const { data: comp } = await _rpCompany(_rpStock.code);
     if (!comp?.corp_code) {
       body.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center;font-size:calc(12px*var(--m-sub))">DART 고유코드(corp_code) 미등록 종목 — 공시 조회 불가</div>';
       return;
     }
-    const { data } = await sb.from('daily_disclosures')
-      .select('base_date,report_nm,category,rcept_no,insider_summary')
-      .eq('corp_code', comp.corp_code)
-      .order('base_date', { ascending: false }).limit(150);
+    const { data } = await _rpDiscAll(comp.corp_code);   // DART 분석과 같은 공시 150건
     RFD.rows = data || [];
     RFD.cat = 'all';
     RFD.trades = await _rpFetchInsiderTrades(RFD.rows.filter(r => _RP_OWN_CATS.includes(r.category)).map(r => r.rcept_no)).catch(() => ({}));

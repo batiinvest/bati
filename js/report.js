@@ -157,6 +157,38 @@ function openReportFor(code, name) {
   rpLoadReport();                             // #content 재렌더 + 데이터 로드
 }
 
+// ── 종목 리포트 요청 기억 ─────────────────────────────────────────────────────────
+// 같은 종목에서 같은 DB 요청은 한 번만(탭끼리 공유) — 10-24 측정: 탭 11개 한 바퀴에 요청 53번 중 약 14번이
+// 똑같은 요청의 반복(공시·내부자 거래·사업 데이터·재무·수급 판정), companies는 칸 목록만 바꿔 11번.
+// rpLoadReport(종목 열기·업로드 뒤 다시 그리기)에서 비움. 실패한 요청은 기억하지 않음.
+// 받는 쪽이 배열을 고쳐도(정렬·덧붙이기) 다른 탭에 번지지 않게 data 배열은 매번 얕은 복사로 건넴
+const RPQ = { code: null, m: new Map() };
+function _rpQ(key, make) {
+  const code = _rpStock?.code || '';
+  if (RPQ.code !== code) { RPQ.code = code; RPQ.m.clear(); }
+  let p = RPQ.m.get(key);
+  if (!p) {
+    p = Promise.resolve(make()).then(r => { if (r?.error) throw r.error; return r; });
+    RPQ.m.set(key, p);
+    p.catch(() => { if (RPQ.m.get(key) === p) RPQ.m.delete(key); });
+  }
+  return p.then(r => r && Array.isArray(r.data) ? { ...r, data: r.data.slice() } : r);
+}
+const _rpQReset = () => RPQ.m.clear();
+// 이 종목 companies 한 줄 — 탭마다 필요한 칸을 합쳐 한 번만
+const _RP_COMP_COLS = 'code,name,corp_code,market,sector,product,industry,sub_industry,wics_sector';
+const _rpCompany = code => _rpQ('companies:' + code, () => sb.from('companies').select(_RP_COMP_COLS).eq('code', code).maybeSingle());
+// 증권사 의견 최근 100건 — 기업현황·최근리포트·DART 분석 공용(계산은 report-tabs.js _rpConsensusSummary)
+const _rpAnalyst = code => _rpQ('analyst:' + code, () => sb.from('analyst_opinions')
+  .select('firm_name,opinion,prev_opinion,target_price,gap_rate,opinion_date,opinion_code')
+  .eq('stock_code', code).order('opinion_date', { ascending: false }).limit(100));
+// 공시 최근 150건(금감원공시·DART 분석·기업개요 최근 8건) · 지분 공시 40건(지분현황·DART 분석)
+const _RP_DISC_COLS = 'base_date,report_nm,category,rcept_no,insider_summary';
+const _rpDiscAll = cc => _rpQ('disc:' + cc, () => sb.from('daily_disclosures').select(_RP_DISC_COLS)
+  .eq('corp_code', cc).order('base_date', { ascending: false }).limit(150));
+const _rpDiscOwn = cc => _rpQ('discOwn:' + cc, () => sb.from('daily_disclosures').select(_RP_DISC_COLS)
+  .eq('corp_code', cc).in('category', typeof _RP_OWN_CATS !== 'undefined' ? _RP_OWN_CATS : []).order('base_date', { ascending: false }).limit(40));
+
 // ── 리포트 로드 ───────────────────────────────────────────────────────────────
 async function rpLoadReport() {
   const inp = document.getElementById('rp-search');
@@ -166,6 +198,7 @@ async function rpLoadReport() {
     if (data?.[0]) _rpStock = { code: data[0].code, name: data[0].name };
   }
   if (!_rpStock) { toast('종목을 선택해주세요.', 'warn'); return; }
+  _rpQReset();   // 리포트를 새로 열면 기억한 요청을 비우고 새로 받음
 
   // 페이지 재렌더링
   const el = document.getElementById('content');
@@ -183,15 +216,12 @@ async function rpLoadReport() {
       sb.from('dart_reports').select('report_type,receive_date,summary')
         .eq('stock_code', _rpStock.code).order('receive_date', { ascending: false }).limit(1).maybeSingle(),
       // 모든 의견(매수만 6건 받던 것 → 의견 분포가 늘 매수뿐이었다) — 계산은 _rpConsensusSummary(3개월·증권사별 마지막)
-      sb.from('analyst_opinions').select('firm_name,opinion,target_price,gap_rate,opinion_date,opinion_code')
-        .eq('stock_code', _rpStock.code)
-        .order('opinion_date', { ascending: false }).limit(100),
+      _rpAnalyst(_rpStock.code),
       sb.from('dart_segment_revenue')
         .select('bsns_year,quarter,segment_type,category,subcategory,revenue,revenue_ratio')
         .eq('stock_code', _rpStock.code).eq('segment_type','product')
         .order('bsns_year', { ascending: true }).order('quarter', { ascending: true }),
-      sb.from('companies').select('market,sector,product,industry,sub_industry,wics_sector')
-        .eq('code', _rpStock.code).maybeSingle(),
+      _rpCompany(_rpStock.code),
       // 오늘의 공시·뉴스 요약 (백엔드 18:55 생성 — 최신 1건)
       sb.from('daily_summaries').select('base_date,disclosure_cnt,news_cnt,is_major,ai_summary,items')
         .eq('stock_code', _rpStock.code).order('base_date', { ascending: false }).limit(1).maybeSingle(),
@@ -224,8 +254,7 @@ async function _rpLoadPeerStats() {
 
   // 1. 비교 집단 — 같은 소분류(예: 전공정장비) 전체, 5곳 미만이면 같은 업종 전체.
   //    예전엔 업종에서 조회 순서상 앞 50곳(반도체 228곳 중 사실상 무작위 — 장비·소재·팹리스가 섞임)
-  const { data: comp } = await sb.from('companies')
-    .select('industry,sub_industry').eq('code', code).maybeSingle();
+  const { data: comp } = await _rpCompany(code);
   if (!comp?.industry) return;
   const members = col => fetchAllPages((s, e) => sb.from('companies').select('code')
     .eq(col, comp[col]).eq('active', true).neq('code', code).order('code').range(s, e)).then(d => d.map(r => r.code));
@@ -477,14 +506,17 @@ async function rpSetTab(idx) {
 // taerinEval, financials.js _finFlowQ) + 거래대금 추이 + 외국인·기관·프로그램 수급(종목 상세 창 수급 탭 _sdSupply)
 
 // 판정(collect_flow_empty, 평일 18:50)이 있는 가장 최근 행 — 장중엔 오늘 행에 판정이 아직 없다(getFlowVerdicts와 같은 이유)
-async function _rpFlowVerdict(code) {
-  for (const cols of ['base_date,flow_gauge,flow_pctl,lead_flags', 'base_date,flow_pctl']) {   // 칸·주도 컬럼은 SQL 실행 후 생김
-    const { data, error } = await sb.from('market_data').select(cols).eq('stock_code', code)
-      .not('flow_quad', 'is', null).order('base_date', { ascending: false }).limit(1).maybeSingle();
-    if (!error) return data || null;
-    if (error.code !== '42703') throw error;
-  }
-  return null;
+// 수급흐름 탭·DART 분석 공용 — 같은 종목은 한 번만(_rpQ)
+function _rpFlowVerdict(code) {
+  return _rpQ('flow:' + code, async () => {
+    for (const cols of ['base_date,flow_gauge,flow_pctl,lead_flags', 'base_date,flow_pctl']) {   // 칸·주도 컬럼은 SQL 실행 후 생김
+      const { data, error } = await sb.from('market_data').select(cols).eq('stock_code', code)
+        .not('flow_quad', 'is', null).order('base_date', { ascending: false }).limit(1).maybeSingle();
+      if (!error) return { data: data || null };
+      if (error.code !== '42703') throw error;
+    }
+    return { data: null };
+  }).then(r => r.data);
 }
 
 // 수급 단계 카드 — 수급 칸(바닥→상단 5칸·방향·단계 이름)·빈집·태린이아빠 후보. 이름·기준은 기업분석 표와 같음
