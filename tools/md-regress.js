@@ -4,7 +4,7 @@
 //   · 사라진 값(증권사·추정치·사업 데이터 행·기본정보 항목이 줄거나, 있던 값이 없어짐·오류) → 실패(커밋 중단)
 //   · 바뀐 값 → 알림만(의도한 개선일 수 있음)
 // 표본: ../BatiDartReports/content/dart_reports 의 DB 업로드 종목 MD(없으면 건너뜀) + 데이터 블록을 뺀 변형(표로 대신 읽는 경로)
-// 코드는 index.html이 불러오는 report-consensus·report-md·report-dart를 그 순서대로 vm에 올림(HEAD는 git show).
+// 코드는 index.html이 불러오는 report-fnguide·report-consensus·report-md·report-dart를 그 순서대로 vm에 올림(HEAD는 git show).
 // 실행: node tools/md-regress.js   (건너뛰기: SKIP_MD_REGRESS=1 git commit …)
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
@@ -13,7 +13,7 @@ const { execSync } = require('child_process');
 const ROOT = path.resolve(__dirname, '..');
 const MD_DIR = path.resolve(ROOT, '..', 'BatiDartReports', 'content', 'dart_reports');
 const SAMPLES = ['240810', '036930', '448900', '477850'];   // DB에 올라간 종목(새 양식 1 + 옛 양식 3)
-const FILES = /^js\/report-(consensus|md|dart)\.js$/;
+const FILES = /^js\/report-(fnguide|consensus|md|dart)\.js$/;   // fnguide: 카드 공통(RP_CARD_STYLE·_rpSecT)을 report-dart가 불러올 때 씀
 
 if (process.env.SKIP_MD_REGRESS) process.exit(0);
 if (!fs.existsSync(MD_DIR)) { console.log('[md-regress] MD 폴더 없음 — 건너뜀'); process.exit(0); }

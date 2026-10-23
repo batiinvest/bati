@@ -277,7 +277,7 @@ function _sdRetStr(hist, days) {
   const past = sorted[Math.max(0, sorted.length-1-days)]?.price;
   if (!cur || !past) return '—';
   const ret = ((cur-past)/past*100).toFixed(2);
-  return `<span style="color:${ret>=0?'var(--red)':'var(--blue)'}">${ret>=0?'+':''}${ret}%</span>`;
+  return `<span style="color:${chgColor(+ret)}">${ret>=0?'+':''}${ret}%</span>`;
 }
 
 // ─────────────────────────────────────────
@@ -362,10 +362,10 @@ async function _sdOverview(body, code, name) {
           ${_sdRow2('매출액', _sdCap(latestFin.revenue))}
           ${_sdRow2('영업이익', _sdCap(latestFin.operating_profit), (latestFin.operating_profit||0)>0?'var(--green)':(latestFin.operating_profit||0)<0?'var(--red)':'')}
           ${_sdRow2('영업이익률', _sdPct(latestFin.operating_margin), (latestFin.operating_margin||0)>=10?'var(--green)':'var(--text1)')}
-          ${_sdRow2('순이익', _sdCap(latestFin.net_income), (latestFin.net_income||0)>0?'var(--red)':'var(--blue)')}
+          ${_sdRow2('순이익', _sdCap(latestFin.net_income), chgColor(latestFin.net_income||0))}
           ${_sdRow2('FCF', _sdCap(latestFin.fcf), (latestFin.fcf||0)>0?'var(--green)':'var(--red)')}
-          ${latestFin.ebitda!=null?_sdRow2('EBITDA', _sdCap(latestFin.ebitda), (latestFin.ebitda||0)>0?'var(--red)':'var(--blue)'):''}
-          ${qoqOp != null ? _sdRow2('QoQ 영업이익', `<span style="color:${qoqOp>=0?'var(--red)':'var(--blue)'}">${qoqOp>=0?'+':''}${qoqOp}%</span>`) : ''}
+          ${latestFin.ebitda!=null?_sdRow2('EBITDA', _sdCap(latestFin.ebitda), chgColor(latestFin.ebitda||0)):''}
+          ${qoqOp != null ? _sdRow2('QoQ 영업이익', `<span style="color:${chgColor(+qoqOp)}">${qoqOp>=0?'+':''}${qoqOp}%</span>`) : ''}
           ${_sdRow2('ROE', _sdPct(latestFin.roe))}
           ${_sdRow2('부채비율', _sdPct(latestFin.debt_ratio))}
         `, 'var(--green)')}
@@ -493,7 +493,7 @@ async function _sdMarket(body, code, name) {
             <td style="text-align:right;color:var(--text1)">${h.market_cap?_sdCap(h.market_cap):'—'}</td>
             <td style="text-align:right;color:var(--text1)">${h.volume?h.volume.toLocaleString():'—'}</td>
             <td style="text-align:right;color:var(--text1)">${h.trading_value?_sdCap(h.trading_value):'—'}</td>
-            <td style="text-align:right;color:${(h.foreign_net_buy||0)<0?'var(--blue)':'var(--red)'}">
+            <td style="text-align:right;color:${chgColor(h.foreign_net_buy||0)}">
               ${h.foreign_net_buy!=null?h.foreign_net_buy.toLocaleString():'—'}
             </td>
             <td style="text-align:right;color:var(--text1)">${h.foreign_hold_rate!=null?h.foreign_hold_rate.toFixed(1)+'%':'—'}</td>
@@ -579,31 +579,31 @@ async function _sdSupply(body, code, name) {
     const fNet = (days, k = 'foreign_net_buy') => {
       const sl = rows.slice(-days);
       const sum = sl.reduce((a,h)=>a+(h[k]||0),0);
-      return `<span style="color:${sum>=0?'var(--red)':'var(--blue)'}">${sum>=0?'+':''}${sum.toLocaleString()}</span>`;
+      return `<span style="color:${chgColor(sum)}">${sum>=0?'+':''}${sum.toLocaleString()}</span>`;
     };
     const iNet = days => fNet(days, 'institution_net_buy');
-    const netCell = v => `<td style="text-align:right;color:${(v||0)<0?'var(--blue)':'var(--red)'}">${v!=null?v.toLocaleString():'—'}</td>`;
+    const netCell = v => `<td style="text-align:right;color:${chgColor(v||0)}">${v!=null?v.toLocaleString():'—'}</td>`;
 
     body.innerHTML = `
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px">
         ${_sdSec('외국인 수급', `
           ${_sdRow2('보유율', r.foreign_hold_rate!=null?r.foreign_hold_rate.toFixed(2)+'%':'—')}
           ${_sdRow2('보유수량', r.foreign_hold_qty!=null?_sdNum(r.foreign_hold_qty)+'주':'—')}
-          ${_sdRow2('당일 순매수', r.foreign_net_buy!=null?`<span style="color:${(r.foreign_net_buy||0)>=0?'var(--red)':'var(--blue)'}">
+          ${_sdRow2('당일 순매수', r.foreign_net_buy!=null?`<span style="color:${chgColor(r.foreign_net_buy||0)}">
             ${r.foreign_net_buy.toLocaleString()}주</span>`:'—')}
           ${_sdRow2('5일 누적', fNet(5)+'주')}
           ${_sdRow2('10일 누적', fNet(10)+'주')}
           ${_sdRow2('20일 누적', fNet(20)+'주')}
         `, 'var(--tg)')}
         ${_sdSec('기관 수급', `
-          ${_sdRow2('당일 순매수', r.institution_net_buy!=null?`<span style="color:${(r.institution_net_buy||0)>=0?'var(--red)':'var(--blue)'}">
+          ${_sdRow2('당일 순매수', r.institution_net_buy!=null?`<span style="color:${chgColor(r.institution_net_buy||0)}">
             ${r.institution_net_buy.toLocaleString()}주</span>`:'—')}
           ${_sdRow2('5일 누적', iNet(5)+'주')}
           ${_sdRow2('10일 누적', iNet(10)+'주')}
           ${_sdRow2('20일 누적', iNet(20)+'주')}
         `, '#fb6340')}
         ${_sdSec('프로그램 · 공매도', `
-          ${_sdRow2('프로그램 순매수', r.program_net_buy!=null?`<span style="color:${(r.program_net_buy||0)>=0?'var(--red)':'var(--blue)'}">
+          ${_sdRow2('프로그램 순매수', r.program_net_buy!=null?`<span style="color:${chgColor(r.program_net_buy||0)}">
             ${_sdNum(r.program_net_buy)}주</span>`:'—')}
           ${_sdRow2('공매도 체결수량', r.short_sell_qty!=null?_sdNum(r.short_sell_qty)+'주':'—')}
           ${_sdRow2('융자잔고율', r.loan_balance_rate!=null?r.loan_balance_rate.toFixed(2)+'%':'—')}
@@ -631,7 +631,7 @@ async function _sdSupply(body, code, name) {
             <td style="text-align:right;color:${chgColor(hc)};font-weight:600">${chgStr(hc)}</td>
             ${netCell(h.foreign_net_buy)}${netCell(h.institution_net_buy)}
             <td style="text-align:right">${h.foreign_hold_rate!=null?h.foreign_hold_rate.toFixed(1)+'%':'—'}</td>
-            <td style="text-align:right;color:${(h.program_net_buy||0)<0?'var(--blue)':'var(--red)'}">
+            <td style="text-align:right;color:${chgColor(h.program_net_buy||0)}">
               ${h.program_net_buy!=null?h.program_net_buy.toLocaleString():'—'}
             </td>
             <td style="text-align:right;color:var(--text1)">${h.short_sell_qty!=null?h.short_sell_qty.toLocaleString():'—'}</td>
@@ -1041,9 +1041,9 @@ async function _renderFinancialTab(body, code, name) {
         const metrics = [
           { label: '매출액',       fn: r => `<b>${fmt(r.revenue)}</b>` },
           { label: '영업이익',     fn: r => fmt(r.operating_profit) },
-          { label: '영업이익률',   fn: r => `<span style="color:${(r.operating_margin??0)>=0?'var(--red)':'var(--blue)'}">${pct(r.operating_margin)}</span>` },
+          { label: '영업이익률',   fn: r => `<span style="color:${chgColor(r.operating_margin??0)}">${pct(r.operating_margin)}</span>` },
           { label: '순이익',       fn: r => fmt(r.net_income) },
-          { label: '순이익률',     fn: r => `<span style="color:${(r.net_margin??0)>=0?'var(--red)':'var(--blue)'}">${pct(r.net_margin)}</span>` },
+          { label: '순이익률',     fn: r => `<span style="color:${chgColor(r.net_margin??0)}">${pct(r.net_margin)}</span>` },
           { label: 'ROE',          fn: r => pct(r.roe) },
           { label: '부채비율',     fn: r => pct(r.debt_ratio) },
           { label: '영업현금흐름', fn: r => fmt(r.operating_cashflow) },
@@ -1094,9 +1094,9 @@ async function _renderFinancialTab(body, code, name) {
             <td style="font-size:calc(12px*var(--m-sub));color:var(--text2);white-space:nowrap">${f.label}</td>
             <td style="text-align:right;font-weight:600">${fmt(f.revenue)}</td>
             <td style="text-align:right">${fmt(f.operating_profit)}</td>
-            <td style="text-align:right;color:${f.operating_margin>=0?'var(--red)':'var(--blue)'}">${pct(f.operating_margin)}</td>
+            <td style="text-align:right;color:${chgColor(f.operating_margin)}">${pct(f.operating_margin)}</td>
             <td style="text-align:right">${fmt(f.net_income)}</td>
-            <td style="text-align:right;color:${f.net_margin>=0?'var(--red)':'var(--blue)'}">${pct(f.net_margin)}</td>
+            <td style="text-align:right;color:${chgColor(f.net_margin)}">${pct(f.net_margin)}</td>
             <td style="text-align:right">${pct(f.roe)}</td>
             <td style="text-align:right">${pct(f.debt_ratio)}</td>
             <td style="text-align:right">${fmt(f.operating_cashflow)}</td>

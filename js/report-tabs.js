@@ -191,7 +191,7 @@ function _rpOwnSummaryCard({ dp = {}, s = {}, dart, latest = {} }) {
 // 지분현황 카드 4장을 따로 — { chart: 내부자거래·주가, own: 주주 구성, fr: 외국인 지분율 추이, list: 지분 변동내역 }.
 // 지분현황 탭(_rpOwnershipTab)과 DART 분석 탭이 같은 카드를 각자 순서로 놓음
 function _rpOwnershipParts({ discs, dp, s, dart, prices, latest, trades, majors }) {
-  const esc = typeof escapeHtml === 'function' ? escapeHtml : (v => v ?? '');
+  const esc = escapeHtml;
   const secT = _rpTabSecT, box = _rpTabBox, empty = _rpTabEmpty;
 
   // ── ① 내부자거래·주가 차트 ─────────────────────────────────────────────
@@ -380,7 +380,7 @@ async function _rpLoadAndRenderReports(body) {
       body.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center;font-size:calc(12px*var(--m-sub))">수집된 증권사 리포트/투자의견 없음</div>';
       return;
     }
-    const esc = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
+    const esc = escapeHtml;
     const price = _rpData.price?.[0]?.price || 0;
 
     // 3개월 컨센서스 요약 — 기업현황 '투자의견 컨센서스'와 같은 계산(증권사별 마지막 의견)
@@ -410,7 +410,7 @@ async function _rpLoadAndRenderReports(body) {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:14px">
         ${kv(`평균 목표주가 <span style="opacity:.65">(3개월 · ${items.length}개사)</span>`, avgTp ? fmtNum(avgTp) + '원' : '—',
           upside != null ? `현재가 대비 ${upside >= 0 ? '+' : ''}${upside.toFixed(1)}%` : '',
-          upside >= 0 ? 'var(--red)' : 'var(--blue)')}
+          chgColor(upside))}
         ${kv('목표가 범위', tps.length ? `${fmtNum(Math.min(...tps))}~${fmtNum(Math.max(...tps))}` : '—', tps.length ? '원' : '')}
         ${kv('의견 수 <span style="opacity:.65">(3개월)</span>', recent.length + '건',
           `증권사 ${items.length}곳 · 매수 ${buy} · 기타 ${items.length - buy}`)}
@@ -478,7 +478,7 @@ async function _rpLoadAndRenderFss(body) {
     const counts = {};
     RFD.rows.forEach(r => { const c = r.category || '기타'; counts[c] = (counts[c] || 0) + 1; });
     const cats = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-    const esc = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
+    const esc = escapeHtml;
     body.innerHTML = `
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
         <button id="rfd-cat-all" class="chip chip-sm active" onclick="rpFssFilter('all')">전체 ${RFD.rows.length}</button>
@@ -503,7 +503,7 @@ function rpFssFilter(cat) {
 function _rpFssRenderList() {
   const el = document.getElementById('rfd-list');
   if (!el) return;
-  const esc = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
+  const esc = escapeHtml;
   const rows = RFD.cat === 'all' ? RFD.rows : RFD.rows.filter(r => (r.category || '기타') === RFD.cat);
   if (!rows.length) {
     el.innerHTML = '<div style="color:var(--text3);padding:30px;text-align:center;font-size:calc(12px*var(--m-sub))">해당 카테고리 공시 없음</div>';

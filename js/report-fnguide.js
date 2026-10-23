@@ -73,7 +73,7 @@ function _rpSnapshotBand(latest, annual, company) {
     </div>`;
 
   // 시장·업종 태그 라인
-  const esc  = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
+  const esc  = escapeHtml;
   const tags = [company?.market, company?.industry, company?.sub_industry,
     a.bsns_year ? '12월 결산' : null].filter(Boolean);
 
@@ -273,7 +273,7 @@ function _rpPriceVolChart(prices) {
 // ③ 투자의견 컨센서스 — 평균 목표주가·의견 분포·증권사 테이블
 // 계산은 report-tabs.js _rpConsensusSummary(최근 3개월 안 증권사별 마지막 의견) — 최근리포트 탭·DART 분석과 같은 숫자
 function _rpConsensusCard(analysts, currentPrice) {
-  const esc   = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
+  const esc   = escapeHtml;
   const colMap = { BUY: '#22c55e', HOLD: '#f59e0b', SELL: '#ef4444' };
   const opOf = a => _rpOpIsBuy(a) ? 'BUY' : _rpOpIsSell(a) ? 'SELL' : 'HOLD';
 
@@ -291,7 +291,7 @@ function _rpConsensusCard(analysts, currentPrice) {
         <div style="font-size:calc(24px*var(--m-title));font-weight:800;font-variant-numeric:tabular-nums">
           ${avgTp ? fmtNum(avgTp) + '<span style="font-size:calc(13px*var(--m-body));font-weight:600">원</span>' : '—'}</div>
         ${avgGap != null ? `<div style="font-size:calc(13px*var(--m-body));font-weight:700;
-          color:${avgGap > 0 ? 'var(--red)' : 'var(--blue)'}">
+          color:${chgColor(avgGap)}">
           ${avgGap > 0 ? '▲' : '▼'} ${Math.abs(avgGap).toFixed(1)}% ${avgGap > 0 ? '상승여력' : '하락위험'}</div>` : ''}
       </div>
       ${distTotal ? `
@@ -447,11 +447,13 @@ async function _rpLoadAndRenderProfile(body) {
 }
 
 // 탭 카드 공용 — 제목·상자·빈 칸 문구 (기업개요·지분현황 탭과, 그 카드를 그대로 쓰는 DART 분석 탭)
-const _rpTabSecT = t => `<div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
-    <span style="width:3px;height:13px;background:var(--tg);border-radius:2px"></span>
-    <span style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1)">${t}</span></div>`;
-const _rpTabBox = inner => `<div data-capture style="background:var(--bg2);border:1px solid var(--border);
-    border-radius:var(--radius-sm);padding:14px">${inner}</div>`;
+// 탭 카드 공통 — 제목은 _rpSecT 하나, 상자 스타일은 RP_CARD_STYLE 하나(DART 분석 _rpDartCard·_RPD_CARD도 이것을 씀).
+// 예전엔 같은 모양을 파일마다 따로 적어 두었음(10-24 정리)
+const RP_CARD_STYLE = 'background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px';
+const _rpTabSecT = t => _rpSecT(t);
+const _rpTabBox = inner => `<div data-capture style="${RP_CARD_STYLE}">${inner}</div>`;
+// 정수 금액·주식 수 표기(없으면 —) — DART 분석 종합분석·증권사 표 공용
+const _rpInt = v => v == null ? '—' : Math.round(v).toLocaleString();
 const _rpTabEmpty = msg => `<div style="font-size:calc(12px*var(--m-sub));color:var(--text3);padding:10px 0;text-align:center">${msg}</div>`;
 
 // 종목 로고 — 네이버 증권 이미지 서버(m.stock.naver.com 종목 API의 itemLogoUrl과 같은 주소, 원형 SVG).
@@ -523,7 +525,7 @@ function _rpProfileSubsCard(dp = {}) {
 // 기업개요 탭 렌더 — 기본정보·최근공시(연혁)·계열사. 제품별 매출·내수/수출·수주잔고·생산능력은 사업분석 탭에만
 // (10-19 탭 중복 정리 — 같은 데이터를 두 탭에서 따로 그려 기간 기준이 달라 보였다: 제품 비중 2분기만 vs 상반기 누적)
 function _rpProfileTab({ comp, dart, dp, discs, latest }) {
-  const esc = typeof escapeHtml === 'function' ? escapeHtml : (s => s ?? '');
+  const esc = escapeHtml;
   const secT = _rpTabSecT, box = _rpTabBox, empty = _rpTabEmpty;
 
   // ── ① 기업 기본정보 표 ─────────────────────────────────────────────────

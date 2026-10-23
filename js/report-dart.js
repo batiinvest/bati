@@ -200,7 +200,7 @@ function _rpDartLazy(root) {
 function _rpdYoY(cur, prev) {
   if (cur == null || prev == null) return '';
   let t, c;
-  if (prev > 0 && cur > 0) { const p = (cur - prev) / prev * 100; t = `YoY ${p >= 0 ? '+' : ''}${p.toFixed(1)}%`; c = p >= 0 ? 'var(--red)' : 'var(--blue)'; }
+  if (prev > 0 && cur > 0) { const p = (cur - prev) / prev * 100; t = `YoY ${p >= 0 ? '+' : ''}${p.toFixed(1)}%`; c = chgColor(p); }
   else if (prev <= 0 && cur > 0) { t = '흑자전환'; c = 'var(--red)'; }
   else if (prev > 0 && cur <= 0) { t = '적자전환'; c = 'var(--blue)'; }
   else { t = cur > prev ? '적자축소' : cur < prev ? '적자확대' : '적자지속'; c = cur > prev ? 'var(--red)' : 'var(--blue)'; }
@@ -225,7 +225,7 @@ function _rpDartOverview(x) {
     if (sig?.grade === 'weak') neg.push(`${name} ${val} 주의`);
     return `${name} <b>${val}</b>${chip(sig)}`;
   };
-  const num = v => v == null ? '—' : Math.round(v).toLocaleString();
+  const num = _rpInt;
   const fin = _rpData?.fin || [];
   const f0 = fin.find(r => /^Q[1-4]$/.test(r.quarter));
   const fPer = f0 ? `${f0.bsns_year} ${f0.quarter}` : '';
@@ -234,7 +234,7 @@ function _rpDartOverview(x) {
   // 시세 — 현재가·시총·52주 위치·기간 수익률(기업현황 시세 및 주주현황 카드와 같은 값). 사실만, 판정 없음
   {
     const L = x.latest, parts = [];
-    const pct = v => v == null ? '' : `<span style="color:${v > 0 ? 'var(--red)' : v < 0 ? 'var(--blue)' : 'var(--text3)'};font-weight:600">${v >= 0 ? '+' : ''}${v.toFixed(2)}%</span>`;
+    const pct = v => v == null ? '' : `<span style="color:${chgColor(v)};font-weight:600">${v >= 0 ? '+' : ''}${v.toFixed(2)}%</span>`;
     if (L.price) parts.push(`현재가 <b>${num(L.price)}원</b> ${pct(L.price_change_rate)}`);
     if (L.market_cap) parts.push(`시총 <b>${fmtCap(L.market_cap)}</b>`);
     const p52 = typeof _rp52Pos === 'function' ? _rp52Pos(L) : null;
@@ -308,7 +308,7 @@ function _rpDartOverview(x) {
   // 컨센서스 — 실적 컨센서스(MD 2-10, FnGuide 증권사 추정 평균): 첫 E 연도 영업이익·전년 대비·누적 진척·추정 변화
   const cs = x.M?.consensus;
   if (cs?.op) {
-    const sg = v => `<span style="color:${/^[-−]/.test(v) ? 'var(--blue)' : 'var(--red)'}">${e(v)}</span>`;
+    const sg = v => `<span style="color:${chgColorText(v)}">${e(v)}</span>`;
     add('cons', '컨센서스', `${e(cs.op.col)} 영업이익 <b>${_rpEok(cs.op.val)}</b>${cs.op.yoy ? ` (전년 대비 ${sg(cs.op.yoy)})` : ''}`
       + (cs.prog ? ` · ${e(cs.prog.label)} 진척 ${cs.prog.pct.toFixed(1)}%` : '')
       + (cs.rev.length ? ` · 추정 변화 ${cs.rev.map(r => `${e(r.k)} ${sg(r.v)}`).join(', ')}` : ''),
@@ -319,7 +319,7 @@ function _rpDartOverview(x) {
   if (x.ana?.length && typeof _rpConsensusSummary === 'function') {
     const c = _rpConsensusSummary(x.ana, x.latest.price);
     add('mkt', '시장 평가', c.recent.length
-      ? `3개월 평균 목표가 <b>${num(c.avgTp)}원</b> <span style="color:var(--text3)">(우리 수집)</span>${c.upside != null ? ` <span style="color:${c.upside >= 0 ? 'var(--red)' : 'var(--blue)'}">현재가 대비 ${c.upside >= 0 ? '+' : ''}${c.upside.toFixed(1)}%</span>` : ''} · 증권사 ${c.items.length}곳(매수 ${c.buy})${x.M?.market?.tp ? ` · FnGuide ${x.M.market.count != null ? x.M.market.count + '곳 ' : ''}평균 <b>${num(x.M.market.tp)}원</b>` : ''}`
+      ? `3개월 평균 목표가 <b>${num(c.avgTp)}원</b> <span style="color:var(--text3)">(우리 수집)</span>${c.upside != null ? ` <span style="color:${chgColor(c.upside)}">현재가 대비 ${c.upside >= 0 ? '+' : ''}${c.upside.toFixed(1)}%</span>` : ''} · 증권사 ${c.items.length}곳(매수 ${c.buy})${x.M?.market?.tp ? ` · FnGuide ${x.M.market.count != null ? x.M.market.count + '곳 ' : ''}평균 <b>${num(x.M.market.tp)}원</b>` : ''}`
       : `최근 3개월 의견 없음${none(`· 마지막 ${e(x.ana[0].firm_name || '')} ${e(x.ana[0].opinion || '')}`)}`,
       x.ana[0]?.opinion_date || '');
   }
@@ -341,7 +341,7 @@ function _rpDartOverview(x) {
     if (te?.label) { parts.push(`태린이아빠 후보 <b style="color:#f59e0b">${te.label}</b>`); pos.push(`태린이아빠 후보 ${te.label}`); }
     // 금액 = 순매수 주식 수 × 그날 종가(근사 — 오늘의 수급 메시지와 같은 방식). 주식 수는 칸에 마우스를 올리면
     const acc = k => { let w = 0, q = 0, n = 0; for (const r of x.flow20 || []) if (r[k] != null) { q += r[k]; n++; if (r.price) w += r[k] * r.price; } return n ? { w, q } : null; };
-    const amt = a => a ? `<span title="${escAttr(`${a.q >= 0 ? '+' : ''}${a.q.toLocaleString()}주`)}" style="color:${a.w >= 0 ? 'var(--red)' : 'var(--blue)'};font-weight:600">${a.w >= 0 ? '+' : ''}${fmtCap(a.w)}</span>` : '—';
+    const amt = a => a ? `<span title="${escAttr(`${a.q >= 0 ? '+' : ''}${a.q.toLocaleString()}주`)}" style="color:${chgColor(a.w)};font-weight:600">${a.w >= 0 ? '+' : ''}${fmtCap(a.w)}</span>` : '—';
     const fa = acc('foreign_net_buy'), ia = acc('institution_net_buy');
     if (fa || ia) parts.push(`20거래일 외국인 ${amt(fa)} · 기관 ${amt(ia)}${none('(주식 수×종가)')}`);
     add('flow', '수급', parts.join(' · '), v?.base_date || x.flow20?.[0]?.base_date || '');
@@ -557,9 +557,8 @@ function _rpDartCustomers(L) {
 
 // ── 카드 공통 스타일 — MD 읽기(소절·표·화면 모델 _rpDartModel·업로드 파서)는 report-md.js ──
 
-const _RPD_CARD = 'background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px';
-const _rpdT = (t, right) => typeof _rpSecT === 'function' ? _rpSecT(t, right || '') : `
-  <div style="font-size:calc(13px*var(--m-body));font-weight:700;color:var(--text1);margin-bottom:10px">${t}</div>`;
+const _RPD_CARD = RP_CARD_STYLE;                       // report-fnguide.js — 탭 카드와 같은 상자
+const _rpdT = (t, right) => _rpSecT(t, right || '');   // 탭 카드와 같은 제목
 
 // 억원 → '2,165억' / '1.49조'
 const _rpEok = v => v == null ? '—' : Math.abs(v) >= 10000 ? `${(v / 10000).toFixed(2)}조` : `${Math.round(v).toLocaleString()}억`;
@@ -644,7 +643,7 @@ function _rpDartConsensus(L, state) {
 function _rpDartConsSummary(c, mkt, own) {
   if (!c?.op) return '';
   const e = escapeHtml;
-  const sg = v => v ? `<span style="color:${/^[-−]/.test(v) ? 'var(--blue)' : 'var(--red)'}">${e(v)}</span>` : '';
+  const sg = v => v ? `<span style="color:${chgColorText(v)}">${e(v)}</span>` : '';
   const tile = (k, v, sub) => `<div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);min-width:0">
       <div style="font-size:calc(11px*var(--m-label));color:var(--text2)">${k}</div>
       <div style="font-size:calc(18px*var(--m-title));font-weight:800;color:var(--text1);margin-top:2px;font-variant-numeric:tabular-nums">${v}</div>
@@ -689,7 +688,7 @@ function _rpDartEstimates(m) {
   const hasRev = B0.some(b => has(b, 'rev')), hasOp = B0.some(b => has(b, 'op'));
   const metric = hasRev && hasOp ? (RPD.estMetric === 'rev' ? 'rev' : 'op') : hasOp ? 'op' : 'rev';
   const key = metric, ckey = metric === 'op' ? 'op' : 'revenue', mName = metric === 'op' ? '영업이익' : '매출';
-  const num = v => v == null ? '—' : Math.round(v).toLocaleString();
+  const num = _rpInt;
   const cs = m.consensus, cmap = {};
   for (const q of cs?.quarters || []) cmap[q.key] = q;
   for (const a of cs?.annual || []) if (a.est) cmap[a.year] = { revenue: a.revenue, op: a.op };
@@ -704,11 +703,11 @@ function _rpDartEstimates(m) {
   const B = B0.filter(b => hasEst(b) || hasTp(b)), empty = B0.filter(b => !hasEst(b) && !hasTp(b));
   const mk = m.market, rg = m.ranges || {};
   // 직전 추정 대비(같은 리포트의 기존 추정) — 증권사 값 아래 셋째 줄
-  const rev = p => p == null ? '' : `<div style="font-size:calc(10.5px*var(--m-label));color:${p >= 0 ? 'var(--red)' : 'var(--blue)'}">직전 ${p >= 0 ? '+' : ''}${Number(p).toFixed(1)}%</div>`;
+  const rev = p => p == null ? '' : `<div style="font-size:calc(10.5px*var(--m-label));color:${chgColor(p)}">직전 ${p >= 0 ? '+' : ''}${Number(p).toFixed(1)}%</div>`;
   const dev = (v, base) => {
     if (!hasCons || v == null || !base) return '';
     const d = (v - base) / Math.abs(base) * 100;
-    return `<div style="font-size:calc(10.5px*var(--m-label));color:${d >= 0 ? 'var(--red)' : 'var(--blue)'}">${d >= 0 ? '+' : ''}${d.toFixed(1)}%</div>`;
+    return `<div style="font-size:calc(10.5px*var(--m-label));color:${chgColor(d)}">${d >= 0 ? '+' : ''}${d.toFixed(1)}%</div>`;
   };
   // 첫 열(증권사) 고정 — 좁은 화면에서 추정 열을 가로로 넘겨도 어느 증권사인지 보이게
   const stick = 'position:sticky;left:0;z-index:1;background:inherit;';
@@ -919,7 +918,7 @@ async function rpProfileSave() {
 
 // ── 계열사 현황 상세 렌더 (2-4 파싱결과 공용 — 기업개요 탭·DART 탭) · 단위 천원 ──
 function _rpSubsContent(subs, summary) {
-  const esc = typeof escapeHtml === 'function' ? escapeHtml : (v => v ?? '');
+  const esc = escapeHtml;
   if (!subs || !subs.length) return '';
   const fmtKW = v => {  // v: 천원 → 억/만/원
     if (v == null) return '—';
@@ -1064,7 +1063,7 @@ function _rpMdTable(tableLines, opts = {}) {
       if (v === '산출 불가') return '<span style="color:var(--text3)">—</span>';
       if (/^-?[\d,]+\.\d+$/.test(v) && !/[%률율]/.test(r?.[0] || '')) return escapeHtml(Math.round(+v.replace(/,/g, '')).toLocaleString());
     }
-    return opts.sign && /^[+\-−]\d[\d,.]*%p?$/.test(v) ? `<span style="color:${/^[-−]/.test(v) ? 'var(--blue)' : 'var(--red)'}">${escapeHtml(v)}</span>` : _rpMdInline(c);
+    return opts.sign && /^[+\-−]\d[\d,.]*%p?$/.test(v) ? `<span style="color:${chgColorText(v)}">${escapeHtml(v)}</span>` : _rpMdInline(c);
   };
   const isSep = l => /^\|[-:\s|]+$/.test(l);
   const sep = tableLines.find(isSep);

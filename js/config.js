@@ -561,6 +561,8 @@ function fmtEok(eok) {
 
 // 등락률 색상 — 한국 주식 관행 (상승=빨강, 하락=파랑)
 const chgColor = v => v > 0 ? 'var(--red)' : v < 0 ? 'var(--blue)' : 'var(--text3)';
+// 글자로 된 증감('+138.2%'·'−5.8%'·'-1,234')의 색 — 숫자로 못 읽으면 회색
+const chgColorText = s => chgColor(parseFloat(String(s ?? '').replace(/[−–]/g, '-').replace(/[^\d.+-]/g, '')) || 0);
 
 // 등락률 문자열 (예: +2.34% / -1.50% / —) — Number 강제 + NaN 가드 (fmtPct와 동일 방어)
 const chgStr = v => { const n = Number(v); return (v != null && !isNaN(n)) ? `${n > 0 ? '+' : ''}${n.toFixed(2)}%` : '—'; };
