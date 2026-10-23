@@ -156,7 +156,7 @@ async function _rpLoadAndRenderDart(body) {
   ${lazy('inv', '투자지표')}
 
   ${consHtml ? `${_rpDartSecHead('컨센서스', '시장 평균(FnGuide)과 증권사별 추정 · MD', ['기업현황'], 'cons')}
-  ${_rpDartConsSummary(M.consensus, M.market)}
+  ${_rpDartConsSummary(M.consensus, M.market, ana?.length && typeof _rpConsensusSummary === 'function' ? _rpConsensusSummary(ana, latest.price) : null)}
   ${_rpDartEstimates(M)}
   ${consHtml}` : ''}
 
@@ -330,7 +330,7 @@ function _rpDartOverview(x) {
   if (x.ana?.length && typeof _rpConsensusSummary === 'function') {
     const c = _rpConsensusSummary(x.ana, x.latest.price);
     add('mkt', '시장 평가', c.recent.length
-      ? `3개월 평균 목표가 <b>${num(c.avgTp)}원</b>${c.upside != null ? ` <span style="color:${c.upside >= 0 ? 'var(--red)' : 'var(--blue)'}">현재가 대비 ${c.upside >= 0 ? '+' : ''}${c.upside.toFixed(1)}%</span>` : ''} · 증권사 ${c.items.length}곳(매수 ${c.buy})`
+      ? `3개월 평균 목표가 <b>${num(c.avgTp)}원</b> <span style="color:var(--text3)">(우리 수집)</span>${c.upside != null ? ` <span style="color:${c.upside >= 0 ? 'var(--red)' : 'var(--blue)'}">현재가 대비 ${c.upside >= 0 ? '+' : ''}${c.upside.toFixed(1)}%</span>` : ''} · 증권사 ${c.items.length}곳(매수 ${c.buy})${x.M?.market?.tp ? ` · FnGuide ${x.M.market.count != null ? x.M.market.count + '곳 ' : ''}평균 <b>${num(x.M.market.tp)}원</b>` : ''}`
       : `최근 3개월 의견 없음${none(`· 마지막 ${e(x.ana[0].firm_name || '')} ${e(x.ana[0].opinion || '')}`)}`,
       x.ana[0]?.opinion_date || '');
   }
@@ -651,7 +651,8 @@ function _rpDartConsensus(L, state) {
 
 // 컨센서스 요약 칩 — 구역 맨 위에서 결론부터: 첫 두 E 연도 영업이익(전년 대비)·추정 변화·남은 기간 필요 영업이익률.
 // 값은 MD 2-10 그대로(새 계산·판정 없음). c = _rpMdConsensus 결과
-function _rpDartConsSummary(c, mkt) {
+// own = 우리 수집 목표가 요약(_rpConsensusSummary) — FnGuide 평균과 나란히(같은 '평균 목표주가'가 출처마다 다름)
+function _rpDartConsSummary(c, mkt, own) {
   if (!c?.op) return '';
   const e = escapeHtml;
   const sg = v => v ? `<span style="color:${/^[-−]/.test(v) ? 'var(--blue)' : 'var(--red)'}">${e(v)}</span>` : '';
@@ -666,9 +667,10 @@ function _rpDartConsSummary(c, mkt) {
     const d = mkt.dist || {}, dist = [['매수', (d.strong_buy || 0) + (d.buy || 0)], ['중립', d.neutral], ['매도', (d.sell || 0) + (d.strong_sell || 0)]]
       .filter(([, v]) => v != null).map(([k, v]) => `${k} ${v}`).join('·');
     const up = mkt.upside != null ? `${mkt.upside >= 0 ? '+' : ''}${Number(mkt.upside).toFixed(1)}%` : null;
-    tiles.push(tile('평균 목표주가', `${Number(mkt.tp).toLocaleString()}원`,
+    tiles.push(tile('평균 목표주가 · FnGuide', `${Number(mkt.tp).toLocaleString()}원`,
       [up && `상승여력 ${sg(up)}${mkt.price ? ` <span style="color:var(--text3)">(${mkt.priceAsOf ? e(mkt.priceAsOf.slice(5)) + ' ' : ''}${Number(mkt.price).toLocaleString()}원 기준)</span>` : ''}`,
-       [dist, mkt.count != null && `${mkt.count}곳`].filter(Boolean).join(' · ')].filter(Boolean).join('<br>')));
+       [dist, mkt.count != null && `${mkt.count}곳`].filter(Boolean).join(' · '),
+       own?.avgTp && `우리 수집 3개월 ${own.items.length}곳 ${Number(own.avgTp).toLocaleString()}원`].filter(Boolean).join('<br>')));
   }
   tiles.push(...(c.annual || []).filter(a => a.est && a.op != null).slice(0, 2)
     .map(a => tile(`${e(a.year)}E 영업이익`, _rpEok(a.op), a.opYoy ? `전년 대비 ${sg(a.opYoy)}` : '')));

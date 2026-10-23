@@ -294,9 +294,9 @@ async function _sdOverview(body, code, name) {
       sb.from('market_data').select('*').eq('stock_code', code)
         .order('base_date', { ascending:false }).limit(1).maybeSingle(),
       loadFinPreferred(code, 'bsns_year,quarter,revenue,operating_profit,net_income,operating_margin,net_margin,roe,roa,debt_ratio,total_assets,total_equity,operating_cashflow,fcf,fcf_direct,fcf_indirect,capex,capex_intangible,capex_total,depreciation,amortization,da,ebitda', { limit: 8 }),
-      sb.from('analyst_opinions').select('firm_name,opinion,target_price,gap_rate,opinion_date')
-        .eq('stock_code', code).in('opinion_code',['1','2'])
-        .order('opinion_date',{ascending:false}).limit(10),
+      // 리포트 탭과 같은 계산을 하려면 매수만이 아닌 전체 의견(최근 3개월 증권사별 마지막) — 예전엔 매수 최근 10건 평균이라 숫자가 달랐음
+      sb.from('analyst_opinions').select('firm_name,opinion,opinion_code,target_price,gap_rate,opinion_date')
+        .eq('stock_code', code).order('opinion_date',{ascending:false}).limit(100),
       sb.from('market_data').select('base_date,price,price_change_rate,volume,foreign_net_buy')
         .eq('stock_code', code).order('base_date',{ascending:false}).limit(90),
     ]);
@@ -305,11 +305,11 @@ async function _sdOverview(body, code, name) {
     const latestFin = fins?.[0] || {};
     const prevFin   = fins?.[1] || {};
 
-    // 컨센서스
-    const tgPrices = (opinions||[]).map(o=>o.target_price).filter(v=>v>0);
-    const avgTarget = tgPrices.length ? Math.round(tgPrices.reduce((a,b)=>a+b,0)/tgPrices.length) : null;
-    const upside = avgTarget && r.price ? ((avgTarget-r.price)/r.price*100).toFixed(1) : null;
-    const buyCount = (opinions||[]).length;
+    // 컨센서스 — 종목 리포트(기업현황·최근리포트·DART 분석)와 같은 계산: report-tabs.js _rpConsensusSummary(최근 3개월 증권사별 마지막 의견)
+    const cs = _rpConsensusSummary(opinions || [], r.price);
+    const avgTarget = cs.avgTp;
+    const upside = cs.upside != null ? cs.upside.toFixed(1) : null;
+    const buyCount = cs.items.length;
 
     // QoQ 영업이익 성장
     const qoqOp = latestFin.operating_profit && prevFin.operating_profit
@@ -376,10 +376,10 @@ async function _sdOverview(body, code, name) {
             <div style="text-align:center;margin-bottom:10px">
               <div style="font-size:calc(11px*var(--m-label));color:var(--text1);margin-bottom:2px">평균 목표주가</div>
               <div style="font-size:calc(22px*var(--m-title));font-weight:700;color:var(--text1)">${avgTarget.toLocaleString()}원</div>
-              ${upside != null ? `<div style="font-size:calc(14px*var(--m-body));color:${upside>=0?'var(--green)':'var(--red)'};font-weight:600">현재가 대비 ${upside>=0?'+':''}${upside}%</div>` : ''}
+              ${upside != null ? `<div style="font-size:calc(14px*var(--m-body));color:${chgColor(+upside)};font-weight:600">현재가 대비 ${upside>=0?'+':''}${upside}%</div>` : ''}
             </div>` : '<div style="color:var(--text2);font-size:calc(12px*var(--m-sub));padding:8px 0">컨센서스 없음</div>'}
-          ${_sdRow2('커버리지', `${buyCount}개 증권사`)}
-          ${(opinions||[]).slice(0,4).map(o=>
+          ${_sdRow2('커버리지', `${buyCount}개 증권사 · 최근 3개월`)}
+          ${(cs.items.length ? cs.items : (opinions||[])).slice(0,4).map(o=>
             `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:calc(12px*var(--m-sub))">
               <span style="color:var(--text1)">${o.firm_name}</span>
               <span style="color:${o.opinion?.includes('매수')||o.opinion==='BUY'?'var(--red)':'var(--text2)'}">
@@ -656,24 +656,19 @@ async function _sdOpinion(body, code, name) {
       return;
     }
 
-    // 컨센서스 요약
-    const recent = opinions.filter(o => {
-      const d = new Date(o.opinion_date);
-      return (Date.now()-d.getTime()) < 90*24*60*60*1000;
-    });
-    const tgPrices = recent.map(o=>o.target_price).filter(v=>v>0);
-    const avgTarget = tgPrices.length ? Math.round(tgPrices.reduce((a,b)=>a+b,0)/tgPrices.length) : null;
-    const maxTarget = tgPrices.length ? Math.max(...tgPrices) : null;
-    const minTarget = tgPrices.length ? Math.min(...tgPrices) : null;
-    const buyCnt    = recent.filter(o=>['1','2'].includes(o.opinion_code)).length;
-    const holdCnt   = recent.filter(o=>o.opinion_code==='3').length;
-
     // 최신 현재가
     const { data: lp } = await sb.from('market_data')
       .select('price').eq('stock_code',code)
       .order('base_date',{ascending:false}).limit(1).maybeSingle();
     const curPrice = lp?.price;
-    const upside = avgTarget&&curPrice ? ((avgTarget-curPrice)/curPrice*100).toFixed(1) : null;
+
+    // 컨센서스 요약 — 종목 리포트와 같은 계산(_rpConsensusSummary: 최근 3개월 증권사별 마지막 의견).
+    // 예전엔 90일 안 의견 전부(같은 증권사 여러 건 포함) 평균이라 리포트 숫자와 달랐음
+    const cs = _rpConsensusSummary(opinions, curPrice);
+    const avgTarget = cs.avgTp;
+    const maxTarget = cs.tps.length ? Math.max(...cs.tps) : null;
+    const minTarget = cs.tps.length ? Math.min(...cs.tps) : null;
+    const upside = cs.upside != null ? cs.upside.toFixed(1) : null;
 
     body.innerHTML = `
       <!-- 컨센서스 요약 -->
@@ -681,13 +676,13 @@ async function _sdOpinion(body, code, name) {
         ${[
           ['평균 목표주가', fmtPrice(avgTarget), upside!=null?`현재가 대비 ${upside>=0?'+':''}${upside}%`:''],
           ['목표가 범위', maxTarget?`${minTarget?.toLocaleString()}~${maxTarget?.toLocaleString()}원`:'—', ''],
-          ['매수 의견', `${buyCnt}개`, `전체 ${recent.length}개 중`],
-          ['중립/기타', `${holdCnt}개`, ''],
+          ['매수 의견', `${cs.buy}곳`, `최근 3개월 증권사 ${cs.items.length}곳 중`],
+          ['중립/기타', `${cs.items.length - cs.buy}곳`, cs.sell ? `매도 ${cs.sell}곳 포함` : ''],
         ].map(([lb,v,sub])=>`
           <div style="background:var(--bg3);border-radius:8px;padding:12px 14px;border:1px solid var(--border);text-align:center">
             <div style="font-size:calc(11px*var(--m-label));color:var(--text1);margin-bottom:4px">${lb}</div>
             <div style="font-size:calc(18px*var(--m-title));font-weight:700">${v}</div>
-            ${sub?`<div style="font-size:calc(11px*var(--m-label));color:${upside&&upside>=0?'var(--green)':'var(--text2)'};margin-top:2px">${sub}</div>`:''}
+            ${sub?`<div style="font-size:calc(11px*var(--m-label));color:${lb==='평균 목표주가'&&upside!=null?chgColor(+upside):'var(--text2)'};margin-top:2px">${sub}</div>`:''}
           </div>`).join('')}
       </div>
       <!-- 의견 목록 -->
