@@ -228,6 +228,25 @@ function _rpConsModelSummary(d) {
   };
 }
 
+// MD가 최신 정기보고서보다 뒤처졌는지 — reportType '분기보고서 (2026.03)', discs = daily_disclosures(report_nm·base_date·rcept_no).
+// MD 기준 기간(YYYY.MM)보다 뒤 기간의 분기·반기·사업보고서가 공시돼 있으면 그중 최신 한 건, 없으면 null.
+// 같은 기간의 [기재정정]은 새 보고서가 아님
+const _RP_PERIODIC = /(분기|반기|사업)보고서\s*\((\d{4})\.(\d{2})\)/;
+function _rpMdStale(reportType, discs) {
+  const m = String(reportType || '').match(_RP_PERIODIC);
+  if (!m) return null;
+  const cur = `${m[2]}.${m[3]}`;
+  let best = null;
+  for (const d of discs || []) {
+    const x = String(d.report_nm || '').match(_RP_PERIODIC);
+    if (!x || `${x[2]}.${x[3]}` <= cur) continue;
+    const k = `${x[2]}.${x[3]}`;
+    if (!best || k > best.period || (k === best.period && String(d.base_date) < String(best.date)))
+      best = { period: k, name: `${x[1]}보고서 (${k})`, date: d.base_date || '', rcept_no: d.rcept_no || null };
+  }
+  return best;
+}
+
 // 향후 컨센서스(MD 2-10, FnGuide 증권사 추정 평균) 읽기 — DART 분석 모델과 업로드(summary.consensus) 공용.
 // annual = 연간 전망 표 열별 값(억원·EPS 원): 기업현황 탭 '연간 실적 요약'의 (E) 행. op·rev·prog = DART 분석 종합분석 줄
 function _rpMdConsensus(lines) {

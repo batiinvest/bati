@@ -12,8 +12,7 @@ async function _rpLoadAndRenderOwnership(body) {
   try {
     const [compRes, dartRes] = await Promise.all([
       sb.from('companies').select('corp_code').eq('code', _rpStock.code).maybeSingle(),
-      sb.from('dart_reports').select('report_type,receive_date,raw_md,summary')
-        .eq('stock_code', _rpStock.code).order('receive_date', { ascending: false }).limit(1).maybeSingle(),
+      _rpDartRow(_rpStock.code),   // DART 분석·기업개요와 같은 원문(종목당 한 번만 받음)
     ]);
     let discs = [];
     if (compRes.data?.corp_code) {

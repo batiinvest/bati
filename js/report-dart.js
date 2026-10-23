@@ -10,13 +10,27 @@
 //   시장 평가 = 최근리포트 · 수급 = 수급흐름 · 공시·이벤트 = 금감원공시. 무거운 탭은 화면에 다가올 때 불러옴(_rpDartLazy).
 // MD는 MD에만 있는 내용(주가 희석·보호예수·주주 명세·대표이사·고객 집중도·종합판단·증권사 추정·이벤트·상세)만 더하고
 // '보고서 시점'으로 표기 — 같은 항목이 DB에도 있으면 DB(최신)를 앞에 둔다. MD가 없어도 DB 항목으로 종합은 나옴.
+// DART MD 행(raw_md 포함) — DART 분석·기업개요·지분현황이 같이 씀. 종목당 한 번만 받음
+// (예전엔 탭마다 다시 받았고 옛 양식 MD는 원자료 장까지 수 MB). 업로드·기본정보 수정 뒤 _rpDartRowReset()
+function _rpDartRow(code) {
+  const c = RPD.row;
+  if (c.code !== code || !c.p) {
+    c.code = code;
+    c.p = Promise.resolve(sb.from('dart_reports').select('report_type,receive_date,raw_md,summary')
+      .eq('stock_code', code).order('receive_date', { ascending: false }).limit(1).maybeSingle())
+      .then(r => { if (r?.error) throw r.error; return r; })
+      .catch(e => { if (c.code === code) c.p = null; throw e; });
+  }
+  return c.p;
+}
+const _rpDartRowReset = () => { RPD.row.code = null; RPD.row.p = null; };
+
 async function _rpLoadAndRenderDart(body) {
   if (!_rpStock) return;
   const code = _rpStock.code;
   const q = (pr, d) => Promise.resolve(pr).then(r => r?.data ?? d).catch(() => d);
   const [{ data }, biz, comp, stage, flowV, flow20, ana] = await Promise.all([
-    Promise.resolve(sb.from('dart_reports').select('report_type,receive_date,raw_md,summary')
-      .eq('stock_code', code).order('receive_date', { ascending: false }).limit(1).maybeSingle()).catch(() => ({ data: null })),
+    _rpDartRow(code).catch(() => ({ data: null })),
     typeof _rpBizFetch === 'function' ? _rpBizFetch(code).catch(() => null) : Promise.resolve(null),
     q(sb.from('companies').select('corp_code,market,sector,product,industry,sub_industry,wics_sector').eq('code', code).maybeSingle(), {}),
     q(sb.from('earnings_stage').select('period,stage,fs_div').eq('stock_code', code).maybeSingle(), null),
@@ -68,12 +82,19 @@ async function _rpLoadAndRenderDart(body) {
   const lazy = (key, title) => box(`<div data-rpd-lazy="${key}"><div style="text-align:center;color:var(--text2);padding:20px"><span class="loading"></span> 불러오는 중...</div></div>`, title);
   const pts = s.investment_points?.length || s.risk_points?.length;
   const consHtml = _rpDartConsensus(L, M.consensusState);
+  // MD가 최신 정기보고서보다 뒤처졌으면 맨 위 띠 — 카드의 '(MD)·보고서 시점' 내용이 옛 보고서 기준임을 먼저 알림
+  const stale = data && typeof _rpMdStale === 'function' ? _rpMdStale(data.report_type, discAll) : null;
   // 주주·지분 = 지분현황 탭 카드 그대로, 순서만 '지금 구조 → 사람 → 변화'(구성·외국인 → 주주 명세 → 대표이사 → 차트 → 변동내역)
   const OP = typeof _rpOwnershipParts === 'function'
     ? _rpOwnershipParts({ discs: ownList, dp, s, dart: data, trades, majors: H?.majors, prices: _rpData?.price || [], latest }) : null;
 
   body.innerHTML = `
   <div style="display:flex;flex-direction:column;gap:14px">
+  ${stale ? `<div style="padding:10px 14px;border:1px solid var(--warn);border-radius:var(--radius-sm);background:color-mix(in srgb, var(--warn) 10%, transparent);font-size:calc(12px*var(--m-sub));color:var(--text1);line-height:1.6">
+    <b style="color:var(--warn)">MD 갱신 필요</b> · 새 정기보고서 <b>${escapeHtml(stale.name)}</b>가 ${escapeHtml(stale.date)}에 공시됨.
+    이 분석(MD)은 <b>${escapeHtml(data.report_type || '')}</b> 기준이라, (MD)·보고서 시점 표시가 붙은 내용은 그 시점 기준입니다.
+    ${stale.rcept_no ? `<a href="${escAttr(safeUrl(`https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${stale.rcept_no}`))}" target="_blank" rel="noopener" style="color:var(--tg);text-decoration:none;white-space:nowrap">새 보고서 원문 ↗</a>` : ''}
+  </div>` : ''}
 
   <!-- 리포트 헤더 -->
   <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;
@@ -895,6 +916,7 @@ async function rpProfileSave() {
   }
   document.getElementById('m-rp-profile')?.remove();
   const n = Object.keys(edits).length;
+  _rpDartRowReset();
   toast(n ? `기본정보 ${n}개 항목을 저장했습니다` : '기본정보를 MD 원래 값으로 되돌렸습니다', 'success');
   c.summary = summary;
   c.rerender?.();
@@ -992,7 +1014,7 @@ function _rpSubsContent(subs, summary) {
 // 섹션(## )마다 헤더만 먼저 그리고 본문은 처음 펼칠 때 렌더(RPD.secs) — 원익IPS MD를 한 번에 그리면 DOM 13.8만 노드였음
 
 // DART 탭 상태 — 상세 분석 섹션 원문 줄
-const RPD = { secs: [] };
+const RPD = { secs: [], row: { code: null, p: null } };
 
 
 // 인라인: [글](url) → 원문 칩(safeUrl 통과분만), **굵게**, `코드`, <br>, [공시 확인]·[증권사 전망] 태그.
@@ -1007,9 +1029,11 @@ const _rpMdText = s => escapeHtml(s.replace(_RPD_ESC, (m, c) => `\u0002${c.charC
     return `<span style="display:inline-block;padding:0 7px;margin-left:2px;border-radius:100px;font-size:calc(10px*var(--m-label));font-weight:600;vertical-align:1px;white-space:nowrap;background:color-mix(in srgb, ${c} 14%, transparent);color:${c}">${tag}</span>`;
   })
   .replace(/\u0002(\d+)\u0003/g, (m, c) => escapeHtml(String.fromCharCode(+c)));
+const _RPD_LOCAL_PATH = /`?\b[A-Za-z]:\\[^`\s|]*`?/g;
 function _rpMdInline(s) {
-  // 문서 안 링크 '[2-10. 향후 컨센서스](#section-2-10)'는 글자만(사이트엔 그 앵커가 없음) — 10-19 MD부터 본문에 생김
-  s = String(s ?? '').replace(/\[((?:\\.|[^\]\\\n])+)\]\(#[^)\s]*\)/g, '$1');
+  // 문서 안 링크 '[2-10. 향후 컨센서스](#section-2-10)'·상대 경로 링크('../../data/…')는 글자만(사이트엔 그 앵커·파일이 없음),
+  // 생성기 PC 경로(C:\Users\…)는 지움 — 10-23 9장 원자료 폴더에 PC 경로가 그대로 있었음
+  s = String(s ?? '').replace(/\[((?:\\.|[^\]\\\n])+)\]\((?!https?:)[^)\s]*\)/g, '$1').replace(_RPD_LOCAL_PATH, '');
   const re = /\[((?:\\.|[^\]\\\n])+)\]\((https?:\/\/[^)\s]+)\)/g;   // 링크 글자 안의 \] 허용
   let html = '', last = 0, m;
   while ((m = re.exec(s))) {
@@ -1053,8 +1077,15 @@ function _rpMdTable(tableLines, opts = {}) {
   const align = sep ? cells(sep).map(c => /^:-+:$/.test(c) ? 'center' : /^-+:$/.test(c) ? 'right' : /^:-+$/.test(c) ? 'left' : null) : [];
   const rows = tableLines.filter(l => !isSep(l));
   if (!rows.length) return '';
-  const hdr = cells(rows[0]);
-  const body = rows.slice(1).map(cells);
+  let hdr = cells(rows[0]);
+  let body = rows.slice(1).map(cells);
+  // 값이 전부 PC 경로인 열(9장 '원자료 폴더' 등)은 통째로 뺌
+  const local = hdr.map((_, k) => { const v = body.map(r => (r[k] || '').trim()).filter(Boolean); return v.length > 0 && v.every(x => /^`?[A-Za-z]:\\/.test(x)); });
+  if (local.some(Boolean)) {
+    const keep = (_, k) => !local[k];
+    hdr = hdr.filter(keep); body = body.map(r => r.filter(keep));
+    for (let k = align.length - 1; k >= 0; k--) if (local[k]) align.splice(k, 1);
+  }
   // 열이 많은 표(분기 추이 등)는 내용 폭대로 펼쳐 가로 스크롤 + 첫 열 고정 — 100% 폭에 욱여넣으면 항목명이 한 글자씩 줄바꿈됐음
   const wide = hdr.length > 5;
   const stick = wide ? 'position:sticky;left:0;z-index:1;min-width:88px;max-width:180px;white-space:normal;' : '';
@@ -1165,6 +1196,9 @@ function _mdToAccordion(md) {
     else if (/^## /.test(line)) { RPD.secs.push({ title: t.replace(/^##\s+/, ''), lines: [] }); continue; }
     if (RPD.secs.length) RPD.secs[RPD.secs.length - 1].lines.push(line);   // 첫 ## 이전(# 제목)은 버림
   }
+  // '제외 후보 메모'가 '현재 제외된 항목 없음' 한 줄뿐이면 장째 뺌(읽을 것 없는 접힌 줄)
+  RPD.secs = RPD.secs.filter(s => !/제외 후보 메모/.test(s.title)
+    || s.lines.some(l => l.trim() && !/^[-*]\s*현재 제외된 항목 없음/.test(l.trim()) && !/^-{3,}$/.test(l.trim()) && !_RPD_DROP_LINE.test(l.trim())));
   const html = RPD.secs.map((s, i) => `
     <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden">
       <div onclick="rpDartAcc(${i})"
@@ -1222,6 +1256,7 @@ async function rpUploadDart(input) {
   }, { onConflict: 'stock_code,report_type' });
 
   if (error) { toast('저장 실패: ' + error.message, 'error'); return; }
+  _rpDartRowReset();
 
   // 4-1 ~ 4-5 사업 섹션 파싱 & 저장
   try {
