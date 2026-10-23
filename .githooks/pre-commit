@@ -1,15 +1,39 @@
 #!/bin/sh
-# pre-commit — index.html의 ?v= 캐시버스팅 자동 bump
+# pre-commit — ① 스테이징된 js 문법 검사 ② 전역 함수 이름 중복 검사 ③ DART MD 파싱 회귀 점검
+#              ④ index.html의 ?v= 캐시버스팅 자동 bump
 #
-# 스테이징된 js/*.js·css/*.css가 index.html에 ?v=N으로 참조되면 N을 +1 하고
-# index.html을 함께 스테이징한다. (수동 bump 누락 → 배포 후 캐시로 미반영 사고 방지)
+# ①~③은 커밋을 막는다(외부 도구가 넣은 코드도 커밋 때 걸러지게). 급할 때만 건너뛰기:
+#   SKIP_MD_REGRESS=1 git commit …   (③만)
+# ④ 스테이징된 js/*.js·css/*.css가 index.html에 ?v=N으로 참조되면 N을 +1 하고
+#   index.html을 함께 스테이징한다. (수동 bump 누락 → 배포 후 캐시로 미반영 사고 방지)
 #
 # 활성화 (클론마다 1회):
 #   git config core.hooksPath .githooks
 
 changed=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^(js/[^/]+\.js|css/[^/]+\.css)$')
 [ -z "$changed" ] && exit 0
+jschanged=$(echo "$changed" | grep -E '^js/')
 
+if [ -n "$jschanged" ] && command -v node >/dev/null 2>&1; then
+  # ① 문법
+  for f in $jschanged; do
+    node --check "$f" || { echo "[pre-commit] 문법 오류: $f"; exit 1; }
+  done
+  # ② 전역 함수 이름 중복 — classic script라 같은 이름이면 나중에 로드된 파일이 조용히 덮어씀
+  #    (10-21 _rpConsensusSummary 충돌로 목표주가 세 탭이 깨질 뻔)
+  dup=$(grep -ohE '^(async )?function [A-Za-z_$][A-Za-z0-9_$]*' js/*.js | sed -E 's/^(async )?function //' | sort | uniq -d)
+  if [ -n "$dup" ]; then
+    echo "[pre-commit] 전역 함수 이름 중복:"
+    for d in $dup; do echo "  $d — $(grep -lE "^(async )?function $d\b" js/*.js | tr '\n' ' ')"; done
+    exit 1
+  fi
+  # ③ MD 파싱 회귀 — report-* 파일이 바뀐 커밋만
+  if echo "$jschanged" | grep -qE '^js/report-'; then
+    node tools/md-regress.js || exit 1
+  fi
+fi
+
+# ④ ?v= bump
 bumped=""
 for f in $changed; do
   if grep -q "${f}?v=" index.html; then
