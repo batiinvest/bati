@@ -82,6 +82,7 @@ async function loadUskrChart() {
         .in('stock_code', indCodes)
         .gte('base_date', oldestDate)
         .not('price_change_rate', 'is', null)
+        .order('base_date').order('stock_code')   // 여러 페이지 경계 결정성
     ),
     sb.from('us_market')
       .select('base_date,ticker,close,chg_pct')

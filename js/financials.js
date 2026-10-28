@@ -21,13 +21,16 @@ function reloadFinancials() {
   loadFinancials();
 }
 
-/** 종목별 최신 분기 데이터 1건 추출 — { stock_code: row } 맵 반환 */
+/** 종목별 최신 분기 데이터 1건 추출 — { stock_code: row } 맵 반환
+ *  같은 분기에 연결·별도가 둘 다 있으면 연결(CFS) 우선(예전엔 받은 순서대로라 임의).
+ *  finPreferFs를 먼저 걸지 않는 이유: 연결 → 별도로 바뀐 종목(10-28 실측 43곳)이 옛 연결 분기로 보이게 됨 */
 function _pickLatestFin(rows) {
   const map = {};
   (rows || []).forEach(r => {
     const cur = map[r.stock_code];
     if (!cur || r.bsns_year > cur.bsns_year ||
-       (r.bsns_year === cur.bsns_year && r.quarter > cur.quarter))
+       (r.bsns_year === cur.bsns_year && r.quarter > cur.quarter) ||
+       (r.bsns_year === cur.bsns_year && r.quarter === cur.quarter && r.fs_div === 'CFS' && cur.fs_div !== 'CFS'))
       map[r.stock_code] = r;
   });
   return map;
@@ -1896,6 +1899,14 @@ function exportFinancials() {
   toast(`CSV ${_finData.length}개 종목 내보냄`, 'success');
 }
 
+// 재무제표 탭이 받는 칸 — 표(headers·rowTemplate)·CSV(_finFinancialCsvSpec)에 쓰는 것 + 정규화용 is_cumulative
+const FIN_TAB_COLS = 'stock_code,corp_name,bsns_year,quarter,fs_div,is_cumulative,'
+  + 'revenue,gross_profit,cogs,sga,rd_expense,operating_profit,other_operating_income,other_operating_expense,'
+  + 'pretax_income,net_income,total_assets,total_liabilities,total_equity,current_assets,current_liabilities,'
+  + 'non_current_assets,capital_stock,retained_earnings,operating_cashflow,investing_cashflow,financing_cashflow,'
+  + 'capex,capex_intangible,capex_total,depreciation,amortization,da,ebitda,'
+  + 'gross_margin,operating_margin,net_margin,cogs_ratio,sga_ratio,debt_ratio,current_ratio,roe,roa,fcf';
+
 async function loadFinancialData(el) {
   const pct  = v => v != null ? v.toFixed(1) + '%' : '—';
   const cap  = v => v != null ? fmtCap(v) : '—';
@@ -1907,23 +1918,30 @@ async function loadFinancialData(el) {
   await _loadTabData(el, {
     defaultSort: 'revenue',
     fetchRows: async () => {
-      const monitoredCodes = await _getMonitoredCodes();
-      // 탭은 종목별 최신 분기 1건만 사용 — 전 이력 다운로드 대신 최근 4개년으로 제한
-      const minYear = String(new Date().getFullYear() - 3);
-      const all = await fetchAllPages(
-        sb.from('financials').select('*')
-          .gte('bsns_year', minYear)
-          .order('bsns_year', { ascending: false })
-          .order('quarter',   { ascending: false })
-          .order('stock_code')   // 페이지 경계 결정성 (동순위 다수 → 누락/중복 방지)
-      );
+      const [monitoredCodes, meta] = await Promise.all([_getMonitoredCodes(), _getCompanyMetaMap()]);
       // 시장 현황 탭과 동일 기준 — companies(active)에 없는 종목은 제외
-      const meta = await _getCompanyMetaMap();
       const listed = Object.keys(meta).length ? new Set(Object.keys(meta)) : null;
-      let data = monitoredCodes ? all.filter(r => monitoredCodes.has(r.stock_code)) : all;
-      if (listed) data = data.filter(r => listed.has(r.stock_code));
+      // 탭은 종목별 최신 분기 1건만 쓴다. 예전엔 select('*') 최근 4개년 34,388행을 35번 순차로 받아 13.9초(10-28 실측)
+      // → 표·CSV에 쓰는 칸만, 최근 2개년을 병렬로 받고, 거기에 행이 없는 종목만 2년 더 거슬러 받는다.
+      const yr = new Date().getFullYear();
+      const page = (from, list) => {
+        const scope = q => { q = q.gte('bsns_year', String(from)); return list ? q.in('stock_code', list) : q; };
+        return fetchPagesParallel(
+          (s, e) => scope(sb.from('financials').select(FIN_TAB_COLS))
+            .order('stock_code').order('bsns_year', { ascending: false })
+            .order('quarter', { ascending: false }).order('fs_div').range(s, e),   // 병렬 페이지 경계 결정성
+          scope(sb.from('financials').select('stock_code', { count: 'exact', head: true })));
+      };
+      let all = await page(yr - 1, monitoredCodes ? [...monitoredCodes] : null);
+      const have = new Set(all.map(r => r.stock_code));
+      const want = monitoredCodes ? [...monitoredCodes] : listed ? [...listed] : [];
+      const missing = want.filter(c => !have.has(c));
+      const chunks = [];
+      for (let i = 0; i < missing.length; i += 300) chunks.push(missing.slice(i, i + 300));
+      for (const rows of await Promise.all(chunks.map(c => page(yr - 3, c)))) all = all.concat(rows);
+      if (listed) all = all.filter(r => listed.has(r.stock_code));
       // 최신값 표 — 4분기 연간값 행이 최신인 종목(리츠 등)이 사라지지 않게 남기되 '연간'으로 표시
-      return Object.values(_pickLatestFin(finNormalizeQuarters(data, { keepAnnualQ4: true })))
+      return Object.values(_pickLatestFin(finNormalizeQuarters(all, { keepAnnualQ4: true })))
         .map(r => r._annual ? { ...r, quarter: 'Q4(연간)' } : r);
     },
     headers: () => [
