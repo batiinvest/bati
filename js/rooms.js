@@ -29,11 +29,10 @@ async function addRoom() {
 
     // 채팅방 생성 → 해당 종목 monitoring_level=full로 업데이트
     const roomCode = document.getElementById('a-code').value.trim().split('.')[0];
-    if (roomCode) {
-      for (const c of [roomCode, roomCode+'.KS', roomCode+'.KQ']) {
-        await sb.from('companies').update({ monitoring_level: 'full' })
-          .eq('code', c).eq('is_monitored', true);
-      }
+    if (roomCode) {   // companies.code는 접미사 없는 6자리 — 한 번만
+      const { error: e2 } = await sb.from('companies').update({ monitoring_level: 'full' })
+        .eq('code', roomCode).eq('is_monitored', true);
+      if (e2) toast('채팅방은 추가됐지만 종목 모니터링 단계 변경 실패: ' + e2.message, 'error');
     }
 
     A.rooms.push(data); A.rooms.sort((a,b) => a.name.localeCompare(b.name,'ko'));
@@ -66,10 +65,9 @@ async function deleteRoom(id) {
   // 채팅방 삭제 → 해당 종목 monitoring_level=news로 다운그레이드
   const roomCode = (r.code || '').split('.')[0];
   if (roomCode) {
-    for (const c of [roomCode, roomCode+'.KS', roomCode+'.KQ']) {
-      await sb.from('companies').update({ monitoring_level: 'news' })
-        .eq('code', c).eq('is_monitored', true);
-    }
+    const { error: e2 } = await sb.from('companies').update({ monitoring_level: 'news' })
+      .eq('code', roomCode).eq('is_monitored', true);
+    if (e2) toast('채팅방은 삭제됐지만 종목 모니터링 단계 변경 실패: ' + e2.message, 'error');
   }
 
   A.rooms = A.rooms.filter(x => x.id !== id);
@@ -629,7 +627,8 @@ async function loadTeam() {
 
   el.innerHTML = data.map(u => {
     const m = roleMeta[u.role] || roleMeta.viewer;
-    const initials = (u.name || u.email).slice(0,2).toUpperCase();
+    // 이름은 공개 회원가입에서 누구나 넣는 값 — 반드시 escapeHtml (관리자 화면 XSS 방지)
+    const initials = escapeHtml(String(u.name || u.email || '').slice(0,2).toUpperCase());
     const isMe = u.id === A.user.id;
     const lastLogin = u.last_login
       ? new Date(u.last_login).toLocaleString('ko-KR', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})
@@ -643,10 +642,10 @@ async function loadTeam() {
       <!-- 이름/이메일 -->
       <div style="flex:1;min-width:0">
         <div style="font-size:calc(13px*var(--m-body));font-weight:500;display:flex;align-items:center;gap:6px">
-          ${u.name || '—'}
+          ${escapeHtml(u.name || '—')}
           ${isMe ? `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:100px;background:rgba(42,171,238,.15);color:var(--tg)">나</span>` : ''}
         </div>
-        <div style="font-size:calc(11px*var(--m-label));color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.email}</div>
+        <div style="font-size:calc(11px*var(--m-label));color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(u.email || '')}</div>
       </div>
 
       <!-- 마지막 로그인 -->

@@ -376,7 +376,7 @@ async function loadLogs() {
   el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>시각</th><th>채팅방</th><th>이전</th><th>이후</th><th>변화</th></tr></thead><tbody>
     ${!data.length?'<tr><td colspan="5" class="empty-row">동기화 기록이 없습니다. 멤버 수 동기화를 실행하면 여기에 기록됩니다.</td></tr>':data.map(l=>{const d=l.after-l.before;return`<tr>
       <td style="font-size:calc(12px*var(--m-sub));color:var(--text1)">${new Date(l.synced_at).toLocaleString('ko-KR')}</td>
-      <td style="font-weight:500">${l.room_name}</td>
+      <td style="font-weight:500">${escapeHtml(l.room_name)}</td>
       <td>${(l.before||0).toLocaleString()}</td><td>${(l.after||0).toLocaleString()}</td>
       <td style="font-weight:600;color:${d>0?'var(--green)':d<0?'var(--red)':'var(--text3)'}">${d>0?'+':''}${d}</td>
     </tr>`;}).join('')}

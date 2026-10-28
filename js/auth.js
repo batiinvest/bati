@@ -40,7 +40,9 @@ async function doSignup() {
     if (error) throw error;
 
     if (data?.user?.id) {
-      await sb.from('app_users').upsert({ id: data.user.id, name, role: 'viewer' }, { onConflict: 'id' });
+      // 계정은 이미 만들어졌으므로 실패해도 가입은 진행 — 기록만 남김(로그인 시 loadProfile이 '프로필 로드 실패'로 알림)
+      const { error: pe } = await sb.from('app_users').upsert({ id: data.user.id, name, role: 'viewer' }, { onConflict: 'id' });
+      if (pe) console.warn('[signup] app_users 저장 실패:', pe.message);
     }
 
     err.style.color = 'var(--green)';

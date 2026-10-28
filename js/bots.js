@@ -683,10 +683,10 @@ async function saveBotKeywords() {
 
   try {
     if (aiKw !== undefined) {
-      await sb.from('app_config').upsert({ key: 'ai_trigger_keywords', value: aiKw, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      await sbMust(sb.from('app_config').upsert({ key: 'ai_trigger_keywords', value: aiKw, updated_at: new Date().toISOString() }, { onConflict: 'key' }));
     }
     if (globalKw !== undefined) {
-      await sb.from('app_config').upsert({ key: 'global_important_keywords', value: globalKw, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      await sbMust(sb.from('app_config').upsert({ key: 'global_important_keywords', value: globalKw, updated_at: new Date().toISOString() }, { onConflict: 'key' }));
     }
     toast('키워드 저장 완료 — 봇 다음 사이클에 반영됩니다', 'success');
   } catch(e) { toast('저장 실패: ' + e.message, 'error'); }
@@ -695,7 +695,7 @@ async function saveBotKeywords() {
 async function toggleSchedule(key, enabled) {
   if (!isAdmin()) { toast('권한이 없습니다.', 'error'); return; }
   try {
-    await sb.from('app_config').upsert({ key, value: enabled ? '1' : '0', updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    await sbMust(sb.from('app_config').upsert({ key, value: enabled ? '1' : '0', updated_at: new Date().toISOString() }, { onConflict: 'key' }));
     toast(`스케줄 ${enabled?'활성화':'비활성화'} 완료`, 'info');
   } catch(e) { toast('변경 실패: ' + e.message, 'error'); }
 }
@@ -739,10 +739,10 @@ async function saveAlertThresholds() {
     ].filter(u => u.value !== undefined && u.value !== '');
 
     for (const u of updates) {
-      await sb.from('app_config').upsert(
+      await sbMust(sb.from('app_config').upsert(
         { key: u.key, value: u.value, updated_at: new Date().toISOString() },
         { onConflict: 'key' }
-      );
+      ));
     }
     toast('임계값 저장 완료 — 봇 재로드 후 반영됩니다', 'success');
   } catch(e) { toast('저장 실패: ' + e.message, 'error'); }
@@ -885,14 +885,14 @@ function pSettings() {
   <div class="card" style="max-width:560px;margin-bottom:1rem"><div class="card-header"><span class="card-title">앱 설정</span></div><div class="card-body">
     <div class="form-group">
       <label class="form-label">대시보드 이름</label>
-      <input class="form-input" id="cfg-appname" value="${A.config['app_name']||'바티인베스트 채팅방 관리'}">
+      <input class="form-input" id="cfg-appname" value="${escAttr(A.config['app_name']||'바티인베스트 채팅방 관리')}">
     </div>
     <button class="btn btn-primary" onclick="saveConfig('app_name', document.getElementById('cfg-appname').value.trim())">저장</button>
   </div></div>
 
   <div class="card" style="max-width:560px"><div class="card-header"><span class="card-title">Supabase 연결 정보</span></div><div class="card-body" style="font-size:calc(13px*var(--m-body));color:var(--text1);line-height:1.9">
     <p>Project URL: <code style="background:var(--bg3);padding:1px 6px;border-radius:3px;font-size:calc(12px*var(--m-sub))">${SB_URL}</code></p>
-    <p style="margin-top:.5rem">연결된 유저: <strong style="color:var(--text)">${A.user?.email}</strong> (${A.profile?.role})</p>
+    <p style="margin-top:.5rem">연결된 유저: <strong style="color:var(--text)">${escapeHtml(A.user?.email || '')}</strong> (${escapeHtml(A.profile?.role || '')})</p>
     <p style="margin-top:.5rem;font-size:calc(12px*var(--m-sub));color:var(--text2)">URL/Key 변경이 필요하면 index.html 상단의 SB_URL, SB_KEY를 직접 수정하세요.</p>
   </div></div>
 `;
@@ -1016,10 +1016,10 @@ async function saveProChannelConfig() {
     if (channelVal) updates.push({ key: 'pro_channel_id',    value: channelVal });
     if (adminVal)   updates.push({ key: 'pro_admin_chat_id', value: adminVal });
     for (const u of updates) {
-      await sb.from('app_config').upsert(
+      await sbMust(sb.from('app_config').upsert(
         { key: u.key, value: u.value, updated_at: new Date().toISOString() },
         { onConflict: 'key' }
-      );
+      ));
     }
     toast('저장 완료', 'success');
   } catch(e) { toast('저장 실패: ' + e.message, 'error'); }
@@ -1162,7 +1162,7 @@ async function proSendInviteById(telegramId, months) {
   if (!confirm(`텔레그램 ID ${telegramId}에게 초대 링크를 발송할까요?`)) return;
 
   try {
-    await sb.from('app_config').upsert({
+    await sbMust(sb.from('app_config').upsert({
       key:   'pro_action_flag',
       value: JSON.stringify({
         action:       'invite',
@@ -1170,7 +1170,7 @@ async function proSendInviteById(telegramId, months) {
         months:       months || 1,
         requested_at: new Date().toISOString(),
       }),
-    }, { onConflict: 'key' });
+    }, { onConflict: 'key' }));
     toast('초대 링크 발송 요청 전송 — 봇이 곧 처리합니다.', 'success');
   } catch(e) { toast('요청 실패: ' + e.message, 'error'); }
 }
@@ -1204,20 +1204,20 @@ async function proKick(telegramId, memberName) {
   if (!confirm(`${memberName || telegramId}을(를) 프로 채널에서 퇴장시킬까요?`)) return;
 
   try {
-    await sb.from('app_config').upsert({
+    await sbMust(sb.from('app_config').upsert({
       key:   'pro_action_flag',
       value: JSON.stringify({
         action:       'kick',
         telegram_id:  telegramId,
         requested_at: new Date().toISOString(),
       }),
-    }, { onConflict: 'key' });
+    }, { onConflict: 'key' }));
 
     // DB is_active 즉시 업데이트
-    await sb.from('pro_members').update({
+    await sbMust(sb.from('pro_members').update({
       is_active:  false,
       updated_at: new Date().toISOString(),
-    }).eq('telegram_id', telegramId);
+    }).eq('telegram_id', telegramId));
 
     toast('퇴장 요청 전송 — 봇이 곧 처리합니다.', 'success');
     setTimeout(loadProMembers, 1000);

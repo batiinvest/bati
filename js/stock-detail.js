@@ -381,9 +381,9 @@ async function _sdOverview(body, code, name) {
           ${_sdRow2('커버리지', `${buyCount}개 증권사 · 최근 3개월`)}
           ${(cs.items.length ? cs.items : (opinions||[])).slice(0,4).map(o=>
             `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:calc(12px*var(--m-sub))">
-              <span style="color:var(--text1)">${o.firm_name}</span>
+              <span style="color:var(--text1)">${escapeHtml(o.firm_name)}</span>
               <span style="color:${o.opinion?.includes('매수')||o.opinion==='BUY'?'var(--red)':'var(--text2)'}">
-                ${o.opinion} ${o.target_price?o.target_price.toLocaleString()+'원':''}
+                ${escapeHtml(o.opinion)} ${o.target_price?o.target_price.toLocaleString()+'원':''}
               </span>
             </div>`).join('')}
         `, 'var(--yellow)')}
@@ -700,11 +700,11 @@ async function _sdOpinion(body, code, name) {
           const changed = o.opinion !== o.prev_opinion ? '🔄' : '';
           return `<tr>
             <td style="font-size:calc(11px*var(--m-label));color:var(--text2)">${o.opinion_date}</td>
-            <td style="font-weight:500">${o.firm_name}</td>
+            <td style="font-weight:500">${escapeHtml(o.firm_name)}</td>
             <td style="text-align:center">
-              <span style="color:${opColor};font-weight:700">${changed}${o.opinion||'—'}</span>
+              <span style="color:${opColor};font-weight:700">${changed}${escapeHtml(o.opinion||'—')}</span>
             </td>
-            <td style="color:var(--text2);font-size:calc(12px*var(--m-sub))">${o.prev_opinion||'—'}</td>
+            <td style="color:var(--text2);font-size:calc(12px*var(--m-sub))">${escapeHtml(o.prev_opinion||'—')}</td>
             <td style="text-align:right;font-weight:600">${fmtPrice(o.target_price)}</td>
             <td style="text-align:right;color:${gapColor}">${o.gap_rate!=null?o.gap_rate.toFixed(1)+'%':'—'}</td>
           </tr>`;

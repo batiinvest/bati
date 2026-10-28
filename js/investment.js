@@ -478,7 +478,7 @@ async function refreshInvestment() {
         description: '기관/외국인 수급(랭킹+종목별 투자자) 수동 수집 트리거'
       }, { onConflict: 'key' }));
     }
-    await Promise.all(upserts);
+    await Promise.all(upserts.map(sbMust));   // 실패(RLS 등)를 잡아야 150초 헛폴링을 안 한다
     toast(isWeekend
       ? '📡 매크로(환율·지수) 수집 요청 — 주말은 주식 시장 데이터 수집 제외'
       : '📡 서버 수집 요청 완료 — 수집 완료 확인 후 자동 반영됩니다', 'info');
@@ -988,10 +988,14 @@ async function loadMyStocksCard() {
   const todayKst  = kstToday();   // 공시 기준일 — KST 단일 기준 (fmtDate 로컬TZ 혼용 제거)
   const daysAgo30 = offsetDate(-30);
 
+  // 오늘 공시는 내 종목 이름으로 좁혀 받는다 — 전체(실적 시즌 하루 1,500~2,200건)를 받으면 1,000행에서 잘려 빠짐
+  const wlNames = [...new Set(wlRows.flatMap(r => [r.corp_name, norm(r.corp_name)]).filter(Boolean))];
   const [discRes, reportRes, fv, comp] = await Promise.all([
     sb.from('daily_disclosures')
       .select('corp_name,report_nm,rcept_no,category')
-      .eq('base_date', todayKst),
+      .eq('base_date', todayKst)
+      .in('corp_name', wlNames)
+      .limit(1000),
     sb.from('dart_reports')
       .select('stock_code,stock_name,report_type,receive_date,summary')
       .in('stock_code', stockCodes)

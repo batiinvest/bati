@@ -36,7 +36,7 @@ function dtab(tab, el) {
   } else if (tab === 'msg') {
     if (!canEdit()) { body.innerHTML='<div style="padding:1rem;color:var(--text2);font-size:calc(13px*var(--m-body));text-align:center">발송 권한이 없습니다.</div>'; return; }
     body.innerHTML=`
-      <div class="form-group"><label class="form-label">${r.name}에만 발송</label><textarea class="form-input" id="s-content" rows="4" oninput="prev(this.value,'s-prev')"></textarea></div>
+      <div class="form-group"><label class="form-label">${escapeHtml(r.name)}에만 발송</label><textarea class="form-input" id="s-content" rows="4" oninput="prev(this.value,'s-prev')"></textarea></div>
       <div class="form-group"><label class="form-label">미리보기</label><div id="s-prev" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:calc(13px*var(--m-body));min-height:32px;color:var(--text1)"></div></div>
       <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary" onclick="sendSingleNotice(${r.id})">발송 + DB 저장</button></div>`;
   } else if (tab === 'log') {

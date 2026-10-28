@@ -229,9 +229,9 @@ function renderAssignList(q) {
       ${isUnassigned
         ? `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:100px;background:rgba(255,255,255,.06);color:var(--text2)">미분류</span>`
         : isDiffIndustry
-        ? `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:100px;background:rgba(255,255,255,.06);color:var(--text2)">${s.industry}</span>`
+        ? `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:100px;background:rgba(255,255,255,.06);color:var(--text2)">${escapeHtml(s.industry)}</span>`
         : isOtherSub
-        ? `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:100px;background:rgba(251,99,64,.15);color:var(--yellow)">${s.sub_industry}</span>`
+        ? `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:100px;background:rgba(251,99,64,.15);color:var(--yellow)">${escapeHtml(s.sub_industry)}</span>`
         : inSub
         ? `<span style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:100px;background:rgba(42,171,238,.12);color:var(--tg)">현재</span>`
         : ''}
@@ -278,7 +278,8 @@ async function saveAssign() {
       // data 레벨 종목만 news로 업그레이드
       const dataIds = needIndustry.filter(s => !s.monitoring_level || s.monitoring_level === 'data').map(s => s.id);
       if (dataIds.length) {
-        await sb.from('companies').update({ monitoring_level: 'news', is_monitored: true }).in('id', dataIds);
+        const { error: e2 } = await sb.from('companies').update({ monitoring_level: 'news', is_monitored: true }).in('id', dataIds);
+        if (e2) { toast('모니터링 단계 변경 실패: ' + e2.message, 'error'); ok = false; }
       }
     }
     if (alreadyInIndustry.length) {
@@ -289,7 +290,8 @@ async function saveAssign() {
 
       const dataIds = alreadyInIndustry.filter(s => !s.monitoring_level || s.monitoring_level === 'data').map(s => s.id);
       if (dataIds.length) {
-        await sb.from('companies').update({ monitoring_level: 'news', is_monitored: true }).in('id', dataIds);
+        const { error: e2 } = await sb.from('companies').update({ monitoring_level: 'news', is_monitored: true }).in('id', dataIds);
+        if (e2) { toast('모니터링 단계 변경 실패: ' + e2.message, 'error'); ok = false; }
       }
     }
   }
@@ -392,8 +394,8 @@ function renderStocks(list) {
     <tbody>${list.map(s => `<tr>
       <td style="font-weight:600;font-size:calc(13px*var(--m-body))">${escapeHtml(s.name)}</td>
       <td style="font-size:calc(12px*var(--m-sub));font-family:monospace;color:var(--text1)">${s.code||'—'}</td>
-      <td><span class="badge badge-cat">${s.industry||'—'}</span></td>
-      <td style="font-size:calc(12px*var(--m-sub));color:var(--text1)">${s.sub_industry||'—'}</td>
+      <td><span class="badge badge-cat">${escapeHtml(s.industry||'—')}</span></td>
+      <td style="font-size:calc(12px*var(--m-sub));color:var(--text1)">${escapeHtml(s.sub_industry||'—')}</td>
       <td style="font-size:calc(11px*var(--m-label));color:var(--text1);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escAttr(s.sector||'')}">${escapeHtml(s.sector||'—')}</td>
       <td class="stock-col-keyword" style="font-size:calc(12px*var(--m-sub));color:var(--text1);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(s.keywords||'—')}</td>
       <td>

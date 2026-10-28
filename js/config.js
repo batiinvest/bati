@@ -238,9 +238,12 @@ const _clampScale = pct => {
   return Number.isFinite(v) ? Math.min(FONT_SCALE_MAX, Math.max(FONT_SCALE_MIN, v)) : FONT_SCALE_DEFAULT;
 };
 
-// 저장된 배율(%) — 없거나 이상값이면 기본 100
+// 저장된 배율(%) — 없거나 이상값이면 기본 100. 부팅 중(아래 261줄) 불리므로 저장소가 막힌 환경
+// (사생활 모드·쿠키 차단)에서 localStorage 예외가 나도 config.js가 멈추지 않게 감싼다.
 function getFontScale() {
-  return _clampScale(localStorage.getItem(FONT_SCALE_KEY) ?? FONT_SCALE_DEFAULT);
+  let saved = null;
+  try { saved = localStorage.getItem(FONT_SCALE_KEY); } catch (e) { /* 저장소 차단 */ }
+  return _clampScale(saved ?? FONT_SCALE_DEFAULT);
 }
 
 // 배율 즉시 적용 (저장은 하지 않음). 100%는 zoom 해제(''), 그 외는 소수 비율.
@@ -253,7 +256,7 @@ function applyFontScale(pct) {
 // 배율 저장 + 적용 — 반환: 실제 적용된 값(clamp 후)
 function setFontScale(pct) {
   const v = _clampScale(pct);
-  localStorage.setItem(FONT_SCALE_KEY, String(v));
+  try { localStorage.setItem(FONT_SCALE_KEY, String(v)); } catch (e) { /* 저장소 차단 — 이번 화면에만 적용 */ }
   return applyFontScale(v);
 }
 
@@ -369,6 +372,17 @@ function resetTextColors() {
 
 // 로드 즉시 적용
 applyTextColors(getTextColors());
+
+// ══════════════════════════════════════════
+//  쓰기 결과 확인 — supabase-js는 RLS·제약 위반이어도 throw하지 않고 { error }만 돌려준다.
+//  결과를 안 보면 실패해도 '저장 완료'가 뜬다(10-28 점검 20여 곳). try 안에서:
+//    await sbMust(sb.from('app_config').upsert({...}, { onConflict: 'key' }));
+// ══════════════════════════════════════════
+async function sbMust(query) {
+  const res = await query;
+  if (res?.error) throw res.error;
+  return res;
+}
 
 // ══════════════════════════════════════════
 //  공통 페이징 유틸

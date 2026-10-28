@@ -102,7 +102,8 @@ async function _wlSetCash(v) {
 async function _wlTotalCap(date) {
   if (CACHE.wlTotalCap?.date === date) return CACHE.wlTotalCap.v;
   const rows = await fetchPagesParallel(
-    (a, b) => sb.from('market_data').select('market_cap').eq('base_date', date).range(a, b),
+    // 병렬 range는 정렬이 고정돼야 페이지끼리 겹치거나 빠지지 않는다
+    (a, b) => sb.from('market_data').select('market_cap').eq('base_date', date).order('stock_code').range(a, b),
     sb.from('market_data').select('stock_code', { count: 'exact', head: true }).eq('base_date', date));
   const v = rows.reduce((s, r) => s + (r.market_cap || 0), 0);
   CACHE.wlTotalCap = { date, v };
@@ -529,11 +530,13 @@ function _wlClosedHTML() {
 
 async function wlReopen(code) {
   const r = WL.data.rows.find(x => x.stock_code === code);
-  if (r) await sb.from('watchlist').update({ group_name: '관심', updated_at: new Date().toISOString() }).eq('id', r.id);
-  else {
-    const j = WL.data.journals.find(x => x.stock_code === code);
-    await sb.from('watchlist').insert({ stock_code: code, corp_name: j?.corp_name || code, group_name: '관심' });
-  }
+  try {
+    if (r) await sbMust(sb.from('watchlist').update({ group_name: '관심', updated_at: new Date().toISOString() }).eq('id', r.id));
+    else {
+      const j = WL.data.journals.find(x => x.stock_code === code);
+      await sbMust(sb.from('watchlist').insert({ stock_code: code, corp_name: j?.corp_name || code, group_name: '관심' }));
+    }
+  } catch (e) { toast('다시 담기 실패: ' + e.message, 'error'); return; }
   WL.tab = 'book';
   document.querySelectorAll('[data-wl-tab]').forEach(b => b.classList.toggle('active', b.dataset.wlTab === 'book'));
   loadWatchlist();
@@ -662,7 +665,7 @@ async function wlAdd(code, name, hedge) {
   try {
     const { data: ex } = await sb.from('watchlist').select('id,group_name').eq('stock_code', code).limit(1);
     if (ex?.[0]) {
-      if (ex[0].group_name === '청산') await sb.from('watchlist').update({ group_name: '관심', hedge, updated_at: new Date().toISOString() }).eq('id', ex[0].id);
+      if (ex[0].group_name === '청산') await sbMust(sb.from('watchlist').update({ group_name: '관심', hedge, updated_at: new Date().toISOString() }).eq('id', ex[0].id));
       else { toast?.('이미 표에 있습니다', 'info'); return; }
     } else {
       const { error } = await sb.from('watchlist').insert({ stock_code: code, corp_name: name, group_name: '관심', hedge });

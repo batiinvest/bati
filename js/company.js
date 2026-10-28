@@ -330,13 +330,13 @@ function _renderSubCard(ind, sub, stocks) {
 }
 
 function _renderStockChip(s) {
-  const code = s.code.replace(/\.(KS|KQ)$/, '');
-  const mkt  = s.code.endsWith('.KS') ? 'KOSPI' : 'KOSDAQ';
+  const code = s.code;
+  const mkt  = escapeHtml(s.market || '—');   // 예전엔 '.KS' 접미사로 판정 → 접미사가 없어져 전부 KOSDAQ으로 보였음
   const safeName = escJsStr(s.name);
   return `
   <div class="mon-stock-chip" draggable="true"
-    data-code="${code}" data-name="${escAttr(s.name)}"
-    data-industry="${s.industry||''}" data-sub="${s.sub_industry||''}"
+    data-code="${escAttr(code)}" data-name="${escAttr(s.name)}"
+    data-industry="${escAttr(s.industry||'')}" data-sub="${escAttr(s.sub_industry||'')}"
     style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;
       background:var(--bg3);border-radius:4px;cursor:grab;border:1px solid transparent;
       font-size:calc(12px*var(--m-sub));transition:border-color .15s;gap:6px"
@@ -390,15 +390,18 @@ function _monInitDnd() {
   });
 }
 
-async function _updateCodeVariants(code, payload) {
-  for (const c of [code, code+'.KS', code+'.KQ']) {
-    await sb.from('companies').update(payload).eq('code', c);
-  }
+// companies 갱신 — code는 접미사 없는 6자리(10-28 실측 .KS/.KQ 0건이라 예전 bare·.KS·.KQ 3번 update는 2번이 늘 0행).
+// codes: 코드 하나 또는 배열(서브섹터·산업 일괄은 한 번에). supabase-js는 실패해도 throw하지 않아 error를 직접 던진다.
+async function _monUpdateCompanies(codes, payload) {
+  const list = [].concat(codes).filter(Boolean);
+  if (!list.length) return;
+  const { error } = await sb.from('companies').update(payload).in('code', list);
+  if (error) throw error;
 }
 
 async function _monMoveStock(code, name, newInd, newSub) {
   try {
-    await _updateCodeVariants(code, { industry: newInd||null, sub_industry: newSub||null });
+    await _monUpdateCompanies(code, { industry: newInd||null, sub_industry: newSub||null });
     await _monLoadBoard();
     toast(`✅ ${name} → ${newInd}${newSub ? '/'+newSub : ''}`, 'success');
   } catch(e) { toast('이동 실패: '+e.message, 'error'); }
@@ -408,7 +411,7 @@ async function _monMoveStock(code, name, newInd, newSub) {
 async function monRemoveStock(code, name) {
   if (!confirm(`'${name}'을(를) 모니터링에서 제거할까요?\n(기업 데이터는 유지됩니다)`)) return;
   try {
-    await _updateCodeVariants(code, { is_monitored: false, monitoring_level: 'data' });
+    await _monUpdateCompanies(code, { is_monitored: false, monitoring_level: 'data' });
     _monMarkDirty();
     await _monLoadBoard();
     toast(`🗑 ${name} 모니터링 제거`, 'success');
@@ -482,10 +485,7 @@ async function monAddSelected() {
   if (!ind) { toast('산업을 선택하세요', 'error'); return; }
   const { code, name } = _monSelStock;
   try {
-    for (const c of [code, code+'.KS', code+'.KQ']) {
-      await sb.from('companies').update({ is_monitored:true, monitoring_level:'news', industry:ind, sub_industry:sub||null })
-        .eq('code', c)
-    }
+    await _monUpdateCompanies(code, { is_monitored:true, monitoring_level:'news', industry:ind, sub_industry:sub||null });
     _monMarkDirty();
     document.getElementById('mon-add-panel').style.display = 'none';
     document.getElementById('mon-search').value = '';
@@ -516,9 +516,9 @@ async function monDeleteIndustry(ind) {
     ? `'${ind}' 산업의 ${stocks.length}개 종목을 모두 모니터링에서 제거할까요?`
     : `'${ind}' 산업을 삭제할까요?`;
   if (!confirm(msg)) return;
-  for (const s of stocks) {
-    await _updateCodeVariants(s.code, { is_monitored: false, monitoring_level: 'data' });
-  }
+  try {
+    await _monUpdateCompanies(stocks.map(s => s.code), { is_monitored: false, monitoring_level: 'data' });
+  } catch (e) { toast('삭제 실패: ' + e.message, 'error'); return; }
   if (stocks.length) {
     _monMarkDirty();
   }
@@ -562,9 +562,9 @@ function monEditSub(labelEl, ind, oldSub) {
 
     // DB 업데이트 - 해당 서브섹터 종목들 일괄 변경
     const stocks = _monData[ind]?.[oldSub] || [];
-    for (const s of stocks) {
-      await _updateCodeVariants(s.code, { sub_industry: newSub });
-    }
+    try {
+      await _monUpdateCompanies(stocks.map(s => s.code), { sub_industry: newSub });
+    } catch (e) { labelEl.textContent = oldSub; toast('이름 변경 실패: ' + e.message, 'error'); return; }
     // 내부 상태 업데이트
     if (_monData[ind]) {
       _monData[ind][newSub] = _monData[ind][oldSub] || [];
@@ -590,11 +590,9 @@ function monEditSub(labelEl, ind, oldSub) {
 async function monDeleteSub(ind, sub) {
   const stocks = _monData[ind]?.[sub] || [];
   if (stocks.length && !confirm(`'${sub}'의 ${stocks.length}개 종목을 서브섹터에서 제거할까요?\n(모니터링은 유지)`)) return;
-  for (const s of stocks) {
-    for (const c of [s.code, s.code+'.KS', s.code+'.KQ']) {
-      await sb.from('companies').update({ sub_industry:null }).eq('code',c)
-    }
-  }
+  try {
+    await _monUpdateCompanies(stocks.map(s => s.code), { sub_industry: null });
+  } catch (e) { toast('삭제 실패: ' + e.message, 'error'); return; }
   delete _monData[ind][sub];
   document.getElementById('mon-board').innerHTML = _monInds.map(i => _renderIndustryCard(i, _monData[i])).join('');
   _monInitDnd();
@@ -612,11 +610,12 @@ async function monApply() {
 
   try {
     // reload_flag 트리거
-    await sb.from('app_config').upsert({
+    const { error } = await sb.from('app_config').upsert({
       key: 'reload_flag',
       value: String(Date.now()),
       description: '모니터링 종목 변경 - 대시보드'
     }, { onConflict: 'key' });
+    if (error) throw error;
 
     toast('📡 봇에 변경사항 전송 완료 — 약 1분 후 반영됩니다', 'success');
 
@@ -786,11 +785,12 @@ async function etfApply() {
 
   try {
     // collect_us_etf 수집 트리거
-    await sb.from('app_config').upsert({
+    const { error } = await sb.from('app_config').upsert({
       key: 'etf_collect_flag',
       value: String(Date.now()),
       description: 'US ETF 데이터 수집 트리거 - 대시보드'
     }, { onConflict: 'key' });
+    if (error) throw error;
 
     toast('📡 US ETF 수집 트리거 완료 — 약 1분 후 데이터가 갱신됩니다', 'success');
 

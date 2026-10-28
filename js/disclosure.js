@@ -28,18 +28,21 @@ async function loadAllDisclosures() {
 
   el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))"><span class="loading"></span> 공시 목록 불러오는 중...</div>`;
 
-  // ── 단일 쿼리: daily_disclosures 테이블에서 오늘 전체 조회 ──
-  const todayStr = fmtDate();   // config.js fmtDate() 공통 헬퍼 사용
-
-  const { data: all, error } = await sb.from('daily_disclosures')
-    .select('corp_code,corp_name,report_nm,rcept_no,category,market_cap,insider_summary')
-    .eq('base_date', todayStr)
-    .order('category')
-    .order('corp_name');
+  // ── daily_disclosures 오늘 전체 — 실적 시즌엔 하루 1,500~2,200건이라 페이지로 다 받는다(1,000행 잘림 방지) ──
+  const todayStr = kstToday();
+  let all, error = null;
+  try {
+    all = await fetchAllPages(sb.from('daily_disclosures')
+      .select('corp_code,corp_name,report_nm,rcept_no,category,market_cap,insider_summary')
+      .eq('base_date', todayStr)
+      .order('category')
+      .order('corp_name')
+      .order('rcept_no'));   // 페이지 경계 결정성
+  } catch (e) { error = e; }
 
   if (error || !all?.length) {
     el.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))">
-      ${error ? '조회 오류: ' + error.message : '전체 공시 데이터 없음 (매일 18:30 업데이트)'}
+      ${error ? '조회 오류: ' + escapeHtml(error.message) : '전체 공시 데이터 없음 (매일 18:30 업데이트)'}
     </div>`;
     return;
   }
@@ -81,7 +84,7 @@ async function loadAllDisclosures() {
   });
 
   const dartLink = (d) =>
-    d.rcept_no ? `https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${d.rcept_no}` : null;
+    d.rcept_no ? `https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${encodeURIComponent(d.rcept_no)}` : null;
 
   // insider_summary → 배지 HTML
   const reasonBadge = (summary) => {
@@ -91,7 +94,7 @@ async function loadAllDisclosures() {
       const parts = [];
       if (buy)    parts.push(`<span style="color:var(--red);font-size:calc(11px*var(--m-label));font-weight:600">▲예정취득 ${buy.toLocaleString()}주</span>`);
       if (sell)   parts.push(`<span style="color:var(--blue);font-size:calc(11px*var(--m-label));font-weight:600">▼예정처분 ${sell.toLocaleString()}주</span>`);
-      if (period) parts.push(`<span style="color:var(--text2);font-size:calc(11px*var(--m-label))">(${period})</span>`);
+      if (period) parts.push(`<span style="color:var(--text2);font-size:calc(11px*var(--m-label))">(${escapeHtml(period)})</span>`);
       return parts.join(' ');
     }
     if (type === 'major') return `<span style="color:var(--yellow);font-size:calc(11px*var(--m-label));font-weight:600">⚠ 최대주주 지분변동</span>`;
@@ -152,14 +155,14 @@ async function loadAllDisclosures() {
                 background:var(--bg3);border-radius:var(--radius-sm);
                 border:1px solid ${badge ? 'var(--border2)' : 'var(--border)'};
                 cursor:${link ? 'pointer' : 'default'}"
-                ${link ? `onclick="window.open('${link}','_blank')"` : ''}>
+                ${link ? `onclick="window.open('${escJsStr(link)}','_blank','noopener')"` : ''}>
               <div style="display:flex;align-items:center;gap:6px">
                 <span style="font-size:calc(12px*var(--m-sub));font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
-                      title="${d.report_nm}">${d.corp_name}</span>
+                      title="${escAttr(d.report_nm)}">${escapeHtml(d.corp_name)}</span>
                 ${countBadge}
-                ${link ? `<a href="${link}" target="_blank"
+                ${link ? `<a href="${escAttr(link)}" target="_blank" rel="noopener"
                     style="font-size:calc(11px*var(--m-label));color:var(--tg);flex-shrink:0;text-decoration:none"
-                    onclick="event.stopPropagation()" title="${d.report_nm}">DART↗</a>` : ''}
+                    onclick="event.stopPropagation()" title="${escAttr(d.report_nm)}">DART↗</a>` : ''}
               </div>
               ${badge ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${badge}</div>` : ''}
             </div>`;
@@ -176,7 +179,7 @@ async function loadTodayDisclosures() {
   const el = document.getElementById('inv-disclosure-list');
   if (!el) return;
 
-  setAsOf('inv-disclosure-date', fmtDate());
+  setAsOf('inv-disclosure-date', kstToday());
 
   const { data: cfg } = await sb.from('app_config')
     .select('value,description')
@@ -212,7 +215,7 @@ async function loadTodayDisclosures() {
         return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg3);
             border-radius:var(--radius-sm);border:1px solid ${c.is_amended ? 'rgba(245,158,11,.3)' : 'var(--border)'}">
           <span style="font-size:calc(11px*var(--m-label));padding:2px 6px;border-radius:100px;background:${badge.bg};color:${badge.color};font-weight:600;white-space:nowrap">${badge.label}</span>
-          <span style="font-size:calc(13px*var(--m-body));font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.corp_name}</span>
+          <span style="font-size:calc(13px*var(--m-body));font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(c.corp_name)}</span>
         </div>`;
       }).join('')}
     </div>

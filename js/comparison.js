@@ -258,14 +258,14 @@ async function onCmpSearch(q) {
         const already = CMP.selectedCodes.find(s => s.code === code);
         return `<div
           data-code="${code}"
-          data-name="${r.name.replace(/"/g,'&quot;')}"
-          data-industry="${(r.industry||'').replace(/"/g,'&quot;')}"
+          data-name="${escAttr(r.name)}"
+          data-industry="${escAttr(r.industry || '')}"
           onclick="addCmpStockFromEl(this)"
           style="padding:8px 12px;font-size:calc(13px*var(--m-body));cursor:pointer;display:flex;justify-content:space-between;align-items:center;
           border-bottom:1px solid var(--border);${already?'opacity:.4;pointer-events:none':''}">
-          <span style="font-weight:500">${r.name} <span class="card-sub">${code}</span></span>
+          <span style="font-weight:500">${escapeHtml(r.name)} <span class="card-sub">${code}</span></span>
           <span style="font-size:calc(11px*var(--m-label));color:${CATS[r.industry]||'var(--text3)'}">
-            ${already?'추가됨':r.industry||''}
+            ${already?'추가됨':escapeHtml(r.industry||'')}
           </span>
         </div>`;
       }).join('');
@@ -342,8 +342,8 @@ function renderCmpSelected() {
     <div style="display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:var(--radius-sm);background:var(--bg3);margin-bottom:4px">
       <span style="width:10px;height:10px;border-radius:50%;background:${CMP_COLORS[i%CMP_COLORS.length]};flex-shrink:0"></span>
       <div style="flex:1;min-width:0">
-        <div style="font-size:calc(12px*var(--m-sub));overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</div>
-        ${s.subIndustry ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text2)">${s.subIndustry}</div>` : ''}
+        <div style="font-size:calc(12px*var(--m-sub));overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(s.name)}</div>
+        ${s.subIndustry ? `<div style="font-size:calc(11px*var(--m-label));color:var(--text2)">${escapeHtml(s.subIndustry)}</div>` : ''}
       </div>
       <span style="font-size:calc(11px*var(--m-label));color:var(--text2)">${s.code}</span>
       <button onclick="removeCmpStock('${s.code}')"
@@ -535,7 +535,7 @@ async function runComparison() {
                 const mkt = mktMap[s.code];
                 const w52 = weekData[s.code];
                 const color = CMP_COLORS[i % CMP_COLORS.length];
-                if (!ma && !mkt) return `<tr><td colspan="11" style="padding:8px 12px;color:var(--text2);font-size:calc(12px*var(--m-sub))">${s.name} — 시장 데이터 없음</td></tr>`;
+                if (!ma && !mkt) return `<tr><td colspan="11" style="padding:8px 12px;color:var(--text2);font-size:calc(12px*var(--m-sub))">${escapeHtml(s.name)} — 시장 데이터 없음</td></tr>`;
                 const price = ma?.price || mkt?.price;
                 const chg = ma?.chg ?? mkt?.price_change_rate;
                 const ma5pos  = ma && price > ma.ma5  ? 'var(--red)' : 'var(--blue)';
@@ -559,7 +559,7 @@ async function runComparison() {
                   <td>
                     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
                       <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></span>
-                      <span style="font-weight:500">${s.name}</span>
+                      <span style="font-weight:500">${escapeHtml(s.name)}</span>
                       ${ma?.newHigh ? `<span style="font-size:calc(11px*var(--m-label));padding:1px 5px;border-radius:3px;
                         background:${ma.newHighCode==='3'?'rgba(255,193,7,.2)':ma.newHighCode==='2'?'rgba(255,107,54,.2)':'rgba(42,171,238,.15)'};
                         color:${ma.newHighCode==='3'?'#ffc107':ma.newHighCode==='2'?'#ff6b35':'var(--tg)'};
@@ -576,7 +576,7 @@ async function runComparison() {
                   <td class="num">${mkt?.pbr ? mkt.pbr.toFixed(2) : '—'}</td>
                   <td class="ctr">${w52bar || '—'}</td>
                   <td class="ctr">
-                    <button onclick="cmpAddToMonitor('${s.code}','${s.name}')"
+                    <button onclick="cmpAddToMonitor('${escJsStr(s.code)}','${escJsStr(s.name)}')"
                       style="font-size:calc(11px*var(--m-label));padding:3px 8px;border-radius:4px;border:1px solid ${isMonitored?'var(--green)':'var(--border)'};
                         background:${isMonitored?'rgba(45,206,137,.1)':'none'};color:${isMonitored?'var(--green)':'var(--text3)'};cursor:pointer">
                       ${isMonitored ? '✓ 모니터링 중' : '+ 모니터링'}
@@ -831,7 +831,7 @@ function renderCmpDetailTable(metricKey) {
             <td style="padding:8px 12px;position:sticky;left:0;background:var(--bg2);min-width:120px">
               <div style="display:flex;align-items:center;gap:6px;white-space:nowrap">
                 <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></span>
-                <span style="font-weight:500;font-size:calc(12px*var(--m-sub))">${s.name}</span>
+                <span style="font-weight:500;font-size:calc(12px*var(--m-sub))">${escapeHtml(s.name)}</span>
                 ${noData ? `<span title="보고서에 수주잔고를 싣지 않음(영업 기밀·NDA 등) 또는 수집 대상(반도체 장비) 밖"
                   style="font-size:calc(11px*var(--m-label));color:var(--text3)">잔고 없음</span>` : ''}
               </div>
@@ -1113,7 +1113,7 @@ function drawCmpChart(canvas, datasets, labels, metaDef) {
         border-radius:100px;background:rgba(255,255,255,.06);font-size:calc(12px*var(--m-sub))">
         <span style="font-size:calc(11px*var(--m-label));font-weight:700;color:${rankColor};min-width:22px;text-align:center">${i+1}위</span>
         <span style="width:6px;height:6px;border-radius:50%;background:${x.color}"></span>
-        <strong>${x.name}</strong>
+        <strong>${escapeHtml(x.name)}</strong>
         <span style="color:var(--text2)">${dispVal}</span>
       </span>`;
     }).join('');
@@ -1217,12 +1217,20 @@ document.addEventListener('click', e => {
 
 // ── 비교 화면에서 모니터링 추가 ──
 async function cmpAddToMonitor(code, name) {
+  if (typeof canEdit === 'function' && !canEdit()) { toast('권한이 없습니다.', 'error'); return; }
+  if (A.monitoredSet?.has(code)) return;
   try {
-    const fullCode = code + (code.endsWith('.KS') || code.endsWith('.KQ') ? '' : '.KS');
-    await sb.from('companies').update({ is_monitored: true }).eq('code', fullCode);
+    // companies.code는 접미사 없는 6자리(예전 '.KS' 붙여 update → 0행 갱신인데 성공 토스트였음, 10-28)
+    const { data: cur, error: e1 } = await sb.from('companies').select('code,monitoring_level').eq('code', code).maybeSingle();
+    if (e1) throw e1;
+    if (!cur) throw new Error('종목 정보를 찾을 수 없습니다');
+    const { error: e2 } = await sb.from('companies')
+      .update({ is_monitored: true, monitoring_level: cur.monitoring_level || 'news' }).eq('code', code);
+    if (e2) throw e2;
+    await triggerBotReload();   // 모니터링 종목 화면의 [적용]과 같은 신호(config.js 공용)
     A.monitoredSet = A.monitoredSet || new Set();
     A.monitoredSet.add(code);
-    toast(`${name} 모니터링 추가됨`, 'success');
+    toast(`${name} 모니터링 추가됨 — 약 1분 후 봇 반영`, 'success');
     // 버튼 즉시 업데이트
     document.querySelectorAll(`button[onclick*="${code}"]`).forEach(btn => {
       if (btn.textContent.includes('모니터링')) {
