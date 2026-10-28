@@ -943,12 +943,108 @@ function flowGaugeBar(gg) {
   return h + `<span style="margin-left:2px;color:${gg.color}">${gg.up ? '↑' : '↓'}</span>`;
 }
 
-/** 칸 표 툴팁 — 원본 엑셀 표를 한 줄로 */
+/** 칸 표 툴팁 — 원본 엑셀 표를 한 줄로. 수급 위치가 있으면 앞에 붙인다 */
 function flowGaugeTip(g, gg) {
   if (!g || !gg) return '';
   const f = v => (v >= 0 ? '+' : '') + v.toFixed(3) + '%';
-  return FLOW_LEVEL_NAMES.map((n, i) => `${n} ${f(g.lv[i])}${g.cur >= g.lv[i] ? '■' : '□'}`).join(' · ')
+  const pos = flowPos(g);
+  return (pos ? flowPosTip(pos) + ' | ' : '')
+    + FLOW_LEVEL_NAMES.map((n, i) => `${n} ${f(g.lv[i])}${g.cur >= g.lv[i] ? '■' : '□'}`).join(' · ')
     + ` | 현재 ${f(g.cur)} (전일 ${f(g.prev)}) · ${gg.fill}/5칸 ${gg.up ? '↑' : '↓'} ${gg.label}`;
+}
+
+// ══════════════════════════════════════════
+//  수급 위치(퍼센타일) — 태린이아빠 「1400종목 수급오실레이터 퍼센타일」(2026-10-28)
+//  원본은 칸 표 대신 차트 아래 가로바 하나로 본다: 현재 오실레이터가 최근 60개 관측치(60거래일) 안에서
+//  놓인 위치 P0~P100(Excel PERCENTRANK.INC, 관측치 20개부터)과 5거래일 변화(%p).
+//  가로바 색 구간도 원본 그대로 — P0~10 · P10~25 · P25~75 · P75~90 · P90~100.
+//  값은 백엔드(collect_flow_empty·collect_sector_flow _position)가 flow_gauge/gauge에 {p, n, d5}로 적고,
+//  수급 지도·업종 차트처럼 이력을 가진 화면은 flowPosOf로 직접 계산한다(같은 계산 — 바꾸면 둘 다).
+// ══════════════════════════════════════════
+const FLOW_POS = { win: 60, min: 20, d: 5 };
+const FLOW_ZONES = [
+  { to: 10,  label: 'P0~10',   color: '#3779AB' },
+  { to: 25,  label: 'P10~25',  color: '#87B8D7' },
+  { to: 75,  label: 'P25~75',  color: '#D4DAE0' },
+  { to: 90,  label: 'P75~90',  color: '#E4B17A' },
+  { to: 100, label: 'P90~100', color: '#CF705B' },
+];
+
+/** flow_gauge(또는 flowPosOf 결과) → { p, n, d5, zone } 또는 null(위치 없는 옛 판정 행) */
+function flowPos(g) {
+  if (!g || g.p == null) return null;
+  const p = +g.p, zi = FLOW_ZONES.findIndex(z => p < z.to);
+  return { p, n: g.n ?? null, d5: g.d5 ?? null, zone: FLOW_ZONES[zi < 0 ? FLOW_ZONES.length - 1 : zi] };
+}
+
+/** 오실레이터 이력(오래된→최근) → 마지막 값의 수급 위치 {p, n, d5} — 백엔드 _position과 같은 계산 */
+function flowPosOf(vals) {
+  const at = end => {
+    const w = vals.slice(Math.max(0, end - FLOW_POS.win), end);
+    if (w.length < FLOW_POS.min) return null;
+    const c = w[w.length - 1];
+    let lt = 0, eq = 0;
+    for (const v of w) { if (v < c) lt++; else if (v === c) eq++; }
+    return (lt + 0.5 * (eq - 1)) / (w.length - 1) * 100;   // 같은 값은 가운데 순위
+  };
+  const p = at(vals.length);
+  if (p == null) return null;
+  const p5 = at(vals.length - FLOW_POS.d);
+  const r1 = v => Math.round(v * 10) / 10;
+  return { p: r1(p), n: Math.min(vals.length, FLOW_POS.win), d5: p5 == null ? null : r1(p - p5) };
+}
+
+const _flowPosP  = pos => `P${pos.p.toFixed(1)}`;
+const _flowPosD5 = pos => pos.d5 == null ? '' : `${pos.d5 > 0 ? '+' : ''}${pos.d5.toFixed(1)}%p`;
+
+/** 위치 막대(작게) — 원본 가로바의 5색 구간 + 현재 위치 눈금. 글자 크기를 따라 커지게 em 단위 */
+function flowPosBar(pos, w = 4.6) {
+  if (!pos) return '';
+  let from = 0, seg = '';
+  for (const z of FLOW_ZONES) {
+    seg += `<span style="position:absolute;top:0;bottom:0;left:${from}%;width:${z.to - from}%;background:${z.color}"></span>`;
+    from = z.to;
+  }
+  return `<span style="position:relative;display:inline-block;width:${w}em;height:.6em;vertical-align:0;border-radius:2px">${seg}`
+    + `<span style="position:absolute;top:-.22em;bottom:-.22em;left:calc(${pos.p}% - 1.5px);width:3px;border-radius:1px;`
+    + `background:var(--text);box-shadow:0 0 0 1px var(--bg)"></span></span>`;
+}
+
+/** 위치 한 줄 설명 — 툴팁용 */
+function flowPosTip(pos) {
+  if (!pos) return '';
+  return `수급 위치 ${_flowPosP(pos)} (최근 ${pos.n ?? '—'}개 관측치, ${pos.zone.label})`
+    + (pos.d5 != null ? ` · 5거래일 변화 ${_flowPosD5(pos)}` : '');
+}
+
+/** 위치 블록(크게) — 원본 차트 아래 가로바 그대로: 제목 줄 + 5색 막대 + ▼ + P0·P25·P50·P75·P100 눈금 */
+function flowPosBlock(pos) {
+  if (!pos) return '';
+  let from = 0, seg = '';
+  for (const z of FLOW_ZONES) {
+    seg += `<span title="${z.label}" style="position:absolute;top:0;bottom:0;left:${from}%;width:${z.to - from}%;background:${z.color}"></span>`;
+    from = z.to;
+  }
+  const ticks = [0, 25, 50, 75, 100].map(t =>
+    `<span style="position:absolute;left:${t}%;transform:translateX(${t === 0 ? '0' : t === 100 ? '-100%' : '-50%'})">P${t}</span>`).join('');
+  return `<div style="max-width:420px">
+    <div style="font-size:calc(12px*var(--m-sub));color:var(--text1);margin-bottom:3px">현재 수급 위치 <b>${_flowPosP(pos)}</b>
+      <span style="color:var(--text2)">(최근 ${pos.n ?? '—'}개 유효 관측치)</span>
+      ${pos.d5 != null ? `<span style="margin-left:6px;color:var(--text1)">5거래일 변화 <b>${_flowPosD5(pos)}</b></span>` : ''}</div>
+    <div style="position:relative;height:16px;margin-top:12px">
+      <span style="position:absolute;bottom:100%;left:${pos.p}%;transform:translateX(-50%);line-height:1;font-size:calc(13px*var(--m-label));color:var(--text)">▼</span>
+      <span style="position:absolute;inset:0;overflow:hidden;border-radius:2px">${seg}</span>
+    </div>
+    <div style="position:relative;height:1.3em;margin-top:2px;font-size:calc(10.5px*var(--m-label));color:var(--text2)">${ticks}</div>
+  </div>`;
+}
+
+/** 수급 표시 한 줄(표·목록 공용) — 위치 막대 + P + 단계 이름. 위치가 없는 옛 판정 행은 칸 그림으로 */
+function flowBadge(g, gg = flowGauge(g)) {
+  if (!gg) return '';
+  const pos = flowPos(g);
+  const vis = pos ? `${flowPosBar(pos)} <b style="color:var(--text1)">P${Math.round(pos.p)}</b>` : flowGaugeBar(gg);
+  return `${vis} <span style="color:${gg.color};font-weight:600">${gg.label}</span>`;
 }
 
 

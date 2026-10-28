@@ -10,8 +10,9 @@
  * 기업분석 표의 '주도 업종' 보드·'빈집' 열과 같은 데이터다.
  *
  * '업종 수급' 열 = 업종 수급 오실레이터(collect_sector_flow.py → sector_flow_osc) — 원본 「외국인기관수급
- *   오실레이터 (업종)」: 업종 5일 (외국인+기관) 순매수 ÷ 시가총액의 MACD − 시그널, 63거래일 안 수급 칸.
- *   칸을 누르면 원본 차트처럼 업종 시가총액 + 오실레이터를 펼친다.
+ *   오실레이터 (업종)」: 업종 5일 (외국인+기관) 순매수 ÷ 시가총액의 MACD − 시그널. 최근 60거래일 안 위치 P
+ *   (10-28 원본 1400종목 퍼센타일 가로바와 같은 계산) + 63거래일 수급 칸의 단계 이름.
+ *   누르면 10-28 원본 「업종_시가총액_오실레이터」 차트처럼 업종 시가총액 선 + 오실레이터 선 + 위치 가로바.
  *
  * 09-29 업종 보드 통일(WICS 중분류 28개) — 옛 '산업별 수급동향'(자체 산업 분류·4사분면) 카드를 없애고
  * 태린이아빠 자료로 대체한 줄·열을 이 카드에 모았다.
@@ -21,7 +22,7 @@
  *       ← leading_sectors 확장 컬럼 (collect_leading.py)
  *
  * 의존: sb, chgColor, escapeHtml, escAttr, escJsStr, loadingHTML, _ICO, fmtTV, flowGauge·flowGaugeBar·
- *       flowGaugeTip·FLOW_LEVEL_NAMES·chartTheme (config.js), Chart.js
+ *       flowGaugeTip·flowPos·flowPosOf·flowPosBlock·flowBadge·FLOW_LEVEL_NAMES·SERIES_PAL·chartTheme (config.js), Chart.js
  *       FIN (financials.js — 업종 클릭 시 기업분석 표를 그 중분류로 걸러 연다)
  */
 
@@ -256,7 +257,7 @@ function _renderSectorLead() {
           <th title="지수가 11일선 · 20일선 · 50일선(10주선) 위면 ●" style="padding:6px 8px;font-weight:600;color:var(--text2);font-size:calc(11px*var(--m-label))">11·20·50일선</th>
           ${th('flow_pos_days', '순매수일', '참고 — 최근 20거래일 중 업종 전체 기관+외국인이 순매수한 날')}
           ${th('newhigh_5d', '신고가', '최근 5거래일 52주 신고가 종목 수 (군집)')}
-          ${SL.osc ? th('fstage', '업종 수급', '업종 수급 오실레이터(외국인+기관 5일 순매수 ÷ 시가총액의 MACD − 시그널)의 최근 63거래일 안 칸 — 원본 「외국인기관수급오실레이터 (업종)」. 누르면 차트', 'left') : ''}
+          ${SL.osc ? th('fstage', '업종 수급', '업종 수급 오실레이터(외국인+기관 5일 순매수 ÷ 시가총액의 MACD − 시그널)의 최근 60거래일 안 위치 P(원본 1400종목 퍼센타일 가로바, 정렬도 P) + 단계 이름(최근 63거래일 칸) — 원본 「외국인기관수급오실레이터 (업종)」. 누르면 차트', 'left') : ''}
           ${th('n_empty', '빈집·시작', '이 업종에서 수급 빈집(수급 칸 2개 이하 — 현재 오실레이터가 최근 63거래일 평균 아래)인 종목 수 · 수급 단계 \'이제 시작\' 종목 수')}
           ${th('n_stocks', '종목', '업종 종목 수')}
         </tr></thead>
@@ -296,20 +297,20 @@ function _slBuyTip(r) {
   return `연기금·사모·투신 매수대금 ${fmtTV(r.buy3_now)} (${r.buy_date} 하루) · 최근 5거래일 평균 ${r.buy3_avg5 != null ? fmtTV(r.buy3_avg5) : '—'}`;
 }
 
-// 표의 '업종 수급' 칸 — 칸 그림 + 단계, 누르면 차트
+// 표의 '업종 수급' 칸 — 수급 위치 막대·P + 단계, 누르면 차트
 function _slFlowCell(r) {
   const g = _slGauge(r.mid_code);
   if (!g?.gg) return '<span style="color:var(--text3)">—</span>';
   return `<span onclick="toggleSlOsc('${escJsStr(r.mid_code)}')" style="cursor:pointer;white-space:nowrap" `
-    + `title="${escAttr(flowGaugeTip(g.o.gauge, g.gg) + ' — 누르면 차트')}">`
-    + `${flowGaugeBar(g.gg)} <span style="color:${g.gg.color};font-weight:600">${g.gg.label}</span></span>`;
+    + `title="${escAttr(flowGaugeTip(g.o.gauge, g.gg) + ' — 누르면 차트')}">${flowBadge(g.o.gauge, g.gg)}</span>`;
 }
 
 // 펼친 행 — 시장 전환 + 차트 캔버스 + 원본 '그래프뽑기' 칸 표
 function _slOscRow(r) {
   const chips = Object.entries(_SL_MKT).map(([k, lbl]) => {
     const g = _slGauge(r.mid_code, k);
-    const st = g?.gg ? ` <span style="color:${g.gg.color}">${g.gg.label}</span>` : '';
+    const pos = g ? flowPos(g.o.gauge) : null;
+    const st = g?.gg ? `${pos ? ` P${Math.round(pos.p)}` : ''} <span style="color:${g.gg.color}">${g.gg.label}</span>` : '';
     return `<button class="chip chip-sm ${SL.oscMkt === k ? 'active' : ''}" onclick="setSlOscMkt('${k}')">${lbl}${st}</button>`;
   }).join('');
   return `<tr><td colspan="${SL.ncol}" style="padding:8px 12px 12px;background:var(--bg2);border-top:1px solid var(--border)">
@@ -319,6 +320,7 @@ function _slOscRow(r) {
       <span id="sl-osc-info" style="margin-left:auto;color:var(--text2);font-size:calc(11px*var(--m-label))"></span>
     </div>
     <div style="position:relative;height:230px"><canvas id="sl-osc-chart"></canvas></div>
+    <div id="sl-osc-pos" style="margin-top:8px"></div>
     <div id="sl-osc-levels" style="margin-top:6px;font-size:calc(11px*var(--m-label));color:var(--text2);line-height:1.6"></div>
   </td></tr>`;
 }
@@ -333,7 +335,8 @@ function setSlOscMkt(m) {
   _renderSectorLead();
 }
 
-// 원본 차트와 같게 — 업종 시가총액(원본도 가격 대신 시총) 선 + 오실레이터 막대 + 칸 기준선
+// 원본 차트와 같게 — 「업종_시가총액_오실레이터」(2026-10-28): 업종 시가총액 선(좌) + 오실레이터 선(우, 빨강)
+// + '최근 OSC', 아래에 수급 위치 가로바(종목 퍼센타일 파일과 같은 계산). 칸은 아래 글줄로만
 async function _slRenderOscChart() {
   const mid = SL.open, mkt = SL.oscMkt;
   if (!mid || !document.getElementById('sl-osc-chart')) return;
@@ -356,24 +359,16 @@ async function _slRenderOscChart() {
     const labels = rows.map(r => r.base_date);
     const last = rows[rows.length - 1];
     const lv = last.gauge?.lv || [];
-    const t = chartTheme(), css = getComputedStyle(document.documentElement);
-    const upC = css.getPropertyValue('--up').trim() || '#f5365c', dnC = css.getPropertyValue('--down').trim() || '#4a9eff';
-    // 상위·하위는 같은 색 계열에서 진하기로 구분(10%=진함, 25%=연함) — 예전 하위 25·10%가 #4a9eff·#2AABEE로 거의 같았음
-    const lvColor = ['#f5365c', '#fda4af', '#8898aa', '#93c5fd', '#3b82f6'];
-    const lvSets = lv.map((v, i) => ({
-      type: 'line', label: `_${FLOW_LEVEL_NAMES[i]}`, data: labels.map(() => v), yAxisID: 'y1',
-      borderColor: lvColor[i] + '99', borderDash: [4, 4], borderWidth: 1, pointRadius: 0, pointHoverRadius: 0,
-    }));
+    const t = chartTheme();
+    const oscC = SERIES_PAL[3];   // 원본 오실레이터 = 빨간 선
     SL.chart = new Chart(canvas.getContext('2d'), {
       data: {
         labels,
         datasets: [
           { type: 'line', label: '시가총액', data: labels.map(d => cap[d] ? cap[d] / 1e12 : null), yAxisID: 'y',
-            borderColor: '#8590ad', borderWidth: 1.5, pointRadius: 0, tension: 0.2, spanGaps: true, order: 0 },
-          { type: 'bar', label: '오실레이터', data: rows.map(r => r.osc), yAxisID: 'y1',
-            backgroundColor: rows.map(r => (r.osc >= 0 ? upC : dnC) + 'cc'), borderWidth: 0,
-            barPercentage: 1, categoryPercentage: 0.9, order: 1 },
-          ...lvSets,
+            borderColor: '#cfd4e4', borderWidth: 1.5, pointRadius: 0, tension: 0.2, spanGaps: true, order: 1 },
+          { type: 'line', label: '오실레이터', data: rows.map(r => r.osc), yAxisID: 'y1',
+            borderColor: oscC, borderWidth: 1.6, pointRadius: 0, tension: 0.2, order: 0 },
         ],
       },
       options: {
@@ -382,7 +377,6 @@ async function _slRenderOscChart() {
         plugins: {
           legend: { display: false },
           tooltip: {
-            filter: it => !it.dataset.label.startsWith('_'),
             callbacks: { label: ctx => ctx.dataset.yAxisID === 'y'
               ? `시가총액 ${ctx.parsed.y?.toFixed(1)}조`
               : `오실레이터 ${ctx.parsed.y >= 0 ? '+' : ''}${ctx.parsed.y?.toFixed(4)}%` },
@@ -390,22 +384,27 @@ async function _slRenderOscChart() {
         },
         scales: {
           x:  { ticks: { color: t.tick, maxTicksLimit: 6, maxRotation: 0, font: { size: 10 } }, grid: { color: t.grid } },
-          y:  { position: 'left', ticks: { color: '#8590ad', maxTicksLimit: 5, font: { size: 10 }, callback: v => v + '조' },
+          y:  { position: 'left', ticks: { color: '#cfd4e4', maxTicksLimit: 5, font: { size: 10 }, callback: v => v + '조' },
                 grid: { drawOnChartArea: false } },
-          y1: { position: 'right', ticks: { color: t.tick, maxTicksLimit: 5, font: { size: 10 }, callback: v => v.toFixed(3) + '%' },
+          y1: { position: 'right', ticks: { color: oscC, maxTicksLimit: 5, font: { size: 10 }, callback: v => v.toFixed(3) + '%' },
                 grid: { color: t.grid } },
         },
       },
     });
-    if (info) info.textContent = `${last.base_date} · 최근 63거래일 안 위치 ${last.pct ?? '—'}%`;
+    const f = v => (v >= 0 ? '+' : '') + v.toFixed(4) + '%';
+    if (info) info.innerHTML = `<span style="color:#cfd4e4">— 시가총액</span> · <span style="color:${oscC}">— 오실레이터</span>`
+      + ` · ${last.base_date} 최근 OSC <b style="color:${oscC}">${f(last.osc)}</b>`;
+    // 수급 위치 — 백엔드 값(gauge.p), 없으면 받은 이력으로 같은 계산
+    const pos = flowPos(last.gauge) || flowPos(flowPosOf(rows.map(r => r.osc)));
+    const posEl = document.getElementById('sl-osc-pos');
+    if (posEl) posEl.innerHTML = flowPosBlock(pos);
     const g = last.gauge ? flowGauge(last.gauge) : null;
     const lvEl = document.getElementById('sl-osc-levels');
-    const f = v => (v >= 0 ? '+' : '') + v.toFixed(4) + '%';
-    if (lvEl && g) lvEl.innerHTML = FLOW_LEVEL_NAMES.map((n, i) =>
-        `<span style="color:${lvColor[i]}">${n}</span> ${f(lv[i])}${last.gauge.cur >= lv[i] ? '■' : '□'}`).join(' · ')
+    if (lvEl && g) lvEl.innerHTML = `<span style="color:var(--text1)">수급 칸(최근 63거래일)</span> `
+      + FLOW_LEVEL_NAMES.map((n, i) => `${n} ${f(lv[i])}${last.gauge.cur >= lv[i] ? '■' : '□'}`).join(' · ')
       + ` · <b style="color:var(--text1)">현재 ${f(last.gauge.cur)}</b>`
       + ` <span style="color:${g.color};font-weight:600">${flowGaugeBar(g)} ${g.label}</span>`
-      + `<br><span style="color:var(--text3)">회색 선 = 업종 시가총액(원본처럼 지수 대신) · 막대 = 오실레이터 · 점선 = 최근 63거래일 칸 기준선(원본 '그래프뽑기' 표)</span>`;
+      + `<br><span style="color:var(--text2)">흰 선 = 업종 시가총액(원본처럼 지수 대신) · 빨간 선 = 수급 오실레이터 · 가로바 = 최근 60거래일 안 현재 위치(원본 1400종목 퍼센타일과 같은 계산) · 단계 이름은 칸 기준</span>`;
   } catch (e) {
     console.warn('[업종수급] 차트', e);
     if (info) info.textContent = '차트를 불러오지 못했습니다';
@@ -420,10 +419,12 @@ function _slCmp(a, b) {
     return (x - y) * dir || ((a.mom_rank ?? 999) + (a.buy_rank ?? 999)) - ((b.mom_rank ?? 999) + (b.buy_rank ?? 999));
   }
   if (k === 'name') return (a.name || '').localeCompare(b.name || '', 'ko') * dir;
-  if (k === 'fstage') {   // 이제 시작 → 채우는 중 → 비우는 중 → 다 찼다 → 꺾임, 같은 단계면 칸 수 적은 쪽
-    const ga = _slGauge(a.mid_code)?.gg, gb = _slGauge(b.mid_code)?.gg;
-    if (!ga || !gb) return ga ? -1 : gb ? 1 : 0;
-    return ((gb.prio - ga.prio) || (ga.fill - gb.fill)) * dir;
+  if (k === 'fstage') {   // 수급 위치 P 낮은(빈) 쪽부터. 위치가 없으면 이제 시작 → … → 꺾임, 같은 단계면 칸 수 적은 쪽
+    const oa = _slGauge(a.mid_code), ob = _slGauge(b.mid_code);
+    if (!oa?.gg || !ob?.gg) return oa?.gg ? -1 : ob?.gg ? 1 : 0;
+    const pa = flowPos(oa.o.gauge), pb = flowPos(ob.o.gauge);
+    if (pa && pb) return (pa.p - pb.p) * dir;
+    return ((ob.gg.prio - oa.gg.prio) || (oa.gg.fill - ob.gg.fill)) * dir;
   }
   const va = a[k], vb = b[k];
   if (va == null && vb == null) return 0;

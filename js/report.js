@@ -523,15 +523,18 @@ function _rpFlowVerdict(code) {
   }).then(r => r.data);
 }
 
-// 수급 단계 카드 — 수급 칸(바닥→상단 5칸·방향·단계 이름)·빈집·태린이아빠 후보. 이름·기준은 기업분석 표와 같음
+// 수급 단계 카드 — 수급 위치(원본 1400종목 퍼센타일 가로바)·수급 칸(바닥→상단 5칸·방향·단계 이름)·빈집·
+// 태린이아빠 후보. 이름·기준은 기업분석 표와 같음
 function _rpFlowStageCard(v) {
   const gg = v?.flow_gauge && typeof flowGauge === 'function' ? flowGauge(v.flow_gauge) : null;
+  const pos = v?.flow_gauge && typeof flowPos === 'function' ? flowPos(v.flow_gauge) : null;
   const q  = v && typeof _finFlowQ === 'function' ? _finFlowQ(v) : null;
   const te = v?.lead_flags && typeof taerinEval === 'function' ? taerinEval(v.flow_gauge, v.lead_flags, v.flow_pctl) : null;
   const row = (k, val, tip) => `<tr${tip ? ` title="${escAttr(tip)}"` : ''}>
     <td style="padding:7px 10px;background:var(--bg3);color:var(--text2);white-space:nowrap;border-bottom:1px solid var(--border);width:130px">${k}</td>
     <td style="padding:7px 10px;color:var(--text1);border-bottom:1px solid var(--border)">${val}</td></tr>`;
   const rows = [
+    pos && row('수급 위치', flowPosBlock(pos), flowPosTip(pos) + ' — 현재 수급 오실레이터가 최근 60거래일 안에서 놓인 자리'),
     gg && row('수급 칸', `${flowGaugeBar(gg)} <b style="color:${gg.color}">${gg.label}</b> <span style="color:var(--text2)">· ${gg.fill}/5칸 — ${escapeHtml(gg.tip)}</span>`,
       flowGaugeTip(v.flow_gauge, gg)),
     q && row('빈집', `<b>${q.label}</b> <span style="color:var(--text2)">· 칸 2개 이하가 빈집, 주도 업종 안이면 '빈집'</span>`),

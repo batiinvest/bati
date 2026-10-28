@@ -332,7 +332,7 @@ function _rpDartOverview(x) {
     const fk = v && typeof _finFlowKey === 'function' ? _finFlowKey(v) : null;
     const te = v?.lead_flags && typeof taerinEval === 'function' ? taerinEval(v.flow_gauge, v.lead_flags, v.flow_pctl) : null;
     if (gg) {
-      parts.push(`수급 칸 ${flowGaugeBar(gg)} <b style="color:${gg.color}">${gg.label}</b>`);
+      parts.push(`수급 ${flowBadge(v.flow_gauge, gg)}`);
       if (gg.key === 'start' || gg.key === 'fill') pos.push(`수급 ${gg.label}`);
       if (gg.key === 'top' || gg.key === 'turn') neg.push(`수급 ${gg.label}`);
     } else if (!v) parts.push(`수급${none('판정 없음(수집 대상 밖이거나 판정 전)')}`);

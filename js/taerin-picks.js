@@ -8,7 +8,7 @@
  * 원자료: getFlowVerdicts()(수급 칸·lead_flags — 백엔드 collect_flow_empty·collect_leading, 평일 18:50)
  *         + 기업 이름(_msCompanies, investment.js) + 시세(INV.allMarketRows — 등락률·거래대금, 늦게 오면 다시 그림)
  *
- * 의존: sb, escapeHtml, escAttr, escJsStr, chgColor, chgStr, fmtTV, flowGauge, flowGaugeBar, flowGaugeTip,
+ * 의존: sb, escapeHtml, escAttr, escJsStr, chgColor, chgStr, fmtTV, flowGauge, flowBadge, flowGaugeTip,
  *       taerinEval, TAERIN_TAGS, getFlowVerdicts (config.js), _msCompanies·_skelList (investment.js)
  */
 
@@ -105,7 +105,7 @@ function renderTaerinPicks() {
   };
 
   const head = `<div class="tp-head"><span class="tp-name">종목</span><span class="tp-sec">업종 (WICS 중분류)</span>`
-    + `<span class="tp-gauge">수급 칸</span><span class="tp-tags">충족 조건</span><span class="tp-chg">등락</span><span class="tp-tv">거래대금</span></div>`;
+    + `<span class="tp-gauge">수급 위치</span><span class="tp-tags">충족 조건</span><span class="tp-chg">등락</span><span class="tp-tv">거래대금</span></div>`;
   el.innerHTML = head + shown.map(r => {
     const m = mkt[r.code];
     const chg = m?.price_change_rate;
@@ -119,7 +119,7 @@ function renderTaerinPicks() {
       ${_tpSecTag(r.sec)}
       <span class="tp-chg" style="font-size:calc(12px*var(--m-sub));font-weight:700;color:${chg != null ? chgColor(chg) : 'var(--text3)'}">${chg != null ? chgStr(chg) : '—'}</span>
       <span class="tp-gauge" style="font-size:calc(11px*var(--m-label));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0" title="${escAttr(r.gg ? flowGaugeTip(r.gauge, r.gg) : '')}">
-        ${r.gg ? `${flowGaugeBar(r.gg)} <span style="color:${r.gg.color};font-weight:600">${r.gg.label}</span>` : ''}
+        ${r.gg ? flowBadge(r.gauge, r.gg) : ''}
       </span>
       <span class="tp-tags" style="font-size:calc(11px*var(--m-label));color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${escapeHtml(tags(r))}</span>
       <span class="tp-tv" style="font-size:calc(11px*var(--m-label));color:var(--text3);white-space:nowrap">${tv ? fmtTV(tv) : ''}</span>

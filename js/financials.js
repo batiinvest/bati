@@ -843,8 +843,8 @@ const FIN_COL_GROUPS = {
   market: [
     { key:'id',    name:'식별', always:true,
       // 주도업종·수급단계는 종목명 바로 옆 — 원본 규칙 '주도 업종 ∧ 수급 빈집'을 두 열로 바로 읽는다
-      // (칩과 상관없이 항상 표시). 수급단계 = 수급 칸(원본 엑셀의 상위10·상위25·평균·하위25·하위10 칸),
-      // 빈집 = 칸 2개 이하 (09-29 — 옛 '빈집' 열은 칸과 기준이 달라 없앴다)
+      // (칩과 상관없이 항상 표시). 수급단계 = 수급 위치 막대·P(10-28 원본 1400종목 퍼센타일, 정렬도 P) +
+      // 단계 이름(수급 칸 — 상위10·상위25·평균·하위25·하위10), 빈집 = 칸 2개 이하 (09-29)
       cols:['종목명','주도업종','수급단계','코드','시장','섹터','중분류','업종','테마'] },
     // 거래량·거래대금은 '현재가 +' 상세로 들어가 거래 칩이 비어버리므로 시세로 흡수
     { key:'price', name:'시세',
@@ -1517,7 +1517,9 @@ async function loadMarketData(el) {
         r.flow_supply_rank = v?.flow_supply_rank ?? null;
         r.flow_gauge       = v?.flow_gauge ?? null;
         r._gauge     = flowGauge(r.flow_gauge);   // 수급 칸 — 0~5칸·방향·단계(원본 엑셀의 여러 칸)
-        r._flowStage = r._gauge ? r._gauge.fill * 2 + (r._gauge.up ? 1 : 0) : null;
+        r._fpos      = flowPos(r.flow_gauge);     // 수급 위치 P0~100 (원본 1400종목 퍼센타일)
+        // 정렬값 = 수급 위치(낮을수록 빈 쪽). 위치가 없는 옛 판정 행은 칸 수를 같은 눈금(0~100)으로
+        r._flowStage = r._fpos ? r._fpos.p : r._gauge ? r._gauge.fill * 20 : null;
         r.lead_flags = v?.lead_flags ?? null;
         r._te     = taerinEval(r.flow_gauge, r.lead_flags, r.flow_pctl);   // 태린이아빠 후보 판정
         r._taerin = r._te ? (r._te.a ? 2 : 0) + (r._te.b ? 1 : 0) : null;   // 정렬값
@@ -1695,12 +1697,12 @@ function _finLeadCell(r) {
     + `font-weight:700;color:${t.color};background:${t.bg};border-radius:4px;padding:1px 6px">${t.label}</span></td>`;
 }
 
-/** 수급단계 셀 — 칸 5개(바닥→상단)·방향·단계 이름. 툴팁은 원본 엑셀의 칸 표 */
+/** 수급단계 셀 — 수급 위치 막대·P(원본 1400종목 퍼센타일)·단계 이름. 툴팁은 위치 + 칸 표 */
 function _finStageCell(r) {
   const gg = r._gauge;
   if (!gg) return `<td style="color:var(--text3)">—</td>`;
   return `<td style="font-size:calc(11px*var(--m-label));white-space:nowrap" title="${escAttr(flowGaugeTip(r.flow_gauge, gg))}">`
-    + flowGaugeBar(gg) + ` <span style="color:${gg.color};font-weight:600">${gg.label}</span></td>`;
+    + flowBadge(r.flow_gauge, gg) + `</td>`;
 }
 
 /** 태린이아빠 후보 셀 — A·B 배지와 충족 조건. 후보가 아니면 이유를 툴팁으로 */
@@ -1827,6 +1829,8 @@ function _finMarketCsvSpec() {
     ['빈집백분위',    r => r.flow_pctl],
     ['업종공급순위',  r => r.flow_supply_rank],
     ['수급단계',      r => r._gauge?.label || ''],
+    ['수급위치(P)',   r => r._fpos?.p ?? ''],
+    ['수급위치5일변화(%p)', r => r._fpos?.d5 ?? ''],
     ['수급칸',        r => r._gauge?.fill ?? ''],
     ['태린후보',      r => r._te?.label || ''],
     ['RS',           r => r._rs ?? ''],

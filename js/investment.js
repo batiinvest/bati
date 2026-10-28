@@ -816,7 +816,7 @@ function _msSwapCands(code, fv, comp, heldSet) {
         const f = x.v.lead_flags || {};
         const gg = x.v.flow_gauge ? flowGauge(x.v.flow_gauge) : null;
         const te = typeof taerinEval === 'function' ? taerinEval(x.v.flow_gauge, x.v.lead_flags, x.v.flow_pctl) : null;
-        return { code: x.c.code, name: x.c.name, pctl: x.v.flow_pctl, gg, mom: _msMomentum(f), lead: !!f.lead, te };
+        return { code: x.c.code, name: x.c.name, pctl: x.v.flow_pctl, gauge: x.v.flow_gauge, gg, mom: _msMomentum(f), lead: !!f.lead, te };
       })
       .filter(x => x.mom.length)
       .sort((a, b) => ((b.te?.a ? 2 : 0) + (b.gg?.key === 'start' ? 1 : 0)) - ((a.te?.a ? 2 : 0) + (a.gg?.key === 'start' ? 1 : 0))
@@ -835,8 +835,7 @@ function _msStageHTML(v) {
   const gg = v?.flow_gauge ? flowGauge(v.flow_gauge) : null;
   if (!gg) return '';
   return `<span data-no-detail title="${escAttr('수급 오실레이터 ' + flowGaugeTip(v.flow_gauge, gg))}" `
-    + `style="font-size:calc(11px*var(--m-label));white-space:nowrap;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis">${flowGaugeBar(gg)} `
-    + `<span style="color:${gg.color};font-weight:600">${gg.label}</span></span>`;
+    + `style="font-size:calc(11px*var(--m-label));white-space:nowrap;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis">${flowBadge(v.flow_gauge, gg)}</span>`;
 }
 
 function _msSwapRows(it, sw) {
@@ -845,7 +844,7 @@ function _msSwapRows(it, sw) {
       style="display:flex;align-items:center;gap:8px;padding:5px 14px 5px 28px;border-top:1px dashed var(--border)">
       <span style="font-size:calc(12px*var(--m-sub));color:var(--text1);flex-shrink:0;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(x.name)}</span>
       ${x.te?.a ? `<span title="태린 후보 A — 주도 업종 ∧ 수급 빈 ∧ 확률 조건" style="font-size:calc(10.5px*var(--m-label));font-weight:800;padding:0 5px;border-radius:3px;background:rgba(245,158,11,.18);color:#f59e0b;flex-shrink:0">A</span>` : ''}
-      <span style="font-size:calc(11px*var(--m-label));white-space:nowrap;flex-shrink:0">${x.gg ? flowGaugeBar(x.gg) + ` <span style="color:${x.gg.color};font-weight:600">${x.gg.label}</span>` : ''}</span>
+      <span style="font-size:calc(11px*var(--m-label));white-space:nowrap;flex-shrink:0" title="${escAttr(flowGaugeTip(x.gauge, x.gg))}">${flowBadge(x.gauge, x.gg)}</span>
       <span style="font-size:calc(11px*var(--m-label));color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${escapeHtml(x.mom.join(' · '))}${x.lead ? ' <span style="color:#f59e0b">· 주도 업종</span>' : ''}</span>
     </div>`).join('');
   return `<div style="padding:0 14px 4px 28px;font-size:calc(11px*var(--m-label));color:var(--text2)">
@@ -884,7 +883,9 @@ function _msRulePanel(it) {
   const quote = t => `<div style="padding:4px 14px 1px 28px;${fs};color:var(--text2)">「${escapeHtml(t)}」</div>`;
   const fact = t => `<div style="padding:0 14px 1px 40px;${fs};color:var(--text1)">· ${t}</div>`;
   const head = t => `<div style="padding:7px 14px 0 28px;${fs};font-weight:700;color:var(--text1)">${t}</div>`;
-  const gauge = gg ? `수급 칸 ${flowGaugeBar(gg)} ${gg.fill}/5 <span style="color:${gg.color}">${gg.label}</span>` : '수급 칸 —';
+  const pos = flowPos(it.fvRow?.flow_gauge);
+  const gauge = (pos ? `수급 위치 ${flowPosBar(pos)} P${pos.p.toFixed(1)}${pos.d5 != null ? ` (5거래일 ${pos.d5 > 0 ? '+' : ''}${pos.d5.toFixed(1)}%p)` : ''} · ` : '')
+    + (gg ? `수급 칸 ${flowGaugeBar(gg)} ${gg.fill}/5 <span style="color:${gg.color}">${gg.label}</span>` : '수급 칸 —');
   const lead = `주도 업종 ${f.lead ? '<b style="color:#f59e0b">소속</b>' : '아님'}`;
   const hi = sv ? `52주 최고가 ${won(sv.hi)} (${md(sv.hi_d)}${sv.hi_w ? ' 주' : ''})` : '';
 
