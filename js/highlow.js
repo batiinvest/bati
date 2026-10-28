@@ -54,21 +54,21 @@ async function loadHighLow() {
     const monCodes = Object.keys(indMap);
     if (!monCodes.length) { el.innerHTML = emptyHTML('모니터링 종목 없음'); return; }
 
-    // 모니터링 종목만 조회 (전체 상장사 포함 시 폭락 종목이 잘못 노출됨)
-    const allRows = [];
-    for (let i = 0; i < monCodes.length; i += 500) {
-      const { data } = await sb.from('market_data')
-        .select('stock_code,corp_name,market,price,price_change_rate,market_cap,w52_high,w52_low,volume')
-        .eq('base_date', maxDate)
-        .not('w52_high', 'is', null)
-        .not('w52_low',  'is', null)
-        .not('price',    'is', null)
-        .gt('volume', 0)            // 거래정지·무거래 종목 제외 (정지가 고정 시 52주 고가=저가가 되어 양쪽에 동시 노출되는 버그 방지)
-        .in('stock_code', monCodes.slice(i, i + 500))
-        .order('market_cap', { ascending: false });
-      if (data) allRows.push(...data);
-    }
-    const rows = allRows;
+    // 모니터링 종목만 조회 (전체 상장사 포함 시 폭락 종목이 잘못 노출됨) — 500개씩 동시에
+    const chunks = [];
+    for (let i = 0; i < monCodes.length; i += 500) chunks.push(monCodes.slice(i, i + 500));
+    const parts = await Promise.all(chunks.map(c => sb.from('market_data')
+      .select('stock_code,corp_name,market,price,price_change_rate,market_cap,w52_high,w52_low,volume')
+      .eq('base_date', maxDate)
+      .not('w52_high', 'is', null)
+      .not('w52_low',  'is', null)
+      .not('price',    'is', null)
+      .gt('volume', 0)            // 거래정지·무거래 종목 제외 (정지가 고정 시 52주 고가=저가가 되어 양쪽에 동시 노출되는 버그 방지)
+      .in('stock_code', c)
+      .order('market_cap', { ascending: false })));
+    for (const p of parts) if (p.error) throw p.error;
+    // 청크가 둘 이상이면 청크별 정렬이라 합친 뒤 시총순으로 다시
+    const rows = parts.flatMap(p => p.data || []).sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0));
 
     const high = [], low = [];
     for (const r of rows) {

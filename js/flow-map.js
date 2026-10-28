@@ -237,11 +237,10 @@ async function loadFlowMap() {
 
     // 순매수 존재 구간만 (2026-05-26~). 400일 컷오프로 페이로드 상한.
     const cutoff = new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10);
-    const rows = [];
-    const CH = 300;
-    for (let i = 0; i < codes.length; i += CH) {
-      const chunk = codes.slice(i, i + CH);
-      const part = await fetchAllPages((s, e) => sb.from('market_data')
+    const CH = 300, chunks = [];
+    for (let i = 0; i < codes.length; i += CH) chunks.push(codes.slice(i, i + CH));
+    // 청크마다 차례로 기다리지 않고 동시에(합친 순서는 청크 순 — 아래는 종목·날짜 맵으로만 씀)
+    const rows = (await Promise.all(chunks.map(chunk => fetchAllPages((s, e) => sb.from('market_data')
         .select('stock_code,corp_name,base_date,price,market_cap,foreign_net_buy,institution_net_buy')
         .in('stock_code', chunk)
         .gte('base_date', cutoff)
@@ -251,9 +250,7 @@ async function loadFlowMap() {
         // (반도체 등 >1000행 산업에서 실측 29행 유실). PK 타이브레이커로 방지.
         .order('base_date', { ascending: true })
         .order('stock_code', { ascending: true })
-        .range(s, e));
-      rows.push(...part);
-    }
+        .range(s, e))))).flat();
     if (!rows.length) { el.innerHTML = _fmEmpty(`${FM.ind} 수급 데이터가 아직 없습니다`); return; }
 
     // 종목별 날짜맵 + 거래일 집합

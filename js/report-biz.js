@@ -264,7 +264,7 @@ function _bizFilterItems(m, pred) {
 }
 
 function _bizRegionChips(prods) {
-  const esc = escapeHtml, js = typeof escJsStr === 'function' ? escJsStr : (s => String(s).replace(/'/g, "\\'"));
+  const esc = escapeHtml, js = escJsStr;
   return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
     ${['전체', ...prods].map(p => {
       const on = (_rpBizRegionSel || '전체') === p;

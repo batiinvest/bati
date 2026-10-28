@@ -77,33 +77,30 @@ async function loadSectorEarn() {
         codes.push(cd); subOf[cd] = c.sub_industry || '기타'; nameOf[cd] = c.name;
       }
 
-      // 2) 재무 (최근 3년 — TTM/추세 스파크라인용, CFS 우선·OFS 폴백)
+      // 2) 재무 (최근 3년 — TTM/추세 스파크라인용, CFS 우선·OFS 폴백) + 2b) 시장데이터 — 코드 300개씩 전부 동시에
+      //    (예전엔 청크마다 차례로 기다렸음)
       const year = new Date().getFullYear();
-      let rawRows = [];
-      for (let i = 0; i < codes.length; i += 300) {
-        const data = await fetchAllPages((s, e) => sb.from('financials')
-          .select('stock_code,bsns_year,quarter,revenue,operating_profit,debt_ratio,finance_cost,fs_div,is_cumulative')
-          .in('stock_code', codes.slice(i, i + 300))
-          .gte('bsns_year', String(year - 2))
-          .order('stock_code', { ascending: true })
-          .range(s, e));
-        rawRows.push(...data);
-      }
+      const chunks = [];
+      for (let i = 0; i < codes.length; i += 300) chunks.push(codes.slice(i, i + 300));
+      const finP = Promise.all(chunks.map(c => fetchAllPages((s, e) => sb.from('financials')
+        .select('stock_code,bsns_year,quarter,revenue,operating_profit,debt_ratio,finance_cost,fs_div,is_cumulative')
+        .in('stock_code', c)
+        .gte('bsns_year', String(year - 2))
+        // 종목코드만으로 정렬하면 한 종목의 여러 행이 페이지 경계에서 겹치거나 빠진다 → 총순서
+        .order('stock_code').order('bsns_year').order('quarter').order('fs_div')
+        .range(s, e)))).then(a => a.flat());
+      // 시장데이터(밸류·시총·외국인) — 최신 거래일 (수익률/순매수는 커버리지 낮아 제외). 실패해도 재무 표는 그린다
+      const mdP = getLatestFullMarketDate()   // 소분류 전 종목 — 장중 오늘 날짜는 모니터링 종목뿐
+        .then(mdDate => mdDate ? Promise.all(chunks.map(c => sb.from('market_data')
+          .select('stock_code,per,pbr,market_cap,foreign_hold_rate')
+          .eq('base_date', mdDate).in('stock_code', c))) : [])
+        .catch(e => { console.warn('[SectorEarn] market_data', e); return []; });
+      const [rawRows, mdRes] = await Promise.all([finP, mdP]);
       // 4분기 연간값 행이 남으면 분기 YoY가 튀고 TTM(4분기 합)이 부풀려진다 → 정리
       const rows = finNormalizeQuarters(finPreferFs(rawRows));
       if (!rows.length) { body.innerHTML = emptyHTML(ind + ' 산업 재무데이터 없음'); return; }
-
-      // 2b) 시장데이터(밸류·시총·외국인) — 최신 거래일 (수익률/순매수는 커버리지 낮아 제외)
       const mdOf = {};
-      try {
-        const mdDate = await getLatestFullMarketDate();   // 소분류 전 종목 — 장중 오늘 날짜는 모니터링 종목뿐
-        if (mdDate) for (let i = 0; i < codes.length; i += 300) {
-          const { data: md } = await sb.from('market_data')
-            .select('stock_code,per,pbr,market_cap,foreign_hold_rate')
-            .eq('base_date', mdDate).in('stock_code', codes.slice(i, i + 300));
-          for (const m of (md || [])) mdOf[m.stock_code] = m;
-        }
-      } catch (e) { console.warn('[SectorEarn] market_data', e); }
+      for (const r of mdRes) for (const m of (r.data || [])) mdOf[m.stock_code] = m;
 
       // 3) 종목×기간 인덱스 + 기간별 커버리지
       const byStock = {}, periodCnt = {};

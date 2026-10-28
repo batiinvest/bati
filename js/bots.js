@@ -98,7 +98,7 @@ function _botDartTabHTML() {
     </details>`;
 }
 
-// ── 봇 카드 공통 HTML (pBot / pBotConfig 양쪽에서 재사용) ──────────────────
+// ── 봇 카드 공통 HTML (pBotConfig) ──────────────────
 function _botCardsHTML() {
   const cards = [
     { id:'dart',  label:'DART 공시 봇' },
@@ -125,10 +125,6 @@ function _botCardsHTML() {
   <div class="card" id="bot-notice-card">
     <div style="padding:1.5rem;text-align:center;color:var(--text2)"><span class="loading"></span></div>
   </div>`;
-}
-
-function pBot() {
-  return _botCardsHTML();
 }
 
 async function loadBotStatus() {
@@ -991,7 +987,7 @@ function initPro() {
 // ══════════════════════════════════════════
 
 async function loadProChannelConfig() {
-  const keys = ['pro_channel_id', 'pro_admin_chat_id', 'sms_webhook_token'];
+  const keys = ['pro_channel_id', 'pro_admin_chat_id'];
   const { data } = await sb.from('app_config').select('key,value').in('key', keys);
   const map = {};
   (data || []).forEach(r => map[r.key] = r.value);
@@ -1002,8 +998,6 @@ async function loadProChannelConfig() {
   const adminEl = document.getElementById('cfg-pro-admin');
   if (adminEl) adminEl.value = map['pro_admin_chat_id'] || '';
 
-  const tokenEl = document.getElementById('cfg-sms-token');
-  if (tokenEl) tokenEl.value = map['sms_webhook_token'] || '';
 }
 
 async function saveProChannelConfig() {

@@ -933,23 +933,6 @@ function _msRuleChip(it) {
         onclick="toggleMsRule('${escJsStr(it.code)}')" title="${escAttr(tip)}" style="flex-shrink:0">${label}</button>`;
 }
 
-// 공시 카테고리 색
-const _MS_CAT_ST = {
-  '잠정실적':     { c:'#f59e0b', bg:'rgba(245,158,11,.13)'  },
-  '주요사항':     { c:'#ffd600', bg:'rgba(255,214,0,.13)'   },
-  '주요경영사항': { c:'#fb923c', bg:'rgba(251,146,60,.13)'  },
-  '증자/감자':    { c:'#a78bfa', bg:'rgba(167,139,250,.13)' },
-  '합병/분할':    { c:'#f87171', bg:'rgba(248,113,113,.13)' },
-  '사채/전환':    { c:'#60a5fa', bg:'rgba(96,165,250,.13)'  },
-  '자사주':       { c:'#34d399', bg:'rgba(52,211,153,.13)'  },
-  '배당':         { c:'#fbbf24', bg:'rgba(251,191,36,.13)'  },
-  '지분공시':     { c:'#a259ff', bg:'rgba(162,89,255,.13)'  },
-  '대량보유':     { c:'#e879f9', bg:'rgba(232,121,249,.13)' },
-  '공정공시':     { c:'#00d4aa', bg:'rgba(0,212,170,.13)'   },
-  '최대주주변동': { c:'#f97316', bg:'rgba(249,115,22,.13)'  },
-};
-const _msCatStyle = cat => _MS_CAT_ST[cat] || { c:'#8b90a7', bg:'rgba(139,144,167,.13)' };
-
 async function loadMyStocksCard() {
   const body = document.getElementById('ms-body');
   if (!body) return;
@@ -970,7 +953,6 @@ async function loadMyStocksCard() {
   _myStocksWlRows = wlRows;
 
   const norm = s => (s || '').trim();
-  const corpNameSet = new Set(wlRows.map(r => norm(r.corp_name)));
   const stockCodes  = [...new Set(wlRows.map(r => r.stock_code))];
   const nameToWl    = {};
   wlRows.forEach(r => { if (r.corp_name) nameToWl[norm(r.corp_name)] = r; });
@@ -1081,14 +1063,14 @@ function _renderMyStocks() {
     let discHTML = '';
     if (it.discs.length) {
       const d0   = it.discs[0];
-      const s    = _msCatStyle(d0.category || '기타');
+      const s    = discCatStyle(d0.category || '기타')   // config.js 공용;
       const link = d0.rcept_no ? `https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${d0.rcept_no}` : null;
       const click = link ? `onclick="event.stopPropagation();window.open('${link}','_blank')"` : '';
       const more  = it.discs.length > 1
         ? `<span style="font-size:calc(11px*var(--m-label));color:var(--text3);flex-shrink:0">+${it.discs.length - 1}</span>` : '';
       discHTML = `
         <span ${click} style="font-size:calc(11px*var(--m-label));padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap;flex-shrink:0;
-          background:${s.bg};color:${s.c};cursor:${link ? 'pointer' : 'default'}">${escapeHtml(d0.category || '공시')}</span>
+          background:${s.bg};color:${s.color};cursor:${link ? 'pointer' : 'default'}">${escapeHtml(d0.category || '공시')}</span>
         <span ${click} title="${escAttr(d0.report_nm || '')}"
           style="font-size:calc(11px*var(--m-label));color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;cursor:${link ? 'pointer' : 'default'}">${escapeHtml(d0.report_nm || '공시')}</span>
         ${more}`;

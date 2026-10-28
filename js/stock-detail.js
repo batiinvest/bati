@@ -129,7 +129,6 @@ async function openStockDetail(code, name, initTab = 'overview') {
 }
 
 async function openFinTrend(code, name)     { openStockDetail(code, name, 'financial'); }
-async function openMarketDetail(code, name) { openStockDetail(code, name, 'market'); }
 
 // ── 상세 모달 → 관심종목(워치리스트) 토글 ────────────────────────────────────
 // 버튼 상태 반영: 'in'(등록됨, ✓) / 'out'(미등록, ⭐)

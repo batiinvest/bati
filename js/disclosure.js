@@ -47,32 +47,8 @@ async function loadAllDisclosures() {
     return;
   }
 
-  // 카테고리 스타일 (분류는 백엔드 완료 — 여기선 색상만)
-  const CATEGORY_STYLE = {
-    '사업보고서':    { color: '#2AABEE', bg: 'rgba(42,171,238,.12)' },
-    '반기보고서':    { color: '#2dce89', bg: 'rgba(45,206,137,.12)' },
-    '분기보고서':    { color: '#fb6340', bg: 'rgba(251,99,64,.12)'  },
-    '기업설명회(IR)':{ color: '#22d3ee', bg: 'rgba(34,211,238,.12)' },
-    '잠정실적':      { color: '#f59e0b', bg: 'rgba(245,158,11,.12)' },
-    '주요사항':      { color: '#ffd600', bg: 'rgba(255,214,0,.12)'  },
-    '증자/감자':     { color: '#a78bfa', bg: 'rgba(167,139,250,.12)'},
-    '합병/분할':     { color: '#f87171', bg: 'rgba(248,113,113,.12)'},
-    '사채/전환':     { color: '#60a5fa', bg: 'rgba(96,165,250,.12)' },
-    '자사주':        { color: '#34d399', bg: 'rgba(52,211,153,.12)' },
-    '배당':          { color: '#fbbf24', bg: 'rgba(251,191,36,.12)' },
-    '최대주주변동':  { color: '#f97316', bg: 'rgba(249,115,22,.12)' },
-    '대량보유':      { color: '#e879f9', bg: 'rgba(232,121,249,.12)'},
-    '거래계획(예고)':{ color: '#67e8f9', bg: 'rgba(103,232,249,.12)'},
-    '거래계획(철회)':{ color: '#94a3b8', bg: 'rgba(148,163,184,.12)'},
-    '지분공시':      { color: '#a259ff', bg: 'rgba(162,89,255,.12)' },
-    '임원/주식':     { color: '#c084fc', bg: 'rgba(192,132,252,.12)'},
-    '감사보고서':    { color: '#94a3b8', bg: 'rgba(148,163,184,.12)'},
-    '공정공시':      { color: '#00d4aa', bg: 'rgba(0,212,170,.12)'  },
-    '주식매수선택권':{ color: '#a3e635', bg: 'rgba(163,230,53,.12)' },
-    '주요경영사항':  { color: '#fb923c', bg: 'rgba(251,146,60,.12)' },
-    '증권신고':      { color: '#64748b', bg: 'rgba(100,116,139,.12)'},
-    '기타':          { color: '#8b90a7', bg: 'rgba(139,144,167,.12)'},
-  };
+  // 카테고리 색은 config.js DISC_CAT_STYLE 공용(분류는 백엔드 완료 — 여기선 색상만), 키 순서가 목록 순서
+  const CATEGORY_STYLE = DISC_CAT_STYLE;
   const CATEGORY_ORDER = Object.keys(CATEGORY_STYLE);
 
   // 카테고리별 그룹핑 (d.category는 백엔드에서 부여)

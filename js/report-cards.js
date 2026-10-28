@@ -3,13 +3,6 @@
 // ── 오늘의 공시·뉴스 요약 카드 (daily_summaries — 백엔드 18:55 생성) ───────────
 // items = {disclosures:[{category,report_nm,rcept_no}], news:[{title,link,time,sources}]}
 // + ai_summary(대형/긴급만 Gemini 2줄). 요약 자체가 없으면 카드 생략(개요 상단 공간 절약).
-// 색상은 반드시 hex — 칩 배경이 `${col}22`(JS 문자열 8자리 hex 연결)로 만들어지므로
-// var(--...) 토큰을 쓰면 CSS가 `var(--x)22`를 이어붙이지 못해 배경이 투명해진다.
-const _RP_CAT_COL = {
-  '주요경영사항': '#f59e0b', '지분공시': '#c084fc', '대량보유': '#e879f9',
-  '최대주주변동': '#f59e0b', '임원/주식': '#a78bfa', '기업설명회(IR)': '#22d3ee',
-  '실적': '#4ade80', '잠정실적': '#4ade80', '배당': '#38bdf8', '기타': '#94a3b8',
-};
 
 function _rpSummaryCard(s) {
   if (!s) return '';
@@ -41,7 +34,7 @@ function _rpSummaryCard(s) {
     <div style="display:flex;flex-direction:column;gap:5px;margin-top:10px">
       ${discs.map(d => {
         const cat = d.category || '기타';
-        const col = _RP_CAT_COL[cat] || '#94a3b8';
+        const col = discCatStyle(cat).color   // config.js 공용(hex — 아래 `${col}22` 배경);
         const nm  = esc((d.report_nm || '').trim());
         const url = safeUrl(`https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${encodeURIComponent(d.rcept_no || '')}`);
         return `<div style="display:flex;align-items:flex-start;gap:7px;font-size:calc(12px*var(--m-sub))">

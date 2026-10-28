@@ -483,7 +483,7 @@ async function _rpLoadAndRenderFss(body) {
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
         <button id="rfd-cat-all" class="chip chip-sm active" onclick="rpFssFilter('all')">전체 ${RFD.rows.length}</button>
         ${cats.map(([c, n]) => `<button id="rfd-cat-${esc(c)}" class="chip chip-sm"
-          onclick="rpFssFilter('${typeof escJsStr === 'function' ? escJsStr(c) : c.replace(/'/g, "\\'")}')">${esc(c)} ${n}</button>`).join('')}
+          onclick="rpFssFilter('${escJsStr(c)}')">${esc(c)} ${n}</button>`).join('')}
         <span style="margin-left:auto;font-size:calc(11px*var(--m-label));color:var(--text3)">최근 ${RFD.rows.length}건 · 공시명 클릭 시 DART 원문</span>
       </div>
       <div id="rfd-list"></div>`;

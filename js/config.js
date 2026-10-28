@@ -114,6 +114,36 @@ const INDUSTRIES = ['바이오','뷰티','로봇','2차전지','신재생','소�
 // CATS: 채팅방 UI 배지 색상 (IND_COLORS와 의도적으로 다름 — 차트 라인 색상과 분리)
 const CATS = { '바이오':'#2AABEE','뷰티':'#f5365c','로봇':'#2dce89','2차전지':'#fb6340','신재생':'#5e72e4','소비재':'#f3a4b5','테크':'#a259ff','반도체':'#8898aa','엔터':'#ffd600','조선':'#11cdef','우주':'#4a6fa5' };
 
+// 공시 카테고리(daily_disclosures.category, 백엔드 분류) 배지 색 — 시황 전체 공시·내 종목 현황·종목 리포트
+// 요약 카드 공용(10-28 세 벌 → 한 벌, 리포트 쪽은 같은 카테고리에 다른 색을 쓰고 있었음).
+// color는 hex 필수(리포트 칩이 `${color}22`로 배경을 만듦). 키 순서 = 시황 전체 공시 목록의 카테고리 순서
+const DISC_CAT_STYLE = {
+  '사업보고서':    { color: '#2AABEE', bg: 'rgba(42,171,238,.12)' },
+  '반기보고서':    { color: '#2dce89', bg: 'rgba(45,206,137,.12)' },
+  '분기보고서':    { color: '#fb6340', bg: 'rgba(251,99,64,.12)'  },
+  '기업설명회(IR)':{ color: '#22d3ee', bg: 'rgba(34,211,238,.12)' },
+  '잠정실적':      { color: '#f59e0b', bg: 'rgba(245,158,11,.12)' },
+  '주요사항':      { color: '#ffd600', bg: 'rgba(255,214,0,.12)'  },
+  '증자/감자':     { color: '#a78bfa', bg: 'rgba(167,139,250,.12)'},
+  '합병/분할':     { color: '#f87171', bg: 'rgba(248,113,113,.12)'},
+  '사채/전환':     { color: '#60a5fa', bg: 'rgba(96,165,250,.12)' },
+  '자사주':        { color: '#34d399', bg: 'rgba(52,211,153,.12)' },
+  '배당':          { color: '#fbbf24', bg: 'rgba(251,191,36,.12)' },
+  '최대주주변동':  { color: '#f97316', bg: 'rgba(249,115,22,.12)' },
+  '대량보유':      { color: '#e879f9', bg: 'rgba(232,121,249,.12)'},
+  '거래계획(예고)':{ color: '#67e8f9', bg: 'rgba(103,232,249,.12)'},
+  '거래계획(철회)':{ color: '#94a3b8', bg: 'rgba(148,163,184,.12)'},
+  '지분공시':      { color: '#a259ff', bg: 'rgba(162,89,255,.12)' },
+  '임원/주식':     { color: '#c084fc', bg: 'rgba(192,132,252,.12)'},
+  '감사보고서':    { color: '#94a3b8', bg: 'rgba(148,163,184,.12)'},
+  '공정공시':      { color: '#00d4aa', bg: 'rgba(0,212,170,.12)'  },
+  '주식매수선택권':{ color: '#a3e635', bg: 'rgba(163,230,53,.12)' },
+  '주요경영사항':  { color: '#fb923c', bg: 'rgba(251,146,60,.12)' },
+  '증권신고':      { color: '#64748b', bg: 'rgba(100,116,139,.12)'},
+  '기타':          { color: '#8b90a7', bg: 'rgba(139,144,167,.12)'},
+};
+const discCatStyle = cat => DISC_CAT_STYLE[cat === '실적' ? '잠정실적' : cat] || DISC_CAT_STYLE['기타'];
+
 // ══════════════════════════════════════════
 //  산업 누적 복리수익률 헬퍼 — chart-industry / chart-uskr 공용
 //  dayChgMap: { 'YYYY-MM-DD': [종목등락률, ...] }  (한 산업의 일별 등락률 묶음)
@@ -385,27 +415,38 @@ async function sbMust(query) {
 }
 
 // ══════════════════════════════════════════
-//  공통 페이징 유틸
+//  공통 페이징 유틸 (PostgREST 한 번 최대 1,000행)
 //  사용법:
 //    const data = await fetchAllPages(
-//      sb.from('companies').select('id,name').eq('active', true)
+//      sb.from('companies').select('id,name').eq('active', true).order('id')
 //    );
+//  첫 페이지가 꽉 차면 다음 PAGE_WINDOW 페이지를 동시에 받는다(10-28: 전엔 한 장씩 기다려 2,560행 = 3왕복,
+//  시황 전 종목 시세가 450ms). 짧은 페이지가 나오면 그 뒤는 버린다(빈 요청 최대 몇 개 더 감).
+//  ⚠️ 페이지 경계가 안 어긋나려면 결정적 .order(...) 필수(순차일 때도 같은 조건).
+//  쿼리 객체를 넘겨도 된다: range()를 바꿔 건 직후 then()을 부르면 그때 주소로 요청이 나가
+//  페이지마다 따로 잡힌다(10-28 실측 — 순차 결과와 동일).
 // ══════════════════════════════════════════
+const PAGE_WINDOW = 4;
 async function fetchAllPages(queryOrFn, pageSize = 1000) {
-  let all = [], page = 0;
-  while (true) {
-    const s = page * pageSize, e = (page + 1) * pageSize - 1;
-    // 콜백 방식: (s, e) => query.range(s, e)
-    // query 객체 방식: sb.from('table').select(...).eq(...)
-    const q = typeof queryOrFn === 'function' ? queryOrFn(s, e) : queryOrFn.range(s, e);
-    const { data, error } = await q;
-    if (error) throw error;
-    if (!data?.length) break;
-    all = all.concat(data);
-    if (data.length < pageSize) break;
-    page++;
+  // 콜백 방식: (s, e) => query.range(s, e)  /  query 객체 방식: sb.from('table').select(...).eq(...)
+  const run = p => {
+    const s = p * pageSize, e = s + pageSize - 1;
+    return typeof queryOrFn === 'function' ? queryOrFn(s, e) : queryOrFn.range(s, e).then(r => r);
+  };
+  const first = await run(0);
+  if (first.error) throw first.error;
+  const all = [...(first.data || [])];
+  if (all.length < pageSize) return all;
+  for (let p = 1; ; p += PAGE_WINDOW) {
+    const batch = [];
+    for (let i = 0; i < PAGE_WINDOW; i++) batch.push(run(p + i));   // 동시에 띄움
+    for (const r of await Promise.all(batch)) {
+      if (r.error) throw r.error;
+      const d = r.data || [];
+      all.push(...d);
+      if (d.length < pageSize) return all;   // 마지막 페이지 — 뒤 페이지(빈 결과)는 버림
+    }
   }
-  return all;
 }
 
 // ══════════════════════════════════════════
@@ -678,13 +719,6 @@ function downloadCsv(headers, rows, filename) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-
-/**
- * Date 객체 → 'YYYY-MM-DD' 문자열
- * disclosure.js / investment.js 등의 인라인 패턴 통합
- */
-const fmtDate = (d = new Date()) =>
-  `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
 /**
  * KST 오늘 기준 N일 후 날짜 → 'YYYY-MM-DD'
@@ -989,18 +1023,6 @@ async function withBtn(btnId, loadingText, fn) {
   if (btn) { btn.disabled = true; btn.textContent = loadingText; }
   try { return await fn(); }
   finally { if (btn) { btn.disabled = false; btn.innerHTML = orig; } }
-}
-
-/**
- * 컨테이너 로딩 → 실행 → 에러 처리 패턴 공통화
- * 사용: await withLoad('el-id', async el => { el.innerHTML = ...; })
- */
-async function withLoad(elId, fn) {
-  const el = document.getElementById(elId);
-  if (!el) return;
-  el.innerHTML = loadingHTML();
-  try { await fn(el); }
-  catch(e) { el.innerHTML = errorHTML(e.message); }
 }
 
 /**
