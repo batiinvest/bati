@@ -1,11 +1,9 @@
 // screener.js — 종목 스크리너 페이지
 // 의존: config.js (INDUSTRIES, fetchAllPages, fmtCap, loadingHTML, emptyHTML)
 //
-// [v2] JS 풀스캔 제거 — Supabase 쿼리 레벨 필터로 이전
-//   - financials 전체 fetchAllPages 제거
-//   - gte/lte 조건을 DB 쿼리에서 처리
+// [v3] 시세 조건(PER·PBR·시총·시장)은 DB에서, 재무 조건은 종목별 최신 분기 1행에 JS로 건다
 //   - market_data + financials JOIN은 PostgREST 미지원이라 market_data 기준으로 조회 후
-//     financials는 최신 분기 1건씩만 조회 (종목별 최신값 캐시)
+//     조건에 맞은 종목의 최근 재무만 받아 최신 행을 고름(재무 조건을 DB에 걸면 옛 분기로 통과함)
 
 // 페이지 상태 네임스페이스 — 구 window._screenerData 수렴
 const SCR = {};
@@ -180,6 +178,20 @@ function scToggleFilter() {
   document.querySelector('.screener-filter')?.classList.toggle('collapsed');
 }
 
+// 최근 분기부터 off번째에서 연속 4분기 합 — 분기가 비거나(건너뜀) 값이 없으면 null
+// rows: 한 종목의 분기 행(최신순, finNormalizeQuarters 거친 단독 분기)
+function _scTtm(rows, key, off) {
+  const qi = r => +r.bsns_year * 4 + (+String(r.quarter).replace(/\D/g, '') || 0);
+  const four = rows.slice(off, off + 4);
+  if (four.length < 4) return null;
+  let sum = 0;
+  for (let i = 0; i < 4; i++) {
+    if (qi(four[i]) !== qi(four[0]) - i || four[i][key] == null) return null;
+    sum += four[i][key];
+  }
+  return sum;
+}
+
 async function runScreener() {
   const el = document.getElementById('sc-result');
   // Supabase 오류(RLS·네트워크 등) 시 "검색 중..." 스피너가 영원히 남지 않도록 전체 가드
@@ -251,62 +263,55 @@ async function _runScreenerInner(el) {
   if (hasFinFilter) {
     const codes = mktRows.map(r => r.stock_code);
 
-    // PEG/EVEB 계산에는 net_income, operating_income, total_debt도 필요
-    const finSelect = hasPegFilter || hasEvebFilter
-      ? 'stock_code,fs_div,operating_margin,roe,roa,debt_ratio,current_ratio,bsns_year,quarter,net_income,operating_income,total_debt'
-      : 'stock_code,fs_div,operating_margin,roe,roa,debt_ratio,current_ratio,bsns_year,quarter';
+    // ⚠️ 재무 조건은 종목별 '최신 분기' 값에만 건다. 예전엔 ROE·마진 등 조건을 DB에서 최근 3년 모든 행에 걸고
+    //    종목별 첫 행을 써서, 최신 분기가 미달이어도 조건을 만족한 옛 분기로 통과했다
+    //    (10-28 실측: '우량주' 155종목 중 121종목이 2023 Q1~2026 Q1 값). → 조건 없이 받아 최신 1행을 고른 뒤 거른다.
+    // PEG·EV/EBITDA는 최근 8분기(4분기 합 두 개)가 필요해 한 해 더 받는다.
+    const needTtm = hasPegFilter || hasEvebFilter;
+    const finSelect = 'stock_code,fs_div,is_cumulative,bsns_year,quarter,operating_margin,roe,roa,debt_ratio,current_ratio'
+      + (needTtm ? ',net_income,operating_profit,ebitda,total_liabilities' : '');
+    const minYear = String(new Date().getFullYear() - (needTtm ? 2 : 1));
+    const finQuery = (chunk) => (s, e) => sb.from('financials')
+      .select(finSelect)
+      .in('stock_code', chunk)
+      .gte('bsns_year', minYear)
+      .order('stock_code')
+      .order('bsns_year', { ascending: false })
+      .order('quarter',   { ascending: false })
+      .order('fs_div')    // 페이지 경계 결정성
+      .range(s, e);
 
-    // ⚠️ 기존 slice(0,500) + limit(2000)은 시총 하위 종목·뒤쪽 재무 행을
-    //    조용히 누락시켜 스크리닝 결과가 부정확했음.
-    //    → 코드 500개씩 청크 분할 + fetchAllPages로 전량 조회 (잘림 없음).
-    //    최근 3개년으로 한정 — 최신 행 + PEG용 연간 2개년이면 충분, 행수 폭증 방지.
-    const minYear = String(new Date().getFullYear() - 3);
-    const buildFinQuery = (chunk) => {
-      let q = sb.from('financials')
-        .select(finSelect)
-        .in('stock_code', chunk)
-        .gte('bsns_year', minYear)
-        .order('bsns_year', { ascending: false })
-        .order('quarter',   { ascending: false })
-        .order('stock_code');   // 병렬/페이지 경계 결정성 확보
-      if (f.marginMin != null) q = q.gte('operating_margin', f.marginMin);
-      if (f.marginMax != null) q = q.lte('operating_margin', f.marginMax);
-      if (f.roeMin    != null) q = q.gte('roe',              f.roeMin);
-      if (f.roeMax    != null) q = q.lte('roe',              f.roeMax);
-      if (f.roaMin    != null) q = q.gte('roa',              f.roaMin);
-      if (f.roaMax    != null) q = q.lte('roa',              f.roaMax);
-      if (f.debtMin   != null) q = q.gte('debt_ratio',       f.debtMin);
-      if (f.debtMax   != null) q = q.lte('debt_ratio',       f.debtMax);
-      if (f.crMin     != null) q = q.gte('current_ratio',    f.crMin);
-      if (f.crMax     != null) q = q.lte('current_ratio',    f.crMax);
-      return q;
-    };
+    // 코드 300개씩 나눠 동시에 받는다(청크 안은 페이지 순차 — 잘림 없음)
+    const CHUNK = 300, chunks = [];
+    for (let i = 0; i < codes.length; i += CHUNK) chunks.push(codes.slice(i, i + CHUNK));
+    const finRows = (await Promise.all(chunks.map(c => fetchAllPages(finQuery(c))))).flat();
 
-    const CHUNK = 500;
-    let finRows = [];
-    for (let i = 0; i < codes.length; i += CHUNK) {
-      const rows = await fetchAllPages(buildFinQuery(codes.slice(i, i + CHUNK)));
-      finRows.push(...rows);
-    }
-    finRows = finPreferFs(finRows);   // 종목별 CFS 우선·OFS 폴백 (OFS-only 종목 포함)
+    // 4분기 누적 행 정규화(1~3분기 없으면 '연간'으로 남김) → 종목별 최신 분기, 같은 분기면 연결(CFS) 우선.
+    // finPreferFs를 먼저 걸면 연결 → 별도로 바뀐 종목이 옛 연결 분기로 걸러짐(financials.js _pickLatestFin과 같은 이유)
+    const byCode = {};
+    for (const r of finNormalizeQuarters(finRows, { keepAnnualQ4: true }))
+      (byCode[r.stock_code] = byCode[r.stock_code] || []).push(r);
 
-    if (hasPegFilter) {
-      // 종목별 최신 2개 연간 행 수집 → YoY net_income 성장률로 PEG 계산
-      const annualByCode = {};
-      (finRows || []).filter(r => !r.quarter).forEach(r => {
-        if (!annualByCode[r.stock_code]) annualByCode[r.stock_code] = [];
-        if (annualByCode[r.stock_code].length < 2) annualByCode[r.stock_code].push(r);
-      });
-      (finRows || []).forEach(r => { if (!finMap[r.stock_code]) finMap[r.stock_code] = r; });
-      Object.entries(annualByCode).forEach(([code, rows]) => {
-        if (!finMap[code]) return;
-        if (rows.length >= 2 && rows[1].net_income && rows[1].net_income !== 0) {
-          const growth = ((rows[0].net_income - rows[1].net_income) / Math.abs(rows[1].net_income)) * 100;
-          finMap[code]._epsGrowth = growth;
-        }
-      });
-    } else {
-      (finRows || []).forEach(r => { if (!finMap[r.stock_code]) finMap[r.stock_code] = r; });
+    const inRange = (v, lo, hi) => (lo == null || (v != null && v >= lo)) && (hi == null || (v != null && v <= hi));
+    for (const [code, all] of Object.entries(byCode)) {
+      all.sort((a, b) => (+b.bsns_year - +a.bsns_year) || String(b.quarter).localeCompare(String(a.quarter))
+        || ((b.fs_div === 'CFS') - (a.fs_div === 'CFS')));
+      const r = all[0];
+      const rows = all.filter(x => x.fs_div === r.fs_div);   // 4분기 합은 최신 행과 같은 기준(연결/별도)으로만
+      if (!inRange(r.operating_margin, f.marginMin, f.marginMax)
+        || !inRange(r.roe, f.roeMin, f.roeMax) || !inRange(r.roa, f.roaMin, f.roaMax)
+        || !inRange(r.debt_ratio, f.debtMin, f.debtMax) || !inRange(r.current_ratio, f.crMin, f.crMax)) continue;
+      const fin = { ...r };
+      if (needTtm) {
+        const q = rows.filter(x => !x._annual);
+        // 순이익 성장률 = 최근 4분기 합 vs 그 전 4분기 합 (EPS 성장률 근사 — 주식 수 변화 무시)
+        const ni0 = _scTtm(q, 'net_income', 0), ni1 = _scTtm(q, 'net_income', 4);
+        if (ni0 != null && ni1) fin._epsGrowth = (ni0 - ni1) / Math.abs(ni1) * 100;
+        // EBITDA 최근 4분기 합 — 4분기 모두 ebitda가 있으면 그것, 아니면 영업이익(2026 Q2 기준 ebitda는 약 20%만 채워짐)
+        fin._ebitdaTtm = _scTtm(q, 'ebitda', 0) ?? _scTtm(q, 'operating_profit', 0);
+        fin._liab = q[0]?.total_liabilities ?? null;
+      }
+      finMap[code] = fin;
     }
   }
 
@@ -339,10 +344,10 @@ async function _runScreenerInner(el) {
       if (per != null && epsGrowth != null && epsGrowth > 0) {
         peg = per / epsGrowth;
       }
-      // EV/EBITDA ≈ (시총 + total_debt) / operating_income (근사)
+      // EV/EBITDA ≈ (시총 + 부채총계) ÷ 최근 4분기 EBITDA — 현금·차입금 칸이 없어 부채총계로 근사
       let evEbitda = null;
-      if (m.market_cap != null && fin.total_debt != null && fin.operating_income != null && fin.operating_income > 0) {
-        evEbitda = (m.market_cap + fin.total_debt) / fin.operating_income;
+      if (m.market_cap != null && fin._liab != null && fin._ebitdaTtm > 0) {
+        evEbitda = (m.market_cap + fin._liab) / fin._ebitdaTtm;
       }
       return {
         ...m,
