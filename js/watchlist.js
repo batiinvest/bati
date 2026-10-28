@@ -120,14 +120,16 @@ async function loadWatchlist() {
       sb.from('portfolio_flows').select('*').order('flow_date').order('id'),
       sb.from('portfolio_nav').select('base_date,nav,price,detail').order('base_date', { ascending: false }).limit(1),
       sb.from('trade_journal').select('*').order('closed_date', { ascending: false }),
-      getLatestMarketDate(),
+      getLatestFullMarketDate(),   // 시총 분모는 전 종목이 들어온 날(장중 오늘 날짜엔 모니터링 종목뿐)
     ]);
     if (rowsRes.error) throw rowsRes.error;
     const rows = rowsRes.data || [];
     const codes = [...new Set(rows.map(r => r.stock_code))];
     const none = Promise.resolve({ data: [] });
     const [mkt, comp, est, ops, totalCap] = await Promise.all([
-      codes.length ? sb.from('market_data').select('stock_code,price,market_cap,pbr,bps').eq('base_date', date).in('stock_code', codes) : none,
+      // 현재가는 종목별 가장 최근 행 — 모니터링 종목은 장중 시세, 그 밖은 전 종목 날 종가(아래에서 종목별 첫 행)
+      codes.length && date ? sb.from('market_data').select('stock_code,price,market_cap,pbr,bps,base_date').gte('base_date', date)
+        .in('stock_code', codes).order('base_date', { ascending: false }).limit(1000) : none,
       codes.length ? sb.from('companies').select('code,name,market,wics_mid,product').in('code', codes) : none,
       codes.length ? sb.from('consensus_estimates').select('stock_code,fiscal_period,is_estimate,eps,per,roe,collected_at')
         .in('stock_code', codes).order('collected_at', { ascending: false }).limit(5000) : none,
@@ -140,7 +142,7 @@ async function loadWatchlist() {
       schemaOk: !flowsRes.error && !navRes.error && (!rows.length || 'target_weight' in rows[0]),
       flows: flowsRes.data || [], nav: navRes.data?.[0] || null,
       journals: jrRes.error ? null : (jrRes.data || []),
-      mkt: Object.fromEntries((mkt.data || []).map(r => [r.stock_code, r])),
+      mkt: (mkt.data || []).reduce((m, r) => { if (!m[r.stock_code]) m[r.stock_code] = r; return m; }, {}),
       comp: Object.fromEntries((comp.data || []).map(r => [r.code, r])),
       est: _wlEstByCode(est.data || []),
       tp: _wlTargetPrice(ops.data || []),

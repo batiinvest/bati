@@ -753,12 +753,22 @@ async function getIndustryMap() {
 }
 
 // ══════════════════════════════════════════
-//  전역 캐시 — market_data 최신 날짜
-//  사용법: const maxDate = await getLatestMarketDate();
-//  매 페이지 전환마다 재조회하지 않도록 세션 캐싱
-//  새로고침 필요 시: _latestMarketDate = null; 후 재호출
+//  전역 캐시 — market_data 최신 날짜 두 가지
+//  ⚠️ 장중(09:30·12:00 수집)엔 오늘 날짜에 모니터링 종목(~310)만 있고 전 종목(~2,560)은 15:45 마감 수집 뒤에 들어온다.
+//    getLatestMarketDate()     — 가장 최근 날짜(장중이면 오늘 = 모니터링 종목만). 시황·고가저가처럼 모니터링 종목의
+//                                장중 시세를 보는 곳
+//    getLatestFullMarketDate() — 전 종목이 들어온 가장 최근 날짜. 스크리너·시총 합계·동종 비교처럼 전 종목이 필요한 곳
+//                                (10-28 장중 실측: 10-28 311종목 / 10-27 2,559 — 전엔 장중 스크리너가 311종목만 봤음)
+//  매 페이지 전환마다 재조회하지 않도록 세션 캐싱. 새로고침 필요 시 resetMarketDateCache() 후 재호출
 // ══════════════════════════════════════════
 let _latestMarketDate = null;
+let _latestFullMarketDate = null;
+const MARKET_FULL_MIN = 1000;   // 이 수 이상이면 '전 종목' 날로 본다(모니터링 ~310 / 전 종목 ~2,560 사이)
+
+function resetMarketDateCache() {
+  _latestMarketDate = null;
+  _latestFullMarketDate = null;
+}
 
 async function getLatestMarketDate() {
   if (_latestMarketDate) return _latestMarketDate;
@@ -770,6 +780,25 @@ async function getLatestMarketDate() {
     _latestMarketDate = data?.[0]?.base_date || null;
   } catch(e) { console.warn('getLatestMarketDate 실패:', e); }
   return _latestMarketDate;
+}
+
+async function getLatestFullMarketDate() {
+  if (_latestFullMarketDate) return _latestFullMarketDate;
+  let d = await getLatestMarketDate();
+  try {
+    // 최근 날부터 거슬러 행 수가 기준 이상인 첫 날 — 마감 수집이 한 번 빠져도 버티게 최대 5일
+    for (let i = 0; d && i < 5; i++) {
+      const { count, error } = await sb.from('market_data')
+        .select('stock_code', { count: 'exact', head: true }).eq('base_date', d);
+      if (error) throw error;
+      if ((count || 0) >= MARKET_FULL_MIN) { _latestFullMarketDate = d; break; }
+      const { data, error: e2 } = await sb.from('market_data')
+        .select('base_date').lt('base_date', d).order('base_date', { ascending: false }).limit(1);
+      if (e2) throw e2;
+      d = data?.[0]?.base_date || null;
+    }
+  } catch(e) { console.warn('getLatestFullMarketDate 실패:', e); }
+  return _latestFullMarketDate || getLatestMarketDate();   // 못 찾으면 예전처럼 가장 최근 날
 }
 
 // ══════════════════════════════════════════

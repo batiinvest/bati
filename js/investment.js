@@ -442,7 +442,7 @@ function unloadInvestment() {
 
 async function refreshInvestment() {
   _clearInvRefreshTimers();  // 연타 시 이전 폴링 취소
-  _latestMarketDate = null;
+  resetMarketDateCache();
   const btn = document.getElementById('inv-refresh-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
   const restoreBtn = () => {
@@ -496,7 +496,7 @@ async function refreshInvestment() {
   const finish = async (done) => {
     _clearInvRefreshTimers();
     if (A.page !== 'investment') return;   // 페이지 이탈 — 유령 재로드 방지
-    _latestMarketDate = null;
+    resetMarketDateCache();
     await loadInvestment();
     restoreBtn();
     toast(done ? '✅ 최신 데이터로 업데이트됐습니다'

@@ -227,8 +227,8 @@ async function _runScreenerInner(el) {
     ebebMin:   g('sc-eveb-min'),   ebebMax:   g('sc-eveb-max'),
   };
 
-  // ── 최신 base_date — config.js 전역 캐시 사용 ──
-  const maxDate = await getLatestMarketDate();
+  // ── 기준일 — 전 종목이 들어온 가장 최근 날(장중 오늘 날짜엔 모니터링 종목만 있음, config.js) ──
+  const maxDate = await getLatestFullMarketDate();
   if (!maxDate) { el.innerHTML = emptyHTML('시장 데이터 없음'); return; }
 
   // ── Step 1: market_data에서 밸류에이션/시총 필터 적용 (DB 레벨) ──

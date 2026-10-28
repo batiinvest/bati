@@ -96,7 +96,7 @@ async function loadSectorEarn() {
       // 2b) 시장데이터(밸류·시총·외국인) — 최신 거래일 (수익률/순매수는 커버리지 낮아 제외)
       const mdOf = {};
       try {
-        const mdDate = await getLatestMarketDate();
+        const mdDate = await getLatestFullMarketDate();   // 소분류 전 종목 — 장중 오늘 날짜는 모니터링 종목뿐
         if (mdDate) for (let i = 0; i < codes.length; i += 300) {
           const { data: md } = await sb.from('market_data')
             .select('stock_code,per,pbr,market_cap,foreign_hold_rate')

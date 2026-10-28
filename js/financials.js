@@ -17,7 +17,7 @@ function _finSearchDebounce() {
 function reloadFinancials() {
   FIN.raw = null;
   FIN.rawKey = null;
-  _latestMarketDate = null;   // market_data 최신일 캐시도 함께 무효화
+  resetMarketDateCache();   // market_data 최신일 캐시도 함께 무효화
   loadFinancials();
 }
 
@@ -1468,7 +1468,8 @@ async function loadMarketData(el) {
       // 수급빈집 판정은 따로 받는다 — 판정은 저녁 18:50에야 적혀서 장중엔 최신일 행에 없다.
       // '판정이 있는 가장 최근 날'을 읽어 붙인다. 기준일과 무관해 가장 먼저 띄운다
       const fvP   = getFlowVerdicts();
-      const maxDate = await getLatestMarketDate();
+      // 전체 범위는 전 종목이 들어온 날(장중 오늘 날짜엔 모니터링 종목뿐), 모니터링 범위는 장중 시세가 있는 가장 최근 날
+      const maxDate = F.scope === 'monitored' ? await getLatestMarketDate() : await getLatestFullMarketDate();
       // 표가 실제 사용하는 컬럼만 명시 (구 select('*') — 당일 전 종목 × 전 컬럼 다운로드)
       const COLS = 'stock_code,corp_name,market,market_cap,price,price_change,price_change_rate,'
         + 'volume_change_rate,high_price,low_price,volume,trading_value,listing_shares,vol_turnover,'

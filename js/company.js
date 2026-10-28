@@ -630,7 +630,7 @@ async function monApply() {
         if (btn) { btn.textContent = '✅ 적용'; btn.style.opacity = '0.4'; btn.disabled = true; }
         if (badge) badge.style.display = 'none';
         // 시황 페이지 캐시 초기화 → 다음 진입 시 최신 데이터 반영
-        if (typeof _latestMarketDate !== 'undefined') _latestMarketDate = null;
+        resetMarketDateCache();
         if (typeof CACHE.industryMap !== 'undefined') CACHE.industryMap = null;
         // 보드 새로고침
         _monLoadBoard();

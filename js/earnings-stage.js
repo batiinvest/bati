@@ -70,7 +70,7 @@ async function loadEarnStage() {
   if (!body) return;
   try {
     if (!ES.rows) {
-      const d = await getLatestMarketDate();
+      const d = await getLatestFullMarketDate();   // 전 종목 시총 — 장중 오늘 날짜는 모니터링 종목뿐
       const [rows, comp, cap] = await Promise.all([
         fetchAllPages(sb.from('earnings_stage')
           .select('stock_code,period,stage,prev_stage,sales_yoy,op_yoy,spread,sales_high,revenue,op,fs_div,trail,updated_at')

@@ -266,9 +266,13 @@ async function _rpLoadPeerStats() {
   // 2·3. 최신 거래일 PER·PBR·시총 (market_data) + 최근 2년 재무(최근 4분기 ROE·ROA·순이익용, 페이지로 다 받음)
   const baseDate = _rpData.price?.[0]?.base_date;
   const yFrom = Number(String(baseDate || new Date().getFullYear()).slice(0, 4)) - 2;
+  // 동종 시세는 전 종목이 들어온 날부터 종목별 가장 최근 행(아래 4.) — 이 종목의 날짜(장중이면 오늘)로 거르면
+  // 모니터링 밖 동종 기업은 장중에 통째로 빠졌다(오늘 날짜엔 모니터링 종목만 있음)
+  const mdate = await getLatestFullMarketDate();
   const [mktRes, finRows] = await Promise.all([
-    baseDate
-      ? sb.from('market_data').select('stock_code,per,pbr,market_cap').in('stock_code', codes).eq('base_date', baseDate)
+    mdate
+      ? sb.from('market_data').select('stock_code,per,pbr,market_cap').in('stock_code', codes).gte('base_date', mdate)
+          .order('base_date', { ascending: false }).limit(1000)
       : sb.from('market_data').select('stock_code,per,pbr,market_cap').in('stock_code', codes).order('base_date', { ascending: false }),
     fetchAllPages((s, e) => sb.from('financials')
       .select('stock_code,fs_div,is_cumulative,bsns_year,quarter,net_income,total_equity,total_assets,operating_margin')

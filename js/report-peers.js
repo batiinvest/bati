@@ -92,7 +92,7 @@ async function _rpPeerFetch(codes) {
     fetchAllPages((s, e) => sb.from('dart_segment_revenue').select('stock_code,bsns_year,quarter,revenue')
       .eq('segment_type', 'backlog_total').in('stock_code', codes).gte('bsns_year', +y0)
       .order('stock_code').order('bsns_year').order('quarter').range(s, e)),
-    getLatestMarketDate(),
+    getLatestFullMarketDate(),   // 동종 기업은 모니터링 밖도 많아 전 종목이 있는 날
   ]);
   const [mkt, comp] = await Promise.all([
     mdate ? fetchAllPages((s, e) => sb.from('market_data').select('stock_code,market_cap,per,pbr')
