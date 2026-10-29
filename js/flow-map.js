@@ -96,6 +96,9 @@ const _FM_EMPTY_TH = 30;
 // 워크북 '오실'·'MACD' 시트, "비중을 만들고 변환을 했을 때". 시그널 = 9일(국내 원본 두 워크북 모두 =2/10,
 // 09-29 확인 — 이전엔 미국판의 10).
 const _FM_MACD = { fast: 12, slow: 26, sig: 9, warmup: 10 };
+// 오실레이터를 계산하는 자료 길이 — 원본은 늘 최근 77거래일만 담아 그 창의 첫 5일 합에서 EMA를 시작한다
+// (09-18 700종목·10-28 1400종목·업종 파일 모두). 시작점이 다르면 값이 달라진다(백엔드 OSC_DAYS와 같게).
+const _FM_OSC_DAYS = 77;
 
 /** [{d, v, cap}] 5일 수급 비율 → [{d, v: MACD − 시그널, cap}]. EMA는 첫 값에서 시작(엑셀과 같게) */
 function _fmMacdHist(ser) {
@@ -304,7 +307,8 @@ function _fmRender() {
   const availDays = raw.dates.length;
 
   // 창 칩 재구성 (데이터가 받쳐주는 것만)
-  const wins = _fmVisibleWins(availDays);
+  // 빈집 모드의 오실레이터는 최근 _FM_OSC_DAYS거래일로만 계산하므로 그보다 긴 비교 창(6M)은 의미가 없다
+  const wins = _fmVisibleWins(FM.mode === 'empty' ? Math.min(availDays, _FM_OSC_DAYS) : availDays);
   if (!wins.some(w => w.k === FM.win)) FM.win = wins.length ? wins[wins.length - 1].k : '1M';
   const winChips = document.getElementById('fm-win-chips');
   if (winChips) winChips.innerHTML = wins.map(w =>
@@ -707,15 +711,18 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
   }
   const cutIdx  = Math.max(0, raw.dates.length - spanN);
   const cutDate = raw.dates[cutIdx];
-  // 이 구간에서 기대되는 오실레이터 점 수 — 앞쪽 4일은 5일 창이 덜 차고, 그다음 warmup개는
+  // 오실레이터는 원본처럼 최근 _FM_OSC_DAYS거래일 자료로만 — 그 창의 5번째 날(첫 5일 합)부터 EMA 시작
+  const oscIdx  = Math.max(0, raw.dates.length - _FM_OSC_DAYS) + _FM_OSC_N - 1;
+  const oscFrom = raw.dates[Math.min(oscIdx, raw.dates.length - 1)];
+  // 이 구간에서 기대되는 오실레이터 점 수 — 계산 창의 앞쪽 4일은 5일 합이 덜 차고, 그다음 warmup개는
   // EMA가 막 시작해 0 근처로 쏠려 버린다
-  const expect  = raw.dates.length - Math.max(cutIdx, _FM_OSC_N - 1 + _FM_MACD.warmup);
+  const expect  = raw.dates.length - Math.max(cutIdx, oscIdx + _FM_MACD.warmup);
 
   // ── 1차: 종목별 오실레이터 시계열 → 현재값 / 평균 / 자기 이력 백분위 ──
   const base = [];
   for (const s of Object.values(raw.byCode)) {
     const base5 = _fmOscSeries(s, raw.dates, netOf);                    // 5일 수급 비율(입력)
-    const full = _fmMacdHist(base5);                                     // 수급 오실레이터 전체 이력
+    const full = _fmMacdHist(base5.filter(o => o.d >= oscFrom));        // 수급 오실레이터(최근 77거래일로 계산)
     const ser = full.slice(_FM_MACD.warmup).filter(o => o.d >= cutDate);
     if (ser.length < 8) continue;                                      // 백분위를 말할 표본이 안 됨
     const cur = ser[ser.length - 1].v;
@@ -724,7 +731,7 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
     const avg = xs.reduce((a, o) => a + o.v, 0) / (xs.length || 1);
     const pct = ser.filter(o => o.v < cur).length / ser.length * 100;   // 0~100
     // 수급 칸(원본 엑셀의 여러 칸) — 이 지도의 비교 창 안 자기 이력으로 기준선 5개.
-    // 수급 위치(p·n·d5, 10-28 원본 퍼센타일)는 원본처럼 처음부터의 이력 최근 60개로 — 기업분석 표와 같은 값
+    // 수급 위치(p·n·d5, 10-28 원본 퍼센타일)는 원본처럼 워밍업을 빼지 않은 최근 60개로 — 기업분석 표와 같은 값
     const gauge = Object.assign({ lv: flowLevels(ser.map(o => o.v)), cur, prev: ser[ser.length - 2].v },
                                 flowPosOf(full.map(o => o.v)) || {});
     base.push({
@@ -763,7 +770,7 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
   const lastFlow = raw.dates[raw.dates.length - 1];
   const dEl = document.getElementById('fm-date');
   if (dEl) dEl.innerHTML =
-    `<span style="color:var(--text3)">${cutDate} ~ ${lastFlow}</span> · ${_FM_OSC_N}일 롤링 · 비교이력 ${Math.min(spanN, availDays)}거래일 · <span style="color:var(--text2)">보유 ${availDays}거래일</span>`;
+    `<span style="color:var(--text3)">${cutDate} ~ ${lastFlow}</span> · ${_FM_OSC_N}일 롤링 · 오실레이터 최근 ${_FM_OSC_DAYS}거래일로 계산 · 비교이력 ${Math.min(spanN, availDays)}거래일 · <span style="color:var(--text2)">보유 ${availDays}거래일</span>`;
 
   if (!pts.length) { el.innerHTML = _fmEmpty(`${FM.ind} — 선택 조건에 표시할 종목이 없습니다`); return; }
 
@@ -870,7 +877,7 @@ function _fmRenderEmpty(el, raw, availDays, spanN, netOf) {
       `<b>출처</b> — 유튜브 <b>태린이아빠</b> '수급빈집'. ① 유동성이 공급되는 컨셉을 고르고(<b>이때 매수만 본다</b>) ② 수출데이터·미국시장·선행지표·컨센서스에 하자가 없는지 보고 ③ 그런데도 수급이 비워져 있으면 채워질 자리로 본다. ②는 사람이 판단할 몫이라 ①③만 계산합니다.`,
       `<b>① 주도 업종(2026-09 방식)</b> — 원저자 설명대로 <b>6개월 수익률 ÷ 하방 표준편차</b> 순위(FnGuide WICS 중분류 지수) 상위 10 ∩ 장 마감 후 수급을 쪼개 본 <b>사모·투신·연금·외국인 매수</b> 순위 상위 10을 주도 업종으로 봅니다. 공급 여부는 종목의 WICS 중분류 기준이라 같은 테마 안에서도 갈립니다. 이 판정이 있으면 아래 '공급 업종' 대신 이것으로 빈집을 거릅니다(주도 업종 밖은 <b>빈집·비주도</b>).`,
       `<b>① 이전 방식(2024-10, 공급 업종)</b> — 원본 표는 종목별 <b>사모·투신·연금·외국인</b>의 시가총액 대비 매수 순위와 매수대금 순위이고, 컨셉 기준은 "외국인 금액대비·기관 시총대비·기관 금액대비"입니다. 같은 7개 지표(사모·투신·연금 시총대비, 사모·투신·연금·외국인 매수대금)를 <b>WICS 업종</b>별 최근 20거래일로 합산해 백분위 평균으로 순위를 매기고 <b>상위 25%</b>(원본: 26개 업종 중 컨셉 7개)를 공급 업종으로 봅니다. 공급 업종 밖의 빈집은 <b>빈집·비공급</b>으로 따로 표시합니다. 업종은 테마가 아니라 종목 기준이라 같은 테마 안에서도 갈립니다. 매수대금은 전일까지 반영됩니다(KIS가 당일분을 저녁에 주지 않음).`,
-      `<b>③ 수급 오실레이터 = ${_FM_OSC_N}일 수급 비율의 MACD − 시그널</b> — 외인+기관 <b>순매수</b>의 ${_FM_OSC_N}일 합 ÷ 당일 시가총액(%)을 만든 뒤 EMA${_FM_MACD.fast} − EMA${_FM_MACD.slow}에서 시그널(EMA${_FM_MACD.sig})을 뺍니다. 근거: 원본 값이 5일 합계보다 약 10배 작고 평균이 0에 붙는 대칭형(삼성전자 원본 칸 +0.03/+0.02/0.00/−0.02/−0.03% ≈ MACD−시그널 +0.031/+0.023/+0.001/−0.023/−0.034%), 워크북의 '오실'·'MACD' 시트, 원저자의 "비중을 만들고 변환을 했을 때", 국내 파일을 바탕으로 만든 미국판의 같은 단계. 시그널은 9일(국내 원본 워크북의 계수 2/10)입니다. 칸·사분면은 앞쪽 ${_FM_MACD.warmup}개 점(EMA 초기값)을 빼고 보고, 수급 위치는 원본처럼 빼지 않습니다. 가로축 공급강도는 변환 전 5일 비율의 평균입니다.`,
+      `<b>③ 수급 오실레이터 = ${_FM_OSC_N}일 수급 비율의 MACD − 시그널</b> — 외인+기관 <b>순매수</b>의 ${_FM_OSC_N}일 합 ÷ 당일 시가총액(%)을 만든 뒤 EMA${_FM_MACD.fast} − EMA${_FM_MACD.slow}에서 시그널(EMA${_FM_MACD.sig})을 뺍니다. 근거: 원본 값이 5일 합계보다 약 10배 작고 평균이 0에 붙는 대칭형(삼성전자 원본 칸 +0.03/+0.02/0.00/−0.02/−0.03% ≈ MACD−시그널 +0.031/+0.023/+0.001/−0.023/−0.034%), 워크북의 '오실'·'MACD' 시트, 원저자의 "비중을 만들고 변환을 했을 때", 국내 파일을 바탕으로 만든 미국판의 같은 단계. 시그널은 9일(국내 원본 워크북의 계수 2/10)입니다. 원본처럼 <b>최근 ${_FM_OSC_DAYS}거래일 자료로만</b> 계산합니다 — 원본 파일은 늘 77거래일을 담고 그 첫 5일 합에서 EMA를 시작해서, 더 긴 이력으로 시작하면 값이 달라집니다(이력 긴 종목 위치 구간 일치 91% → 시작점을 맞추면 100%). 칸·사분면은 앞쪽 ${_FM_MACD.warmup}개 점(EMA 초기값)을 빼고 보고, 수급 위치는 원본처럼 빼지 않습니다. 가로축 공급강도는 변환 전 5일 비율의 평균입니다.`,
       `<b>남은 차이 한 가지</b> — 금액 산출입니다. 원본은 거래소 <b>순매수 금액</b>을 직접 쓰고, 우리 원천(KIS inquire-investor)은 수량만 주므로 <b>순매수 수량 × 종가</b>로 환산합니다 — 확정 대금과 소수 % 오차가 납니다.`,
       `<b>수급 위치(P)</b> — 원본 「1400종목 수급오실레이터 퍼센타일」(2026-10-28)은 칸 표 대신 차트 아래 <b>가로바</b> 하나로 봅니다: 현재 오실레이터가 <b>최근 60개 관측치(60거래일)</b> 안에서 놓인 자리 P0~P100(엑셀 PERCENTRANK.INC, 관측치 20개부터)과 <b>5거래일 변화(%p)</b>, 색 구간 P0~10·10~25·25~75·75~90·90~100. 표의 막대·P와 추이 차트 아래 가로바가 이것이고, 원본 종목별데이터 73,269점을 같은 계산으로 재현해 모두 일치했습니다. 이력이 60거래일보다 짧은 종목은 관측치 수가 그만큼 적게 표시됩니다.`,
       `<b>수급 단계(칸)</b> — 원본 수급오실레이터 엑셀(2026-09-25 영상)의 <b>상위10%·상위25%·평균·하위25%·하위10%·현재</b> 칸을 옮겼습니다. 현재값이 넘어선 칸이 채워지고(원본은 분홍색, 삼성전자 예: 현재 0.02% → 평균·하위25%·하위10% 3칸) <b>10-29부터 단계 이름과 빈집은 칸이 아니라 수급 위치의 가로바 구간으로 부릅니다</b>(사용자 결정) — P90 이상 <b>다 찼다</b>, P75 이상에서 내려오면 <b>꺾임</b>, 빈집(P25 미만, 파란 칸)에서 오르면 <b>이제 시작</b>. 단계 이름은 원저자 설명을 옮긴 것입니다 — "과열권에서 떨어질 때는 한 턴 기다린다", "수급오실레이터가 꺾이면 비중을 줄인다", "바닥에서 변곡이 나오면 수급이 본격적으로 채워진다". 칸 값의 크기도 이제 원본과 같은 자릿수입니다(MACD − 시그널).`,
