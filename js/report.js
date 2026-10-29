@@ -537,7 +537,7 @@ function _rpFlowStageCard(v) {
     pos && row('수급 위치', flowPosBlock(pos), flowPosTip(pos) + ' — 현재 수급 오실레이터가 최근 60거래일 안에서 놓인 자리'),
     gg && row('수급 칸', `${flowGaugeBar(gg)} <b style="color:${gg.color}">${gg.label}</b> <span style="color:var(--text2)">· ${gg.fill}/5칸 — ${escapeHtml(gg.tip)}</span>`,
       flowGaugeTip(v.flow_gauge, gg)),
-    q && row('빈집', `<b>${q.label}</b> <span style="color:var(--text2)">· 칸 2개 이하가 빈집, 주도 업종 안이면 '빈집'</span>`),
+    q && row('빈집', `<b>${q.label}</b> <span style="color:var(--text2)">· 수급 위치 P25 미만(가로바 파란 칸)이 빈집, 주도 업종 안이면 '빈집'</span>`),
     v?.lead_flags && row('주도 업종', v.lead_flags.lead ? '<b style="color:#f59e0b">주도 업종</b>' : '주도 업종 아님'),
     v?.lead_flags?.rs != null && row('RS', `${v.lead_flags.rs}`),
     te && row('태린이아빠 후보', te.label ? `<b style="color:#f59e0b">${te.label}</b>` : '해당 없음'),

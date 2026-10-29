@@ -859,24 +859,27 @@ function resetFlowVerdicts() { CACHE.flowVerdicts = null; }
 // ══════════════════════════════════════════
 //  수급 칸(게이지) — 태린이아빠 수급오실레이터 엑셀의 '여러 칸' (2026-09-25 영상)
 //  종목 차트 옆에 '상위10%·상위25%·평균·하위25%·하위10%·현재'를 두고, 현재값이 넘어선 칸을
-//  채운다(원본은 분홍색). 칸 수(0~5)와 방향(어제보다 올랐나)으로 단계를 부른다 — 이름은 원저자의
-//  말을 옮긴 것: "과열권에서 떨어질 때는 한 턴 기다린다" · "수급오실레이터가 꺾이면 비중을
-//  줄인다" · "바닥에서 변곡이 나오면 수급이 본격적으로 채워진다".
-//  g = { lv: [상위10, 상위25, 평균, 하위25, 하위10], cur, prev }  (오실레이터 %)
+//  채운다(원본은 분홍색). 단계 이름은 원저자의 말을 옮긴 것: "과열권에서 떨어질 때는 한 턴
+//  기다린다" · "수급오실레이터가 꺾이면 비중을 줄인다" · "바닥에서 변곡이 나오면 수급이 본격적으로 채워진다".
+//  10-29부터 단계·빈집은 칸 수가 아니라 수급 위치(아래 FLOW_POS, 10-28 원본 가로바)의 색 구간으로 부른다
+//  (사용자 결정 — 빈집 = 파란 칸 P25 미만). 위치가 없는 옛 판정 행만 칸 수(5칸·4칸 이상·2칸 이하)로.
+//  방향(up)은 오늘 오실레이터가 어제보다 올랐나.
+//  g = { lv: [상위10, 상위25, 평균, 하위25, 하위10], cur, prev, p, n, d5 }  (오실레이터 %, 위치 0~100)
 // ══════════════════════════════════════════
+const FLOW_EMPTY_P = 25, FLOW_TURN_P = 75, FLOW_TOP_P = 90;   // 백엔드 collect_flow_empty POS_EMPTY·TURN·TOP과 같게
 const FLOW_STAGE = {
-  start: { label: '이제 시작', color: '#2dce89', prio: 4, tip: '칸이 비어 있는데(2칸 이하) 오르기 시작 — 바닥에서 채워지기 시작' },
-  fill:  { label: '채우는 중', color: '#7fb8a0', prio: 3, tip: '중간 칸에서 오르는 중' },
-  drain: { label: '비우는 중', color: '#8898aa', prio: 2, tip: '중간 이하 칸에서 내려가는 중' },
-  top:   { label: '다 찼다',   color: '#f5365c', prio: 1, tip: '5칸이 다 참(자기 이력 상위 10% 이상) — 과열권' },
-  turn:  { label: '꺾임',      color: '#fb6340', prio: 0, tip: '4칸 이상 찬 상태에서 내려오기 시작 — 비중 축소·한 턴 기다림' },
+  start: { label: '이제 시작', color: '#2dce89', prio: 4, tip: `빈집(수급 위치 P${FLOW_EMPTY_P} 미만 — 가로바 파란 칸)에서 오르기 시작 — 바닥에서 채워지기 시작` },
+  fill:  { label: '채우는 중', color: '#7fb8a0', prio: 3, tip: `P${FLOW_EMPTY_P} 이상에서 오르는 중` },
+  drain: { label: '비우는 중', color: '#8898aa', prio: 2, tip: `P${FLOW_TURN_P} 아래에서 내려가는 중` },
+  top:   { label: '다 찼다',   color: '#f5365c', prio: 1, tip: `P${FLOW_TOP_P} 이상(가로바 빨간 칸) — 과열권` },
+  turn:  { label: '꺾임',      color: '#fb6340', prio: 0, tip: `P${FLOW_TURN_P} 이상(주황·빨간 칸)에서 내려오기 시작 — 비중 축소·한 턴 기다림` },
 };
 const FLOW_LEVEL_NAMES = ['상위 10%', '상위 25%', '평균', '하위 25%', '하위 10%'];
 
 // ══════════════════════════════════════════
 //  태린이아빠 국내 전략 후보 — 2026-09-19 영상 「1년간 미장에서 52주 신고가 전략 … 업그레이드」
 //   ① 주도 업종(6개월 수익률÷하방 표준편차 상위 ∩ 사모·투신·연금·외국인 매수 상위, WICS 중분류)
-//   ② 그 안에서 수급 오실레이터 빈집(수급 칸 2개 이하 — flowIsEmpty)
+//   ② 그 안에서 수급 오실레이터 빈집(수급 위치 P25 미만 — flowIsEmpty)
 //   ③ 거래대금 상위 150이면서 상승 · 컨센 상향 · 52주(250일) 신고가 · 신고가 군집 업종 중 하나 → 후보 A
 //      (09-19 회원 영상: 거래대금은 "상위이면서 주가가 플러스", 군집은 "군집 현상 있는 섹터 중 빈집")
 //   일일 스크린: RS 70 이상 · 그날 거래대금 또는 기관·외국인 순매수 상위 150 · 수급 빈  → 후보 B
@@ -886,13 +889,15 @@ const FLOW_LEVEL_NAMES = ['상위 10%', '상위 25%', '평균', '하위 25%', '�
 const TAERIN_TAGS = { tv: '거래대금', tvu: '거래대금↑', nb: '순매수', cons: '컨센↑', nh: '신고가', cl: '군집' };
 const TAERIN_A_KEYS = ['tvu', 'cons', 'nh', 'cl'];   // 후보 A ③ 확률 높이기(OR)
 
-// 빈집 = 수급 칸 2개 이하 — 현재 오실레이터가 최근 63거래일 '평균' 칸 아래(하위25%·하위10% 칸까지만
-// 넘었거나 하나도 못 넘음). 원본(수급오실레이터 시트)은 칸 표에서 현재값이 넘어선 칸을 빨갛게 칠해
-// 비었다/찼다를 눈으로 읽는다 — 칸 수 기준은 원본에 숫자가 없어 '평균 아래'로 정했다(09-29 사용자
-// 결정: 원본과 같게 빈집을 칸으로 통일). 칸이 없는 옛 판정 행만 자기 이력 하위 50%로 대신한다.
+// 빈집 = 수급 위치 P25 미만 — 현재 오실레이터가 최근 60거래일 하위 25% 안(원본 가로바의 파란 두 칸).
+// 원본에 빈집 숫자는 없고 가로바 색으로 읽는다 — 10-29 사용자 결정으로 파란 칸을 빈집으로 정했다
+// (09-29~10-28은 '칸 2개 이하' = 평균 아래였다. 10-28 기준 빈집 1,558 → 901, 태린 후보 127 → 77).
+// 위치가 없는 옛 판정 행은 칸 2개 이하, 칸도 없으면 자기 이력 하위 50%로 대신한다.
 // 앱의 모든 빈집 판정(기업분석 표·태린 후보·교체 후보)이 이 함수를 쓴다 — 백엔드 collect_leading도 같게.
 const FLOW_EMPTY_MAX_FILL = 2;
 function flowIsEmpty(gauge, pctl) {
+  const pos = flowPos(gauge);
+  if (pos) return pos.p < FLOW_EMPTY_P;
   const gg = gauge ? flowGauge(gauge) : null;
   if (gg) return gg.fill <= FLOW_EMPTY_MAX_FILL;
   return pctl == null ? null : pctl < 50;
@@ -909,15 +914,19 @@ function taerinEval(gauge, f, pctl) {
            label: a && b ? 'A·B' : a ? 'A' : b ? 'B' : '' };
 }
 
-/** 칸 판정 — { fill:0~5, up, key, label, color, prio, tip } 또는 null */
+/** 단계 판정 — { fill:0~5, up, key, label, color, prio, tip } 또는 null. 백엔드 _stage와 같은 규칙 */
 function flowGauge(g) {
   if (!g || !Array.isArray(g.lv) || g.cur == null) return null;
   const fill = g.lv.filter(v => v != null && g.cur >= v).length;
   const up   = g.prev != null && g.cur > g.prev;
-  const key  = (fill >= 4 && !up) ? 'turn'
-             : fill === 5          ? 'top'
-             : (fill <= 2 && up)   ? 'start'
-             : up                  ? 'fill' : 'drain';
+  const p    = g.p != null ? +g.p : null;   // 수급 위치가 있으면 가로바 구간, 없으면 칸 수
+  const hi   = p != null ? p >= FLOW_TURN_P : fill >= 4;
+  const top  = p != null ? p >= FLOW_TOP_P  : fill === 5;
+  const low  = p != null ? p < FLOW_EMPTY_P : fill <= 2;
+  const key  = (hi && !up) ? 'turn'
+             : top         ? 'top'
+             : (low && up) ? 'start'
+             : up          ? 'fill' : 'drain';
   return Object.assign({ fill, up, key }, FLOW_STAGE[key]);
 }
 

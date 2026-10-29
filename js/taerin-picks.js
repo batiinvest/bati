@@ -4,7 +4,7 @@
  * 원본 규칙 (태린이아빠 2026-09-19 영상 · 09-19 회원 영상 「수급 빈집 체크」)
  *   A = 주도 업종 ∧ 수급 오실레이터 빈집 ∧ (거래대금 상위이면서 상승 ∨ 컨센 상향 ∨ 250일 신고가 ∨ 신고가 군집)
  *   B = RS 70 이상 ∧ (그날 거래대금 ∨ 기관·외국인 순매수 상위 150) ∧ 수급 빈집     (일일 스크린)
- *   빈집 = 수급 칸 2개 이하(config.js flowIsEmpty), 판정은 config.js taerinEval — 기업분석 표 '태린 후보' 열과 같다.
+ *   빈집 = 수급 위치 P25 미만(원본 가로바 파란 칸, config.js flowIsEmpty), 판정은 config.js taerinEval — 기업분석 표 '태린 후보' 열과 같다.
  * 원자료: getFlowVerdicts()(수급 칸·lead_flags — 백엔드 collect_flow_empty·collect_leading, 평일 18:50)
  *         + 기업 이름(_msCompanies, investment.js) + 시세(INV.allMarketRows — 등락률·거래대금, 늦게 오면 다시 그림)
  *
@@ -128,7 +128,7 @@ function renderTaerinPicks() {
   + (list.length > _TP_SHOW ? `<div style="padding:6px 12px;text-align:center">
       <button class="chip chip-sm" onclick="toggleTpMore()">${TP.more ? '접기' : `전부 보기 (+${list.length - _TP_SHOW})`}</button></div>` : '')
   + `<div style="padding:7px 12px;font-size:calc(11px*var(--m-label));color:var(--text3);line-height:1.6;border-top:1px solid var(--border)">
-      <b style="color:var(--text2)">A</b> = 주도 업종 ∧ 수급 빈집(칸 2개 이하) ∧ (거래대금 상위·상승 ∨ 컨센 상향 ∨ 250일 신고가 ∨ 신고가 군집) ·
+      <b style="color:var(--text2)">A</b> = 주도 업종 ∧ 수급 빈집(수급 위치 P25 미만) ∧ (거래대금 상위·상승 ∨ 컨센 상향 ∨ 250일 신고가 ∨ 신고가 군집) ·
       <b style="color:var(--text2)">B</b> = RS 70 이상 ∧ (거래대금 ∨ 기관·외국인 순매수 상위 150) ∧ 수급 빈집 —
       유튜브 태린이아빠 09-19 영상의 방식. 기업분석 표 '태린 후보' 열과 같은 판정.
     </div>`;

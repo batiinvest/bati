@@ -259,13 +259,13 @@ const FIN_FILTER_GET = {
   _taerin:    r => r._te?.label || null,   // 'A·B' / 'A' / 'B' — 후보가 아니면 목록에서 뺀다
 };
 
-// 빈집 판정 — 원본 규칙 '주도 업종 ∧ 수급 오실레이터 빈집'(09-19 회원 영상). 빈집 = 수급 칸 2개 이하
-// (config.js flowIsEmpty). 표에는 따로 열을 두지 않는다 — 원본처럼 '주도업종' 열과 '수급단계' 칸으로
+// 빈집 판정 — 원본 규칙 '주도 업종 ∧ 수급 오실레이터 빈집'(09-19 회원 영상). 빈집 = 수급 위치 P25 미만
+// (원본 가로바 파란 칸, 10-29 — config.js flowIsEmpty). 표에는 따로 열을 두지 않는다 — 원본처럼 '주도업종' 열과 '수급단계' 칸으로
 // 읽는다(09-29 사용자 결정). 수급빈집 칩 필터·내보내기가 이 판정을 쓴다.
 const FIN_FLOW_Q = {
-  fill:  { label: '빈집',        prio: 2 },   // 주도 업종 ∧ 칸 2개 이하
-  filln: { label: '빈집·비주도', prio: 1 },   // 칸 2개 이하지만 주도 업종 밖
-  hold:  { label: '차있음',      prio: 0 },   // 칸 3개 이상
+  fill:  { label: '빈집',        prio: 2 },   // 주도 업종 ∧ P25 미만
+  filln: { label: '빈집·비주도', prio: 1 },   // P25 미만이지만 주도 업종 밖
+  hold:  { label: '차있음',      prio: 0 },   // P25 이상
 };
 const _finFlowKey = r => {
   const empty = flowIsEmpty(r.flow_gauge, r.flow_pctl);
@@ -844,7 +844,7 @@ const FIN_COL_GROUPS = {
     { key:'id',    name:'식별', always:true,
       // 주도업종·수급단계는 종목명 바로 옆 — 원본 규칙 '주도 업종 ∧ 수급 빈집'을 두 열로 바로 읽는다
       // (칩과 상관없이 항상 표시). 수급단계 = 수급 위치 막대·P(10-28 원본 1400종목 퍼센타일, 정렬도 P) +
-      // 단계 이름(수급 칸 — 상위10·상위25·평균·하위25·하위10), 빈집 = 칸 2개 이하 (09-29)
+      // 단계 이름, 빈집 = P25 미만(가로바 파란 칸) — 단계·빈집 모두 가로바 구간 기준 (10-29)
       cols:['종목명','주도업종','수급단계','코드','시장','섹터','중분류','업종','테마'] },
     // 거래량·거래대금은 '현재가 +' 상세로 들어가 거래 칩이 비어버리므로 시세로 흡수
     { key:'price', name:'시세',
@@ -888,7 +888,7 @@ const FIN_COLS_LS = 'bati-fin-cols';
 // 대개 '지금 그런 종목이 뭐냐'라서, 켜면 해당 종목만 남긴다(끄면 필터도 함께 풀린다).
 const FIN_CHIP_FILTER = {
   w52:   { col: 'hgpr_cls', val: '신고가', tip: '52주 컬럼을 열고 신고가 종목만 남깁니다' },
-  flow:  { col: '_flowQ',   val: '빈집',   tip: '수급 컬럼을 열고 주도 업종의 빈집(수급 칸 2개 이하) 종목만 남깁니다' },
+  flow:  { col: '_flowQ',   val: '빈집',   tip: '수급 컬럼을 열고 주도 업종의 빈집(수급 위치 P25 미만 — 가로바 파란 칸) 종목만 남깁니다' },
   taerin:{ col: '_taerin',  val: ['A·B', 'A', 'B'],
            tip: '태린이아빠 후보만 남깁니다 — A: 주도 업종 빈집 + 거래대금·컨센·신고가 중 하나 · B: RS70 + 거래대금/순매수 상위 + 수급 빈' },
 };
@@ -1690,7 +1690,7 @@ function _finLeadCell(r) {
   const s = t.sec, q = _finFlowQ(r);
   const tip = `중분류 ${s.name} — ${s.leading ? '주도 업종' : '주도 업종 아님'} `
     + `(모멘텀 ${s.mom_rank ?? '—'}위 · 매수 ${s.buy_rank ?? '—'}위 / ${s.n_sectors})`
-    + (q ? ` · 이 종목 ${q.label}(수급 칸 ${r._gauge?.fill ?? '—'}/5)` : '')
+    + (q ? ` · 이 종목 ${q.label}(수급 위치 P${r._fpos ? Math.round(r._fpos.p) : '—'})` : '')
     + (FIN.flowInfo?.date ? ` · 판정일 ${FIN.flowInfo.date}` : '');
   if (t.key === 'none') return `<td style="color:var(--text3)" title="${escAttr(tip)}">—</td>`;
   return `<td style="white-space:nowrap" title="${escAttr(tip)}"><span style="font-size:calc(10.5px*var(--m-label));`
@@ -1713,7 +1713,7 @@ function _finTaerinCell(r) {
     .filter(k => f[k] && !(k === 'tv' && f.tvu)).map(k => TAERIN_TAGS[k]);   // 거래대금↑이면 거래대금은 생략
   const why = [
     t.lead ? '주도 업종' : '주도 업종 아님',
-    `${t.empty ? '수급 빈' : '수급 차있음'}(칸 ${r._gauge?.fill ?? '—'}/5 — 2칸 이하가 빈집)`,
+    `${t.empty ? '수급 빈' : '수급 차있음'}(수급 위치 P${r._fpos ? Math.round(r._fpos.p) : '—'} — P25 미만이 빈집)`,
     `RS ${t.rs ?? '—'}`,
     flags.length ? flags.join('·') : '거래대금·순매수·컨센·신고가·군집 해당 없음',
   ].join(' · ');
