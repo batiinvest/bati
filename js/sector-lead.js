@@ -16,8 +16,9 @@
  *
  * 09-29 업종 보드 통일(WICS 중분류 28개) — 옛 '산업별 수급동향'(자체 산업 분류·4사분면) 카드를 없애고
  * 태린이아빠 자료로 대체한 줄·열을 이 카드에 모았다.
- *   머리 줄: 업종 쏠림지수(「특정업종 쏠림지수 국내」) · 업종 국면(120일선 위 업종 비율 —
- *            「업종지수 활용한 추세 및 비추세 전략」)  ← sector_market_daily (collect_sector_market.py)
+ *   머리: 업종 국면(120일선 위 업종 비율 — 「업종지수 활용한 추세 및 비추세 전략」, 28칸 띠) ·
+ *         업종 쏠림지수(「특정업종 쏠림지수 국내」)  ← sector_market_daily (collect_sector_market.py)
+ *         + 순위 사다리(11-08): 왼쪽 모멘텀 상위·오른쪽 매수 상위, 양쪽에 다 있는 업종(= 주도)을 금색 선으로 잇는다
  *   열: 오늘(WICS 지수 등락) · 거래대금·연·사·투(「외국인기관수급오실레이터 (업종)」 업종비중 = 관심도)
  *       ← leading_sectors 확장 컬럼 (collect_leading.py)
  *
@@ -62,9 +63,10 @@ function pSectorLead() {
   return `
   <div class="card" style="margin-bottom:12px">
     <div class="card-header" style="flex-wrap:wrap;gap:6px">
-      <span class="card-title">${_ICO.chart}주도 업종 · 돈이 몰리는 곳</span>
-      <span id="sl-date" class="card-sub"></span>
-      <button id="sl-all-btn" class="chip chip-sm" style="margin-left:auto" onclick="toggleSlAll()">전체 업종</button>
+      <span class="card-title">${_ICO.chart}주도 업종</span>
+      <span class="card-sub">돈이 몰리는 곳</span>
+      <span id="sl-date" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:auto"></span>
+      <button id="sl-all-btn" class="chip chip-sm" onclick="toggleSlAll()">전체 업종</button>
     </div>
     <div id="sl-body">${loadingHTML('주도 업종 불러오는 중...')}</div>
   </div>`;
@@ -123,36 +125,88 @@ async function _slLoadMkt() {
   } catch (e) { console.warn('[업종쏠림]', e); }
 }
 
-// 카드 머리 두 줄 — 업종 쏠림지수 · 업종 국면
-function _slMarketLines(nameOf) {
+// 국면 구간 — 120일선 위 업종 비율 30·40·60% (원본 전략 v2.1)
+const _SL_REGIME_BANDS = [['contra', 0, 30], ['recover', 30, 40], ['range', 40, 60], ['trend', 60, 100]];
+const _slRegimeOf = f => f >= .6 ? 'trend' : f >= .4 ? 'range' : f >= .3 ? 'recover' : 'contra';
+
+// 카드 머리 왼쪽 — 업종 국면(28칸 띠: 업종 하나 = 한 칸, 120일선 위 업종만 채움) · 업종 쏠림지수
+function _slContextHTML(nameOf) {
   const rows = (SL.mkt || []).filter(r => r.osc != null);
   if (!rows.length) return '';
   const last = rows[rows.length - 1], prev = rows[rows.length - 2];
   const up = prev && last.osc > prev.osc;
+  const spColor = up ? '#f59e0b' : '#2AABEE';
   const sign = v => (v >= 0 ? '+' : '') + Number(v).toFixed(2);
   const spTip = '원본 「특정업종 쏠림지수 국내」: 매일 업종 등락률 1~5위 합 − 나머지 합을 누적한 선의 MACD − 시그널. '
     + '선이 오르면 특정 업종으로 자금이 쏠리는 것, 내리면 여러 업종이 돌아가며 오르는 장(수익 내기 쉬운 장). '
     + '지나치게 내려가면 다시 특정 업종 쏠림 가능성을, 시장이 빠지는데 일부 업종만 버텨도 오른다.'
-    + (last.corr30 != null ? ` · 업종·시장(코스피200 동일가중) 30일 상관 평균 ${Number(last.corr30).toFixed(2)}` : '');
-  const top = (last.top5 || []).map(c => nameOf[c] || c).join(' · ');
+    + (last.corr30 != null ? ` 업종·시장(코스피200 동일가중) 30일 상관 평균 ${Number(last.corr30).toFixed(2)}.` : '');
+  const top = (last.top5 || []).map(c => nameOf[c] || c).join(', ');
   const rg = _SL_REGIME[last.regime];
-  const pctA = last.n_sectors ? Math.round(last.n_above / last.n_sectors * 100) : null;
-  return `
-    <div style="padding:8px 12px 2px;font-size:calc(12.5px*var(--m-sub));line-height:1.8;border-bottom:1px dashed var(--border)">
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap" title="${escAttr(spTip)}">
-        <b style="color:var(--text1)">업종 쏠림지수</b>
-        <span style="display:inline-block">${_slSparkSvg(rows.map(r => Number(r.osc)), up ? '#f59e0b' : '#2AABEE')}</span>
-        <b style="font-variant-numeric:tabular-nums;color:${up ? '#f59e0b' : '#2AABEE'}">${sign(last.osc)} ${up ? '↑' : '↓'}</b>
-        <span style="color:var(--text1)">${up ? '특정 업종으로 쏠리는 중' : '여러 업종이 돌아가며 오르는 중'}</span>
-        ${top ? `<span style="color:var(--text3)">· 오늘 등락 상위 5 ${escapeHtml(top)}</span>` : ''}
-      </div>
-      ${rg ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap" title="${escAttr(rg.tip + ' (원본 「업종지수 활용한 추세 및 비추세 전략」 — 구간 60·40·30%)')}">
-        <b style="color:var(--text1)">업종 국면</b>
-        <span style="color:${rg.color};font-weight:700">${rg.label}</span>
-        <span style="color:var(--text2)">120일선 위 업종 ${last.n_above}/${last.n_sectors}${pctA != null ? ` (${pctA}%)` : ''}</span>
-        <span style="color:var(--text3)">${last.base_date} 기준</span>
-      </div>` : ''}
+  const n = last.n_sectors || 0, k = last.n_above || 0;
+  const regime = rg && n ? `
+    <div class="sl-ctx-blk" title="${escAttr(rg.tip + ' (원본 「업종지수 활용한 추세 및 비추세 전략」, 구간 30·40·60%)')}">
+      <div class="sl-ctx-h">업종 국면 <span>${last.base_date} 기준</span></div>
+      <div class="sl-ctx-main"><b style="color:${rg.color}">${rg.label}</b>
+        <span>120일선 위 업종 <b>${k}</b>/${n} (${Math.round(k / n * 100)}%)</span></div>
+      <div class="sl-cells">${Array.from({ length: n }, (_, i) =>
+        `<i class="${i < k ? 'on' : ''}" style="background:${_SL_REGIME[_slRegimeOf((i + .5) / n)].color}"></i>`).join('')}</div>
+      <div class="sl-bands">${_SL_REGIME_BANDS.map(([key, lo, hi]) =>
+        `<span class="${key === last.regime ? 'on' : ''}" style="flex:${hi - lo}${key === last.regime ? `;color:${_SL_REGIME[key].color}` : ''}"><small>${lo}%</small>${_SL_REGIME[key].label}</span>`).join('')}</div>
+    </div>` : '';
+  return `${regime}
+    <div class="sl-ctx-blk" title="${escAttr(spTip)}">
+      <div class="sl-ctx-h">업종 쏠림지수 <span>최근 ${rows.length}거래일</span></div>
+      <div class="sl-ctx-main"><b style="color:${spColor}">${sign(last.osc)} ${up ? '↑' : '↓'}</b>
+        <span>${up ? '특정 업종으로 쏠리는 중' : '여러 업종이 돌아가며 오르는 중'}</span></div>
+      <div class="sl-ctx-spark">${_slSparkSvg(rows.map(r => Number(r.osc)), spColor, 240, 34, true)}</div>
+      ${top ? `<div class="sl-ctx-note">오늘 등락 상위 5: ${escapeHtml(top)}</div>` : ''}
     </div>`;
+}
+
+// 순위 사다리 — 왼쪽 모멘텀 상위, 오른쪽 매수 상위. 양쪽에 다 있는 업종(= 주도)은 금색 선으로 잇는다.
+// 선은 그린 뒤 줄 높이를 재서 _slDrawLadder가 넣는다(글자 크기 설정에 따라 줄 높이가 바뀜)
+function _slLadderHTML(topM, topB, nameBtn) {
+  const idxB = new Map(topB.map((r, j) => [r.mid_code, j]));
+  const links = topM.map((r, i) => idxB.has(r.mid_code) ? `${i}-${idxB.get(r.mid_code)}` : null).filter(Boolean);
+  const nLead = links.length;
+  const row = (r, rank, side) => {
+    const name = `<span class="sl-lad-name">${nameBtn(r)}</span>`, rk = `<span class="sl-lad-rk">${rank}</span>`;
+    return `<div class="sl-lad-row${r.leading ? ' lead' : ''}">${side === 'L' ? name + rk : rk + name}</div>`;
+  };
+  return `
+    <div class="sl-lad">
+      <div class="sl-lad-head">
+        <div title="${escAttr(_SL_TAG.mom.tip)}"><b style="color:${_SL_TAG.mom.color}">모멘텀 상위 ${topM.length}</b><small>6개월 수익률 ÷ 하방 표준편차</small></div>
+        <div class="mid" title="${escAttr(_SL_TAG.lead.tip)}" style="color:${nLead ? _SL_TAG.lead.color : 'var(--text3)'}">${nLead ? `주도 ${nLead}` : '주도 없음'}</div>
+        <div title="${escAttr(_SL_TAG.buy.tip)}"><b style="color:${_SL_TAG.buy.color}">매수 상위 ${topB.length}</b><small>사모·투신·연금·외국인, 20거래일</small></div>
+      </div>
+      <div class="sl-lad-body">
+        <div class="sl-lad-col L">${topM.map(r => row(r, r.mom_rank, 'L')).join('')}</div>
+        <svg class="sl-lad-links" data-n="${Math.max(topM.length, topB.length)}" data-links="${links.join(',')}" preserveAspectRatio="none" aria-hidden="true"></svg>
+        <div class="sl-lad-col R">${topB.map(r => row(r, r.buy_rank, 'R')).join('')}</div>
+      </div>
+      ${nLead ? '' : '<div class="sl-ctx-note" style="text-align:center">교집합이 없는 날입니다. 두 목록을 따로 보세요.</div>'}
+    </div>`;
+}
+
+function _slDrawLadder(el) {
+  const svg = el.querySelector('.sl-lad-links'), row = el.querySelector('.sl-lad-row');
+  const h = row ? row.offsetHeight : 0;
+  if (!svg || !h) return;
+  const H = (+svg.dataset.n || 0) * h;
+  svg.setAttribute('viewBox', `0 0 100 ${H}`);
+  svg.style.height = `${H}px`;
+  svg.innerHTML = (svg.dataset.links || '').split(',').filter(Boolean).map(p => {
+    const [i, j] = p.split('-').map(Number), y1 = (i + .5) * h, y2 = (j + .5) * h;
+    return `<path d="M0 ${y1} C50 ${y1} 50 ${y2} 100 ${y2}"/>`;
+  }).join('');
+}
+
+// 가로로 밀어도 '구분·업종' 두 열이 남게 — 두 번째 열의 고정 위치 = 첫 열 폭
+function _slStickCols(el) {
+  const tbl = el.querySelector('.sl-tbl'), th = tbl?.querySelector('th');
+  if (th) tbl.style.setProperty('--sl-c1', `${th.offsetWidth}px`);
 }
 
 const _SL_MKT = { ALL: '합산', KOSPI: '코스피', KOSDAQ: '코스닥' };
@@ -165,12 +219,17 @@ function _slGauge(mid, mkt = 'ALL') {
 const _slMsg = msg =>
   `<div style="padding:1.5rem 1rem;text-align:center;color:var(--text2);font-size:calc(13px*var(--m-body))">${escapeHtml(msg)}</div>`;
 
-function _slSparkSvg(vals, color) {
+// zero = 0선(점선)도 긋는다 — 쏠림지수처럼 0 위아래가 뜻이 있는 값. 넓은 것은 칸 폭에 맞춰 늘어난다
+function _slSparkSvg(vals, color, W = 72, H = 20, zero = false) {
   if (!Array.isArray(vals) || vals.length < 2) return '<span style="color:var(--text3)">—</span>';
-  const W = 72, H = 20, lo = Math.min(...vals), hi = Math.max(...vals), rg = (hi - lo) || 1;
-  const pts = vals.map((v, i) => `${(i / (vals.length - 1) * W).toFixed(1)},${(H - 1 - (v - lo) / rg * (H - 2)).toFixed(1)}`).join(' ');
-  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block" xmlns="http://www.w3.org/2000/svg">`
-    + `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.3"/></svg>`;
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (zero) { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+  const rg = (hi - lo) || 1, y = v => (H - 1 - (v - lo) / rg * (H - 2)).toFixed(1);
+  const pts = vals.map((v, i) => `${(i / (vals.length - 1) * W).toFixed(1)},${y(v)}`).join(' ');
+  const size = zero ? `width="100%" height="${H}" preserveAspectRatio="none"` : `width="${W}" height="${H}"`;
+  return `<svg viewBox="0 0 ${W} ${H}" ${size} style="display:block" xmlns="http://www.w3.org/2000/svg">`
+    + (zero ? `<line x1="0" x2="${W}" y1="${y(0)}" y2="${y(0)}" stroke="rgba(168,173,196,.45)" stroke-dasharray="3 3" stroke-width="1" vector-effect="non-scaling-stroke"/>` : '')
+    + `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="${zero ? 1.6 : 1.3}"${zero ? ' vector-effect="non-scaling-stroke"' : ''}/></svg>`;
 }
 
 function _slTag(r) {
@@ -191,7 +250,6 @@ function _renderSectorLead() {
   const btn = document.getElementById('sl-all-btn');
   if (btn) { btn.classList.toggle('active', SL.showAll); btn.textContent = SL.showAll ? '상위만' : `전체 업종 ${rows.length}`; }
 
-  const leads = rows.filter(r => r.leading).sort((a, b) => a.mom_rank - b.mom_rank);
   const topM  = rows.filter(r => r.mom_rank != null && r.mom_rank <= _SL_TOP).sort((a, b) => a.mom_rank - b.mom_rank);
   const topB  = rows.filter(r => r.buy_rank != null && r.buy_rank <= _SL_TOP).sort((a, b) => a.buy_rank - b.buy_rank);
   const nameBtn = r => `<span style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px" `
@@ -201,28 +259,22 @@ function _renderSectorLead() {
     r._tv5  = r.tv_now != null && r.tv_avg5 ? r.tv_now / r.tv_avg5 - 1 : null;
     r._buy5 = r.buy3_now != null && r.buy3_avg5 ? r.buy3_now / r.buy3_avg5 - 1 : null;
   });
-  const summary = _slMarketLines(nameOf) + `
-    <div style="padding:8px 12px 6px;font-size:calc(12.5px*var(--m-sub));line-height:1.7">
-      <div><b style="color:${_SL_TAG.lead.color}">주도 업종</b>
-        <span style="color:var(--text3)">(모멘텀 상위 ${_SL_TOP} ∩ 매수 상위 ${_SL_TOP})</span>
-        ${leads.length ? leads.map(r => `<b style="color:var(--text1)">${nameBtn(r)}</b>`).join(' · ')
-                       : '<span style="color:var(--text2)">교집합 없음 — 아래 두 목록을 따로 보세요</span>'}</div>
-      <div style="color:var(--text2)"><span style="color:${_SL_TAG.mom.color}">모멘텀 상위 ${topM.length}</span> ${topM.map(nameBtn).join(' · ')}</div>
-      <div style="color:var(--text2)"><span style="color:${_SL_TAG.buy.color}">매수 상위 ${topB.length}</span> ${topB.map(nameBtn).join(' · ')}</div>
-    </div>`;
+  const ctx = _slContextHTML(nameOf);
+  const summary = `<div class="sl-top${ctx ? '' : ' solo'}">${ctx ? `<div class="sl-ctx">${ctx}</div>` : ''}${_slLadderHTML(topM, topB, nameBtn)}</div>`;
 
   // 표 — 기본은 주도·모멘텀·매수 상위만, '전체 업종'이면 전부
   const list = (SL.showAll ? rows.slice() : rows.filter(r => r._tag)).sort(_slCmp);
-  const th = (key, label, tip, align = 'right') =>
-    `<th onclick="sortSl('${key}')" title="${escAttr(tip || '')}" style="cursor:pointer;text-align:${align};padding:6px 8px;white-space:nowrap;font-weight:600;color:var(--text2);font-size:calc(11px*var(--m-label))">${label}${SL.sortCol === key ? (SL.sortDir > 0 ? ' ▲' : ' ▼') : ''}</th>`;
-  const td = (html, align = 'right', extra = '') => `<td style="padding:5px 8px;text-align:${align};white-space:nowrap;${extra}">${html}</td>`;
+  const th = (key, label, tip, align = 'right', cls = '') =>
+    `<th${cls ? ` class="${cls}"` : ''} onclick="sortSl('${key}')" title="${escAttr(tip || '')}" style="cursor:pointer;text-align:${align};padding:6px 8px;white-space:nowrap;font-weight:600;color:var(--text2);font-size:calc(11px*var(--m-label))">${label}${SL.sortCol === key ? (SL.sortDir > 0 ? ' ▲' : ' ▼') : ''}</th>`;
+  const td = (html, align = 'right', extra = '', cls = '') =>
+    `<td${cls ? ` class="${cls}"` : ''} style="padding:5px 8px;text-align:${align};white-space:nowrap;${extra}">${html}</td>`;
   const pct = (v, d = 1) => v == null ? '—' : `${v >= 0 ? '+' : ''}${Number(v).toFixed(d)}%`;
   const ma = v => v ? '<span style="color:var(--text1)">●</span>' : '<span style="color:var(--text3)">○</span>';
   const body = list.map(r => {
     const t = r._tag ? _SL_TAG[r._tag] : null;
-    return `<tr style="border-top:1px solid var(--border)">
-      ${td(t ? `<span title="${escAttr(t.tip)}" style="font-size:calc(10.5px*var(--m-label));font-weight:700;color:${t.color};background:${t.bg};border-radius:4px;padding:1px 6px">${t.txt}</span>` : '', 'center')}
-      ${td(nameBtn(r), 'left', 'font-weight:600;color:var(--text1)')}
+    return `<tr class="${r.leading ? 'sl-lead' : ''}" style="border-top:1px solid var(--border)">
+      ${td(t ? `<span title="${escAttr(t.tip)}" style="font-size:calc(10.5px*var(--m-label));font-weight:700;color:${t.color};background:${t.bg};border-radius:4px;padding:1px 6px">${t.txt}</span>` : '', 'center', '', 'sl-sk1')}
+      ${td(nameBtn(r), 'left', 'font-weight:600;color:var(--text1)', 'sl-sk2')}
       ${SL.ext ? td(`<span style="color:${chgColor(r.ret_1d)}">${pct(r.ret_1d, 2)}</span>`) : ''}
       ${td(_slSparkSvg(r.spark, chgColor(r.ret_6m)), 'center')}
       ${td(`<span style="color:${chgColor(r.ret_6m)}">${pct(r.ret_6m)}</span>`)}
@@ -242,11 +294,11 @@ function _renderSectorLead() {
 
   SL.ncol = 11 + (SL.osc ? 1 : 0) + (SL.ext ? 3 : 0);
   el.innerHTML = summary + `
-    <div style="overflow-x:auto">
-      <table style="width:100%;min-width:${760 + (SL.osc ? 120 : 0) + (SL.ext ? 200 : 0)}px;border-collapse:collapse;font-size:calc(12px*var(--m-sub))">
+    <div style="overflow-x:auto;border-top:1px solid var(--border)">
+      <table class="sl-tbl" style="width:100%;min-width:${760 + (SL.osc ? 120 : 0) + (SL.ext ? 200 : 0)}px;border-collapse:collapse;font-size:calc(12px*var(--m-sub))">
         <thead><tr>
-          ${th('lead', '구분', `주도 = 모멘텀 상위 ${_SL_TOP} ∩ 매수 상위 ${_SL_TOP}`, 'center')}
-          ${th('name', '업종', 'WICS 중분류 — 누르면 기업분석 표에서 이 업종 종목', 'left')}
+          ${th('lead', '구분', `주도 = 모멘텀 상위 ${_SL_TOP} ∩ 매수 상위 ${_SL_TOP}`, 'center', 'sl-sk1')}
+          ${th('name', '업종', 'WICS 중분류 — 누르면 기업분석 표에서 이 업종 종목', 'left', 'sl-sk2')}
           ${SL.ext ? th('ret_1d', '오늘', 'WICS 중분류 지수 전일 대비') : ''}
           <th style="padding:6px 8px;font-weight:600;color:var(--text2);font-size:calc(11px*var(--m-label))">6개월 추이</th>
           ${th('ret_6m', '6개월', 'FnGuide WICS 중분류 지수 6개월 수익률')}
@@ -264,14 +316,16 @@ function _renderSectorLead() {
         <tbody>${body}</tbody>
       </table>
     </div>
-    <div style="padding:8px 12px;font-size:calc(11px*var(--m-label));color:var(--text2);line-height:1.6">
-      출처 — 유튜브 <b>태린이아빠</b> 2026-09-19·09-25 영상: 국내 주도 업종은 6개월 수익률을 하방 표준편차로 나눈 값이 센 업종과,
+    <div style="padding:8px 12px;font-size:calc(11px*var(--m-label));color:var(--text2);line-height:1.6;border-top:1px solid var(--border)">
+      출처: 유튜브 <b>태린이아빠</b> 2026-09-19·09-25 영상. 국내 주도 업종은 6개월 수익률을 하방 표준편차로 나눈 값이 센 업종과,
       장 마감 후 기관·외국인 수급을 쪼개 보아 꾸준히 매수가 들어오는 업종의 교집합으로 고른다.
       '매수'는 2024-10 영상의 방식(사모·투신·연금·외국인 매수 — "이때 매수만 본다")이다.
       업종은 WICS 중분류, 지수는 FnGuide WICS 지수이며, 상위 ${_SL_TOP}은 원본에 수치가 없어 정한 값이다.
       ${SL.osc ? `'업종 수급'은 같은 채널의 「외국인기관수급오실레이터 (업종)」을 WICS 중분류로 옮긴 것이다 (${SL.oscDate} 기준, 표는 코스피+코스닥 합산).` : ''}
       ${SL.mkt ? `업종 쏠림지수는 「특정업종 쏠림지수 국내」, 업종 국면은 「업종지수 활용한 추세 및 비추세 전략」을 WI26 대신 WICS 중분류 28개로 계산한 것이다.` : ''}
     </div>`;
+  _slDrawLadder(el);
+  _slStickCols(el);
   if (SL.open) _slRenderOscChart();
 }
 

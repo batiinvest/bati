@@ -691,6 +691,65 @@ td.ctr, th.ctr { text-align:center; }
 .fg-legend span { display:inline-flex; align-items:center; gap:5px; }
 .fg-legend i { display:inline-block; width:14px; height:2px; border-radius:1px; }
 
+/* ── 주도 업종 카드 머리 — 왼쪽 업종 국면·쏠림지수 | 오른쪽 순위 사다리 (sector-lead.js) ──
+   사다리가 이 카드에서 가장 먼저 읽히는 곳: 모멘텀 상위와 매수 상위를 마주 세우고,
+   양쪽에 다 있는 업종(= 주도)만 금색 선으로 잇는다. 나머지는 조용히 ── */
+.sl-top { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.45fr); }
+.sl-top.solo { grid-template-columns:minmax(0,1fr); }
+.sl-ctx { border-right:1px solid var(--border); }
+.sl-ctx-blk { padding:10px 16px 12px; }
+.sl-ctx-blk + .sl-ctx-blk { border-top:1px solid var(--border); }
+.sl-ctx-h { font-size:calc(12px*var(--m-sub)); font-weight:600; color:var(--text1); }
+.sl-ctx-h span { margin-left:4px; font-size:calc(11px*var(--m-label)); font-weight:400; color:var(--text3); }
+.sl-ctx-main { display:flex; align-items:baseline; flex-wrap:wrap; gap:2px 10px; margin-top:2px; font-size:calc(12px*var(--m-sub)); color:var(--text2); }
+.sl-ctx-main > b { font-size:calc(18px*var(--m-title)); font-weight:800; font-variant-numeric:tabular-nums; }
+.sl-ctx-main span b { color:var(--text1); font-variant-numeric:tabular-nums; }
+.sl-cells { display:flex; gap:2px; margin-top:8px; }
+.sl-cells i { flex:1; height:12px; border-radius:2px; opacity:.16; }
+.sl-cells i.on { opacity:1; }
+.sl-bands { display:flex; gap:2px; margin-top:4px; }
+.sl-bands span { min-width:0; padding-left:3px; border-left:1px solid var(--border2); white-space:nowrap;
+  font-size:calc(11px*var(--m-label)); line-height:1.35; color:var(--text3); }
+.sl-bands span.on { font-weight:700; }
+.sl-bands small { display:block; font-size:calc(11px*var(--m-label)); font-weight:400; color:var(--text3); font-variant-numeric:tabular-nums; }
+.sl-ctx-spark { margin-top:6px; }
+.sl-ctx-note { margin-top:6px; font-size:calc(11px*var(--m-label)); color:var(--text2); line-height:1.5; }
+.sl-lad { padding:10px 16px 12px; }
+.sl-lad-head, .sl-lad-body { display:grid; grid-template-columns:minmax(0,1fr) 88px minmax(0,1fr); }
+.sl-lad-head { align-items:end; margin-bottom:6px; font-size:calc(12px*var(--m-sub)); }
+.sl-lad-head > div:first-child { text-align:right; }
+.sl-lad-head small { display:block; font-size:calc(11px*var(--m-label)); color:var(--text3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sl-lad-head .mid { text-align:center; font-size:calc(13px*var(--m-body)); font-weight:800; }
+.sl-lad-links { display:block; width:100%; overflow:visible; }
+.sl-lad-links path { fill:none; stroke:#f59e0b; stroke-width:2; vector-effect:non-scaling-stroke; }
+.sl-lad-row { position:relative; display:flex; align-items:center; gap:8px; height:calc(24px*var(--m-sub));
+  font-size:calc(12px*var(--m-sub)); color:var(--text2); }
+.sl-lad-col.L .sl-lad-row { justify-content:flex-end; }
+.sl-lad-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sl-lad-rk { flex:none; width:18px; text-align:center; font-size:calc(11px*var(--m-label)); color:var(--text3); font-variant-numeric:tabular-nums; }
+.sl-lad-row.lead { color:var(--text); font-weight:700; }
+.sl-lad-row.lead .sl-lad-rk { color:#f59e0b; font-weight:700; }
+.sl-lad-row.lead::after { content:''; position:absolute; top:50%; width:7px; height:7px; margin-top:-3.5px; border-radius:50%; background:#f59e0b; }
+.sl-lad-col.L .sl-lad-row.lead::after { right:-4px; }
+.sl-lad-col.R .sl-lad-row.lead::after { left:-4px; }
+/* 표 — 가로로 밀어도 구분·업종 열은 남는다(두 번째 열 위치 --sl-c1 = 첫 열 폭, _slStickCols). 주도 행은 옅은 금색 */
+.sl-tbl .sl-sk1, .sl-tbl .sl-sk2 { position:sticky; z-index:1; background:var(--bg2); }
+.sl-tbl .sl-sk1 { left:0; }
+.sl-tbl .sl-sk2 { left:var(--sl-c1, 60px); box-shadow:inset -1px 0 0 var(--border); }
+.sl-tbl tr.sl-lead td { background:rgba(245,158,11,.05); }
+.sl-tbl tr.sl-lead td.sl-sk1, .sl-tbl tr.sl-lead td.sl-sk2 { background:linear-gradient(rgba(245,158,11,.05),rgba(245,158,11,.05)), var(--bg2); }
+.sl-tbl tr:hover td.sl-sk1, .sl-tbl tr:hover td.sl-sk2 { background:linear-gradient(rgba(255,255,255,.04),rgba(255,255,255,.04)), var(--bg2); }
+@media(max-width:900px) {
+  .sl-top { grid-template-columns:minmax(0,1fr); }
+  .sl-ctx { border-right:none; border-bottom:1px solid var(--border); }
+}
+@media(max-width:600px) {
+  .sl-ctx-blk, .sl-lad { padding-left:12px; padding-right:12px; }
+  .sl-lad-head, .sl-lad-body { grid-template-columns:minmax(0,1fr) 40px minmax(0,1fr); }
+  .sl-lad-head small { display:none; }   /* 폰에선 '주도 N'과 붙어 읽혀 뺀다 — 기준은 표 아래 출처 글에 */
+  .sl-lad-row { gap:4px; }
+}
+
 /* ── Task 3: 정보 밀도 테이블 ── */
 th { padding:7px 10px; font-size:var(--fs-label); }
 td { padding:7px 10px; font-size:var(--fs-data); }
