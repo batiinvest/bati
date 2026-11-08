@@ -360,8 +360,8 @@ textarea.form-input { resize:vertical; min-height:100px; }
 
   /* ── 재무조회 컨트롤 ── */
 
-  /* ── 마켓 스트립 — 4개 이상 숨김 ── */
-  .market-strip-item:nth-child(n+4) { display:none; }
+  /* ── 마켓 스트립 — 4개 이상 숨김 (탑바 스트립만. 모바일 지수 줄은 가로로 밀어 전부 본다) ── */
+  .market-strip .market-strip-item:nth-child(n+4) { display:none; }
 
   /* ── 테이블 밀도 (모바일 최소 12px — 숫자 밀집 화면 가독성) ── */
   td, th { padding:7px 8px; font-size:calc(12px*var(--m-sub)); }
@@ -636,6 +636,61 @@ td.ctr, th.ctr { text-align:center; }
   .fg-col-side { border-left:none; border-top:1px solid var(--border); }
 }
 
+/* ── 피어앤그리드 '오늘 위치' 띠 — 카드에서 가장 먼저 읽히는 곳. 숫자가 0~100 눈금의 제자리에 꽂힌다.
+   구간 색 = 공포(하락 파랑)·탐욕(상승 빨강), 양끝 극단 구간이 더 진하고 지금 구간이 가장 밝다.
+   핀·숫자 위치는 fear-greed.js _fgPlaceScale이 전일 → 오늘로 옮긴다 ── */
+.fg-scale { padding:14px 18px 12px; }
+.fg-scale:empty { display:none; }
+.fg-track { position:relative; height:64px; }
+.fg-read {
+  position:absolute; top:0; left:0; display:flex; align-items:baseline; gap:6px; white-space:nowrap;
+  transition:left .9s cubic-bezier(.2,.7,.2,1);
+}
+.fg-read b { font-size:calc(34px*var(--m-title)); font-weight:800; line-height:1; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+.fg-read span { font-size:calc(15px*var(--m-title)); font-weight:700; }
+.fg-band { position:absolute; left:0; right:0; top:50px; height:8px; display:flex; gap:2px; }
+.fg-seg { border-radius:2px; }
+.fg-seg-0 { background:rgba(74,158,255,.42); }
+.fg-seg-1 { background:rgba(74,158,255,.16); }
+.fg-seg-2 { background:rgba(245,54,92,.16); }
+.fg-seg-3 { background:rgba(245,54,92,.42); }
+.fg-seg-0.on { background:rgba(74,158,255,.85); }
+.fg-seg-1.on { background:rgba(74,158,255,.5); }
+.fg-seg-2.on { background:rgba(245,54,92,.5); }
+.fg-seg-3.on { background:rgba(245,54,92,.85); }
+/* 지난 자리(속 빈 점) · EMA20(주황 눈금, 차트 선과 같은 색) · 오늘 핀 */
+.fg-past { position:absolute; top:50px; width:8px; height:8px; margin-left:-4px; border-radius:50%;
+  border:1.5px solid var(--text1); background:var(--bg2); }
+.fg-ema  { position:absolute; top:45px; width:2px; height:18px; margin-left:-1px; border-radius:1px; background:#F57C00; }
+.fg-pin  { position:absolute; top:38px; left:0; width:2px; height:16px; margin-left:-1px; background:var(--c);
+  transition:left .9s cubic-bezier(.2,.7,.2,1); }
+.fg-pin::after { content:''; position:absolute; left:50%; bottom:-6px; width:12px; height:12px; margin-left:-6px;
+  border-radius:50%; background:var(--c); box-shadow:0 0 0 3px var(--bg2); }
+.fg-still .fg-read, .fg-still .fg-pin { transition:none; }
+@media (prefers-reduced-motion: reduce) { .fg-read, .fg-pin { transition:none; } }
+.fg-zones { display:flex; gap:2px; margin-top:6px; }
+.fg-zones > div { min-width:0; text-align:center; color:var(--text3); line-height:1.25; }
+.fg-zones span { display:block; font-size:calc(12px*var(--m-sub)); white-space:nowrap; }
+.fg-zones small { display:block; font-size:calc(11px*var(--m-label)); color:var(--text3); font-variant-numeric:tabular-nums; }
+.fg-zones .on span { font-weight:700; }
+.fg-trail { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 18px;
+  margin-top:12px; font-size:calc(12px*var(--m-sub)); color:var(--text2); }
+.fg-trail-seq { display:inline-flex; flex-wrap:wrap; align-items:center; gap:4px 6px; }
+.fg-trail b { color:var(--text1); font-weight:600; font-variant-numeric:tabular-nums; }
+.fg-trail-seq > span { display:inline-flex; align-items:center; gap:4px; }
+.fg-arrow { color:var(--text3); }
+.fg-dot { display:inline-block; width:8px; height:8px; border-radius:50%; border:1.5px solid var(--text1); }
+.fg-ema-key { display:inline-block; width:2px; height:12px; border-radius:1px; background:#F57C00; margin-right:6px; vertical-align:-1px; }
+@media(max-width:600px) {
+  .fg-scale { padding:12px 12px 10px; }
+  .fg-read b { font-size:calc(30px*var(--m-title)); }
+  .fg-trail { justify-content:flex-start; }
+}
+/* 차트 범례 — 차트 바로 아래 */
+.fg-legend { display:flex; flex-wrap:wrap; gap:4px 14px; padding:0 1rem .75rem; font-size:calc(11px*var(--m-label)); color:var(--text2); }
+.fg-legend span { display:inline-flex; align-items:center; gap:5px; }
+.fg-legend i { display:inline-block; width:14px; height:2px; border-radius:1px; }
+
 /* ── Task 3: 정보 밀도 테이블 ── */
 th { padding:7px 10px; font-size:var(--fs-label); }
 td { padding:7px 10px; font-size:var(--fs-data); }
@@ -683,7 +738,8 @@ td { padding:7px 10px; font-size:var(--fs-data); }
 .market-strip-chg { font-size:calc(11px*var(--m-label)); }
 
 @media (max-width: 600px) {
-  .market-strip-item:nth-child(n+3) { display:none; }
+  /* 탑바 스트립만 — 예전엔 모바일 지수 줄(.mobile-market-strip)에도 걸려 코스피 하나와 빈 구분선만 남았다 */
+  .market-strip .market-strip-item:nth-child(n+3) { display:none; }
 }
 
 /* ── 종목 상세 모달: 모바일 풀스크린 시트 (인라인 스타일 override라 !important 필요) ── */

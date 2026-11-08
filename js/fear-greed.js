@@ -25,12 +25,13 @@ const FG_AXIS_L = 40, FG_AXIS_R = 46;
 const _fgFixW = w => ({ afterFit: sc => { sc.width = w; } });
 
 // 원본 그래프 기준선(20·50·80)으로 나눈 구간
+const FG_ZONES = [[0, 20, '극단적 공포'], [20, 50, '공포'], [50, 80, '탐욕'], [80, 100, '극단적 탐욕']];
 function fgZone(v) {
-  if (v == null) return { label: '—', color: 'var(--text2)' };
-  if (v < 20) return { label: '극단적 공포', color: 'var(--down)' };
-  if (v < 50) return { label: '공포',       color: 'var(--down)' };
-  if (v < 80) return { label: '탐욕',       color: 'var(--up)' };
-  return             { label: '극단적 탐욕', color: 'var(--up)' };
+  if (v == null) return { label: '—', color: 'var(--text2)', i: -1 };
+  if (v < 20) return { label: '극단적 공포', color: 'var(--down)', i: 0 };
+  if (v < 50) return { label: '공포',       color: 'var(--down)', i: 1 };
+  if (v < 80) return { label: '탐욕',       color: 'var(--up)',   i: 2 };
+  return             { label: '극단적 탐욕', color: 'var(--up)',   i: 3 };
 }
 
 // ── 순수 계산 (원본 pandas 코드와 같은 식) ──────────────────────────────
@@ -172,6 +173,66 @@ function _fgRulesHTML(res, rows) {
   </div>`;
 }
 
+// ── 오늘 위치 띠 — 네 구간 위에 오늘 값을 꽂고, 지난 자리(1달 전·1주 전·전일)와 EMA20을 같은 눈금에 ──
+//  지난 자리는 거래일 기준(21일 = 1달, 5일 = 1주), 자료가 모자라면 그 점은 뺀다.
+function _fgScaleHTML(res) {
+  const last = res[res.length - 1];
+  const zone = fgZone(last.fg);
+  const pct = v => Math.max(0, Math.min(100, v)).toFixed(2) + '%';
+  const past = [[21, '1달 전'], [5, '1주 전'], [1, '전일']]
+    .filter(([n]) => res.length - 1 - n >= 0)
+    .map(([n, label], i, arr) => ({ label, v: res[res.length - 1 - n].fg, op: (0.35 + 0.5 * i / Math.max(1, arr.length - 1)).toFixed(2) }));
+  const prev = res[res.length - 2];
+  const below = last.fg < last.ema20;
+  const aria = `피어앤그리드 ${last.fg.toFixed(1)}, ${zone.label} 구간. `
+    + past.map(p => `${p.label} ${p.v.toFixed(1)}`).join(', ') + `, EMA20 ${last.ema20.toFixed(1)}`;
+  return `
+    <div class="fg-track" role="img" aria-label="${escAttr(aria)}">
+      <div class="fg-read" data-x="${last.fg.toFixed(2)}" data-from="${prev.fg.toFixed(2)}">
+        <b style="color:${zone.color}">${last.fg.toFixed(1)}</b><span style="color:${zone.color}">${zone.label}</span>
+      </div>
+      <div class="fg-band">${FG_ZONES.map(([lo, hi], i) =>
+        `<span class="fg-seg fg-seg-${i}${i === zone.i ? ' on' : ''}" style="flex:${hi - lo}"></span>`).join('')}</div>
+      ${past.map(p => `<span class="fg-past" style="left:${pct(p.v)};opacity:${p.op}" title="${p.label} ${p.v.toFixed(1)}"></span>`).join('')}
+      <span class="fg-ema" style="left:${pct(last.ema20)}" title="EMA20 ${last.ema20.toFixed(1)}"></span>
+      <span class="fg-pin" style="--c:${zone.color}"></span>
+    </div>
+    <div class="fg-zones">${FG_ZONES.map(([lo, hi, name], i) =>
+      `<div class="${i === zone.i ? 'on' : ''}" style="flex:${hi - lo}${i === zone.i ? `;color:${zone.color}` : ''}"><span>${name}</span><small>${lo}–${hi}</small></div>`).join('')}</div>
+    <div class="fg-trail">
+      <span class="fg-trail-seq">${past.map((p, i) =>
+        `<span>${i ? '<span class="fg-arrow">→</span>' : ''}<i class="fg-dot" style="opacity:${p.op}"></i>${p.label} <b>${p.v.toFixed(1)}</b></span>`).join('')}<span><span class="fg-arrow">→</span><i class="fg-dot now" style="background:${zone.color};border-color:${zone.color}"></i>오늘 <b style="color:${zone.color}">${last.fg.toFixed(1)}</b></span></span>
+      <span class="fg-trail-ema"><i class="fg-ema-key"></i>오늘 값이 EMA20(<b>${last.ema20.toFixed(1)}</b>)보다 ${below ? '낮음' : '높음'}</span>
+    </div>`;
+}
+
+// 핀·숫자를 전일 자리에서 오늘 자리로 옮긴다. 숫자는 띠 밖으로 나가지 않게 양끝에서 멈춘다.
+function _fgPlaceScale(el) {
+  const read = el.querySelector('.fg-read'), pin = el.querySelector('.fg-pin');
+  if (!read || !pin) return;
+  const rw = read.offsetWidth;
+  const at = x => {
+    read.style.left = `clamp(0px, calc(${x}% - ${rw / 2}px), calc(100% - ${rw}px))`;
+    pin.style.left = `${Math.max(0, Math.min(100, x))}%`;
+  };
+  el.classList.add('fg-still');
+  at(+read.dataset.from);
+  void el.offsetWidth;   // 시작 자리를 먼저 확정해야 옮겨 가는 모습이 보인다
+  el.classList.remove('fg-still');
+  void el.offsetWidth;   // (rAF는 숨은 탭에서 멈춰 핀이 전일 자리에 남을 수 있어 쓰지 않는다)
+  at(+read.dataset.x);
+}
+
+// 차트 범례 — 차트 바로 아래 (선 색은 FG_COLORS와 같게)
+function _fgLegendHTML(mktName) {
+  const key = (sw, text) => `<span><i style="${sw}"></i>${text}</span>`;
+  return key(`background:${FG_COLORS.fg}`, '피어앤그리드')
+    + key(`background:${FG_COLORS.ema}`, 'EMA20')
+    + key(`background:${FG_COLORS.price}`, `${mktName} 지수 (오른쪽 눈금)`)
+    + key('height:0;border-top:1px dashed rgba(168,173,196,.7)', '기준선 20, 50, 80')
+    + key('height:8px;width:10px;background:linear-gradient(var(--up) 50%,var(--down) 50%)', '오실레이터 = 지수의 MACD − 시그널');
+}
+
 // ── 로드·렌더 ──────────────────────────────────────────────────────────
 
 async function loadFearGreed() {
@@ -213,7 +274,7 @@ function renderFearGreed() {
   const canvas  = document.getElementById('fg-chart');
   const oscCv   = document.getElementById('fg-osc-chart');
   const empty   = document.getElementById('fg-empty');
-  const summary = document.getElementById('fg-summary');
+  const scaleEl = document.getElementById('fg-scale');
   const compEl  = document.getElementById('fg-comp');
   const rulesEl = document.getElementById('fg-rules');
   if (!canvas) return;
@@ -226,7 +287,7 @@ function renderFearGreed() {
       empty.textContent = FG.missing ? '준비 중 — 데이터 표를 만드는 중입니다.'
         : '데이터 수집 중... (평일 18:22 업데이트)';
     }
-    if (summary) summary.innerHTML = '';
+    if (scaleEl) scaleEl.innerHTML = '';
     if (compEl) compEl.innerHTML = '';
     if (rulesEl) rulesEl.innerHTML = '';
     setAsOf('fg-date', null);
@@ -235,32 +296,17 @@ function renderFearGreed() {
   document.getElementById('fg-charts').style.display = '';
   if (empty) empty.style.display = 'none';
 
-  const last = res[res.length - 1], prev = res[res.length - 2];
+  const last = res[res.length - 1];
   setAsOf('fg-date', last.date);
-  const zone = fgZone(last.fg);
-  const d1 = last.fg - prev.fg;
-  const aboveEma = last.fg >= last.ema20;
-  const oscTurn = prev.osc <= 0 && last.osc > 0 ? '0선 위로 올라섬'
-    : prev.osc >= 0 && last.osc < 0 ? '0선 아래로 내려섬'
-    : last.osc > prev.osc ? '오르는 중' : '내리는 중';
   const mktName = FG.market === 'kospi' ? '코스피' : '코스닥';
 
-  // ── 요약: 지수 · EMA20 · 오실레이터 ──
-  if (summary) {
-    const cell = (label, main, sub, color = 'var(--text)') => `
-      <div style="padding:8px 12px">
-        <div style="font-size:calc(11px*var(--m-label));color:var(--text2)">${label}</div>
-        <div style="font-size:calc(15px*var(--m-title));font-weight:700;font-variant-numeric:tabular-nums;color:${color}">${main}</div>
-        <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-top:2px">${sub}</div>
-      </div>`;
-    summary.innerHTML =
-      cell(`${mktName} 지수`, `${last.fg.toFixed(1)} <span style="font-size:calc(12px*var(--m-sub))">${zone.label}</span>`,
-        `전일 ${d1 > 0 ? '+' : ''}${d1.toFixed(1)}`, zone.color)
-      + cell('EMA20', last.ema20.toFixed(1),
-        `지수가 EMA20 ${aboveEma ? '위' : '아래'}`)
-      + cell('오실레이터', _fgSigned(last.osc), oscTurn,
-        last.osc > 0 ? 'var(--up)' : last.osc < 0 ? 'var(--down)' : 'var(--text)');
+  // ── 오늘 위치 띠 (오실레이터 값·방향은 아래 원저자 규칙의 사실 줄이 보여 준다) ──
+  if (scaleEl) {
+    scaleEl.innerHTML = _fgScaleHTML(res);
+    _fgPlaceScale(scaleEl);
   }
+  const legendEl = document.getElementById('fg-legend');
+  if (legendEl) legendEl.innerHTML = _fgLegendHTML(mktName);
 
   // ── 원저자 시장 규칙 — 원문 + 사실(판정 없음) ──
   if (rulesEl) rulesEl.innerHTML = _fgRulesHTML(res, FG.rows);
@@ -328,7 +374,9 @@ function renderFearGreed() {
         },
       },
       scales: {
-        x:  { ticks: { color: t.tick, maxTicksLimit: 6, maxRotation: 0, font: { size: 10 } }, grid: { color: t.grid } },
+        // 날짜 눈금은 '월/일'만 — 'YYYY-MM-DD'는 좁은 폭에서 서로 붙어 읽히지 않았다
+        x:  { ticks: { color: t.tick, maxTicksLimit: 6, maxRotation: 0, font: { size: 10 },
+                       callback: (v, i) => (labels[i] || '').slice(5).replace('-', '/') }, grid: { color: t.grid } },
         y:  { position: 'left', min: 0, max: 100, ticks: { color: FG_COLORS.fg, stepSize: 20, font: { size: 10 } }, grid: { color: t.grid }, ..._fgFixW(FG_AXIS_L) },
         y1: { position: 'right', ticks: { color: t.tick, maxTicksLimit: 5, font: { size: 10 } }, grid: { drawOnChartArea: false }, ..._fgFixW(FG_AXIS_R) },
       },

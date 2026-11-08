@@ -45,9 +45,8 @@ function _skelList(n=5, compact=false) {
 // ── 페이지 HTML ──
 function pInvestment() {
   return `
-  <!-- 페이지 헤더 -->
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:8px">
-    <div style="font-size:calc(13px*var(--m-body));font-weight:600;color:var(--text)">오늘의 시황</div>
+  <!-- 페이지 헤더 — 페이지 제목은 탑바가 보여 주므로 기준 시각과 새로고침만 -->
+  <div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:8px">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:calc(11px*var(--m-label));color:var(--text2)" id="inv-date"></div>
       <button class="btn btn-sm" id="inv-refresh-btn" onclick="refreshInvestment()">${_ICO.refresh}새로고침</button>
@@ -59,31 +58,32 @@ function pInvestment() {
   <div class="card insight-card card--hero" style="margin-bottom:1rem">
     <div class="card-header" style="flex-wrap:wrap;gap:6px">
       <span class="card-title">${_ICO.temp}피어앤그리드</span>
-      <span class="card-sub">시장 심리 — 공포 ↔ 탐욕 (0~100)</span>
+      <span class="card-sub">시장 심리 0~100</span>
       <span id="fg-date" style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-left:auto"></span>
       <div style="display:flex;gap:4px">
         <button class="chip chip-sm active" data-fg-market="kospi"  onclick="setFgMarket('kospi')" >코스피</button>
         <button class="chip chip-sm"        data-fg-market="kosdaq" onclick="setFgMarket('kosdaq')">코스닥</button>
       </div>
     </div>
+    <!-- 오늘 위치 — 0~100 띠 위에 오늘 값을 꽂고 1달 전·1주 전·전일 자리와 EMA20을 같은 눈금에 (fear-greed.js) -->
+    <div id="fg-scale" class="fg-scale"></div>
     <div class="fg-grid">
-      <!-- 좌: 지수·EMA20·시장 지수 차트 + 오실레이터 -->
+      <!-- 좌: 지수·EMA20·시장 지수 차트 + 오실레이터 + 범례 -->
       <div class="fg-col-chart">
         <div id="fg-charts">
           <div style="padding:.75rem 1rem 0;position:relative;height:240px"><canvas id="fg-chart"></canvas></div>
           <div style="padding:0 1rem .5rem;position:relative;height:70px"><canvas id="fg-osc-chart"></canvas></div>
+          <div id="fg-legend" class="fg-legend"></div>
         </div>
         <div id="fg-empty" style="display:none;padding:3rem 1rem;text-align:center;color:var(--text2);font-size:calc(12px*var(--m-sub))"></div>
       </div>
-      <!-- 우: 요약 + 구성 요소 -->
+      <!-- 우: 원저자 규칙 + 구성 요소 -->
       <div class="fg-col-side">
-        <div id="fg-summary" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border-bottom:1px solid var(--border)"></div>
         <div id="fg-rules"></div>
         <div style="padding:.6rem 1rem .75rem">
-          <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:4px">구성 요소 · 탐욕 쪽 점수 (각 20%)</div>
+          <div style="font-size:calc(11px*var(--m-label));color:var(--text2);margin-bottom:4px">구성 요소별 탐욕 점수 (각 20%)</div>
           <div id="fg-comp"></div>
           <div style="font-size:calc(11px*var(--m-label));color:var(--text3);margin-top:8px;line-height:1.5">
-            파랑 = 지수 · 주황 = EMA20 · 회색 = 시장 지수 · 점선 20/50/80. 아래 막대 = 오실레이터(지수의 MACD − 시그널).
             최근 1년 안에서 각 요소를 0~100으로 맞춘 상대 점수라, 새 고점·저점이 생기면 과거 값도 조금 바뀝니다.
           </div>
         </div>
