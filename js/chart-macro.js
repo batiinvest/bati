@@ -124,11 +124,33 @@ function _renderTopbarStrip() {
     : '';
 
   strip.innerHTML = body + tail;
+  _fitTopbarStrip();
 
   // 모바일 지수 스트립 — 동일 항목 재사용(서브행은 CSS로 숨김, 단일 라인 가로 스크롤)
   if (mstrip) {
     mstrip.innerHTML = body;
     mstrip.classList.remove('hidden');
+  }
+}
+
+// 탑바 지수 줄이 자리보다 넓으면 뒤쪽부터 한 항목씩(앞 구분선과 함께) 숨긴다: 기준 시각 → 달러 → VIX → 나스닥 → S&P500.
+// 코스피·코스닥은 남긴다. 폭은 화면·사이드바·글자 배율·휴장일 기준일 표기에 따라 달라서 고정 구간(미디어쿼리)으로는 못 맞춘다.
+let _stripRO = null;
+function _fitTopbarStrip() {
+  const strip = document.getElementById('topbar-market-strip');
+  if (!strip) return;
+  if (!_stripRO && window.ResizeObserver) {
+    _stripRO = new ResizeObserver(() => _fitTopbarStrip());
+    _stripRO.observe(strip);
+    document.fonts?.ready.then(() => _fitTopbarStrip());   // Pretendard가 늦게 오면 글자 폭이 바뀐다
+  }
+  const kids = [...strip.children];
+  kids.forEach(k => k.classList.remove('msb-off'));
+  if (!strip.offsetParent) return;   // 900px 이하에선 탑바 지수 줄이 숨고 모바일 지수 줄이 대신 보인다
+  // kids = 코스피, │, 코스닥, │, S&P500, … , │, 기준 — 3번(코스닥 뒤 구분선)부터 숨길 수 있다
+  for (let i = kids.length - 1; i >= 4 && strip.scrollWidth > strip.clientWidth; i -= 2) {
+    kids[i].classList.add('msb-off');
+    kids[i - 1].classList.add('msb-off');
   }
 }
 

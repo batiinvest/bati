@@ -71,7 +71,10 @@ body { background:var(--bg); color:var(--text); font-family:'Pretendard','Apple 
 /* ── Layout ── */
 .app { display:flex; min-height:100vh; }
 .sidebar { width:var(--sidebar-w); flex-shrink:0; background:var(--bg2); border-right:1px solid var(--border); display:flex; flex-direction:column; position:fixed; top:0; left:0; height:100vh; z-index:50; }
-.main { margin-left:var(--sidebar-w); flex:1; min-width:0; display:flex; flex-direction:column; overflow-x:hidden; }
+/* overflow-x는 clip — hidden이면 .main이 스크롤 상자가 돼(overflow-y가 auto로 바뀜) 안쪽 sticky가 전부 멈춘다.
+   06-11~11-10 그렇게 탑바·리포트 탭 막대·스크리너 필터 등이 스크롤에 같이 밀려 올라갔다.
+   화면에 붙는 요소는 탑바 아래에 붙도록 top을 var(--topbar-h) 기준으로 줄 것. */
+.main { margin-left:var(--sidebar-w); flex:1; min-width:0; display:flex; flex-direction:column; overflow-x:clip; }
 .topbar { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 1.25rem; height:var(--topbar-h); display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:40; }
 .content { padding:1.25rem 1.5rem; flex:1; width:100%; max-width:var(--content-max); box-sizing:border-box; }
 .logo { padding:1.25rem 1.25rem 1rem; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border); }
@@ -594,11 +597,14 @@ td.ctr, th.ctr { text-align:center; }
 /* ── 탑바 시장 스트립 ── */
 /* align-items:flex-start — 2단 항목(코스피·코스닥·S&P·나스닥)과 1단 항목(VIX·달러)의
    지수값 첫 줄이 같은 기준선에 오도록 상단 정렬. 스트립 블록 자체는 .topbar가 세로 중앙 배치. */
+/* safe center — 그냥 center면 내용이 자리보다 넓을 때 양쪽이 같이 잘려 코스피 값 앞자리가 가려졌다(1440px).
+   safe면 넘칠 때 왼쪽부터 붙는다. 넘치는 뒤쪽 항목은 _fitTopbarStrip(chart-macro.js)이 .msb-off로 숨김 */
 .market-strip {
   display:flex; align-items:flex-start; gap:0;
-  flex:1; justify-content:center;
+  flex:1; justify-content:safe center;
   overflow:hidden; min-width:0;
 }
+.market-strip > .msb-off { display:none; }
 .market-strip-item {
   display:flex; align-items:baseline; gap:4px;
   padding:3px 10px; white-space:nowrap;

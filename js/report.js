@@ -342,7 +342,7 @@ async function rpRenderReport() {
   ${_rpSnapshotBand(latest, _rpData.annual, _rpData.company)}
 
   <!-- ② FnGuide식 메인 탭 네비게이션 (지표밴드 바로 아래·sticky) ──── -->
-  <div class="card" data-capture-off style="padding:0;overflow:hidden;position:sticky;top:0;z-index:var(--z-sticky)">
+  <div class="card" data-capture-off style="padding:0;overflow:hidden;position:sticky;top:var(--topbar-h);z-index:var(--z-sticky)">
     <div style="display:flex;background:var(--bg2);overflow-x:auto;scrollbar-width:none">
       ${RP_TABS.map((t,i) => `
         <button onclick="rpSetTab(${i})" id="rp-tabbtn-${i}"

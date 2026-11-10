@@ -326,6 +326,8 @@ function applyFontRoles(roles) {
     if (v === 1) document.documentElement.style.removeProperty(`--m-${k}`);
     else document.documentElement.style.setProperty(`--m-${k}`, String(v));
   }
+  // 글자가 커지면 탑바 지수 줄이 넘칠 수 있다 — 뒤쪽 항목 숨김 다시 계산 (chart-macro.js)
+  if (typeof _fitTopbarStrip === 'function') _fitTopbarStrip();
   return r;
 }
 

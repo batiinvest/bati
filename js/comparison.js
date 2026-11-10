@@ -40,7 +40,8 @@ function pComparison() {
   <div style="display:grid;grid-template-columns:300px 1fr;gap:12px;align-items:start">
 
     <!-- 좌측 패널: 종목 선택 -->
-    <div style="position:sticky;top:1rem;display:flex;flex-direction:column;gap:10px;overflow:visible">
+    <!-- 고정(sticky) 안 함 — 패널이 화면보다 길어지면 아래쪽이 안 보이는데, 검색 펼침 목록 때문에 안쪽 스크롤도 못 준다 -->
+    <div style="display:flex;flex-direction:column;gap:10px;overflow:visible">
 
       <!-- 산업 선택 -->
       <div class="card">

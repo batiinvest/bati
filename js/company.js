@@ -19,8 +19,9 @@ function _renderMonitoringTab() {
   return `
   <div id="company-tab-monitoring" style="display:grid;
     grid-template-columns:320px 1fr;gap:0;min-height:calc(100vh - 96px);align-items:start">
-    <div style="border-right:1px solid var(--border);padding:1.25rem;position:sticky;top:45px;
-      height:calc(100vh - 45px);overflow-y:auto;background:var(--bg2)">
+    <!-- 46px = 위 탭 막대 높이. 탑바(--topbar-h) + 탭 막대 아래에 붙는다 -->
+    <div style="border-right:1px solid var(--border);padding:1.25rem;position:sticky;top:calc(var(--topbar-h) + 46px);
+      height:calc(100vh - var(--topbar-h) - 46px);overflow-y:auto;background:var(--bg2)">
       <div style="font-size:calc(12px*var(--m-sub));font-weight:700;color:var(--text1);margin-bottom:12px">🔍 기업 검색</div>
       <div style="position:relative;margin-bottom:8px">
         <input type="text" id="mon-search" class="form-input"
@@ -191,7 +192,7 @@ function pCompany() {
   return `
   <div style="min-height:calc(100vh - 56px)">
   <!-- 탭 헤더 -->
-  <div style="display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 1.25rem;background:var(--bg);position:sticky;top:0;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,.3)">
+  <div style="display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 1.25rem;background:var(--bg);position:sticky;top:var(--topbar-h);z-index:20;box-shadow:0 2px 8px rgba(0,0,0,.3)">
     <button class="company-tab ${_companyTab==='monitoring'?'active':''}"
       data-tab="monitoring" onclick="switchCompanyTab('monitoring')"
       style="padding:12px 20px;font-size:calc(13px*var(--m-body));font-weight:600;background:none;border:none;

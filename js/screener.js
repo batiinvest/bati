@@ -15,7 +15,8 @@ function pScreener() {
     <button class="chip active" onclick="go('screener')">${_ICO.search}필터 스크리닝</button>
   </div>
   <div class="screener-layout" style="display:grid;grid-template-columns:280px 1fr;gap:1rem;align-items:start">
-    <div class="card screener-filter collapsed" style="position:sticky;top:1rem">
+    <!-- 고정(sticky) 안 함 — 필터가 화면보다 길어(데스크톱 약 1,300px) 붙여 두면 아래쪽 조건에 손이 안 닿는다 -->
+    <div class="card screener-filter collapsed">
       <!-- 모바일: 헤더 탭으로 접기/펼치기 (기본 접힘 → 결과 우선). 데스크톱: 항상 펼침 -->
       <div class="card-header sc-filter-toggle" onclick="scToggleFilter()">
         <span class="card-title">${_ICO.search}필터 조건</span>

@@ -85,8 +85,34 @@ async function loadMarketOverview(maxDate) {
   const sorted = indRows.slice().sort((a, b) => b.avg - a.avg);
   const labels  = sorted.map(d => d.ind);
   const values  = sorted.map(d => parseFloat(d.avg.toFixed(2)));
-  const colors  = values.map(v => v >= 0 ? 'rgba(245,54,92,0.85)' : 'rgba(42,171,238,0.85)');
+  // 색·글꼴은 화면 토큰에서 — canvas는 var(--…)를 못 읽는다(chartTheme 주석). 등락 = --up/--down(chgColor와 같은 색)
+  const th   = chartTheme();
+  const css  = getComputedStyle(document.documentElement);
+  const tok  = (n, fb) => (css.getPropertyValue(n) || '').trim() || fb;
+  const UP   = tok('--up', '#f5365c'), DOWN = tok('--down', '#4a9eff');
+  const a85  = c => /^#[0-9a-f]{6}$/i.test(c) ? c + 'd9' : c;
+  const FONT = getComputedStyle(document.body).fontFamily;
+  const colors  = values.map(v => v >= 0 ? a85(UP) : a85(DOWN));
   const bHeight = Math.max(sorted.length * 36 + 60, 300);
+
+  // 막대 글자 = 등락률 + ▲▼ 종목 수. 양수는 막대 끝 오른쪽, 음수는 0선 오른쪽(그 줄의 빈 양수 쪽)에 쓰고,
+  // 가장 넓은 글자만큼 x축 오른쪽을 미리 비운다(afterDataLimits). 예전엔 맨 위 값이 오른쪽 끝에서 잘리고,
+  // 음수 값을 막대 왼쪽에 써서 0 근처 값이 업종 이름 위에 겹쳤다(11-10). 차트 폭이 200px 남짓이라 양쪽을 비울 여유는 없다.
+  const LBL_PAD = 4, LBL_GAP = 5;
+  const F_MAIN = `bold 11px ${FONT}`, F_CNT = `10px ${FONT}`;
+  const lblParts = i => {
+    const v = values[i], d = indMap[labels[i]];
+    return { main: (v >= 0 ? '+' : '') + v + '%', cnt: d ? `▲${d.rise}▼${d.fall}` : '' };
+  };
+  const lblWidth = (ctx, i) => {
+    const p = lblParts(i);
+    ctx.save();
+    ctx.font = F_MAIN;
+    let w = ctx.measureText(p.main).width;
+    if (p.cnt) { ctx.font = F_CNT; w += LBL_GAP + ctx.measureText(p.cnt).width; }
+    ctx.restore();
+    return w + LBL_PAD + 2;
+  };
 
   indGrid.innerHTML =
     // 그리드는 클래스로 — 인라인이면 모바일 미디어쿼리가 못 이겨 375px에서 차트가 짜부됨
@@ -133,22 +159,48 @@ async function loadMarketOverview(maxDate) {
             callbacks: {
               label: ctx => '  ' + (ctx.raw > 0 ? '+' : '') + ctx.raw + '%'
             },
-            backgroundColor: '#1a1d27',
-            titleColor: '#f0f2f8',
-            bodyColor: '#a8adc4',
+            backgroundColor: th.tooltipBg,
+            titleColor: tok('--text', '#f0f2f8'),
+            bodyColor: tok('--text2', '#a8adc4'),
+            titleFont: { family: FONT }, bodyFont: { family: FONT },
           }
         },
         scales: {
           x: {
-            grid: { color: 'rgba(255,255,255,0.05)' },
+            grid: { color: th.grid },
+            // 범위는 afterDataLimits가 정확히 정한다 — 'data'여야 Chart.js가 눈금 단위로 다시 넓히지 않는다.
+            // 대신 눈금이 범위 끝값부터 찍혀(-1.21, 3.79…) 지저분해지므로 afterBuildTicks에서 1·2·5 단위로 다시 만든다
+            bounds: 'data',
             ticks: {
-              color: '#8b90a7', font: { size: 11 },
+              color: th.tick, font: { size: 11, family: FONT },
               callback: v => (v > 0 ? '+' : '') + v + '%'
+            },
+            afterDataLimits(scale) {
+              const W = scale.width;
+              const maxV = Math.max(0, ...values), minV = Math.min(0, ...values);
+              if (!W || maxV === minV) return;
+              // 글자는 모두 max(값,0) 자리에서 오른쪽으로 나가므로, 가장 넓은 글자만큼 오른쪽을 비우면 다 들어간다
+              const padR = Math.max(...values.map((v, i) => lblWidth(scale.ctx, i)));
+              const room = W - padR;
+              if (room < 40) return;            // 너무 좁으면 손대지 않는다
+              scale.min = minV;
+              scale.max = maxV + padR * (maxV - minV) / room;
+            },
+            afterBuildTicks(scale) {
+              const span = scale.max - scale.min;
+              if (!(span > 0)) return;
+              const raw = span / 4, mag = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / mag;
+              const step = (n < 1.5 ? 1 : n < 3 ? 2 : n < 7 ? 5 : 10) * mag;
+              const ticks = [];
+              for (let v = Math.ceil(scale.min / step) * step; v <= scale.max + 1e-9; v += step) {
+                ticks.push({ value: Number(v.toFixed(6)) });
+              }
+              scale.ticks = ticks;
             },
           },
           y: {
             grid: { display: false },
-            ticks: { color: '#c0c4d8', font: { size: 12 }, cursor: 'pointer' }
+            ticks: { color: tok('--text1', '#cfd4e4'), font: { size: 12, family: FONT }, cursor: 'pointer' }
           }
         }
       },
@@ -159,32 +211,26 @@ async function loadMarketOverview(maxDate) {
           chart.data.datasets.forEach((ds, di) => {
             chart.getDatasetMeta(di).data.forEach((bar, i) => {
               const val   = ds.data[i];
-              const ind   = chart.data.labels[i];
-              const iData = (INV.indMapData || {})[ind];
               const isPos = val >= 0;
-              const mainClr  = isPos ? 'rgba(245,54,92,1)' : 'rgba(42,171,238,1)';
-              const x        = isPos ? bar.x + 4 : bar.x - 4;
-              const align    = isPos ? 'left' : 'right';
+              // 양수 = 막대 끝 오른쪽, 음수 = 0선 오른쪽(막대 왼쪽에 쓰면 업종 이름과 겹친다)
+              const x     = (isPos ? bar.x : chart.scales.x.getPixelForValue(0)) + LBL_PAD;
+              const align = 'left';
+              const p     = lblParts(i);
 
               ctx.save();
               // ① 등락률 (+X%)
-              const mainTxt = (isPos ? '+' : '') + val + '%';
-              ctx.font = 'bold 11px sans-serif';
-              ctx.fillStyle = mainClr;
+              ctx.font = F_MAIN;
+              ctx.fillStyle = isPos ? UP : DOWN;
               ctx.textAlign = align;
               ctx.textBaseline = 'middle';
-              ctx.fillText(mainTxt, x, bar.y);
+              ctx.fillText(p.main, x, bar.y);
 
               // ② 종목 수 (▲N▼N) — 등락률 바로 뒤에
-              if (iData) {
-                const mainW  = ctx.measureText(mainTxt).width;
-                const gap    = 5;
-                const x2     = isPos ? x + mainW + gap : x - mainW - gap;
-                const cntTxt = `▲${iData.rise}▼${iData.fall}`;
-                ctx.font = '10px sans-serif';
-                ctx.fillStyle = 'rgba(168,173,196,0.65)';
-                ctx.textAlign = align;
-                ctx.fillText(cntTxt, x2, bar.y);
+              if (p.cnt) {
+                const x2 = x + ctx.measureText(p.main).width + LBL_GAP;
+                ctx.font = F_CNT;
+                ctx.fillStyle = tok('--text3', '#9aa0b7');
+                ctx.fillText(p.cnt, x2, bar.y);
               }
               ctx.restore();
             });
