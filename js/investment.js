@@ -577,6 +577,8 @@ async function loadInvestment() {
   const macroP = loadMacroData().catch(e => console.warn('[loadInvestment] macro', e));
 
   const maxDate = await getLatestMarketDate();
+  // 이 페이지의 기준일 = 최신 거래일. 카드 머리 날짜가 이와 같으면 숨고 다를 때만 보인다(syncAsOf, config.js)
+  setAsOfRef(document.getElementById('inv-date'), maxDate);
   _renderInvAsOf(maxDate);   // 기준일 라벨 — 블로킹 없이 별도 렌더
 
   if (!maxDate) { await macroP; return; }

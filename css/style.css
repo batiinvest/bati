@@ -2,7 +2,7 @@
 :root {
   --bg:#0f1117; --bg2:#1a1d27; --bg3:#222535;
   --border:rgba(255,255,255,0.08); --border2:rgba(255,255,255,0.14);
-  --text:#f0f2f8; --text1:#cfd4e4; --text2:#a8adc4; --text3:#9aa0b7;
+  --text:#f0f2f8; --text1:#cfd4e4; --text2:#b3b8cd; --text3:#9aa0b7;
   --tg:#2AABEE; --tg2:#1e96d3; --green:#2dce89; --red:#f5365c; --yellow:#fb6340;
   --radius:10px; --radius-sm:6px;
 
@@ -156,6 +156,10 @@ tr:hover td { background:rgba(255,255,255,.04); }
 .chip.chip-sm { font-size:calc(11px*var(--m-label)); padding:3px 9px; }
 /* 카드 제목 옆 부제 — 인라인 지정 대체 */
 .card-sub { font-size:calc(11px*var(--m-label)); color:var(--text2); font-weight:400; }
+/* 페이지 기준일과 같은 카드 날짜 숨김(syncAsOf, config.js). 날짜가 margin-left:auto로 뒤 버튼들을
+   오른쪽에 밀고 있었으므로, 숨으면 바로 뒤 요소가 그 일을 맡는다 */
+.asof-same { display:none; }
+.asof-same + * { margin-left:auto; }
 /* 모바일: 카드 헤더의 설명성 부제는 노이즈 — 숨김 (헤더 밖 card-sub는 유지) */
 @media(max-width:600px){
   .card-header .card-sub { display:none; }

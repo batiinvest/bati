@@ -210,7 +210,7 @@ function chartTheme() {
   const s = getComputedStyle(document.documentElement);
   const v = (name, fallback) => (s.getPropertyValue(name) || '').trim() || fallback;
   return {
-    tick:      v('--text2', '#a8adc4'),
+    tick:      v('--text2', '#b3b8cd'),
     grid:      'rgba(255,255,255,.06)',
     tooltipBg: v('--bg2', '#1a1d27'),
   };
@@ -359,7 +359,7 @@ const TEXT_COLOR_KEY = 'bati-text-colors';
 const TEXT_COLOR_KEYS = ['text', 'text1', 'text2', 'text3'];
 const TEXT_COLOR_LABELS = { text: '기본', text1: '본문', text2: '보조', text3: '라벨' };
 // :root 기본값과 정확히 일치해야 함(기본값이면 오버라이드 제거 → :root 상속)
-const TEXT_COLOR_DEFAULTS = { text: '#f0f2f8', text1: '#cfd4e4', text2: '#a8adc4', text3: '#9aa0b7' };
+const TEXT_COLOR_DEFAULTS = { text: '#f0f2f8', text1: '#cfd4e4', text2: '#b3b8cd', text3: '#9aa0b7' };
 
 // #rrggbb 만 허용(소문자 정규화). 그 외는 null.
 const _normHex = h => {
@@ -659,7 +659,29 @@ function toggleSection(bodyId, labelId, labels, onOpen) {
 // 카드마다 제각각이던 기준일 표기(ls-date/flow-date-label/hgpr-date 등) 수렴
 function setAsOf(elId, date) {
   const el = document.getElementById(elId);
-  if (el) el.textContent = date ? `${date} 기준` : '';
+  if (!el) return;
+  el.textContent = date ? `${date} 기준` : '';
+  markAsOf(el, date);
+}
+
+// 페이지 기준일과 같은 카드 날짜는 숨긴다 — 페이지가 기준일(data-asof-ref, 시황 = 최신 거래일)을 밝혀 두면,
+// data-asof가 그와 같은 요소에 .asof-same(숨김)을 붙인다. 다른 날짜(신용잔고·업종 국면처럼 하루 늦은 것)만 남아 눈에 띈다.
+// 같은 날짜가 시황 카드마다 12번 찍혀 정작 늦은 카드가 묻히던 것(11-10). 기준일이 없는 페이지에선 늘 보인다.
+// setAsOf를 안 쓰는 날짜(판정일 등)는 markAsOf(el, date)로, 템플릿에 data-asof를 직접 쓴 것은 그린 뒤 syncAsOf()로.
+function markAsOf(el, date) {
+  if (!el) return;
+  if (date) el.dataset.asof = date; else delete el.dataset.asof;
+  syncAsOf(el);
+}
+function setAsOfRef(el, date) {
+  if (!el) return;
+  if (date) el.dataset.asofRef = date; else delete el.dataset.asofRef;
+  syncAsOf();
+}
+function syncAsOf(only) {
+  const ref = document.querySelector('#content [data-asof-ref]')?.dataset.asofRef || '';
+  (only ? [only] : document.querySelectorAll('#content [data-asof]')).forEach(el =>
+    el.classList.toggle('asof-same', !!ref && el.dataset.asof === ref));
 }
 
 // 순매수 금액 포맷 (단위: 백만원 → 조/억 표시)

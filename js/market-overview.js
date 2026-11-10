@@ -161,7 +161,7 @@ async function loadMarketOverview(maxDate) {
             },
             backgroundColor: th.tooltipBg,
             titleColor: tok('--text', '#f0f2f8'),
-            bodyColor: tok('--text2', '#a8adc4'),
+            bodyColor: tok('--text2', '#b3b8cd'),
             titleFont: { family: FONT }, bodyFont: { family: FONT },
           }
         },

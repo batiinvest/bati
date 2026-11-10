@@ -146,7 +146,7 @@ function _slContextHTML(nameOf) {
   const n = last.n_sectors || 0, k = last.n_above || 0;
   const regime = rg && n ? `
     <div class="sl-ctx-blk" title="${escAttr(rg.tip + ' (원본 「업종지수 활용한 추세 및 비추세 전략」, 구간 30·40·60%)')}">
-      <div class="sl-ctx-h">업종 국면 <span>${last.base_date} 기준</span></div>
+      <div class="sl-ctx-h">업종 국면 <span data-asof="${escAttr(last.base_date)}">${last.base_date} 기준</span></div>
       <div class="sl-ctx-main"><b style="color:${rg.color}">${rg.label}</b>
         <span>120일선 위 업종 <b>${k}</b>/${n} (${Math.round(k / n * 100)}%)</span></div>
       <div class="sl-cells">${Array.from({ length: n }, (_, i) =>
@@ -246,7 +246,7 @@ function _renderSectorLead() {
   const nB = rows.filter(r => r.buy_rank != null).length;
 
   const dEl = document.getElementById('sl-date');
-  if (dEl) dEl.textContent = `판정 ${SL.date}`;
+  if (dEl) { dEl.textContent = `판정 ${SL.date}`; markAsOf(dEl, SL.date); }
   const btn = document.getElementById('sl-all-btn');
   if (btn) { btn.classList.toggle('active', SL.showAll); btn.textContent = SL.showAll ? '상위만' : `전체 업종 ${rows.length}`; }
 
@@ -326,6 +326,7 @@ function _renderSectorLead() {
     </div>`;
   _slDrawLadder(el);
   _slStickCols(el);
+  syncAsOf();   // 업종 국면 날짜(data-asof) — 페이지 기준일과 같으면 숨김
   if (SL.open) _slRenderOscChart();
 }
 

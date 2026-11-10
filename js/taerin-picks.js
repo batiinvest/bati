@@ -87,7 +87,12 @@ function renderTaerinPicks() {
   (INV.allMarketRows || []).forEach(r => { mkt[r.stock_code] = r; });
   const nA = TP.rows.filter(r => r.te.a).length, nB = TP.rows.filter(r => r.te.b).length;
   const cnt = document.getElementById('tp-count');
-  if (cnt) cnt.textContent = `A ${nA} · B ${nB}${TP.date ? ` · ${TP.date} 판정` : ''}`;
+  if (cnt) {
+    // 판정일은 페이지 기준일과 같으면 숨김(syncAsOf) — 개수만 남는다
+    cnt.innerHTML = `A ${nA} · B ${nB}` + (TP.date
+      ? `<span data-asof="${escAttr(TP.date)}"> · ${escapeHtml(TP.date)} 판정</span>` : '');
+    syncAsOf(cnt.lastElementChild || undefined);
+  }
 
   const list = TP.rows.filter(r => TP.filter === 'all' || (TP.filter === 'A' ? r.te.a : r.te.b));
   if (!list.length) { el.innerHTML = _tpMsg('조건에 맞는 종목이 없습니다'); return; }
