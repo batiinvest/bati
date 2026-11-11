@@ -948,6 +948,31 @@ textarea.nt-textarea-sm { min-height:240px; }
 .wr-tbl td, .wr-tbl th { white-space:nowrap; }
 .wr-tbl th:nth-child(2), .wr-tbl td:nth-child(2) { position:sticky; left:0; background:var(--bg2); z-index:1; }
 
+/* ── 일별 수급 (flow-rank.js) — 표·스크롤은 액티브 ETF(.ae-tbl·.ae-scroll)를 같이 쓴다 ── */
+.fr-head { display:flex; justify-content:space-between; align-items:center; gap:8px 16px; flex-wrap:wrap; margin-bottom:.75rem; }
+.fr-lede { font-size:calc(12px*var(--m-sub)); color:var(--text1); line-height:1.6; }
+.fr-lede b { color:var(--text); }
+.fr-dates { display:flex; align-items:center; gap:4px; }
+.fr-dates select { background:var(--bg2); color:var(--text1); border:1px solid var(--border); border-radius:6px; padding:4px 6px; font-size:calc(12px*var(--m-sub)); font-family:inherit; }
+.fr-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(430px, 100%), 1fr)); gap:1rem; align-items:start; margin-bottom:1rem; }
+.fr-card { margin-bottom:0; min-width:0; }
+.fr-cell { min-width:0; }
+.fr-scroll { max-height:58vh; overflow:auto; }
+.fr-tbl th, .fr-tbl td { padding-left:6px; padding-right:6px; }
+.fr-tbl .ae-name { max-width:150px; font-weight:600; }
+.fr-tbl .ae-name .fr-nm { margin-right:5px; }
+.fr-tbl .fr-ind { max-width:104px; overflow:hidden; text-overflow:ellipsis; color:var(--text1); }
+.fr-tbl .fr-rank { text-align:center; font-variant-numeric:tabular-nums; min-width:36px; color:var(--text); }
+.fr-tbl th.fr-rank { color:var(--text2); }
+.fr-tbl .fr-key { color:var(--text); font-weight:600; }
+.fr-sec { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 12px; padding:7px 12px; border-bottom:1px solid var(--border); font-size:calc(12px*var(--m-sub)); color:var(--text1); }
+.fr-sec-k { color:var(--text2); font-size:calc(11px*var(--m-label)); }
+.fr-sec-i b { color:var(--text); font-variant-numeric:tabular-nums; }
+.fr-chips { display:flex; flex-wrap:wrap; align-items:center; gap:4px; }
+.fr-sep { width:1px; height:14px; background:var(--border2); margin:0 6px; }
+.fr-foot { font-size:calc(11px*var(--m-label)); color:var(--text2); line-height:1.7; }
+@media(max-width:600px) { .fr-tbl .fr-ind { display:none; } .fr-tbl .ae-name { max-width:118px; } }
+
 /* ── 실적 국면 (earnings-stage.js) ── */
 .es-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:.5rem; }
 .es-chips { display:flex; gap:4px; flex-wrap:wrap; align-items:center; }

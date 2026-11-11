@@ -19,6 +19,7 @@ const PAGE_META = {
   watchlist:  { title: '투자노트',      fn: 'pWatchlist',   onLoad: '_initWatchlist' },
   screener:   { title: '종목 스크리너', fn: 'pScreener',    onLoad: null },
   highlow:    { title: '고가/저가 근접', fn: 'pHighLow',     onLoad: 'loadHighLow' },
+  flowrank:   { title: '일별 수급',     fn: 'pFlowRank',    onLoad: 'loadFlowRank' },
   activeetf:  { title: '액티브 ETF',    fn: 'pActiveEtf',   onLoad: 'loadActiveEtf' },
   warnrelease:{ title: '투자경고 해제', fn: 'pWarnRelease', onLoad: 'loadWarnRelease' },
   estage:     { title: '실적 국면',     fn: 'pEarnStage',   onLoad: 'loadEarnStage', onUnload: 'unloadEarnStage' },
