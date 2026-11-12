@@ -30,6 +30,7 @@ const PAGE_META = {
   sectorearn: { title: '섹터 실적',     fn: 'pSectorEarn',  onLoad: 'loadSectorEarn' },
   exports:    { title: '수출 데이터',   fn: 'pExports',     onLoad: 'loadExports', onUnload: 'unloadExports' },
   twrev:      { title: '대만 월매출',   fn: 'pTwRevenue',   onLoad: 'loadTwRevenue', onUnload: 'unloadTwRevenue' },
+  jptw:       { title: '일본·대만 시세', fn: 'pJpTw',        onLoad: 'loadJpTw', onUnload: 'unloadJpTw' },
   stocks:     { title: '종목 관리',     fn: 'pStocks',      onLoad: 'loadStocks' },
   pro:        { title: '프로 채널',     fn: 'pPro',         onLoad: 'initPro' },
   team:       { title: '팀원 관리',     fn: 'pTeam',        onLoad: 'loadTeam' },

@@ -1157,6 +1157,83 @@ textarea.nt-textarea-sm { min-height:240px; }
   .twr-asof { white-space:normal; }
 }
 
+/* ── 일본·대만 시세 (jp-tw.js) — 테마 강도 표 · 테마 상세 · 추세선 · 종목 · 나라별 업종 ── */
+.jt-head { display:flex; justify-content:space-between; align-items:flex-end; gap:8px 20px; flex-wrap:wrap; margin-bottom:.75rem; }
+.jt-lede { flex:1 1 420px; max-width:760px; font-size:calc(12px*var(--m-sub)); color:var(--text1); line-height:1.6; }
+.jt-lede b { color:var(--text); }
+.jt-asof { font-size:calc(12px*var(--m-sub)); color:var(--text1); font-variant-numeric:tabular-nums; }
+.jt-asof b { color:var(--text); }
+.jt-msg { padding:1.5rem 1rem; text-align:center; color:var(--text2); font-size:calc(12px*var(--m-sub)); }
+.jt-top { display:grid; grid-template-columns:minmax(0,1.45fr) minmax(0,1fr); gap:1rem; align-items:start; }
+.jt-bottom { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:1rem; align-items:start; margin-top:1rem; }
+.jt-hot { margin-left:auto; display:flex; flex-wrap:wrap; gap:4px 10px; align-items:center; font-size:calc(11px*var(--m-label)); color:var(--text1); }
+.jt-tbl { width:100%; border-collapse:collapse; font-size:calc(12px*var(--m-sub)); font-variant-numeric:tabular-nums; }
+.jt-tbl th { position:sticky; top:0; z-index:1; padding:6px 8px; text-transform:none; letter-spacing:0; background:var(--bg2); border-bottom:1px solid var(--border); font-size:calc(11px*var(--m-label)); font-weight:500; color:var(--text2); text-align:right; white-space:nowrap; }
+.jt-tbl th:first-child, .jt-tbl td:first-child { text-align:left; padding-left:14px; }
+.jt-tbl th:last-child, .jt-tbl td:last-child { padding-right:14px; }
+.jt-tbl td { padding:6px 8px; border-bottom:1px solid var(--border); color:var(--text); white-space:nowrap; }
+.jt-tbl tbody tr:last-child td { border-bottom:none; }
+.jt-tbl .jt-n { text-align:right; }
+.jt-tbl .jt-name { color:var(--text); font-weight:600; max-width:230px; overflow:hidden; text-overflow:ellipsis; }
+.jt-tbl .jt-name small { margin-left:6px; font-weight:400; font-size:calc(11px*var(--m-label)); color:var(--text2); }
+.jt-tbl .jt-name sup { margin-left:3px; font-size:9px; color:var(--accent); }
+.jt-tbl .jt-sec { max-width:150px; overflow:hidden; text-overflow:ellipsis; color:var(--text1); text-align:left; }
+.jt-tbl .jt-cnt { color:var(--text2); }
+.jt-tbl tr.jt-part td { opacity:.55; }
+.jt-tbl th:nth-child(2):not(.jt-n), .jt-themes td:nth-child(2) { text-align:left; }
+.jt-themes tbody tr { cursor:pointer; }
+.jt-themes tbody tr:hover td { background:var(--bg3); }
+.jt-themes tbody tr.on td { background:var(--bg3); }
+.jt-themes tbody tr.on td:first-child { box-shadow:inset 2px 0 0 var(--tg); }
+.jt-themes tbody tr:focus-visible { outline:2px solid var(--tg); outline-offset:-2px; }
+.jt-barcell { width:84px; padding-right:0 !important; }
+.jt-bar { position:relative; display:block; height:8px; min-width:64px; background:linear-gradient(var(--border2), var(--border2)) center / 1px 100% no-repeat; }
+.jt-bar i { position:absolute; top:1px; bottom:1px; border-radius:2px; min-width:1px; }
+.jt-br { display:inline-block; width:36px; height:5px; margin-right:6px; border-radius:3px; background:var(--bg3); vertical-align:1px; overflow:hidden; }
+.jt-br i { display:block; height:100%; background:var(--text2); }
+.jt-sort { cursor:pointer; user-select:none; }
+.jt-sort:hover, .jt-sort.on { color:var(--text); }
+.jt-sig { display:inline-block; padding:1px 8px; border-radius:100px; background:var(--bg3); font-size:calc(11px*var(--m-label)); font-weight:600; color:var(--text1); white-space:nowrap; }
+.jt-sig-hot { background:var(--up); color:#fff; }
+.jt-sig-trend { background:color-mix(in srgb, var(--up) 24%, transparent); color:var(--up); }
+.jt-sig-rot { background:color-mix(in srgb, var(--warn) 24%, transparent); color:var(--warn); }
+.jt-sig-na { background:transparent; color:var(--text3); padding:0 4px; }
+.jt-c { display:inline-flex; align-items:center; justify-content:center; width:17px; height:17px; margin-right:6px; border-radius:4px; font-style:normal; font-size:10px; font-weight:700; vertical-align:1px; }
+.jt-c.jt-jp { background:color-mix(in srgb, var(--up) 20%, transparent); color:var(--up); }
+.jt-c.jt-tw { background:color-mix(in srgb, var(--tg) 22%, transparent); color:var(--tg); }
+.jt-kpis { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); border-bottom:1px solid var(--border); }
+.jt-kpis > div { padding:9px 10px 10px; border-left:1px solid var(--border); min-width:0; }
+.jt-kpis > div:first-child { border-left:none; padding-left:14px; }
+.jt-kpis span { display:block; font-size:calc(11px*var(--m-label)); color:var(--text2); }
+.jt-kpis b { font-size:calc(15px*var(--m-body)); font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.jt-kr { display:flex; flex-wrap:wrap; align-items:center; gap:5px 6px; padding:10px 14px; border-bottom:1px solid var(--border); }
+.jt-kr-h { flex-basis:100%; font-size:calc(11px*var(--m-label)); color:var(--text2); }
+.jt-chip { display:inline-block; padding:2px 9px; border:1px solid var(--border2); border-radius:100px; font-size:calc(12px*var(--m-sub)); color:var(--text1); white-space:nowrap; }
+.jt-chip-link { color:var(--text); cursor:pointer; }
+.jt-chip-link:hover { border-color:var(--tg); color:var(--tg); }
+.jt-chip-link:focus-visible { outline:2px solid var(--tg); outline-offset:1px; }
+.jt-curve { position:relative; height:300px; padding:.75rem 1rem 0; }
+.jt-legend { display:flex; flex-wrap:wrap; gap:4px 16px; padding:.5rem 1rem .8rem; font-size:calc(11px*var(--m-label)); color:var(--text1); font-variant-numeric:tabular-nums; }
+.jt-legend span { display:inline-flex; align-items:center; gap:5px; }
+.jt-legend i { display:inline-block; width:14px; height:3px; border-radius:2px; }
+.jt-scroll { max-height:520px; overflow:auto; }
+.jt-foot { margin-top:.9rem; font-size:calc(11px*var(--m-label)); color:var(--text2); line-height:1.9; }
+.jt-foot b { color:var(--text1); }
+@media(max-width:1180px) {
+  .jt-top, .jt-bottom { grid-template-columns:minmax(0,1fr); }
+}
+@media(max-width:600px) {
+  .jt-tbl th, .jt-tbl td { padding:6px 6px; }
+  .jt-tbl th:first-child, .jt-tbl td:first-child { padding-left:10px; }
+  .jt-tbl .jt-sec, .jt-barcell { display:none; }
+  .jt-themes th[colspan="2"] { text-align:right; }
+  .jt-kpis { grid-template-columns:repeat(3, minmax(0,1fr)); }
+  .jt-kpis > div:nth-child(4) { border-left:none; padding-left:14px; }
+  .jt-kpis > div:nth-child(n+4) { border-top:1px solid var(--border); }
+  .jt-hot { margin-left:0; flex-basis:100%; }
+  .jt-curve { height:240px; }
+}
+
 /* ── 실적 국면 (earnings-stage.js) ── */
 .es-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:.5rem; }
 .es-chips { display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
