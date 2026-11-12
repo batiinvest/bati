@@ -15,6 +15,7 @@ const PAGE_META = {
   logs:       { title: '동기화 로그',   fn: 'pLogs',        onLoad: 'loadLogs' },
   botconfig:  { title: '봇 관리',       fn: 'pBotConfig',   onLoad: 'loadBotConfig' },
   investment: { title: '오늘의 시황',   fn: 'pInvestment',  onLoad: 'loadInvestment', onUnload: 'unloadInvestment' },
+  usmarket:   { title: '미국 지표',     fn: 'pUsMarket',    onLoad: 'loadUsMarket', onUnload: 'unloadUsMarket' },
   company:    { title: '모니터링 종목',  fn: 'pCompany',     onLoad: 'loadCompanyPage' },
   watchlist:  { title: '투자노트',      fn: 'pWatchlist',   onLoad: '_initWatchlist' },
   screener:   { title: '종목 스크리너', fn: 'pScreener',    onLoad: null },

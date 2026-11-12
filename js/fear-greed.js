@@ -94,8 +94,16 @@ function computeFearGreed(rows, col) {
     bond: rs.map(r => (r.bond10 == null || r.bond5 == null) ? null : r.bond10 - r.bond5),
     rsi:  _fgRsi(price, 10),
   };
+  // 탐욕 쪽이 1이 되게 — 풋/콜·변동성은 뒤집는다
+  return fgComputeCore(rs.map(r => r.base_date), price, feat, ['pc', 'vol']);
+}
+
+// 공통 계산 — 한국(위)과 미국(us-market.js)이 같이 쓴다.
+//   dates · price: 같은 길이 배열, feat: {요소 키: 값 배열}(키 순서대로 같은 비중), invert: 뒤집을 키(낮을수록 탐욕)
+//   반환: [{date, price, fg, ema20, osc, comp:{키: 0~100}}] (모든 요소가 있는 날만)
+function fgComputeCore(dates, price, feat, invert = []) {
   const keys = Object.keys(feat);
-  const valid = rs.map((_, i) => keys.every(k => feat[k][i] != null && isFinite(feat[k][i])));
+  const valid = dates.map((_, i) => keys.every(k => feat[k][i] != null && isFinite(feat[k][i])));
 
   // MinMax: 유효 행 전체 기준 (원본 MinMaxScaler.fit_transform)
   const scaled = {};
@@ -105,18 +113,12 @@ function computeFearGreed(rows, col) {
     scaled[k] = feat[k].map((v, i) => !valid[i] ? null : (hi > lo ? (v - lo) / (hi - lo) : 0));
   });
 
-  // 탐욕 쪽이 1이 되게 — 풋/콜·변동성은 뒤집는다
-  const comp = i => ({
-    mom:  scaled.mom[i],
-    pc:   1 - scaled.pc[i],
-    vol:  1 - scaled.vol[i],
-    bond: scaled.bond[i],
-    rsi:  scaled.rsi[i],
-  });
-  const idx = rs.map((_, i) => {
+  const comp = i => Object.fromEntries(keys.map(k => [k, invert.includes(k) ? 1 - scaled[k][i] : scaled[k][i]]));
+  const w = 1 / keys.length;
+  const idx = dates.map((_, i) => {
     if (!valid[i]) return null;
     const c = comp(i);
-    return (c.mom + c.pc + c.vol + c.bond + c.rsi) * 0.2;
+    return keys.reduce((s, k) => s + c[k], 0) * w;
   });
 
   const e12 = _fgEwm(idx, 12), e26 = _fgEwm(idx, 26);
@@ -125,16 +127,16 @@ function computeFearGreed(rows, col) {
   const ema20 = _fgEwm(idx, 20);
 
   const out = [];
-  rs.forEach((r, i) => {
+  dates.forEach((d, i) => {
     if (idx[i] == null) return;
     const c = comp(i);
     out.push({
-      date:  r.base_date,
+      date:  d,
       price: price[i],
       fg:    idx[i] * 100,
       ema20: ema20[i] * 100,
       osc:   macd[i] - sig[i],
-      comp:  { mom: c.mom * 100, pc: c.pc * 100, vol: c.vol * 100, bond: c.bond * 100, rsi: c.rsi * 100 },
+      comp:  Object.fromEntries(keys.map(k => [k, c[k] * 100])),
     });
   });
   return out;
@@ -320,10 +322,18 @@ function renderFearGreed() {
       { k: 'bond', name: '10년−5년 국채선물' },
       { k: 'rsi',  name: 'RSI 10일' },
     ];
-    compEl.innerHTML = items.map(({ k, name }) => {
-      const v = last.comp[k];
-      const color = v >= 50 ? 'var(--up)' : 'var(--down)';
-      return `
+    compEl.innerHTML = fgCompHTML(items, last.comp);
+  }
+
+  fgDrawCharts(FG, canvas, oscCv, res, mktName);
+}
+
+// 구성 요소 막대 — items: [{k, name}], comp: {키: 0~100}
+function fgCompHTML(items, comp) {
+  return items.map(({ k, name }) => {
+    const v = comp[k];
+    const color = v >= 50 ? 'var(--up)' : 'var(--down)';
+    return `
       <div style="display:grid;grid-template-columns:minmax(0,1fr) 90px 34px;align-items:center;gap:8px;padding:3px 0">
         <span style="font-size:calc(11px*var(--m-label));color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</span>
         <span style="height:6px;background:var(--bg2);border-radius:3px;overflow:hidden">
@@ -331,9 +341,11 @@ function renderFearGreed() {
         </span>
         <span style="font-size:calc(11px*var(--m-label));text-align:right;font-variant-numeric:tabular-nums;color:var(--text1)">${v.toFixed(0)}</span>
       </div>`;
-    }).join('');
-  }
+  }).join('');
+}
 
+// 차트 두 장(지수·EMA20·시장 지수 / 오실레이터) — store.chart · store.oscChart에 보관(다시 그릴 때 지움)
+function fgDrawCharts(store, canvas, oscCv, res, mktName) {
   // ── 차트 ① 지수·EMA20(좌 0~100) + 시장 지수(우) ──
   const t = chartTheme();
   const labels = res.map(r => r.date);
@@ -346,8 +358,8 @@ function renderFearGreed() {
     label, data, yAxisID: axis, borderColor: color, backgroundColor: color + '15',
     borderWidth: width, pointRadius: 0, pointHoverRadius: 4, tension: 0.2, fill: false, spanGaps: true,
   });
-  if (FG.chart) { FG.chart.destroy(); FG.chart = null; }
-  FG.chart = new Chart(canvas.getContext('2d'), {
+  if (store.chart) { store.chart.destroy(); store.chart = null; }
+  store.chart = new Chart(canvas.getContext('2d'), {
     type: 'line',
     data: {
       labels,
@@ -384,11 +396,11 @@ function renderFearGreed() {
   });
 
   // ── 차트 ② 오실레이터 (0선 위=빨강 / 아래=파랑, 한국식 색) ──
-  if (FG.oscChart) { FG.oscChart.destroy(); FG.oscChart = null; }
+  if (store.oscChart) { store.oscChart.destroy(); store.oscChart = null; }
   if (oscCv) {
     const upC = getComputedStyle(document.documentElement).getPropertyValue('--up').trim() || '#f5365c';
     const dnC = getComputedStyle(document.documentElement).getPropertyValue('--down').trim() || '#4a9eff';
-    FG.oscChart = new Chart(oscCv.getContext('2d'), {
+    store.oscChart = new Chart(oscCv.getContext('2d'), {
       type: 'bar',
       data: {
         labels,
