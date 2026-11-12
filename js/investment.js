@@ -91,6 +91,9 @@ function pInvestment() {
     </div>
   </div>
 
+  <!-- 과매도·과매수(SIO) — 종목군 안의 투매·추격매수 쏠림 (sio.js, 11-12 태린이아빠 대시보드 이식) -->
+  ${typeof pSio === 'function' ? pSio() : ''}
+
   <!-- 내 종목 현황 — 보유/관심 종목의 시세·오늘 공시·최근 보고서를 한눈에 -->
   <div class="card" id="my-stocks-card" style="margin-bottom:1rem">
     <div class="card-header" style="flex-wrap:wrap;gap:6px">
@@ -567,6 +570,7 @@ async function loadInvestment() {
   loadCreditBalance();   // 신용융자 잔고 카드 (credit-balance.js) — 독립 쿼리
   loadMarketInvestor();  // 투자자별 매매동향 카드 (market-investor.js) — 독립 쿼리
   loadFearGreed();       // 피어앤그리드 카드 (fear-greed.js) — 독립 쿼리
+  if (typeof loadSio === 'function') loadSio();  // 과매도·과매수 SIO 카드 (sio.js) — 독립 쿼리
   if (typeof loadSectorLead === 'function') loadSectorLead();  // 주도 업종 카드 (sector-lead.js) — 독립 쿼리
   loadTrendChart();      // 흐름 비교 차트 — macro_data 자체 조회 (loadMacroData와 독립)
   _allDiscLoaded = false;

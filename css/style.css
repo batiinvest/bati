@@ -973,6 +973,41 @@ textarea.nt-textarea-sm { min-height:240px; }
 .fr-foot { font-size:calc(11px*var(--m-label)); color:var(--text2); line-height:1.7; }
 @media(max-width:600px) { .fr-tbl .fr-ind { display:none; } .fr-tbl .ae-name { max-width:118px; } }
 
+/* ── 과매도·과매수 SIO (sio.js) — 오늘 세 칸 + 날짜가 가로인 띠. 색은 원본 표(과매도 파랑·과매수 빨강·강한 과매수 진빨강) ── */
+#sio-card { --sio-os:color-mix(in srgb, var(--down) 62%, var(--bg2)); --sio-ob:color-mix(in srgb, var(--up) 55%, var(--bg2)); --sio-sob:color-mix(in srgb, var(--up) 86%, #000); }
+.sio-msg { padding:1.25rem 1rem; text-align:center; color:var(--text2); font-size:calc(12px*var(--m-sub)); }
+.sio-tiles { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); border-bottom:1px solid var(--border); }
+.sio-tile { padding:10px 14px 11px; border-left:1px solid var(--border); min-width:0; }
+.sio-tile:first-child { border-left:none; }
+.sio-tile-n { font-size:calc(12px*var(--m-sub)); color:var(--text1); }
+.sio-tile-v { font-size:calc(22px*var(--m-title)); font-weight:700; line-height:1.3; font-variant-numeric:tabular-nums; }
+.sio-tile-s { display:flex; flex-wrap:wrap; align-items:center; gap:3px 8px; font-size:calc(11px*var(--m-label)); color:var(--text1); }
+.sio-tag { font-weight:600; padding:1px 7px; border-radius:100px; background:var(--bg3); color:var(--text1); white-space:nowrap; }
+.sio-tile.sio-os .sio-tag:first-child { background:var(--sio-os); color:#fff; }
+.sio-tile.sio-ob .sio-tag:first-child { background:var(--sio-ob); color:#fff; }
+.sio-tile.sio-sob .sio-tag:first-child { background:var(--sio-sob); color:#fff; }
+.sio-tag.sio-tag-b { background:transparent; color:var(--text); padding:0; }
+.sio-strip-wrap { overflow-x:auto; padding:10px 0 6px; }
+.sio-strip { display:grid; gap:2px; min-width:max-content; padding-right:12px; font-variant-numeric:tabular-nums; }
+.sio-g { display:flex; align-items:center; padding:0 12px 0 14px; white-space:nowrap; font-size:calc(12px*var(--m-sub)); color:var(--text1); position:sticky; left:0; background:var(--bg2); z-index:1; }
+.sio-g.sio-gh { color:var(--text2); font-size:calc(11px*var(--m-label)); }
+.sio-h { text-align:center; padding-bottom:2px; font-size:calc(11px*var(--m-label)); color:var(--text2); }
+.sio-h.sio-last { color:var(--text); font-weight:700; }
+.sio-c { position:relative; height:30px; display:flex; align-items:center; justify-content:center; border-radius:3px; font-size:calc(12px*var(--m-sub)); color:var(--text2); }
+.sio-c.sio-up { color:var(--up); }
+.sio-c.sio-dn { color:var(--down); }
+.sio-c.sio-os { background:var(--sio-os); color:#fff; font-weight:700; }
+.sio-c.sio-ob { background:var(--sio-ob); color:#fff; font-weight:700; }
+.sio-c.sio-sob { background:var(--sio-sob); color:#fff; font-weight:700; }
+.sio-c.sio-last { box-shadow:inset 0 0 0 1.5px var(--text1); }
+.sio-b { font-style:normal; }
+.sio-c .sio-b { position:absolute; top:0; right:2px; font-size:8px; line-height:11px; color:#fff; }
+.sio-foot { display:flex; flex-wrap:wrap; align-items:center; gap:4px 14px; padding:4px 14px 11px; font-size:calc(11px*var(--m-label)); color:var(--text1); }
+.sio-sw { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; vertical-align:-1px; }
+.sio-sw.sio-os { background:var(--sio-os); } .sio-sw.sio-ob { background:var(--sio-ob); } .sio-sw.sio-sob { background:var(--sio-sob); }
+.sio-note { flex-basis:100%; color:var(--text2); line-height:1.65; }
+@media(max-width:600px) { .sio-tile { padding:8px 10px 9px; } .sio-tile-v { font-size:calc(18px*var(--m-title)); } }
+
 /* ── 실적 국면 (earnings-stage.js) ── */
 .es-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:.5rem; }
 .es-chips { display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
