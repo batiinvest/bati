@@ -29,6 +29,7 @@ const PAGE_META = {
   comparison: { title: '기업 비교 분석',fn: 'pComparison',  onLoad: 'initCmpPage' },
   sectorearn: { title: '섹터 실적',     fn: 'pSectorEarn',  onLoad: 'loadSectorEarn' },
   exports:    { title: '수출 데이터',   fn: 'pExports',     onLoad: 'loadExports', onUnload: 'unloadExports' },
+  twrev:      { title: '대만 월매출',   fn: 'pTwRevenue',   onLoad: 'loadTwRevenue', onUnload: 'unloadTwRevenue' },
   stocks:     { title: '종목 관리',     fn: 'pStocks',      onLoad: 'loadStocks' },
   pro:        { title: '프로 채널',     fn: 'pPro',         onLoad: 'initPro' },
   team:       { title: '팀원 관리',     fn: 'pTeam',        onLoad: 'loadTeam' },
