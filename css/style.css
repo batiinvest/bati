@@ -1234,6 +1234,102 @@ textarea.nt-textarea-sm { min-height:240px; }
   .jt-curve { height:240px; }
 }
 
+/* ── AI 하드웨어 (ai-hw.js) — 현재 단계 · 지수 vs Breadth · 선 위 비율 · 점수 · 기울기 · 최근 30일 · 종목 ── */
+.ah-head { display:flex; justify-content:space-between; align-items:flex-end; gap:8px 20px; flex-wrap:wrap; margin-bottom:.75rem; }
+.ah-lede { flex:1 1 420px; max-width:760px; font-size:calc(12px*var(--m-sub)); color:var(--text1); line-height:1.6; }
+.ah-lede b { color:var(--text); }
+.ah-asof { font-size:calc(12px*var(--m-sub)); color:var(--text1); font-variant-numeric:tabular-nums; }
+.ah-asof b { color:var(--text); }
+.ah-msg { padding:1.5rem 1rem; text-align:center; color:var(--text2); font-size:calc(12px*var(--m-sub)); }
+.ah-now { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr); }
+.ah-now-l { padding:14px 18px 15px; min-width:0; }
+.ah-k { font-size:calc(12px*var(--m-sub)); color:var(--text1); }
+.ah-stage { font-size:calc(26px*var(--m-title)); font-weight:700; line-height:1.35; color:var(--text); }
+.ah-stage.ah-up { color:var(--up); }
+.ah-stage.ah-down, .ah-stage.ah-dnsoft { color:var(--down); }
+.ah-stage.ah-warn, .ah-stage.ah-soft { color:var(--warn); }
+.ah-rule { font-size:calc(12px*var(--m-sub)); color:var(--text1); line-height:1.5; }
+.ah-band-wrap { position:relative; margin-top:30px; }
+.ah-read { position:absolute; top:-24px; width:48px; text-align:center; }
+.ah-read b { font-size:calc(15px*var(--m-body)); font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; }
+.ah-band { display:flex; gap:2px; height:8px; }
+.ah-seg { border-radius:2px; opacity:.4; }
+.ah-seg.on { opacity:1; }
+.ah-seg-0 { background:var(--down); } .ah-seg-1 { background:color-mix(in srgb, var(--down) 55%, var(--bg3)); }
+.ah-seg-2 { background:var(--text3); } .ah-seg-3 { background:color-mix(in srgb, var(--up) 55%, var(--bg3)); } .ah-seg-4 { background:var(--up); }
+.ah-pin { position:absolute; top:-4px; width:2px; height:16px; margin-left:-1px; border-radius:1px; background:var(--text); }
+.ah-zones { display:flex; gap:2px; margin-top:5px; font-size:calc(11px*var(--m-label)); color:var(--text2); }
+.ah-zones > div { min-width:0; text-align:center; white-space:nowrap; overflow:hidden; }
+.ah-zones small { display:block; font-size:calc(10px*var(--m-label)); color:var(--text3); }
+.ah-facts { display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:10px; font-size:calc(12px*var(--m-sub)); color:var(--text1); font-variant-numeric:tabular-nums; }
+.ah-facts b { color:var(--text); }
+.ah-kpis { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); border-left:1px solid var(--border); }
+.ah-kpis > div { padding:11px 12px 12px; border-left:1px solid var(--border); border-top:1px solid var(--border); min-width:0; }
+.ah-kpis > div:nth-child(4n+1) { border-left:none; }
+.ah-kpis > div:nth-child(-n+4) { border-top:none; }
+.ah-kpis span { display:block; font-size:calc(11px*var(--m-label)); color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ah-kpis b { display:block; font-size:calc(17px*var(--m-title)); font-weight:700; color:var(--text); line-height:1.5; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.ah-kpis small { display:block; font-size:calc(11px*var(--m-label)); color:var(--text1); font-variant-numeric:tabular-nums; }
+.ah-range { display:flex; align-items:center; gap:5px; margin:1rem 0 .5rem; font-size:calc(11px*var(--m-label)); color:var(--text2); }
+.ah-range > span { margin-right:4px; }
+.ah-chart { position:relative; height:230px; padding:.75rem 1rem 0; }
+.ah-chart.ah-chart-lg { height:320px; }
+.ah-legend { display:flex; flex-wrap:wrap; gap:4px 16px; padding:.5rem 1rem .8rem; font-size:calc(11px*var(--m-label)); color:var(--text1); }
+.ah-legend span { display:inline-flex; align-items:center; gap:5px; }
+.ah-legend i { display:inline-block; width:14px; height:3px; border-radius:2px; }
+.ah-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:1rem; margin-top:1rem; align-items:start; }
+.ah-grid.ah-grid-wide { grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); }
+.ah-counts { padding:14px 16px 12px; }
+.ah-cnt { display:grid; grid-template-columns:44px minmax(0,1fr) 64px; align-items:center; gap:10px; padding:7px 0; font-size:calc(12px*var(--m-sub)); color:var(--text1); }
+.ah-cnt-bar { display:flex; height:14px; border-radius:3px; overflow:hidden; background:var(--bg3); }
+.ah-cnt-bar i.up { background:var(--up); } .ah-cnt-bar i.dn { background:var(--down); } .ah-cnt-bar i.zero { background:transparent; }
+.ah-cnt-n { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.ah-note { margin-top:8px; font-size:calc(11px*var(--m-label)); color:var(--text2); line-height:1.6; }
+.ah-scroll { max-height:520px; overflow:auto; }
+.ah-tbl { width:100%; border-collapse:collapse; font-size:calc(12px*var(--m-sub)); font-variant-numeric:tabular-nums; }
+.ah-tbl th { position:sticky; top:0; z-index:1; padding:6px 7px; text-transform:none; letter-spacing:0; background:var(--bg2); border-bottom:1px solid var(--border); font-size:calc(11px*var(--m-label)); font-weight:500; color:var(--text2); text-align:right; white-space:nowrap; }
+.ah-tbl td { padding:6px 7px; border-bottom:1px solid var(--border); color:var(--text); white-space:nowrap; }
+.ah-tbl th:first-child, .ah-tbl td:first-child { text-align:left; padding-left:14px; }
+.ah-tbl th:nth-child(2):not(.ah-sort) { text-align:left; }
+.ah-tbl th:last-child, .ah-tbl td:last-child { padding-right:14px; }
+.ah-tbl tbody tr:last-child td { border-bottom:none; }
+.ah-tbl .ah-n { text-align:right; }
+.ah-tbl .ah-dot { text-align:center; padding-left:4px; padding-right:4px; }
+.ah-tbl th[title] { text-align:center; }
+.ah-tbl .ah-name { font-weight:600; max-width:210px; overflow:hidden; text-overflow:ellipsis; }
+.ah-tbl .ah-name small { margin-left:6px; font-weight:400; font-size:calc(11px*var(--m-label)); color:var(--text2); }
+.ah-tbl tr.ah-part td { opacity:.55; }
+.ah-tbl tr[data-stock-open]:hover td { background:var(--bg3); }
+.ah-sort { cursor:pointer; user-select:none; }
+.ah-sort:hover, .ah-sort.on { color:var(--text); }
+.ah-tag { display:inline-block; padding:1px 8px; border-radius:100px; background:var(--bg3); font-size:calc(11px*var(--m-label)); font-weight:600; color:var(--text1); white-space:nowrap; }
+.ah-tag.ah-up { background:var(--up); color:#fff; }
+.ah-tag.ah-down { background:var(--down); color:#fff; }
+.ah-tag.ah-dnsoft { background:color-mix(in srgb, var(--down) 24%, transparent); color:var(--down); }
+.ah-tag.ah-soft { background:color-mix(in srgb, var(--warn) 22%, transparent); color:var(--warn); }
+.ah-tag.ah-warn { background:var(--warn); color:#1a1300; }
+.ah-c { display:inline-flex; align-items:center; justify-content:center; width:17px; height:17px; margin-right:6px; border-radius:4px; font-style:normal; font-size:10px; font-weight:700; vertical-align:1px; background:var(--bg3); color:var(--text1); }
+.ah-c.ah-kr { background:color-mix(in srgb, var(--tg) 22%, transparent); color:var(--tg); }
+.ah-c.ah-jp { background:color-mix(in srgb, var(--up) 20%, transparent); color:var(--up); }
+.ah-c.ah-tw { background:color-mix(in srgb, var(--warn) 20%, transparent); color:var(--warn); }
+.ah-foot { margin-top:.9rem; font-size:calc(11px*var(--m-label)); color:var(--text2); line-height:2; }
+.ah-foot b { color:var(--text1); }
+@media(max-width:1180px) {
+  .ah-now { grid-template-columns:minmax(0,1fr); }
+  .ah-kpis { border-left:none; border-top:1px solid var(--border); }
+  .ah-grid, .ah-grid.ah-grid-wide { grid-template-columns:minmax(0,1fr); }
+}
+@media(max-width:600px) {
+  .ah-kpis { grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .ah-kpis > div:nth-child(4n+1) { border-left:1px solid var(--border); }
+  .ah-kpis > div:nth-child(2n+1) { border-left:none; }
+  .ah-kpis > div:nth-child(-n+4) { border-top:1px solid var(--border); }
+  .ah-kpis > div:nth-child(-n+2) { border-top:none; }
+  .ah-chart { height:210px; padding:.6rem .6rem 0; }
+  .ah-chart.ah-chart-lg { height:250px; }
+  .ah-now-l { padding:12px 14px 14px; }
+}
+
 /* ── 실적 국면 (earnings-stage.js) ── */
 .es-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:.5rem; }
 .es-chips { display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
