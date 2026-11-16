@@ -1330,6 +1330,88 @@ textarea.nt-textarea-sm { min-height:240px; }
   .ah-now-l { padding:12px 14px 14px; }
 }
 
+/* ── 미국 ETF (us-etf.js) — 상대강도 · 순위 변화 · 과열 점검 · 정배열 ── */
+.ue-head { display:flex; justify-content:space-between; align-items:flex-end; gap:8px 20px; flex-wrap:wrap; margin-bottom:.6rem; }
+.ue-lede { flex:1 1 420px; max-width:760px; font-size:calc(12px*var(--m-sub)); color:var(--text1); line-height:1.6; }
+.ue-lede b { color:var(--text); }
+.ue-asof { font-size:calc(12px*var(--m-sub)); color:var(--text1); font-variant-numeric:tabular-nums; }
+.ue-asof b { color:var(--text); }
+.ue-msg { padding:1.5rem 1rem; text-align:center; color:var(--text2); font-size:calc(12px*var(--m-sub)); }
+.ue-tabs { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:.75rem; }
+.ue-filters { display:flex; align-items:center; gap:6px; margin-left:auto; flex-wrap:wrap; }
+.ue-select { padding:3px 8px; border:1px solid var(--border2); border-radius:100px; background:var(--bg2); color:var(--text1); font:inherit; font-size:calc(11px*var(--m-label)); }
+.ue-strong { display:flex; flex-wrap:wrap; align-items:center; gap:5px 8px; padding:9px 14px; border-bottom:1px solid var(--border); font-size:calc(12px*var(--m-sub)); color:var(--text1); }
+.ue-strong b { padding:1px 9px; border-radius:100px; background:color-mix(in srgb, var(--up) 20%, transparent); color:var(--text); font-weight:600; white-space:nowrap; }
+.ue-strong b i { font-style:normal; font-weight:500; color:var(--up); font-variant-numeric:tabular-nums; }
+.ue-scroll { max-height:640px; overflow:auto; }
+.ue-tbl { width:100%; border-collapse:collapse; font-size:calc(12px*var(--m-sub)); font-variant-numeric:tabular-nums; }
+.ue-tbl th { position:sticky; top:0; z-index:1; padding:6px 8px; text-transform:none; letter-spacing:0; background:var(--bg2); border-bottom:1px solid var(--border); font-size:calc(11px*var(--m-label)); font-weight:500; color:var(--text2); text-align:right; white-space:nowrap; }
+.ue-tbl td { padding:6px 8px; border-bottom:1px solid var(--border); color:var(--text); white-space:nowrap; }
+.ue-tbl th:first-child, .ue-tbl td:first-child { text-align:left; padding-left:14px; }
+.ue-tbl th:last-child, .ue-tbl td:last-child { padding-right:14px; }
+.ue-tbl tbody tr:last-child td { border-bottom:none; }
+.ue-tbl .ue-n { text-align:right; }
+.ue-tbl .ue-rk { width:34px; color:var(--text2); text-align:left; }
+.ue-tbl th:nth-child(2), .ue-tbl th:nth-child(3) { text-align:left; }
+.ue-tbl .ue-name { text-align:left; max-width:240px; overflow:hidden; text-overflow:ellipsis; }
+.ue-tbl .ue-name b { font-weight:700; }
+.ue-tbl .ue-name small { margin-left:7px; font-size:calc(11px*var(--m-label)); color:var(--text2); }
+.ue-tbl .ue-grp { text-align:left; color:var(--text1); max-width:130px; overflow:hidden; text-overflow:ellipsis; }
+.ue-tbl .ue-dot { text-align:center; }
+.ue-tbl .ue-gaps i { font-style:normal; margin-left:6px; }
+.ue-tbl tr.ue-hot td:first-child { box-shadow:inset 2px 0 0 var(--up); }
+.ue-barcell { width:110px; }
+.ue-meter { position:relative; display:block; height:8px; min-width:80px; border-radius:2px; background:var(--bg3); }
+.ue-meter i { position:absolute; left:0; top:0; bottom:0; border-radius:2px; }
+.ue-meter u { position:absolute; top:-2px; bottom:-2px; width:1px; background:var(--text1); }
+.ue-sort { cursor:pointer; user-select:none; }
+.ue-sort:hover, .ue-sort.on { color:var(--text); }
+.ue-pickable tbody tr { cursor:pointer; }
+.ue-pickable tbody tr:hover td, .ue-pickable tbody tr.on td { background:var(--bg3); }
+.ue-pickable tbody tr.on td:first-child { box-shadow:inset 2px 0 0 var(--tg); }
+.ue-pickable tbody tr:focus-visible { outline:2px solid var(--tg); outline-offset:-2px; }
+.ue-new { padding:0 6px; border-radius:100px; background:color-mix(in srgb, var(--warn) 24%, transparent); color:var(--warn); font-size:calc(11px*var(--m-label)); font-weight:600; }
+.ue-flat { color:var(--text3); }
+.ue-out { padding:8px 14px 10px; border-top:1px solid var(--border); font-size:calc(11px*var(--m-label)); color:var(--text2); }
+.ue-out b { margin-left:5px; color:var(--text1); }
+.ue-listsel { display:flex; flex-wrap:wrap; gap:8px 22px; margin-bottom:.75rem; }
+.ue-listsel > div { display:flex; flex-wrap:wrap; align-items:center; gap:5px; }
+.ue-listsel span { margin-right:4px; font-size:calc(12px*var(--m-sub)); font-weight:600; color:var(--text); }
+.ue-listsel small { font-weight:400; font-size:calc(11px*var(--m-label)); color:var(--text2); }
+.ue-rank-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); gap:1rem; align-items:start; }
+.ue-heat-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.1fr); gap:1rem; align-items:start; }
+.ue-mat { width:100%; border-collapse:separate; border-spacing:2px; padding:8px 10px 10px; font-size:calc(11px*var(--m-label)); font-variant-numeric:tabular-nums; }
+.ue-mat th { padding:2px 0 4px; font-weight:500; color:var(--text2); text-align:center; text-transform:none; letter-spacing:0; }
+.ue-mat th.last { color:var(--text); font-weight:700; }
+.ue-mat td { padding:4px 2px; border-radius:3px; background:var(--bg3); color:var(--text1); text-align:center; cursor:pointer; white-space:nowrap; }
+.ue-mat td.ue-rk { background:transparent; color:var(--text2); cursor:default; text-align:right; padding-right:6px; }
+.ue-mat td.none { background:transparent; color:var(--text3); cursor:default; }
+.ue-mat td.last { color:var(--text); font-weight:600; }
+.ue-mat td.on { background:var(--tg); color:#fff; font-weight:700; }
+.ue-chart { position:relative; height:340px; padding:.75rem 1rem 0; }
+.ue-legend { display:flex; flex-wrap:wrap; gap:4px 16px; padding:.5rem 1rem .8rem; font-size:calc(11px*var(--m-label)); color:var(--text1); }
+.ue-legend span { display:inline-flex; align-items:center; gap:5px; }
+.ue-legend i { display:inline-block; width:14px; height:3px; border-radius:2px; }
+.ue-kpis { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); }
+.ue-kpis > div { padding:12px 16px 13px; border-left:1px solid var(--border); min-width:0; }
+.ue-kpis > div:first-child { border-left:none; }
+.ue-kpis span { display:block; font-size:calc(12px*var(--m-sub)); color:var(--text1); }
+.ue-kpis b { display:block; font-size:calc(24px*var(--m-title)); font-weight:700; color:var(--text); line-height:1.35; font-variant-numeric:tabular-nums; }
+.ue-kpis small { display:block; font-size:calc(11px*var(--m-label)); color:var(--text2); }
+.ue-foot { margin-top:.8rem; font-size:calc(11px*var(--m-label)); color:var(--text2); line-height:1.8; }
+@media(max-width:1180px) {
+  .ue-rank-grid, .ue-heat-grid { grid-template-columns:minmax(0,1fr); }
+}
+@media(max-width:600px) {
+  .ue-tbl th, .ue-tbl td { padding:6px 5px; }
+  .ue-tbl th:first-child, .ue-tbl td:first-child { padding-left:10px; }
+  .ue-tbl .ue-grp, .ue-tbl th.ue-grp-h, .ue-barcell, .ue-tbl .ue-gaps { display:none; }
+  .ue-tbl .ue-name small { display:block; margin-left:0; max-width:120px; overflow:hidden; text-overflow:ellipsis; }
+  .ue-filters { margin-left:0; flex-basis:100%; }
+  .ue-kpis > div { padding:10px 10px 11px; }
+  .ue-chart { height:260px; padding:.6rem .5rem 0; }
+}
+
 /* ── 실적 국면 (earnings-stage.js) ── */
 .es-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:.5rem; }
 .es-chips { display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
