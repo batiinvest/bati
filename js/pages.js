@@ -34,6 +34,7 @@ const PAGE_META = {
   aihw:       { title: 'AI 하드웨어',   fn: 'pAiHw',        onLoad: 'loadAiHw', onUnload: 'unloadAiHw' },
   usetf:      { title: '미국 ETF',      fn: 'pUsEtf',       onLoad: 'loadUsEtf', onUnload: 'unloadUsEtf' },
   us52w:      { title: '미국 52주 전략', fn: 'pUs52w',       onLoad: 'loadUs52w', onUnload: 'unloadUs52w' },
+  kretf:      { title: '한국 ETF',      fn: 'pKrEtf',       onLoad: 'loadKrEtf', onUnload: 'unloadUsEtf' },
   stocks:     { title: '종목 관리',     fn: 'pStocks',      onLoad: 'loadStocks' },
   pro:        { title: '프로 채널',     fn: 'pPro',         onLoad: 'initPro' },
   team:       { title: '팀원 관리',     fn: 'pTeam',        onLoad: 'loadTeam' },

@@ -1352,7 +1352,7 @@ textarea.nt-textarea-sm { min-height:240px; }
 .ue-tbl tbody tr:last-child td { border-bottom:none; }
 .ue-tbl .ue-n { text-align:right; }
 .ue-tbl .ue-rk { width:34px; color:var(--text2); text-align:left; }
-.ue-tbl th:nth-child(2), .ue-tbl th:nth-child(3) { text-align:left; }
+.ue-tbl th.ue-l { text-align:left; }
 .ue-tbl .ue-name { text-align:left; max-width:240px; overflow:hidden; text-overflow:ellipsis; }
 .ue-tbl .ue-name b { font-weight:700; }
 .ue-tbl .ue-name small { margin-left:7px; font-size:calc(11px*var(--m-label)); color:var(--text2); }
@@ -1399,8 +1399,32 @@ textarea.nt-textarea-sm { min-height:240px; }
 .ue-kpis b { display:block; font-size:calc(24px*var(--m-title)); font-weight:700; color:var(--text); line-height:1.35; font-variant-numeric:tabular-nums; }
 .ue-kpis small { display:block; font-size:calc(11px*var(--m-label)); color:var(--text2); }
 .ue-foot { margin-top:.8rem; font-size:calc(11px*var(--m-label)); color:var(--text2); line-height:1.8; }
+/* 한국 ETF(kretf) — 순위 칸 · 시장 폭 · 쏠림 탭 (52주 전략 탭은 미국 52주 전략의 u5-* 틀을 그대로 씀) */
+.ue-rank-grid.ue-rank-kr { grid-template-columns:minmax(0,.85fr) minmax(0,1.5fr); }
+.ue-mat-kr { table-layout:fixed; min-width:720px; }
+.ue-mat-kr th:first-child { width:26px; }
+.ue-mat-kr td { overflow:hidden; text-overflow:ellipsis; }
+.ue-grid2 { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:1rem; align-items:start; }
+.ue-big { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; padding:10px 16px 4px; }
+.ue-big > b { font-size:calc(30px*var(--m-title)); font-weight:800; line-height:1.2; color:var(--text); font-variant-numeric:tabular-nums; }
+.ue-big > span:not(.ue-badge) { font-size:calc(12px*var(--m-sub)); color:var(--text1); }
+.ue-big small { font-size:calc(11px*var(--m-label)); color:var(--text2); }
+.ue-big small i { font-style:normal; font-weight:600; font-variant-numeric:tabular-nums; }
+.ue-big-row { border-top:1px solid var(--border); padding-top:10px; }
+.ue-big-row > b { font-size:calc(22px*var(--m-title)); }
+.ue-badge { align-self:center; padding:2px 10px; border-radius:100px; background:var(--bg3); font-size:calc(11px*var(--m-label)); font-weight:700; color:var(--text1); white-space:nowrap; }
+.ue-badge.warn { background:color-mix(in srgb, var(--warn) 22%, transparent); color:var(--warn); }
+.ue-badge.soft { background:color-mix(in srgb, var(--warn) 12%, transparent); color:var(--text); }
+.ue-chart.ue-chart-sm { height:220px; }
+.ue-two { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); margin-top:.6rem; border-top:1px solid var(--border); }
+.ue-two > div { padding:10px 16px 12px; min-width:0; }
+.ue-two > div + div { border-left:1px solid var(--border); }
+.ue-two h4 { margin:0 0 4px; font-size:calc(12px*var(--m-sub)); font-weight:600; color:var(--text); }
+.ue-two p { display:flex; justify-content:space-between; gap:8px; margin:0; padding:2px 0; font-size:calc(12px*var(--m-sub)); color:var(--text1); font-variant-numeric:tabular-nums; }
+.ue-two p span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ue-kpis.ue-kpis4 { grid-template-columns:repeat(4, minmax(0,1fr)); }
 @media(max-width:1180px) {
-  .ue-rank-grid, .ue-heat-grid { grid-template-columns:minmax(0,1fr); }
+  .ue-rank-grid, .ue-rank-grid.ue-rank-kr, .ue-heat-grid, .ue-grid2 { grid-template-columns:minmax(0,1fr); }
 }
 @media(max-width:600px) {
   .ue-tbl th, .ue-tbl td { padding:6px 5px; }
@@ -1410,6 +1434,12 @@ textarea.nt-textarea-sm { min-height:240px; }
   .ue-filters { margin-left:0; flex-basis:100%; }
   .ue-kpis > div { padding:10px 10px 11px; }
   .ue-chart { height:260px; padding:.6rem .5rem 0; }
+  .ue-kpis.ue-kpis4 { grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .ue-kpis.ue-kpis4 > div:nth-child(3) { border-left:none; }
+  .ue-kpis.ue-kpis4 > div:nth-child(n+3) { border-top:1px solid var(--border); }
+  .ue-two > div { padding:8px 10px 10px; }
+  .ue-big { padding:8px 12px 4px; }
+  .ue-big > b { font-size:calc(26px*var(--m-title)); }
 }
 
 /* ── 미국 52주 전략 (us-52w.js) — 상태 · 현재 포트 · 백테스트 · 판정 근거 · 최근 거래 ── */
