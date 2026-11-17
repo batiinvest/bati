@@ -33,6 +33,7 @@ const PAGE_META = {
   jptw:       { title: '일본·대만 시세', fn: 'pJpTw',        onLoad: 'loadJpTw', onUnload: 'unloadJpTw' },
   aihw:       { title: 'AI 하드웨어',   fn: 'pAiHw',        onLoad: 'loadAiHw', onUnload: 'unloadAiHw' },
   usetf:      { title: '미국 ETF',      fn: 'pUsEtf',       onLoad: 'loadUsEtf', onUnload: 'unloadUsEtf' },
+  us52w:      { title: '미국 52주 전략', fn: 'pUs52w',       onLoad: 'loadUs52w', onUnload: 'unloadUs52w' },
   stocks:     { title: '종목 관리',     fn: 'pStocks',      onLoad: 'loadStocks' },
   pro:        { title: '프로 채널',     fn: 'pPro',         onLoad: 'initPro' },
   team:       { title: '팀원 관리',     fn: 'pTeam',        onLoad: 'loadTeam' },
