@@ -1442,6 +1442,69 @@ textarea.nt-textarea-sm { min-height:240px; }
   .ue-big > b { font-size:calc(26px*var(--m-title)); }
 }
 
+/* ── 국내 월 리밸런싱 (kr-monthly.js) — 확정 · 예상 포지션 · Breadth 띠 (머리 · 표 · 그림 틀은 아래 u5-*를 그대로 씀) ── */
+.km-top2 { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:1rem; align-items:stretch; }
+.km-pos { display:flex; flex-direction:column; gap:10px; padding:14px 18px; }
+.km-pos.preview { border-style:dashed; }
+.km-pos-h { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; }
+.km-pos-t { font-size:calc(14px*var(--m-body)); font-weight:700; color:var(--text); }
+.km-pos-s { font-size:calc(11px*var(--m-label)); color:var(--text2); }
+.km-pos-main { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:12px; }
+.km-exp { text-align:right; }
+.km-exp b { display:block; font-size:calc(30px*var(--m-title)); font-weight:800; line-height:1.2; color:var(--text); font-variant-numeric:tabular-nums; }
+.km-exp span { font-size:calc(11px*var(--m-label)); color:var(--text2); }
+.km-desc { font-size:calc(12px*var(--m-sub)); color:var(--text1); line-height:1.55; }
+.km-hold, .km-top { display:flex; flex-wrap:wrap; align-items:center; gap:5px 6px; font-size:calc(12px*var(--m-sub)); color:var(--text1); }
+.km-hold > span, .km-top > span { margin-right:4px; color:var(--text2); }
+.km-hold em, .km-top em { font-style:normal; color:var(--text2); }
+.km-chip { padding:2px 10px; border-radius:100px; background:color-mix(in srgb, var(--up) 18%, transparent); color:var(--text); font-weight:700; white-space:nowrap; }
+.km-chip.kospi { background:color-mix(in srgb, var(--tg) 24%, transparent); }
+.km-top b { padding:1px 8px; border-radius:100px; background:var(--bg3); font-weight:600; color:var(--text1); white-space:nowrap; }
+.km-top b.on { background:color-mix(in srgb, var(--up) 18%, transparent); color:var(--text); }
+.km-top b i { margin-left:2px; font-style:normal; font-weight:500; color:var(--text2); font-variant-numeric:tabular-nums; }
+.km-kv { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); border-top:1px solid var(--border); }
+.km-kv > div { display:flex; justify-content:space-between; align-items:baseline; gap:8px; padding:7px 0; border-bottom:1px solid var(--border); font-size:calc(12px*var(--m-sub)); min-width:0; }
+.km-kv > div:nth-child(odd) { padding-right:12px; }
+.km-kv > div:nth-child(even) { padding-left:12px; border-left:1px solid var(--border); }
+.km-kv span { color:var(--text2); }
+.km-kv b { font-weight:600; color:var(--text); text-align:right; font-variant-numeric:tabular-nums; }
+.km-kv small { font-weight:400; font-size:calc(11px*var(--m-label)); color:var(--text2); }
+.km-kv small i { font-style:normal; }
+.km-on { color:var(--warn); }
+.km-off { font-weight:400; color:var(--text2); }
+.km-read { margin-top:1rem; }
+.km-band { position:relative; margin:6px 18px 2px; padding:20px 0 22px; }
+.km-band-bar { display:flex; height:22px; border-radius:4px; overflow:hidden; font-size:calc(11px*var(--m-label)); }
+.km-band-bar span { display:flex; align-items:center; justify-content:center; overflow:hidden; color:var(--text1); white-space:nowrap; }
+.km-band-bar .z0 { background:color-mix(in srgb, var(--down) 24%, transparent); }
+.km-band-bar .z1 { background:color-mix(in srgb, var(--down) 11%, transparent); }
+.km-band-bar .z2 { background:var(--bg3); }
+.km-band-bar .z3 { background:color-mix(in srgb, var(--up) 16%, transparent); }
+.km-mark { position:absolute; top:0; bottom:0; width:0; }
+.km-mark i { position:absolute; top:16px; bottom:18px; left:-1px; width:2px; background:var(--text); }
+.km-mark em { position:absolute; top:0; transform:translateX(-50%); font-style:normal; font-size:calc(11px*var(--m-label)); font-weight:700; color:var(--text); white-space:nowrap; }
+.km-mark.prev i { background:var(--warn); }
+.km-mark.prev em { top:auto; bottom:0; color:var(--warn); }
+.km-mark.l em { transform:none; }
+.km-mark.r em { transform:translateX(-100%); }
+.km-cmt { margin:0; padding:2px 18px 14px 36px; font-size:calc(12px*var(--m-sub)); color:var(--text1); line-height:1.75; }
+.km-cmt b { color:var(--text); }
+.km-mode { display:inline-block; padding:1px 8px; border-radius:100px; background:var(--bg3); font-size:calc(11px*var(--m-label)); font-weight:700; color:var(--text1); white-space:nowrap; }
+.km-mode.up { background:color-mix(in srgb, var(--up) 18%, transparent); color:var(--up); }
+.km-mode.down { background:color-mix(in srgb, var(--down) 18%, transparent); color:var(--down); }
+@media(max-width:1180px) {
+  .km-top2 { grid-template-columns:minmax(0,1fr); }
+}
+@media(max-width:600px) {
+  .km-pos { padding:12px 14px; }
+  .km-exp b { font-size:calc(26px*var(--m-title)); }
+  .km-kv { grid-template-columns:minmax(0,1fr); }
+  .km-kv > div:nth-child(odd) { padding-right:0; }
+  .km-kv > div:nth-child(even) { padding-left:0; border-left:none; }
+  .km-band { margin:6px 12px 2px; }
+  .km-cmt { padding:2px 12px 12px 28px; }
+}
+
 /* ── 미국 52주 전략 (us-52w.js) — 상태 · 현재 포트 · 백테스트 · 판정 근거 · 최근 거래 ── */
 .u5-head { display:flex; justify-content:space-between; align-items:flex-end; gap:8px 20px; flex-wrap:wrap; margin-bottom:.75rem; }
 .u5-lede { flex:1 1 420px; max-width:760px; font-size:calc(12px*var(--m-sub)); color:var(--text1); line-height:1.6; }
