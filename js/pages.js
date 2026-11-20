@@ -36,6 +36,7 @@ const PAGE_META = {
   us52w:      { title: '미국 52주 전략', fn: 'pUs52w',       onLoad: 'loadUs52w', onUnload: 'unloadUs52w' },
   kretf:      { title: '한국 ETF',      fn: 'pKrEtf',       onLoad: 'loadKrEtf', onUnload: 'unloadUsEtf' },
   krmonth:    { title: '국내 월 리밸런싱', fn: 'pKrMonthly', onLoad: 'loadKrMonthly', onUnload: 'unloadKrMonthly' },
+  usmonth:    { title: '미국 월 리밸런싱', fn: 'pUsMonthly', onLoad: 'loadUsMonthly', onUnload: 'unloadUsMonthly' },
   stocks:     { title: '종목 관리',     fn: 'pStocks',      onLoad: 'loadStocks' },
   pro:        { title: '프로 채널',     fn: 'pPro',         onLoad: 'initPro' },
   team:       { title: '팀원 관리',     fn: 'pTeam',        onLoad: 'loadTeam' },

@@ -74,18 +74,43 @@ const _kmMode = m => KM_MODE[m] || [m || '—', '', ''];
 const _kmHold = s => (s.hold || []).length ? s.hold.map(h => `<b class="km-chip${h === 'KOSPI' ? ' kospi' : ''}">${h === 'KOSPI' ? '코스피' : escapeHtml(h)}</b>`).join('') : '<em>없음 — 현금</em>';
 const _kmList = a => (a || []).length ? a.map(escapeHtml).join(' · ') : '—';
 
-// Breadth 띠 — 0 ~ 100%에 구간(30 · 40 · 60)과 확정 · 예상 값을 표시
-function _kmBand(conf, prev) {
+// Breadth 띠 — 0 ~ 100%에 구간과 확정 · 예상 값을 표시. zones = [[폭 %, 색 클래스, 이름], …] (국내 · 미국 공용)
+const KM_ZONES = [[30, 'z0', '역추세 &lt;30'], [10, 'z1', '회복'], [20, 'z2', '비추세 40~60'], [40, 'z3', '추세 ≥60']];
+function _kmBand(conf, prev, zones = KM_ZONES) {
   const mark = (v, cls, label) => {
     if (v == null) return '';
     const pos = Math.max(0, Math.min(100, v * 100));
     return `<span class="km-mark ${cls}${pos < 8 ? ' l' : pos > 92 ? ' r' : ''}" style="left:${pos.toFixed(1)}%" title="${escAttr(label)} ${_kmPct(v)}"><i></i><em>${label} ${_kmPct(v, 0)}</em></span>`;
   };
   return `<div class="km-band" role="img" aria-label="Breadth 확정 ${_kmPct(conf)} · 예상 ${_kmPct(prev)}">
-    <div class="km-band-bar"><span class="z0" style="width:30%">역추세 &lt;30</span><span class="z1" style="width:10%">회복</span><span class="z2" style="width:20%">비추세 40~60</span><span class="z3" style="width:40%">추세 ≥60</span></div>
+    <div class="km-band-bar">${zones.map(([w, cls, n]) => `<span class="${cls}" style="width:${w}%">${n}</span>`).join('')}</div>
     ${mark(conf, 'conf', '확정')}${mark(prev, 'prev', '예상')}
   </div>`;
 }
+
+// 확정 · 예상 카드 틀 — 국내 · 미국 월 리밸런싱 공용. rows = [[이름, 값 html, 말풍선], …], lists = [[이름, html], …]
+function _kmCardHtml(c) {
+  return `<div class="card km-pos${c.preview ? ' preview' : ''}">
+    <div class="km-pos-h"><span class="km-pos-t">${c.title}</span><span class="km-pos-s">${c.sub}</span></div>
+    <div class="km-pos-main">
+      <div class="u5-status ${c.cls}">${escapeHtml(c.name)}</div>
+      <div class="km-exp"><b>${_kmPct(c.exp, 0)}</b><span>투자 · 현금 ${_kmPct(c.cash, 0)}</span></div>
+    </div>
+    ${c.desc ? `<div class="km-desc">${escapeHtml(c.desc)}</div>` : ''}
+    <div class="km-hold"><span>투자 대상</span>${c.hold}</div>
+    <div class="km-kv">${c.rows.map(([k, v, t]) => `<div title="${escAttr(t || '')}"><span>${k}</span><b>${v}</b></div>`).join('')}</div>
+    ${(c.lists || []).map(([k, html]) => `<div class="km-top"><span>${k}</span>${html}</div>`).join('')}
+  </div>`;
+}
+
+// 그림 공용 — 선 하나 · x축(해를 넘기면 '26.03') · 캔버스에 그리고 store에 담기
+const _kmLine = (label, data, col, w, extra = {}) => ({ type: 'line', label, data, borderColor: col, backgroundColor: col, borderWidth: w,
+  pointRadius: 0, pointHoverRadius: 3, tension: 0, spanGaps: true, fill: false, ...extra });
+const _kmXAxis = (t, labels) => ({ ticks: { color: t.tick, font: { size: 10 }, maxTicksLimit: 9, maxRotation: 0, callback: function (v) {
+  const d = this.getLabelForValue(v); return labels.length > 1 && labels[0].slice(0, 4) !== labels[labels.length - 1].slice(0, 4) ? d.slice(2, 7).replace('-', '.') : _kmMD(d); } }, grid: { color: t.grid } });
+const _kmChart = (store, id, cfg) => { const cv = document.getElementById(id); if (cv) store.push(new Chart(cv.getContext('2d'), cfg)); };
+// 고점 대비 낙폭(%) 계열
+const _kmDD = a => { let m = -Infinity; return (a || []).map(v => { if (v == null) return null; m = Math.max(m, v); return (v / m - 1) * 100; }); };
 
 function _kmCard(s, title, sub, isPreview) {
   const [name, cls, desc] = _kmMode(s.mode);
@@ -101,18 +126,9 @@ function _kmCard(s, title, sub, isPreview) {
   if (nonTrend) rows.push(['상위 3 평균 RS', `<span style="color:${_kmColor(s.top3_rs)}">${_kmSignedPct(s.top3_rs)}</span>`, '<5 · 5~12 · 12~22 · ≥22% → 25 · 50 · 75 · 100%'],
     ['기본 비중', _kmPct(s.nt_base, 0), s.nt_regime === 'WEAK_NON_TREND' ? '약세 보정 −75%p 적용' : '약세 보정 없음']);
   rows.push(['코스피 6개월', `<span style="color:${_kmColor(s.mom6)}">${_kmSignedPct(s.mom6)}</span>`, `200일선 ${s.ma200 == null ? '—' : s.ma200.toLocaleString(undefined, { maximumFractionDigits: 0 })}`]);
-  return `<div class="card km-pos${isPreview ? ' preview' : ''}">
-    <div class="km-pos-h"><span class="km-pos-t">${title}</span><span class="km-pos-s">${sub}</span></div>
-    <div class="km-pos-main">
-      <div class="u5-status ${cls}">${escapeHtml(name)}</div>
-      <div class="km-exp"><b>${_kmPct(s.exp, 0)}</b><span>투자 · 현금 ${_kmPct(s.cash, 0)}</span></div>
-    </div>
-    <div class="km-desc">${escapeHtml(desc)}</div>
-    <div class="km-hold"><span>투자 대상</span>${_kmHold(s)}</div>
-    <div class="km-kv">${rows.map(([k, v, t]) => `<div title="${escAttr(t)}"><span>${k}</span><b>${v}</b></div>`).join('')}</div>
-    <div class="km-top"><span>적격 RS 상위 5</span>${(s.top5 || []).length ? s.top5.map((n, i) => `<b class="${(s.top3 || []).includes(n) ? 'on' : ''}">${i + 1}. ${escapeHtml(n)} <i>${_kmSignedPct(s.top5_rs?.[i], 1)}</i></b>`).join('') : '<em>적격 업종 없음(120일선 위 ∧ 코스피보다 강한 업종이 없음)</em>'}</div>
-    ${(s.rec || []).length ? `<div class="km-top"><span>회복 후보</span>${s.rec.map(n => `<b class="on">${escapeHtml(n)}</b>`).join('')}</div>` : ''}
-  </div>`;
+  const lists = [['적격 RS 상위 5', (s.top5 || []).length ? s.top5.map((n, i) => `<b class="${(s.top3 || []).includes(n) ? 'on' : ''}">${i + 1}. ${escapeHtml(n)} <i>${_kmSignedPct(s.top5_rs?.[i], 1)}</i></b>`).join('') : '<em>적격 업종 없음(120일선 위 ∧ 코스피보다 강한 업종이 없음)</em>']];
+  if ((s.rec || []).length) lists.push(['회복 후보', s.rec.map(n => `<b class="on">${escapeHtml(n)}</b>`).join('')]);
+  return _kmCardHtml({ title, sub, preview: isPreview, name, cls, desc, exp: s.exp, cash: s.cash, hold: _kmHold(s), rows, lists });
 }
 
 // 원본 '현재 포지션 → 다음달 예상 포지션 해석'을 같은 순서로
@@ -252,10 +268,10 @@ function kmDrawCharts() {
   const gray = css.getPropertyValue('--text2').trim() || '#b3b8cd';
   const color = ci => ci < 0 ? gray : SERIES_PAL[ci];
   const labels = c.dates;
-  const xAxis = { ticks: { color: t.tick, font: { size: 10 }, maxTicksLimit: 9, maxRotation: 0, callback: function (v) { return this.getLabelForValue(v).slice(2, 7).replace('-', '.'); } }, grid: { color: t.grid } };
+  const xAxis = _kmXAxis(t, labels);
   const base = { responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'index', intersect: false } };
-  const line = (label, data, col, w, extra = {}) => ({ type: 'line', label, data, borderColor: col, backgroundColor: col, borderWidth: w, pointRadius: 0, pointHoverRadius: 3, tension: 0, spanGaps: true, fill: false, ...extra });
-  const mk = (id, cfg) => { const cv = document.getElementById(id); if (cv) KM.charts.push(new Chart(cv.getContext('2d'), cfg)); };
+  const line = _kmLine;
+  const mk = (id, cfg) => _kmChart(KM.charts, id, cfg);
 
   // ① 누적 성과(로그)
   mk('km-c-eq', {
@@ -266,7 +282,7 @@ function kmDrawCharts() {
       scales: { x: xAxis, y: { type: 'logarithmic', ticks: { color: t.tick, font: { size: 10 }, callback: v => { const r = +(+v).toPrecision(2); return [0.5, 0.7, 1, 1.5, 2, 3, 5, 7, 10, 15, 20, 30, 50].includes(r) ? r + '배' : ''; } }, grid: { color: t.grid } } } },
   });
   // ② 고점 대비 낙폭
-  const dd = a => { let m = -Infinity; return (a || []).map(v => { if (v == null) return null; m = Math.max(m, v); return (v / m - 1) * 100; }); };
+  const dd = _kmDD;
   mk('km-c-dd', {
     type: 'line',
     data: { labels, datasets: KM_SERIES.map(([k, n, ci]) => line(n, dd(c[k]), color(ci), k === 'v23' ? 1.6 : 1, k === 'v23' ? { fill: 'origin', backgroundColor: SERIES_PAL[1] + '22' } : {})) },
