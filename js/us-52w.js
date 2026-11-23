@@ -1,5 +1,9 @@
-// us-52w.js — STRATEGY '미국 52주 전략' 페이지 (11-17)
-// [원본] 태린이아빠 Market Dashboard '미국 52주 신고가 전략 점검'(공개 소스 app.py ROT_SRC · run_rotation · render_rotation_simple)
+// us-52w.js — STRATEGY '미국 52주 전략' 페이지 (11-17, 11-23 개선 전략)
+// [원본 v11.63] 원본 화면은 이제 '개선 52W + 성장 ETF + MA40(2일)'만 보인다(공개 소스 US_ETF_52W_FILE_SRC · run_enhanced_52w_growth).
+//   시장 모드 = QQQ 90일 > SPY 90일 ∧ (Breadth60 < 65% ∨ QQQ 60일 − 순수 52W 60일 > +5%p)면 GROWTH(QQQ · SOXX · XLK · XLC 중 1개),
+//   아니면 52W(아래 옛 52W + Rotation_B를 그림자 포트로 따라가고 남는 비중은 QQQ, QQQ 변동성 충격이면 절반만).
+//   payload.enh가 있으면 이 화면(u5RenderEnh), 없으면(11-22 이전 자료) 아래 옛 화면을 그대로 그린다.
+// [옛 원본] 태린이아빠 Market Dashboard '미국 52주 신고가 전략 점검'(공개 소스 app.py ROT_SRC · run_rotation · render_rotation_simple)
 //   미국 업종 ETF 57개에서 6개월 SPY 대비 RS 상위 20 ∩ 52주 신고가 돌파를 최대 4종목 × 25% 사고, 20일선 아래로 내려가면 판다(52W FIXED).
 //   이 순수 전략이 최근 20거래일 SPY와 QQQ 둘 다에 1%p 넘게 뒤지면 '안통함'(WEAK_ROTATION) — 그동안 빈 자리는
 //   5일 RS · 20일 순위 개선 · 20일 고점 돌파 후보(Rotation_B)로 채운다. 기존 보유는 국면이 바뀌어도 20일선 이탈 때만 판다.
@@ -73,10 +77,212 @@ function _u5ExBar(v, th, max) {
   return `<span class="u5-exbar"><i style="left:${a}%;width:${(b - a).toFixed(2)}%;background:${_u5Color(v)}"></i><u style="left:${pos(th)}%" title="기준 ${th}%"></u><s style="left:50%"></s></span>`;
 }
 
+// ── 개선 52W + 성장 ETF(원본 v11.63 화면) ─────────────────────────────
+const U5E_MODE = { '52W': ['52주 신고가 모드', 'up'], GROWTH: ['성장 ETF 모드', 'up'], WARMUP: ['준비 중', ''] };
+const U5E_SERIES = [['enh', '개선 전략', 1, 2.4], ['qqq', 'QQQ 보유', 4, 1.4], ['spy', 'SPY 보유', -1, 1.4]];
+const U5E_TAG = { 'QQQ 채움': 'u5-o-held', '성장 ETF': 'u5-o-52' };
+const _u5eTag = o => U52_ORIGIN[o] ? _u5Origin(o) : `<span class="u5-tag ${U5E_TAG[o] || ''}">${escapeHtml(o || '—')}</span>`;
+const _u5eName = t => ({ QQQ: '나스닥100' }[t] || _u5Name(t));
+const _u5eEtf = t => `<b>${escapeHtml(t)}</b><small>${escapeHtml(_u5eName(t))}</small>`;
+
+function u5RenderEnh(p, body) {
+  const e = p.enh, s = e.status || {}, pf = e.perf || {}, yr = e.yearly || {};
+  const asof = document.getElementById('u5-asof');
+  if (asof) asof.innerHTML = `<b>${escapeHtml(p.asof)} 미국 종가 기준</b> · 자료 ${escapeHtml(p.data_start || '')}부터 ${p.n_days || '—'}거래일 · 업종 ETF ${p.n} / ${p.total}${Object.keys(p.quarantined || {}).length ? ` · 가격 오류로 제외 ${Object.keys(p.quarantined).map(escapeHtml).join(', ')}` : ''}`;
+  const [mName, mCls] = U5E_MODE[s.mode] || [s.mode || '—', ''];
+  const [nName] = U5E_MODE[s.next_mode] || [s.next_mode || '—'];
+  const cashNow = Math.max(0, 100 - (e.positions || []).reduce((a, x) => a + (x.cur || 0), 0));
+  const cashNext = Math.max(0, 100 - (e.positions || []).reduce((a, x) => a + (x.exec || 0), 0));
+  const cond = [
+    ['QQQ − SPY 90일 수익', s.rs90, '0보다 커야(필수)', (s.rs90 ?? -1) > 0],
+    ['업종 60일선 위 비율(Breadth60)', s.breadth60, '65% 미만이면 충족', (s.breadth60 ?? 100) < 65],
+    ['QQQ 60일 − 순수 52W 60일', s.rs60_52w, '+5%p 넘으면 충족', (s.rs60_52w ?? -99) > 5],
+  ];
+  const shadowSet = new Set((e.shadow || []).map(x => x.t));
+  const md = e.mode_days || {}, mdTot = (md['52W'] || 0) + (md.GROWTH || 0) || 1;
+  const enh = pf.enh || {}, qqq = pf.qqq || {};
+
+  body.innerHTML = `
+    <div class="u5-top">
+      <div class="card u5-state">
+        <div class="u5-k">지금 보유 모드</div>
+        <div class="u5-status ${mCls}">${escapeHtml(mName)}${s.held_growth ? ` · ${escapeHtml(s.held_growth)}` : ''}</div>
+        <div class="u5-sub">다음 거래일 예상: <b>${escapeHtml(nName)}</b>${s.next_growth ? ` · 성장 ETF <b>${escapeHtml(s.next_growth)}</b>` : ''} — ${escapeHtml(s.reason || '')}</div>
+        <div class="u5-ex">
+          <div class="u5-ex-h">성장 모드로 바뀌는 조건 <span>첫째 ∧ (둘째 ∨ 셋째) · 모드는 최소 15거래일 유지</span></div>
+          ${cond.map(([n, v, hint, ok]) => `<div class="u5-ex-row u5-cond"><span>${n}</span><b style="color:${_u5Color(v)}">${n.includes('Breadth') ? _u5Num(v, 1) + '%' : _u5Signed(v, 2, n.includes('52W') ? '%p' : '%')}</b><em class="${ok ? 'km-on' : 'km-off'}" title="${escAttr(hint)}">${ok ? '충족' : '미충족'}</em></div>`).join('')}
+          <div class="u5-ex-f">성장 모드 신규 진입 <b>${s.growth_signal ? '충족' : '미충족'}</b> · 52W 안의 약세 교체 <b>${s.weak ? 'WEAK' : 'NORMAL'}</b> ·
+            QQQ 20일 변동성 <b style="color:${(s.qqq_shock ?? 0) >= 2 ? 'var(--down)' : 'var(--text1)'}">${_u5Num(s.qqq_shock, 2)}배</b>(과거 3년 평상시 중앙값 대비, 2배 이상이면 남는 비중의 절반만 QQQ)
+            · 성장 ETF 4개 중 변동성 충격 <b>${s.growth_shock_cnt ?? 0}개</b>(2개 이상이면 고른 ETF 50% + QQQ 50%)</div>
+        </div>
+      </div>
+      <div class="card u5-port">
+        <div class="card-header" style="flex-wrap:wrap;gap:6px">
+          <span class="card-title">현재 보유 · 다음 거래일 목표</span><span class="card-sub">현재 = 마지막 종가까지 체결된 가상 포트 · 실행 예정 = 오늘 종가 신호로 다음 거래일 종가 주문</span>
+          <span class="u5-cash">지금 현금 <b>${_u5Num(cashNow, 1)}%</b> · 다음 <b>${_u5Num(cashNext, 1)}%</b></span>
+        </div>
+        ${(e.positions || []).length ? `<table class="u5-tbl">
+          <thead><tr><th>ETF</th><th>성격</th><th>현재</th><th title="규칙대로라면 목표 비중">신호 목표</th><th title="목표와 차이가 1.5%p 미만이면 매매하지 않음">실행 예정</th></tr></thead>
+          <tbody>${e.positions.map(x => `<tr>
+            <td class="u5-name">${_u5eEtf(x.t)}</td><td>${_u5eTag(x.o)}</td>
+            <td class="u5-n"><b>${_u5Num(x.cur, 2)}%</b></td><td class="u5-n">${_u5Num(x.sig, 2)}%</td><td class="u5-n">${_u5Num(x.exec, 2)}%</td></tr>`).join('')}</tbody></table>`
+          : '<div class="u5-msg">보유 ETF가 없습니다 — 현금 100%.</div>'}
+        <div class="u5-acts"><span>다음 거래일 매매</span>${(e.orders || []).length ? e.orders.map(o => `<b class="u5-act ${o.a === 'BUY' ? 'buy' : 'sell'}" title="${escAttr(o.reason || '')}">${o.a === 'BUY' ? '매수' : '매도'} ${escapeHtml(o.t)} ${_u5Signed(o.w, 2, '%p')}</b>`).join('') : '<em>교체 주문 없음 — 현 포지션 유지 또는 리밸런싱 밴드(1.5%p) 안</em>'}</div>
+      </div>
+    </div>
+
+    <div class="card u5-perf-card">
+      <div class="card-header" style="flex-wrap:wrap;gap:6px">
+        <span class="card-title">개선 전략 · QQQ · SPY 성과</span>
+        <span class="card-sub">${_u5MD(e.eval_start)} ${escapeHtml((e.eval_start || '').slice(0, 4))} 시작(252거래일 준비 뒤 첫 운용일, 그 전날 = 1) · 색 띠 = 성장 ETF 모드</span>
+        <div class="u5-range">${[[126, '6개월'], [252, '1년'], [0, '전체']].map(([n, name]) => `<button class="chip chip-sm${U52.range === n ? ' active' : ''}" data-u5-range="${n}">${name}</button>`).join('')}</div>
+      </div>
+      <div class="u5-chart u5-chart-lg"><canvas id="u5-c-eq" role="img" aria-label="개선 전략 · QQQ · SPY 자산 곡선"></canvas></div>
+      <div class="u5-legend">${U5E_SERIES.map(([k, n, ci]) => `<span><i style="background:${ci < 0 ? 'var(--text2)' : SERIES_PAL[ci]}"></i>${n}</span>`).join('')}<span><i class="u5-band" style="background:var(--up-bg, rgba(245,54,92,.12))"></i>성장 ETF 모드</span></div>
+      <div class="u5-chart"><canvas id="u5-c-ex" role="img" aria-label="투자 비중"></canvas></div>
+      <div class="u5-legend"><span><i style="background:${SERIES_PAL[1]}"></i>투자 비중(%) — 나머지는 현금</span></div>
+      <div class="u5-perf">
+        <table class="u5-tbl">
+          <thead><tr><th>전략</th><th>연수익(CAGR)</th><th>최대 낙폭</th><th>Sharpe</th><th>Sortino</th><th>Calmar</th><th>배수</th></tr></thead>
+          <tbody>${U5E_SERIES.map(([k, n]) => { const x = pf[k] || {}; return `<tr class="${k === 'enh' ? 'u5-hl' : ''}">
+            <td class="u5-name"><b>${n}</b></td><td class="u5-n" style="color:${_u5Color(x.cagr)}">${_u5Signed(x.cagr, 2, '%')}</td>
+            <td class="u5-n" style="color:var(--down)">${_u5Num(x.mdd, 2)}%</td><td class="u5-n">${_u5Num(x.sharpe)}</td><td class="u5-n">${_u5Num(x.sortino)}</td>
+            <td class="u5-n">${_u5Num(x.calmar)}</td><td class="u5-n"><b>${_u5Num(x.mult, 2)}x</b></td></tr>`; }).join('')}</tbody>
+        </table>
+        <div class="u5-side">
+          <table class="u5-tbl">
+            <thead><tr><th>연도</th>${U5E_SERIES.map(([, n]) => `<th>${n.replace(' 보유', '')}</th>`).join('')}</tr></thead>
+            <tbody>${(yr.years || []).map((y, i) => `<tr><td>${y}${i === 0 ? '<small> (일부)</small>' : i === yr.years.length - 1 ? '<small> (연중)</small>' : ''}</td>${U5E_SERIES.map(([k]) => `<td class="u5-n" style="color:${_u5Color(yr[k]?.[i])}">${_u5Signed(yr[k]?.[i], 1, '%')}</td>`).join('')}</tr>`).join('')}</tbody>
+          </table>
+          <div class="u5-share">
+            <div class="u5-share-bar"><i class="n" style="flex:${md['52W'] || 0}"></i><i class="w" style="flex:${md.GROWTH || 0}"></i></div>
+            <span>52W 모드 <b>${md['52W'] || 0}일</b> (${Math.round((md['52W'] || 0) / mdTot * 100)}%)</span><span>성장 모드 <b>${md.GROWTH || 0}일</b> (${Math.round((md.GROWTH || 0) / mdTot * 100)}%)</span></div>
+          <div class="u5-note">개선 전략이 QQQ보다 ${(enh.cagr ?? 0) >= (qqq.cagr ?? 0) ? '연수익이 높고' : '연수익이 낮고'} 최대 낙폭은 ${(enh.mdd ?? 0) >= (qqq.mdd ?? 0) ? '얕았습니다' : '깊었습니다'}.
+            원본 작성자도 '과거 자료로 고른 규칙'이라고 적어 두었습니다. 거래비용 0.1%를 뺐습니다.
+            참고로 옛 52W + Rotation_B(20일선)는 같은 기간 연 ${_u5Signed(pf.orig?.cagr, 2, '%')} · ${_u5Num(pf.orig?.mult, 2)}배(원본 화면에서는 뺌).</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="u5-grid">
+      <div class="card">
+        <div class="card-header" style="flex-wrap:wrap;gap:6px"><span class="card-title">성장 ETF 후보</span><span class="card-sub">성장 모드에서 60일 수익이 QQQ보다 5%p 넘게 높고 60일선 위인 것 1위 — 없으면 QQQ</span></div>
+        <table class="u5-tbl">
+          <thead><tr><th>ETF</th><th>60일 수익</th><th title="이 ETF 60일 수익 − QQQ 60일 수익">QQQ 대비</th><th>60일선</th><th title="고른 ETF가 40일선 아래 종가 2일 연속이면 바꿈">40일선</th><th title="20일 변동성 ÷ 과거 3년 평상시 중앙값 — 4개 중 2개 이상이 2배면 50%만">변동성 배수</th></tr></thead>
+          <tbody>${(() => { const g = e.growth_now || [], q = g.find(x => x.t === 'QQQ')?.ret60; return g.map(x => { const ex = x.t === 'QQQ' || x.ret60 == null || q == null ? null : x.ret60 - q; return `<tr class="${x.held ? 'u5-held' : ''}">
+            <td class="u5-name">${_u5eEtf(x.t)}</td><td class="u5-n" style="color:${_u5Color(x.ret60)}">${_u5Signed(x.ret60, 2, '%')}</td>
+            <td class="u5-n" style="color:${ex == null ? 'var(--text3)' : ex > 5 ? 'var(--up)' : 'var(--text2)'}">${ex == null ? '—' : _u5Signed(ex, 2, '%p')}</td>
+            <td class="u5-n" style="color:${_u5Color(x.ma60)}">${_u5Signed(x.ma60, 2, '%')}</td><td class="u5-n" style="color:${_u5Color(x.ma40)}">${_u5Signed(x.ma40, 2, '%')}</td>
+            <td class="u5-n" style="color:${(x.shock ?? 0) >= 2 ? 'var(--down)' : 'var(--text1)'}">${_u5Num(x.shock, 2)}배</td></tr>`; }).join(''); })()}</tbody>
+        </table>
+        <div class="card-header" style="flex-wrap:wrap;gap:6px;border-top:1px solid var(--border)"><span class="card-title">52W 부분 — 오늘 판정 근거</span><span class="card-sub">6개월 SPY 대비 RS 상위 20 중 52주 고점을 뚫은 것이 52W 매수 후보 · 그림자 포트 ${(e.shadow || []).length ? e.shadow.map(x => `${escapeHtml(x.t)} ${_u5Num(x.w, 0)}%`).join(', ') : '비어 있음(남는 비중은 QQQ)'}</span></div>
+        <div class="u5-scroll"><table class="u5-tbl">
+          <thead><tr><th>순위</th><th>ETF</th><th title="(ETF÷SPY)가 126거래일 전보다 몇 % 올랐나">RS 6개월</th><th title="종가 ÷ 직전 252거래일 최고 − 1">52주 고점 대비</th><th>돌파</th><th></th></tr></thead>
+          <tbody>${(p.rs_top || []).map(x => `<tr class="${shadowSet.has(x.t) ? 'u5-held' : ''}">
+            <td class="u5-n u5-rk">${x.rank}</td><td class="u5-name">${_u5Etf(x.t)}${x.g ? `<em title="같은 묶음은 하나만 보유">${escapeHtml(x.g === 'Mining' ? '광산 묶음' : x.g === 'Clean_Energy' ? '클린에너지 묶음' : x.g)}</em>` : ''}</td>
+            <td class="u5-n" style="color:${_u5Color(x.rs)}">${_u5Signed(x.rs, 1, '%')}</td>
+            <td class="u5-n" style="color:${_u5Color(x.to_high)}">${_u5Signed(x.to_high, 2, '%')}</td>
+            <td class="u5-n u5-dot" style="color:${x.brk ? 'var(--up)' : 'var(--text3)'}">${x.brk ? '●' : '○'}</td>
+            <td>${shadowSet.has(x.t) ? '<span class="u5-tag u5-o-held">보유</span>' : ''}</td></tr>`).join('')}</tbody>
+        </table></div>
+        <div class="u5-cands">
+          <span>약세 교체 후보${s.weak ? '' : ' <small>(지금은 NORMAL이라 쓰지 않음)</small>'}</span>
+          ${p.rot_cands?.length ? p.rot_cands.map(c => `<b title="${escAttr(`20일 순위 ${c.rank20}위 · 10일 동안 ${c.imp}계단 개선 · 5일 SPY 대비 ${_u5Signed(c.rs5, 2, '%p')}`)}">${escapeHtml(c.t)} <i>▲${c.imp}</i></b>`).join('') : '<em>오늘 조건을 모두 맞춘 ETF 없음</em>'}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header" style="flex-wrap:wrap;gap:6px"><span class="card-title">최근 완료된 거래</span><span class="card-sub">개선 전략 · 최신 순 ${(e.trades || []).length}건 (전체 ${e.n_trades || 0}건)</span></div>
+        <div class="u5-scroll"><table class="u5-tbl">
+          <thead><tr><th>체결일</th><th>모드</th><th>ETF</th><th>매매</th><th>비중</th><th>이유</th></tr></thead>
+          <tbody>${[...(e.trades || [])].reverse().map(t => `<tr>
+            <td class="u5-n u5-rk" title="신호일 ${escAttr(t.sd)}">${_u5MD(t.ed)}</td><td>${escapeHtml(t.mode === 'GROWTH' ? '성장' : t.mode)}</td>
+            <td class="u5-name"><b>${escapeHtml(t.t)}</b></td>
+            <td><b class="u5-act ${t.a === 'BUY' ? 'buy' : 'sell'}">${t.a === 'BUY' ? '매수' : '매도'}</b></td>
+            <td class="u5-n">${_u5Num(Math.abs(t.w ?? 0), 2)}%</td><td class="u5-why">${escapeHtml(t.reason || '')}</td></tr>`).join('')}</tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <div class="u5-foot">
+      <b>시장 모드</b> — QQQ 90일 수익이 SPY보다 높고, 업종 ETF 60일선 위 비율(Breadth60)이 65% 미만이거나 QQQ 60일 수익이 순수 52W 전략보다 5%p 넘게 높으면 성장 ETF 모드, 아니면 52주 신고가 모드. 한 번 바뀌면 15거래일은 유지합니다.<br>
+      <b>성장 ETF 모드</b> — QQQ · SOXX · XLK · XLC 중 60일 수익이 QQQ보다 5%p 넘게 높고 60일선 위인 것 1위(없으면 QQQ)에 100%. 60거래일마다 다시 고르고, 고른 ETF가 40일선 아래 종가 2일 연속이면 바꿉니다. 4개 중 2개 이상이 변동성 충격(20일 변동성 ≥ 과거 3년 평상시 중앙값 × 2)이면 고른 ETF 50% + QQQ 50%.<br>
+      <b>52주 신고가 모드</b> — 6개월 SPY 대비 RS 상위 20 ∩ 52주 신고가를 최대 4개 × 25%, 20일선 아래면 매도(순수 52W가 20일 동안 SPY · QQQ 둘 다에 1%p 넘게 뒤지면 빈 자리는 약세 교체 후보로). 남는 비중은 QQQ로 채우되, QQQ 변동성 충격이면 절반만.<br>
+      <b>체결</b> — 오늘 종가 신호 → 다음 거래일 종가 주문 → 그다음 날부터 수익. 목표와 차이가 1.5%p 미만이면 매매하지 않습니다(모드 전환 · 청산은 예외). 편도 0.1%.
+      야후 수정 종가 ${escapeHtml(p.data_start || '')}부터(원본 HTS 수정종가 엑셀과 같은 2000거래일).
+      원본 대조(11-20 종가): 모드 · Breadth60 · QQQ−SPY 90일 · 보유(QQQ 50%) · 사유 · 최근 거래 15건, SPY 성과와 2021 · 2024~2026 연도별이 같고, 개선 전략 연수익은 25.35%(원본 25.44%) — 2023년 이전 QQQ 수정종가 차이.
+      태린이아빠 '미국 52주 신고가 전략'(개선 52W + 성장 ETF + MA40 2일)과 같은 계산입니다.
+    </div>`;
+
+  body.querySelectorAll('[data-u5-range]').forEach(b => b.addEventListener('click', () => {
+    U52.range = +b.dataset.u5Range;
+    body.querySelectorAll('[data-u5-range]').forEach(x => x.classList.toggle('active', x === b));
+    u5DrawEnhCharts();
+  }));
+  u5DrawEnhCharts();
+}
+
+function u5DrawEnhCharts() {
+  const c = U52.p?.enh?.curve;
+  unloadUs52w();
+  if (!c?.dates?.length) return;
+  const n = c.dates.length, from = U52.range ? Math.max(0, n - U52.range) : 0;
+  const cut = a => (a || []).slice(from);
+  const labels = cut(c.dates), growth = cut(c.growth);
+  const t = chartTheme(), css = getComputedStyle(document.documentElement);
+  const gray = css.getPropertyValue('--text2').trim() || '#b3b8cd';
+  const up = (css.getPropertyValue('--up').trim() || '#f5365c').replace('#', '');
+  const bandColor = `rgba(${parseInt(up.slice(0, 2), 16)},${parseInt(up.slice(2, 4), 16)},${parseInt(up.slice(4, 6), 16)},0.10)`;
+  const growthBands = {   // 성장 ETF 모드 날을 세로 띠로
+    id: 'u5growth',
+    beforeDatasetsDraw(chart) {
+      const { ctx, chartArea: a, scales: { x } } = chart;
+      if (!a) return;
+      const half = labels.length > 1 ? (x.getPixelForValue(1) - x.getPixelForValue(0)) / 2 : 0;
+      ctx.save(); ctx.fillStyle = bandColor;
+      for (let i = 0; i < growth.length; i++) {
+        if (!growth[i]) continue;
+        let j = i;
+        while (j + 1 < growth.length && growth[j + 1]) j++;
+        const x0 = Math.max(a.left, x.getPixelForValue(i) - half), x1 = Math.min(a.right, x.getPixelForValue(j) + half);
+        ctx.fillRect(x0, a.top, x1 - x0, a.bottom - a.top);
+        i = j;
+      }
+      ctx.restore();
+    },
+  };
+  const xAxis = { ticks: { color: t.tick, font: { size: 10 }, maxTicksLimit: 8, maxRotation: 0,
+    callback: function (v) { const d = this.getLabelForValue(v); return U52.range && U52.range <= 252 ? _u5MD(d) : d.slice(2, 7).replace('-', '.'); } }, grid: { color: t.grid } };
+  const line = (label, data, color, w = 1.8, extra = {}) => ({ label, data, borderColor: color, backgroundColor: color, borderWidth: w,
+    pointRadius: 0, pointHoverRadius: 4, tension: 0.1, spanGaps: true, fill: false, ...extra });
+  const base = { responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'index', intersect: false } };
+  const rebase = a => { const s = cut(a), b = s.find(v => v != null) || 1; return s.map(v => v == null ? null : v / b); };
+  const eq = document.getElementById('u5-c-eq');
+  if (eq) U52.charts.push(new Chart(eq.getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets: U5E_SERIES.map(([k, name, ci, w]) => line(name, from ? rebase(c[k]) : cut(c[k]), ci < 0 ? gray : SERIES_PAL[ci], w)) },
+    options: { ...base,
+      plugins: { legend: { display: false }, tooltip: { callbacks: {
+        afterTitle: items => growth[items[0]?.dataIndex] ? '성장 ETF 모드' : '52주 신고가 모드',
+        label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(3)} (${_u5Signed((ctx.parsed.y - 1) * 100, 1, '%')})` } } },
+      scales: { x: xAxis, y: { type: from ? 'linear' : 'logarithmic', ticks: { color: t.tick, font: { size: 10 }, maxTicksLimit: 6, callback: v => (+v).toFixed(2) }, grid: { color: t.grid } } } },
+    plugins: [growthBands],
+  }));
+  const ex = document.getElementById('u5-c-ex');
+  if (ex) U52.charts.push(new Chart(ex.getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets: [line('투자 비중', cut(c.expo), SERIES_PAL[1], 1.2, { fill: 'origin', backgroundColor: SERIES_PAL[1] + '33', tension: 0, stepped: true })] },
+    options: { ...base,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `투자 비중: ${ctx.parsed.y.toFixed(1)}%` } } },
+      scales: { x: xAxis, y: { min: 0, max: 100, ticks: { color: t.tick, font: { size: 10 }, stepSize: 25, callback: v => v + '%' }, grid: { color: t.grid } } } },
+    plugins: [growthBands],
+  }));
+}
+
 function u5Render() {
   const p = U52.p, body = document.getElementById('u5-body');
   if (!body || !p) return;
   unloadUs52w();
+  if (p.enh) return u5RenderEnh(p, body);
   const asof = document.getElementById('u5-asof');
   if (asof) asof.innerHTML = `<b>${escapeHtml(p.asof)} 미국 종가 기준</b> · ETF ${p.n} / ${p.total}${Object.keys(p.quarantined || {}).length ? ` · 가격 오류로 제외 ${Object.keys(p.quarantined).map(escapeHtml).join(', ')}` : ''}`;
 

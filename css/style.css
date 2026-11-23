@@ -1524,6 +1524,8 @@ textarea.nt-textarea-sm { min-height:240px; }
 .u5-ex-h span { margin-left:6px; font-weight:400; font-size:calc(11px*var(--m-label)); color:var(--text2); }
 .u5-ex-row { display:grid; grid-template-columns:56px minmax(0,1fr) 72px; align-items:center; gap:10px; padding:4px 0; font-size:calc(12px*var(--m-sub)); color:var(--text1); }
 .u5-ex-row b { text-align:right; font-variant-numeric:tabular-nums; }
+.u5-ex-row.u5-cond { grid-template-columns:minmax(0,1fr) 76px 48px; }   /* 개선 52W — 조건 이름 · 값 · 충족 */
+.u5-ex-row.u5-cond em { font-style:normal; text-align:center; font-size:calc(11px*var(--m-label)); }
 .u5-exbar { position:relative; display:block; height:10px; border-radius:3px; background:var(--bg3); }
 .u5-exbar i { position:absolute; top:0; bottom:0; border-radius:3px; }
 .u5-exbar u { position:absolute; top:-3px; bottom:-3px; width:0; border-left:1.5px dashed var(--warn); }
