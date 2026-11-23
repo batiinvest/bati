@@ -1,11 +1,12 @@
-// jp-tw.js — RESEARCH '일본·대만 시세' 페이지 (11-12)
-// [원본] 태린이아빠 Market Dashboard '일본과 대만 시세점검'(공개 소스 app.py JP_TW_MARKET_SRC)
-//   일본 40 · 대만 57 = 97종목(AI·반도체 공급망)의 일간 · 5일 · 20일 수익률을 글로벌 테마 16개 · 나라별 업종 27개로 묶어
+// jp-tw.js — RESEARCH '일본·대만 시세' 페이지 (11-12, 11-23 원본 v6.1 목록)
+// [원본] 태린이아빠 Market Dashboard '일본과 대만 시세점검'(공개 소스 app.py JP_TW_MARKET_SRC v6.1)
+//   일본 47 · 대만 65 = 112종목(AI·반도체 공급망)의 일간 · 5일 · 20일 수익률을 글로벌 테마 18개 · 나라별 업종 30개로 묶어
 //   Breadth(오른 종목 비율)와 Strength Score = 0.4·일간 + 0.3·5일 + 0.2·20일 + 0.1·(Breadth − 50) ÷ 10 순으로 본다.
 //   신호(커버리지 80% 이상 테마만): NEW ROTATION? 일간 > 1.5 ∧ 5일 ≤ 0 / HOT 일간 > 1 ∧ 5일 > 2 ∧ Breadth ≥ 70 /
 //                                  STRONG TREND 5일 > 3 ∧ 20일 > 5.  테마마다 같이 볼 한국 관련주(Korea Watchlist).
 // [원본과 다른 점] 원본은 표 여러 장 + 막대 그림. 여기는 테마 표를 눌러 구성 종목 · 한국 관련주를 옆에서 본다.
-//   원본 '특별 감시판' 6개는 같은 이름의 테마와 종목이 같아 테마 상세로 대신한다(★ 표시). 계산은 백엔드 collect_jp_tw.py(원본 대조 일치).
+//   원본 '특별 감시판' 6개는 같은 이름의 테마 상세로 대신한다(★ 표시 — v6.1에서 MLCC · PCB 테마에 1 · 2종목이 더해져 감시판보다 조금 넓다).
+//   계산은 백엔드 collect_jp_tw.py(원본 대조 일치).
 // 데이터: market_snapshot(kind = 'jp_tw', payload) — 평일 16:40 · 18:20
 // 의존: config.js (sb, escapeHtml, escAttr, chartTheme, SERIES_PAL, setAsOf), Chart.js
 
@@ -24,6 +25,7 @@ const JPTW_THEME_KO = {
   'AI Server': 'AI 서버', 'PCB / Substrate': 'PCB·기판', 'Optical / CPO': '광통신·CPO', 'Network': '네트워크',
   'Power Semiconductor': '전력 반도체', 'Data Center Power': '데이터센터 전력', 'Data Center Cooling': '데이터센터 냉각',
   'Foundry / IC': '파운드리·IC', 'Semiconductor Materials': '반도체 소재', 'Server Components': '서버 부품',
+  'BBU / AI Server Battery': 'BBU·AI 서버 배터리', 'Inspection / Measurement': '검사·계측',
 };
 const JPTW_SECTOR_KO = {
   'MLCC / Components': 'MLCC·부품', 'Semiconductor Equipment': '반도체 장비', 'Semiconductor Test': '반도체 테스트',
@@ -32,6 +34,7 @@ const JPTW_SECTOR_KO = {
   'Data Center Power / Cooling': '데이터센터 전력·냉각', 'Foundry / IC': '파운드리·IC', 'OSAT / Packaging': 'OSAT·패키징',
   'AI Server ODM': 'AI 서버 ODM', 'PCB / Substrate': 'PCB·기판', 'Network': '네트워크', 'Optical / CPO': '광통신·CPO',
   'Server Power': '서버 전원', 'Advanced Cooling': '첨단 냉각', 'ASIC / Custom Silicon': 'ASIC·맞춤형 칩', 'Server Components': '서버 부품',
+  'BBU / Battery': 'BBU·배터리', 'AI Power': 'AI 전력', 'Inspection / Measurement': '검사·계측',
 };
 // 신호 코드 → [이름, 꾸밈 클래스, 조건]
 const JPTW_SIGNAL = {
@@ -44,7 +47,7 @@ const JPTW_SIGNAL = {
 function pJpTw() {
   return `
   <div class="jt-head">
-    <div class="jt-lede">일본·대만의 <b>AI·반도체 공급망 97종목</b>을 테마로 묶어 어느 고리가 먼저 움직이는지 봅니다.
+    <div class="jt-lede">일본·대만의 <b>AI·반도체 공급망 112종목</b>을 테마로 묶어 어느 고리가 먼저 움직이는지 봅니다.
       한국 장과 같은 날 움직이는 이웃 시장이라, 테마가 강해지면 옆의 <b>한국 관련주</b>를 같이 확인합니다.</div>
     <div id="jt-asof" class="jt-asof"></div>
   </div>
