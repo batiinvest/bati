@@ -30,8 +30,8 @@ const U52_SERIES = [['final', '최종 전략 (52W + 약세 교체)', 1], ['base'
 function pUs52w() {
   return `
   <div class="u5-head">
-    <div class="u5-lede">미국 업종 ETF 가운데 <b>SPY보다 강하면서 52주 신고가를 뚫은 것</b>을 최대 4개 들고, 20일선이 깨지면 파는 규칙입니다.
-      이 규칙이 요즘 시장에서 <b>통하는지</b>, 지금 무엇을 들고 있는지, 과거에 어땠는지를 봅니다.</div>
+    <div class="u5-lede">평소에는 미국 업종 ETF 가운데 <b>SPY보다 강하면서 52주 신고가를 뚫은 것</b>을 최대 4개 들고(20일선이 깨지면 매도) 남는 돈은 QQQ로 채우고,
+      시장이 <b>성장주 쪽으로 쏠리면</b> QQQ · SOXX · XLK · XLC 중 하나로 갈아타는 규칙입니다. 지금 모드와 다음 거래일 목표, 과거 성과를 봅니다.</div>
     <div id="u5-asof" class="u5-asof"></div>
   </div>
   <div id="u5-body"><div class="u5-msg">불러오는 중...</div></div>`;
